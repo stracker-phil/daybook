@@ -14,5 +14,9 @@ pub const PANEL_SESSION_EVENT: &str = "panel_session";
 pub const CONTEXT_CHANGED_EVENT: &str = "context_changed";
 /// Payload: the saved `Settings`.
 pub const SETTINGS_CHANGED_EVENT: &str = "settings_changed";
-/// To the Daybook window. Payload: the Settings page to open, `null` for the first.
+/// Payload: the saved `Keybindings`.
+pub const KEYBINDINGS_CHANGED_EVENT: &str = "keybindings_changed";
+/// To the Settings window. Payload: the id of the page to show.
 pub const OPEN_SETTINGS_EVENT: &str = "open_settings";
+/// To the Daybook window. No payload; shows or hides the inspector column.
+pub const TOGGLE_INSPECTOR_EVENT: &str = "toggle_inspector";

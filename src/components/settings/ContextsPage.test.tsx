@@ -5,18 +5,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../api", async (orig) => ({ ...(await orig<object>()), api: (await import("../../test/apiMock")).createApiMock() }));
 
 import { api, type Context, type Settings } from "../../api";
-import { installCommands } from "../../commands";
 import { resetStore } from "../../state/store";
 import { settings } from "../../test/settings";
-import { SettingsDialog } from "./SettingsDialog";
+import { SettingsWindow } from "./SettingsWindow";
 
 const mocked = vi.mocked(api, true);
 
 function renderPage(patch: Partial<Settings> = {}) {
   const s = settings(patch);
-  resetStore({ settings: s, dialog: { type: "settings", page: "contexts" } });
-  installCommands();
-  render(<SettingsDialog />);
+  resetStore({ settings: s });
+  render(<SettingsWindow page="contexts" onPage={() => {}} />);
   return s;
 }
 

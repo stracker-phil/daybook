@@ -8,9 +8,10 @@ logic, a React 19 webview renders state and forwards intent, and the app keeps r
 its window is closed. The layer pages go into detail: [backend](backend.md), [frontend](frontend.md),
 [design language](ux.md).
 
-The app is a shell so far: a tray icon, the main window with the sidebar (the app name and a Settings gear)
-and an empty main pane, the Settings dialog (General, Appearance, Shortcuts), the command palette, the
-shortcuts dialog, toasts, the native menu and the CLI. The features arrive step by step
+The app is a shell so far: a tray icon, the Daybook window (the dark sidebar with the day and the tools, the
+board under a greeting, the inspector column), the Settings window (Vault, Contexts, Projects, Daily Note,
+General, Tools, Shortcuts, Appearance), the overlays (palette, context switcher), the shortcuts dialog,
+toasts, the native menu and the CLI. The features arrive step by step
 (`docs/plan/README.md`, gitignored).
 
 ## Data
@@ -121,6 +122,8 @@ Changing the accent, the main write path today:
   in the menu bar. Every show moves it to the pointer's screen. Quit only from the tray menu, the app menu's Quit Daybook, or `daybook quit`
   ([backend: window lifecycle](backend.md#window-lifecycle)). A Dock click shows the window again; showing a
   hidden window emits `window_opened`.
+- **Settings** is a regular window of its own (`window/settings.rs`, page `src/windows/settings/`), built on first
+  use and hidden on close; `settings:<page>` opens a page ([windows.md](windows.md#settings)).
 - **Overlay.** A non-activating panel (`window/panel/`) with its own page (`src/windows/panel/`) renders one view
   at a time over any app, on the pointer's screen ([windows.md](windows.md)).
 - **Tray.** A template-image menu bar item with Open Daybook and Quit Daybook (`tray.rs`).
@@ -154,11 +157,12 @@ src-tauri/
   src/bus/                   the command bus and the app's commands (commands.md)
   src/contexts/ projects/    the current context and switching it; the projects gate
   src/tools/                 the tools and their choices, which tools a surface shows
+  src/hub/                   the Daybook window's view model (hub_view) and its sidebar rows
   src/palette/               palette entries, ranking, running a pick
-  src/shortcuts/             global shortcuts, accelerator names
+  src/shortcuts/             global shortcuts, accelerator names, the Shortcuts page's overview
   src/tray.rs notify.rs      menu-bar item, notifications
   src/deep_link.rs           daybook:// links
-  src/window/                the Daybook window, the overlay panel (panel/), screens, focus hand-back (windows.md)
+  src/window/                the Daybook window, Settings (settings.rs), the overlay panel (panel/), screens, focus hand-back (windows.md)
   src/menu/                  app menu (mod.rs), its keys (command_shortcuts.rs), the menu-bar menu model (model.rs)
   src/help.rs                Help menu targets outside the app (the README)
   src/autostart.rs           launch at login
@@ -169,10 +173,11 @@ src-tauri/
 src/
   main.tsx modules.ts App.tsx
   api/index.ts types.gen.ts types.ts
-  state/store.ts requests.ts slices/ (settings, ui, viewState)
-  commands/                  registry, scopes (only `global`), index (APP_COMMANDS: the window's own keys), remote
-  components/                Sidebar, EmptyView, Toolbar, Modal, Dialogs, Toasts, settings/, …
-  windows/panel/             the overlay page: PanelApp, PaletteView, SampleView
+  state/store.ts requests.ts slices/ (settings, ui, viewState, hub)
+  commands/                  registry, scopes (`global`, `hub`), index (APP_COMMANDS: the windows' own keys), remote
+  components/                Sidebar, hub/ (Board, Inspector), Toolbar, Modal, Dialogs, Toasts, settings/, …
+  windows/panel/             the overlay page: PanelApp, PaletteView, ContextView, SampleView
+  windows/settings/          the Settings window's page: SettingsApp
   registry/settingsPages.ts
   lib/ styles/ test/
 docs/                        this folder; adr/ holds the decision records

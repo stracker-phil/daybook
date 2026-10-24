@@ -4,7 +4,7 @@ use tauri_plugin_opener::OpenerExt;
 
 use crate::autostart;
 use crate::error::{AppError, AppResult};
-use crate::events::SETTINGS_CHANGED_EVENT;
+use crate::events::{KEYBINDINGS_CHANGED_EVENT, SETTINGS_CHANGED_EVENT};
 use crate::launch::LaunchEvent;
 use crate::state::AppState;
 use crate::store::keybindings::Keybindings;
@@ -94,10 +94,15 @@ pub fn get_keybindings(state: State<'_, AppState>) -> Keybindings {
 
 #[tauri::command]
 pub async fn set_keybindings(
+    app: AppHandle,
     state: State<'_, AppState>,
     bindings: Keybindings,
 ) -> AppResult<Keybindings> {
-    state.keybindings.update(bindings).await
+    let saved = state.keybindings.update(bindings).await?;
+    if let Err(e) = app.emit(KEYBINDINGS_CHANGED_EVENT, &saved) {
+        log::warn!("Couldn't announce the saved shortcuts: {e}");
+    }
+    Ok(saved)
 }
 
 #[tauri::command]

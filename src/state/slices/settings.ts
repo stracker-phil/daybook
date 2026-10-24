@@ -12,6 +12,8 @@ export interface SettingsSlice {
   /** `quiet` skips the toast, for settings that apply as they change. */
   saveSettings: (settings: Settings, opts?: { quiet?: boolean }) => Promise<void>;
   saveKeybindings: (bindings: Keybindings) => Promise<void>;
+  /** Takes shortcut overrides saved in another window (`keybindings_changed`). */
+  applyKeybindings: (bindings: Keybindings) => void;
   /** Turns launch at login on or off; resolves whether it is on now, or `null` when it failed (toasted). */
   setLaunchAtLogin: (enabled: boolean) => Promise<boolean | null>;
 }
@@ -54,6 +56,11 @@ export const settingsSlice: Slice<SettingsSlice> = {
         fail(e, "Could not change launch at login");
         return null;
       }
+    },
+
+    applyKeybindings(bindings) {
+      set({ keybindings: bindings });
+      setOverrides(bindings);
     },
 
     async saveKeybindings(bindings) {

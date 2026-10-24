@@ -6,6 +6,7 @@ import type {
   ContextState,
   DailyNoteState,
   ErrorKind,
+  HubView,
   Keybindings,
   LaunchEvent,
   NoteChanged,
@@ -13,7 +14,9 @@ import type {
   PanelSession,
   RemoteEvent,
   Settings,
+  ShortcutOverview,
   UiState,
+  VaultInfo,
 } from "./types";
 
 export * from "./types";
@@ -40,6 +43,12 @@ export const api = {
   paletteQuery: (query: string) => invoke<PaletteResults>("palette_query", { query }),
   /** Runs a palette pick; the palette closes or another overlay replaces it. */
   paletteRun: (command: string) => invoke<void>("palette_run", { command }),
+  /** Settings → Shortcuts: the global shortcuts of the commands that exist and the app menu's keys. */
+  shortcutOverview: () => invoke<ShortcutOverview>("shortcut_overview"),
+  /** Everything the Daybook window shows for `day` (`YYYY-MM-DD`, default today). */
+  hubView: (day?: string) => invoke<HubView>("hub_view", { day: day ?? null }),
+  /** Where the daily notes are and whether today's note and the Obsidian CLI were found. */
+  vaultInfo: () => invoke<VaultInfo>("vault_info"),
   /** While Settings records a shortcut, global shortcuts and the menu's key equivalents step aside. */
   shortcutsPause: (paused: boolean) => invoke<void>("shortcuts_pause", { paused }),
   /** http(s) links only; Rust refuses anything else. */
@@ -72,12 +81,16 @@ export const api = {
   onLaunch: (handler: () => void): Promise<UnlistenFn> => listen("launch", handler),
   /** The hidden main window was shown again (the Dock icon came back). */
   onWindowOpened: (handler: () => void): Promise<UnlistenFn> => listen("window_opened", handler),
-  /** To the Daybook window: open Settings at this page (`null`: the first). */
-  onOpenSettings: (handler: (page: string | null) => void): Promise<UnlistenFn> => listen<string | null>("open_settings", (e) => handler(e.payload)),
+  /** To the Settings window: show this page. */
+  onOpenSettings: (handler: (page: string) => void): Promise<UnlistenFn> => listen<string>("open_settings", (e) => handler(e.payload)),
+  /** To the Daybook window: show or hide the inspector column. */
+  onToggleInspector: (handler: () => void): Promise<UnlistenFn> => listen("toggle_inspector", handler),
   /** Another context became current. */
   onContextChanged: (handler: (change: ContextChanged) => void): Promise<UnlistenFn> => listen<ContextChanged>("context_changed", (e) => handler(e.payload)),
   /** Settings were saved, from any window. */
   onSettingsChanged: (handler: (settings: Settings) => void): Promise<UnlistenFn> => listen<Settings>("settings_changed", (e) => handler(e.payload)),
+  /** Shortcut overrides were saved, from any window. */
+  onKeybindingsChanged: (handler: (bindings: Keybindings) => void): Promise<UnlistenFn> => listen<Keybindings>("keybindings_changed", (e) => handler(e.payload)),
   /** A daily note, or the changes waiting for today's note, changed. */
   onNoteChanged: (handler: (change: NoteChanged) => void): Promise<UnlistenFn> => listen<NoteChanged>("note_changed", (e) => handler(e.payload)),
   /** To the overlay page: the session to render, `null` once the overlay closed. */

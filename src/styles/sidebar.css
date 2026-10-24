@@ -27,7 +27,27 @@
 .si svg { flex: none; color: var(--sidebar-muted); }
 .si .keycap { background: none; color: var(--sidebar-muted); }
 .sidebar-nav { display: flex; flex-direction: column; }
-.sidebar-app-name { padding: 0 var(--space-4); font-size: var(--fs-title); font-weight: 700; color: var(--sidebar-strong); }
+.sidebar-separator { height: 1px; margin: var(--space-1) var(--space-4); background: var(--sidebar-line); }
+
+/* The day: weekday and date (a click opens its note) with ‹ › beside them. */
+.day-header { display: flex; align-items: flex-start; gap: var(--space-1); padding: 0 var(--space-2) var(--space-3); }
+.day-title {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; padding: var(--space-2); border: none; border-radius: var(--radius-sm);
+  background: none; color: var(--sidebar-strong); text-align: left; cursor: default;
+}
+.day-title:hover { background: var(--sidebar-hover); }
+.day-title:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.day-title h2 { margin: 0; font-size: var(--fs-title); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.day-date { font-size: var(--fs-meta); color: var(--sidebar-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.day-arrows { flex: none; display: flex; padding-top: var(--space-2); }
+.day-arrows .icon-btn { color: var(--sidebar-muted); }
+.day-arrows .icon-btn:disabled { opacity: 0.3; }
+
+/* Tool rows: the context row in the context's colour; a row without a command only tells. */
+.tool-row:disabled { opacity: 1; }
+.tool-row:disabled:not(.accent) .label { color: var(--sidebar-muted); }
+.tool-row:hover:disabled { background: none; }
+.tool-row.accent svg, .tool-row.accent .label { color: var(--context); font-weight: 500; }
 
 /* ---------- the bottom: the Settings gear ---------- */
 .sidebar-footer { flex: none; display: flex; align-items: center; gap: var(--space-1); padding: var(--space-2) var(--space-2) var(--space-3); }

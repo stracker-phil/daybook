@@ -1,17 +1,18 @@
 # Windows
 
 `src-tauri/src/window/`. Daybook lives in the menu bar; its windows come and go over whatever the owner works
-in. Two windows exist so far; the rail, its tooltip, the quick notes editor and a separate Settings window
-come with their steps.
+in. Three windows exist so far; the rail, its tooltip and the quick notes editor come with their steps.
 
 | Window | Label | Kind | Level | Focus |
 |---|---|---|---|---|
 | Daybook window | `main` | regular window (`tauri.conf.json`) | normal | takes focus and activates Daybook; brings the Dock icon |
+| Settings | `settings` | regular window (`window/settings.rs`), built on first use | normal | takes focus and activates Daybook; brings the Dock icon |
 | Overlay | `panel` | non-activating `NSPanel` (`window/panel/`) | pop-up menu (101), sticky views floating (3) | takes the keyboard without activating Daybook |
 
 | File | Holds |
 |---|---|
-| `mod.rs` | the Daybook window: show (on the pointer's screen), hide, the Dock icon |
+| `mod.rs` | the Daybook window: show (on the pointer's screen), hide, the Dock icon; closing a regular window |
+| `settings.rs` | the Settings window and its page ids (`PAGES`) |
 | `display.rs` | pure geometry: `Rect`, `Screen`, `frame_on_display`, `screen_at`, `top_center` |
 | `front_app.rs` | `FrontApp` and the pure close decision `hand_back` |
 | `native.rs` | AppKit: screens, the pointer, window frames, the frontmost app, activating and hiding apps |
@@ -100,10 +101,25 @@ An activation that fails falls back to hiding Daybook when no Daybook window is 
 - **Pointer screen.** Every show (`window::show_main_in_background`, also `show_main`) first moves the window
   to the screen with the pointer: `frame_on_display` keeps its relative place (a window in a corner stays in
   that corner) and shrinks it to fit a smaller screen.
-- **Activation policy.** Daybook is a menu-bar app: the Dock icon shows only while the Daybook window is open
-  (later also Settings). Closing the window (close button, ⌘W, ⌘Q's Hide to Menu Bar, `daybook hide`) hides
-  the Dock icon and, when Daybook is active, hides the app, so macOS picks what comes forward on this Space
-  instead of Daybook bringing back a remembered app.
+- **Activation policy.** Daybook is a menu-bar app: the Dock icon shows only while the Daybook window or
+  Settings is open. Closing a regular window (close button, ⌘W, ⌘Q, Esc, `daybook hide`) hides it
+  (`close_requested`, `hide_regular`); with the last one the Dock icon goes and, when Daybook is active, the
+  app hides, so macOS picks what comes forward on this Space instead of Daybook bringing back a remembered app.
+
+## Settings
+
+`window::settings::open(app, page)` (`app:settings` without a page, `settings:<page>` with one; the sidebar
+gear and Choose Vault… too):
+
+1. The first time it builds the window: `Settings`, 880 × 720 (at least 760 × 560), not maximizable, an
+   overlay title bar with hidden title and the traffic lights at 20/22, loading
+   `src/windows/settings/index.html?page=<page>`.
+2. Later it sends the page as `open_settings`; without a page the window stays where it was.
+3. It shows the Dock icon, moves the window to the pointer's screen, shows it and brings it forward.
+
+Closing hides the window, so it keeps its page and scroll. `PAGES` lists every page id with its title in
+the page list's order; `settings:<page>` refuses an id that isn't there (`not_found`), and the palette lists
+one "Settings: <Title>" entry per page.
 
 ## Page side
 

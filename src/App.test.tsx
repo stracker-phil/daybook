@@ -5,31 +5,58 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./api", async (orig) => ({ ...(await orig<object>()), api: (await import("./test/apiMock")).createApiMock() }));
 
 import App from "./App";
-import { api } from "./api";
+import { api, type HubView } from "./api";
 import { resetStore, useStore } from "./state/store";
 import { settings } from "./test/settings";
 
 const mocked = vi.mocked(api, true);
+
+const hub = (patch: Partial<HubView> = {}): HubView => ({
+  day: "2026-10-24",
+  isToday: true,
+  weekday: "Saturday",
+  date: "24 October 2026",
+  title: "Good morning",
+  previousDay: null,
+  nextDay: null,
+  tools: [],
+  ...patch,
+});
 
 /** Renders the app and waits until the settings arrived and the commands are installed. */
 async function renderApp(patch: Parameters<typeof resetStore>[0] = {}) {
   resetStore(patch);
   render(<App />);
   await vi.waitFor(() => expect(useStore.getState().settings).not.toBeNull());
-  await screen.findByRole("region", { name: "Daybook" });
+  await screen.findByRole("main");
+  await vi.waitFor(() => expect(mocked.takeLaunchEvents).toHaveBeenCalled());
+}
+
+/** The handler the app registered with a backend event, called as Rust would. */
+async function emit(listen: { mock: { calls: Array<[(...args: never[]) => void]> } }, ...args: unknown[]) {
+  await vi.waitFor(() => expect(listen.mock.calls.length).toBeGreaterThan(0));
+  act(() => listen.mock.calls.forEach(([handler]) => handler(...(args as never[]))));
 }
 
 const sidebar = () => screen.queryByRole("complementary", { name: "Sidebar" });
+const inspector = () => screen.queryByRole("complementary", { name: "Inspector" });
 const TOGGLE_SIDEBAR = "{Meta>}{Control>}s{/Control}{/Meta}";
+const TOGGLE_INSPECTOR = "{Meta>}{Control>}i{/Control}{/Meta}";
 
 describe("App", () => {
   beforeEach(() => vi.clearAllMocks());
 
   describe("shell", () => {
-    it("shows the sidebar with the app name next to an empty main region", async () => {
+    it("shows the sidebar, the board and the inspector", async () => {
       await renderApp();
-      expect(within(sidebar()!).getByText("Daybook")).toBeInTheDocument();
-      expect(screen.getByRole("region", { name: "Daybook" })).toBeEmptyDOMElement();
+      expect(sidebar()).toBeInTheDocument();
+      expect(screen.getByRole("main")).toBeInTheDocument();
+      expect(inspector()).toBeInTheDocument();
+    });
+
+    it("does not show the app name in the sidebar", async () => {
+      await renderApp();
+      expect(within(sidebar()!).queryByText("Daybook")).not.toBeInTheDocument();
     });
 
     it("shows no dialog on start", async () => {
@@ -58,6 +85,55 @@ describe("App", () => {
     });
   });
 
+  describe("hub", () => {
+    it("shows the day and the tools Rust sends", async () => {
+      mocked.hubView.mockResolvedValueOnce(
+        hub({ tools: [{ kind: "tool", id: "search", title: "Search vault", command: "search:open", shortcut: "ctrl+alt+cmd+f", accent: false, enabled: true }] }),
+      );
+      await renderApp();
+      expect(await screen.findByRole("heading", { name: "Saturday" })).toBeInTheDocument();
+      expect(within(screen.getByRole("navigation", { name: "Tools" })).getByRole("button", { name: /Search vault/ })).toBeInTheDocument();
+    });
+
+    it("titles the board with the greeting", async () => {
+      await renderApp();
+      expect(await screen.findByText("Good morning")).toBeInTheDocument();
+    });
+
+    it.each([
+      ["onContextChanged", mocked.onContextChanged],
+      ["onNoteChanged", mocked.onNoteChanged],
+      ["onWindowOpened", mocked.onWindowOpened],
+    ])("reloads the hub on %s", async (_name, listen) => {
+      await renderApp();
+      await screen.findByText("Good morning");
+      mocked.hubView.mockResolvedValueOnce(hub({ title: "Good evening" }));
+      await emit(listen);
+      expect(await screen.findByText("Good evening")).toBeInTheDocument();
+    });
+
+    it("reloads the hub when the settings change", async () => {
+      await renderApp();
+      await screen.findByText("Good morning");
+      mocked.hubView.mockResolvedValueOnce(hub({ title: "Good evening" }));
+      await emit(mocked.onSettingsChanged, settings({ accent: "blue" }));
+      expect(await screen.findByText("Good evening")).toBeInTheDocument();
+    });
+
+    it("reloads the hub every minute", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        await renderApp();
+        await screen.findByText("Good morning");
+        mocked.hubView.mockResolvedValueOnce(hub({ title: "Good evening" }));
+        await vi.advanceTimersByTimeAsync(60_000);
+        expect(await screen.findByText("Good evening")).toBeInTheDocument();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
   describe("sidebar", () => {
     it("hides with ⌘⌃S and returns with the same keys", async () => {
       await renderApp();
@@ -67,40 +143,86 @@ describe("App", () => {
       expect(sidebar()).toBeInTheDocument();
     });
 
-    it("keeps the main region while the sidebar is hidden", async () => {
+    it("keeps the board while the sidebar is hidden", async () => {
       await renderApp();
       await userEvent.keyboard(TOGGLE_SIDEBAR);
-      expect(screen.getByRole("region", { name: "Daybook" })).toBeInTheDocument();
+      expect(screen.getByRole("main")).toBeInTheDocument();
     });
 
     it("starts hidden when the saved layout says so", async () => {
-      mocked.getUiState.mockResolvedValueOnce({ sidebarHidden: true, sidebarWidth: 200, paneSizes: {} });
+      mocked.getUiState.mockResolvedValueOnce({ sidebarHidden: true, inspectorHidden: false, sidebarWidth: 200, paneSizes: {} });
       await renderApp();
       await vi.waitFor(() => expect(sidebar()).not.toBeInTheDocument());
     });
   });
 
+  describe("inspector", () => {
+    it("hides with ⌘⌃I and returns with the same keys", async () => {
+      await renderApp();
+      await userEvent.keyboard(TOGGLE_INSPECTOR);
+      expect(inspector()).not.toBeInTheDocument();
+      await userEvent.keyboard(TOGGLE_INSPECTOR);
+      expect(inspector()).toBeInTheDocument();
+    });
+
+    it("hides and shows with the toolbar button, which names the next action", async () => {
+      await renderApp();
+      await userEvent.click(screen.getByRole("button", { name: "Hide Inspector" }));
+      expect(inspector()).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "Show Inspector" }));
+      expect(inspector()).toBeInTheDocument();
+    });
+
+    it("starts hidden when the saved layout says so", async () => {
+      mocked.getUiState.mockResolvedValueOnce({ sidebarHidden: false, inspectorHidden: true, sidebarWidth: 200, paneSizes: {} });
+      await renderApp();
+      await vi.waitFor(() => expect(inspector()).not.toBeInTheDocument());
+      expect(screen.getByRole("button", { name: "Show Inspector" })).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("keeps the board while the inspector is hidden", async () => {
+      await renderApp();
+      await userEvent.keyboard(TOGGLE_INSPECTOR);
+      expect(screen.getByRole("main")).toBeInTheDocument();
+    });
+
+    it("toggles when Rust announces toggle_inspector", async () => {
+      await renderApp();
+      await emit(mocked.onToggleInspector);
+      expect(inspector()).not.toBeInTheDocument();
+      await emit(mocked.onToggleInspector);
+      expect(inspector()).toBeInTheDocument();
+    });
+
+    it("answers to the new key when the keybindings change", async () => {
+      await renderApp();
+      await emit(mocked.onKeybindingsChanged, { "inspector.toggle": "Mod+Shift+J" });
+      await userEvent.keyboard(TOGGLE_INSPECTOR);
+      expect(inspector()).toBeInTheDocument();
+      await userEvent.keyboard("{Meta>}{Shift>}j{/Shift}{/Meta}");
+      expect(inspector()).not.toBeInTheDocument();
+    });
+  });
+
+  describe("closing the window", () => {
+    it("asks Rust to close the window on Escape", async () => {
+      await renderApp();
+      await userEvent.keyboard("{Escape}");
+      expect(mocked.runCommand).toHaveBeenCalledWith("window:close");
+    });
+
+    it("leaves Escape to a focused text input", async () => {
+      await renderApp();
+      const input = document.createElement("input");
+      document.body.append(input);
+      input.focus();
+      await userEvent.keyboard("{Escape}");
+      input.remove();
+      expect(mocked.runCommand).not.toHaveBeenCalledWith("window:close");
+    });
+  });
+
   describe("settings", () => {
-    async function openSettingsEvent(page: string | null) {
-      await vi.waitFor(() => expect(mocked.onOpenSettings).toHaveBeenCalled());
-      const announce = mocked.onOpenSettings.mock.calls[0][0];
-      act(() => announce(page));
-    }
-
-    it("opens on the named page when Rust asks for it", async () => {
-      await renderApp();
-      await openSettingsEvent("appearance");
-      const dialog = await screen.findByRole("dialog");
-      expect(within(dialog).getByRole("heading", { name: "Appearance" })).toBeInTheDocument();
-    });
-
-    it("opens on the first page when Rust names none", async () => {
-      await renderApp();
-      await openSettingsEvent(null);
-      const dialog = await screen.findByRole("dialog");
-      expect(within(dialog).getByRole("heading", { name: "General" })).toBeInTheDocument();
-    });
-
     it("does not open with ⌘, in the window; the native menu owns that key", async () => {
       await renderApp();
       await userEvent.keyboard("{Meta>},{/Meta}");
@@ -112,22 +234,12 @@ describe("App", () => {
       await userEvent.click(within(sidebar()!).getByRole("button", { name: "Settings" }));
       expect(mocked.runCommand).toHaveBeenCalledWith("app:settings");
     });
-
-    it("closes with Escape", async () => {
-      await renderApp();
-      await openSettingsEvent(null);
-      await screen.findByRole("dialog");
-      await userEvent.keyboard("{Escape}");
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    });
   });
 
   describe("backend settings", () => {
     it("uses the settings the backend announces as saved", async () => {
       await renderApp();
-      await vi.waitFor(() => expect(mocked.onSettingsChanged).toHaveBeenCalled());
-      const announce = mocked.onSettingsChanged.mock.calls[0][0];
-      act(() => announce(settings({ accent: "blue", textSize: "large" })));
+      await emit(mocked.onSettingsChanged, settings({ accent: "blue", textSize: "large" }));
       expect(useStore.getState().settings).toMatchObject({ accent: "blue", textSize: "large" });
     });
   });

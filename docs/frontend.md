@@ -6,7 +6,7 @@ renders and forwards intent; [Rust owns the logic](architecture.md#design-rules)
 ## Boot
 
 1. `index.html` loads `main.tsx`.
-2. `main.tsx` calls `installModules()` (`src/modules.ts`) before the first render:
+2. `main.tsx` calls `installModules("main")` (`src/modules.ts`) before the first render:
    `registerCoreSettingsPages()` (`components/settings/pages.tsx`), then `installCommands()` (the core scopes,
    then the command registry).
 3. `applyInitialLook()` (`lib/theme.ts`) sets the default look for the OS appearance (light mode Default, dark
@@ -22,23 +22,41 @@ renders and forwards intent; [Rust owns the logic](architecture.md#design-rules)
       user's bindings, and `drainLaunches()` pulls the queued launch events (`api.takeLaunchEvents`): `error`
       shows an error toast, `notice` an info toast; `activate` is Rust's and needs nothing from the page.
       `loadUiState()` loads the window layout.
-   2. It subscribes to `launch` (drain again), `open_settings` (opens the Settings dialog at the page Rust
-      names), `remote` (to `answerRemote`) and `settings_changed`.
-   3. It adds a capture-phase `keydown` to `handleKeydown`, `error` and `unhandledrejection` to an error
+   2. `loadHub()` loads the Daybook window's view model, again every minute and on `settings_changed`,
+      `context_changed`, `note_changed` and `window_opened`.
+   3. It subscribes to `launch` (drain again), `remote` (to `answerRemote`), `settings_changed`,
+      `keybindings_changed` (`applyKeybindings`) and `toggle_inspector` (`toggleInspector`).
+   4. It adds a capture-phase `keydown` to `handleKeydown`, `error` and `unhandledrejection` to an error
       toast ("Unexpected error: …"), and `beforeunload` to `flushUiState`.
 8. `applyAppearance(settings, systemDark)` runs whenever the settings or the OS appearance change.
 
 ```
 App
-├─ .app grid
-│  └─ Workspace     (.workspace, .no-sidebar while uiState.sidebarHidden)
-│     ├─ Sidebar    the app name; the Settings gear at the bottom (not rendered while hidden)
-│     └─ main       EmptyView
-├─ Dialogs          settings, shortcuts, confirm, prompt
+├─ .app
+│  └─ Workspace     (.workspace grid; .no-sidebar, .no-inspector from uiState)
+│     ├─ Sidebar    the day (weekday, date, ‹ ›), the tool rows, the Settings gear (not rendered while hidden)
+│     ├─ main       Board: the toolbar with the greeting and the inspector toggle, the board's column
+│     └─ Inspector  the right column: the Todos toolbar (not rendered while hidden)
+├─ Dialogs          shortcuts, confirm, prompt
 └─ Toasts
 ```
 
-`main` keeps its place in the tree when the sidebar hides, so a view keeps its state.
+The Settings window is a page of its own, `src/windows/settings/` (a Vite input like the overlay):
+`main.tsx` runs `installModules("settings")` and the same look and guards, then `SettingsApp` loads the
+settings, follows `settings_changed` and `keybindings_changed`, shows the page from `?page=` and then from
+`open_settings`, and renders `SettingsWindow`, `Dialogs` and `Toasts`.
+
+`main` keeps its place in the tree when the sidebar or the inspector hides, so the board keeps its state.
+
+## The Daybook window
+
+Rust builds what the window shows (`hub_view`, [backend](backend.md#tauri-commands)); the page renders the
+`HubView` of the `hub` slice. Its `tools` are the sidebar's rows in Settings → Tools order: `{ kind: "tool",
+id, title, command, shortcut, accent, enabled }` or `{ kind: "separator" }`. Rust leaves out tools switched
+off for the window, tools with nothing to offer and tools whose command no feature registered yet, and greys
+a command that can't run now; `shortcut` is the global shortcut that works in this build, in Settings
+notation. Each feature's step adds its part of the view model and the board section or inspector tab that
+renders it.
 
 ## Store
 
@@ -53,9 +71,10 @@ the `AppError`. The store re-exports it with `flushUiState` and the `Dialog` and
 
 | Slice | Holds |
 |---|---|
-| `settings` | `settings` (`null` until loaded), `keybindings`, `loadSettings` (settings and keybindings in parallel; keybindings fall back to `{}`), `applySettings(settings)` (settings Rust saved elsewhere, from `settings_changed`), `saveSettings(settings, { quiet? })` (stores what `api.updateSettings` returns, toasts "Settings saved" unless `quiet`), `saveKeybindings(bindings)` (stores Rust's answer and calls `setOverrides`), `setLaunchAtLogin(enabled)` (`api.autostartSet`, then patches `settings.launchAtLogin` so a later save keeps it; resolves whether it is on now, `null` on a toasted failure) |
+| `settings` | `settings` (`null` until loaded), `keybindings`, `loadSettings` (settings and keybindings in parallel; keybindings fall back to `{}`), `applySettings(settings)` (settings Rust saved elsewhere, from `settings_changed`), `saveSettings(settings, { quiet? })` (stores what `api.updateSettings` returns, toasts "Settings saved" unless `quiet`), `saveKeybindings(bindings)` (stores Rust's answer and calls `setOverrides`), `applyKeybindings(bindings)` (the same for bindings saved in the other window), `setLaunchAtLogin(enabled)` (`api.autostartSet`, then patches `settings.launchAtLogin` so a later save keeps it; resolves whether it is on now, `null` on a toasted failure) |
 | `ui` | `toasts`, `toast(kind, message, action?)`, `dismissToast(id)`, `dialog` (a `Dialog` or `null`), `openDialog`, `closeDialog` |
-| `viewState` | `uiState` (`UiState` from Rust: `sidebarHidden`, `sidebarWidth`, `paneSizes`; `EMPTY_UI_STATE` until it loads), `loadUiState`, `setPaneSize(pane, px)`, `toggleSidebar` |
+| `viewState` | `uiState` (`UiState` from Rust: `sidebarHidden`, `inspectorHidden`, `sidebarWidth`, `paneSizes`; `EMPTY_UI_STATE` until it loads), `loadUiState`, `setPaneSize(pane, px)`, `toggleSidebar`, `toggleInspector` |
+| `hub` | `hub` (the `HubView`, `null` until loaded), `loadHub` (`api.hubView()`) |
 
 Every `viewState` change is written through `api.setUiState` 500 ms after the last one (drags fire
 constantly); `flushUiState` writes a pending change at once.
@@ -100,16 +119,18 @@ frontend-only definitions: `TEXT_SIZES` (each `TextSize` with its `ui` and `data
 `src/modules.ts` is the install list: the core first, then one line per module. A module is a folder of its
 own (`src/<module>/`) with an `api.ts`, its slice (`registerSlice`), its scopes and commands
 (`registerScope`, `registerCommands`) and its settings pages (`registerSettingsPage`), installed by one
-function called from `installModules()`. Removing a module is deleting its folder and its line; the core
+function called from `installModules(window)`. Removing a module is deleting its folder and its line; the core
 never imports a module. Daybook has no module yet.
 
 `registry/settingsPages.ts` holds the Settings pages by id. `registerSettingsPage({ id, group, label, icon,
 intro?, Body, order? })` adds or replaces one; `Body` gets `SettingsPageProps` (`s`, the settings, and
 `set(patch)`), and a page that keeps its own state ignores them. `settingsPages()` returns them in nav order:
-by group (`GROUP_ORDER`, only `App` so far; other groups follow by name), then `order`, then label.
+by group (`GROUP_ORDER`: Setup, Obsidian, Workflows, System; other groups follow by name), then `order`,
+then label. A page's id is also in Rust's `window::settings::PAGES`, which `settings:<page>` and the palette
+read.
 `settingsGroups()` groups them for the nav, `resolveSettingsPage(id)` returns the named page or the first one,
 and `useSettingsPagesVersion()` re-renders a caller when a page registers, so a module may register after the
-dialog opened.
+window opened.
 
 ## Commands
 
@@ -117,19 +138,23 @@ App-level actions are Rust commands ([commands.md](commands.md)); the page runs 
 The page's registry (`commands/registry.ts`) only holds the keys inside one window: `Command` is `{ id,
 title, scope, defaultBinding?, when?, run }`; `when` false means the command does not fire.
 
-The core's are `APP_COMMANDS` (`commands/index.ts`), all in `global`:
+The core's are `APP_COMMANDS` (`commands/index.ts`). Every window registers all of them, so Settings can list
+them; the scope keeps a key to its window: `global` (label "Every window") is active everywhere, `hub`
+("Daybook window", a child of `global`) only in the Daybook window (`installCommands("main")`).
 
-| Id | Title | Default |
-|---|---|---|
-| `shortcuts.show` | Keyboard shortcuts (opens the overview of the active scopes; pressed again it closes it) | ⇧? |
-| `sidebar.toggle` | Toggle sidebar (`toggleSidebar`) | ⌘⌃S |
-| `zoom.in`, `zoom.out` | Larger text, Smaller text (step through `TEXT_SIZES`, saved quietly; past either end nothing changes) | ⌘= ⌘- |
-| `zoom.reset` | Default text size (`DEFAULT_TEXT_SIZE`) | – (⌘0 is the app menu's Daybook) |
+| Id | Title | Scope | Default |
+|---|---|---|---|
+| `shortcuts.show` | Keyboard shortcuts (opens the overview of the active scopes; pressed again it closes it) | hub | ⇧? |
+| `sidebar.toggle` | Toggle sidebar (`toggleSidebar`) | hub | ⌘⌃S |
+| `inspector.toggle` | Toggle inspector (`toggleInspector`) | hub | ⌘⌃I |
+| `window.close` | Close window (runs `window:close`; not while a text field has the focus) | global | Escape |
+| `zoom.in`, `zoom.out` | Larger text, Smaller text (step through `TEXT_SIZES`, saved quietly; past either end nothing changes) | global | ⌘= ⌘- |
+| `zoom.reset` | Default text size (`DEFAULT_TEXT_SIZE`) | global | – (⌘0 is the app menu's Daybook) |
 
 Settings ⌘,, the palette ⌘K, Close Window ⌘W and ⌘Q are app menu items running Rust commands; the native
 menu takes their keys before the page sees them.
 
-`installCommands()` registers the core scopes, registers `APP_COMMANDS` when the registry is empty, and
+`installCommands(window)` remembers the window, registers the core scopes, registers `APP_COMMANDS` when the registry is empty, and
 applies the store's keybindings with `setOverrides`; it is safe to call again. Module scopes must be
 registered before their commands: `registerCommands` throws on an unknown scope, which catches typos at
 install time. `runCommand(id)` runs a command whose `when` holds (tests use it).
@@ -177,7 +202,6 @@ key cap (`shortcutKeys`).
 
 | Dialog | Renders |
 |---|---|
-| `settings { page? }` | `SettingsDialog`, on the named page or the first ([Settings](#settings)) |
 | `shortcuts { scopes }` | `ShortcutsDialog`: the bound commands of the scopes active when it opened, most specific scope first, each with its `KeyCap`; only the list scrolls |
 | `confirm { title, message, confirmLabel, cancelLabel?, onConfirm }` | a sheet whose confirm button (danger, focused) closes it, then runs `onConfirm` |
 | `prompt { title, label, initial, confirmLabel, onSubmit }` | `PromptDialog`: one line; the confirm button stays disabled while blank, and `onSubmit` gets the text trimmed |
@@ -200,12 +224,19 @@ clipboard is not available.
 
 Shell components in `components/`:
 
-- `Sidebar`: the drag strip under the window buttons (`data-tauri-drag-region`), "Daybook", and the Settings
-  gear in the footer (runs `app:settings`; its tooltip names ⌘,).
-- `EmptyView`: the main pane until the first view exists.
+- `Sidebar`: the drag strip under the window buttons (`data-tauri-drag-region`), the day header (weekday and
+  date, a click runs `daily:open` today or opens that day's note; ‹ › step to the closest days with a note,
+  disabled while `previousDay`/`nextDay` are null), the "Tools" nav of `hub.tools` (a `.si` row per tool with
+  its `TOOL_INFO` icon, title and `ShortcutCap`, running its command; separators as hairlines), and the
+  Settings gear in the footer (runs `app:settings`; its tooltip names ⌘,).
+- `hub/Board.tsx`: the toolbar titled `hub.title` with the inspector toggle (its tooltip names the key), over
+  the board. Its sections come with their steps, in the prototype's order: the Today card,
+  events and the timeline, the routine and journal chips, today's notes.
+- `hub/Inspector.tsx`: the right column with its toolbar ("Todos"); the tabs come with their features.
 - `Toolbar`: the unified toolbar a view renders first: `title`, an optional `detail`, the actions as children;
-  its empty space drags the window. No view uses it yet.
-- `Field.tsx`: `KeyCap` (renders nothing for an unbound command), `InsetField` (the macOS field frame: icon,
+  its empty space drags the window.
+- `Field.tsx`: `KeyCap` (renders nothing for an unbound command), `ShortcutCap` (a Settings-notation
+  shortcut as a key cap, through `shortcutKeys` in `lib/shortcuts.ts`), `InsetField` (the macOS field frame: icon,
   control, optional key cap; a click anywhere focuses the input) and `FormField` (a labelled field with its
   `AppError.field` error under it).
 - `SegmentedControl`: mutually exclusive buttons (`aria-pressed`) with optional `labels`.
@@ -215,17 +246,25 @@ Shell components in `components/`:
 
 ## Settings
 
-`components/settings/SettingsDialog.tsx` is a `Modal` panel: a nav of `settingsGroups()` and the shown page's
-title, `intro` and `Body`. `set(patch)` saves the current settings with the patch through `saveSettings`
-quietly, so every change applies at once. `controls.tsx` holds the shared rows: `Group`, `Row` (`stacked`,
-`nested`), `Switch`, `Segmented`, `TextField` and `NumberField`. `pages.tsx` registers the core pages
-(`registerCoreSettingsPages`), all in group App:
+`components/settings/SettingsWindow.tsx` fills the Settings window: a nav of `settingsGroups()` under a drag
+strip for the window buttons, and the shown page's title (a drag region), `intro` and `Body`. `set(patch)`
+saves the current settings with the patch through `saveSettings` quietly, so every change applies at once.
+`controls.tsx` holds the shared rows: `Group` (with an optional `description`), `Row` (`stacked`, `nested`),
+`Switch`, `Segmented`, `TextField` and `NumberField`; `fields.tsx` the card-per-item fields (`ColorField`,
+`DaysField`, `TimeRangeField`, `ChoiceList`, `ItemActions` with optional remove, `moveItem`, `replaceItem`).
+`pages.tsx` registers the core pages (`registerCoreSettingsPages`):
 
-| Page | Holds |
-|---|---|
-| General (order 0) | `LaunchAtLoginSwitch`: checked from `api.autostartStatus()` through `useApiResult` (the LaunchAgent, not the stored setting), changed through `setLaunchAtLogin` |
-| Appearance (10) | Look: "Light mode scheme" and "Dark mode scheme", stacked rows of three tiles each (`SchemePicker`, a miniature window per scheme drawn with `schemeLook`, pressed for `lightScheme` or `darkScheme`), Accent (`AccentSwatches withSystem`); Text: Text size (`Segmented` over `TEXT_SIZES`) |
-| Shortcuts (20) | `ShortcutsPage`: a search field, the conflicts, then every command except `menuOnly` ones with its scope's label; a click records (`ShortcutField`, `data-recording`: the next key is the binding, Backspace unbinds, Escape cancels), an X removes a bound shortcut (saves `null`), a reset arrow drops an override. Saves through `saveKeybindings` |
+| Group | Page (id) | Holds |
+|---|---|---|
+| Setup | Vault (`vault`) | `VaultPage`: the vault folder (`api.chooseFolder`), its name, the daily notes' folder and format and today's note from `api.vaultInfo`; the Obsidian CLI's state and a custom path |
+| Setup | Contexts (`contexts`), Projects (`projects`) | one card per item (`ContextsPage`, `ProjectsPage`) |
+| Obsidian | Daily Note (`daily-note`) | `DailyNotePage`: the fallback folder and format; the sections in `dailyNote.order`, each with its heading level and text, moved up and down (the notes heading is one line, `dailyNote.notes`) |
+| System | General (`general`) | `LaunchAtLoginSwitch`: checked from `api.autostartStatus()` through `useApiResult` (the LaunchAgent, not the stored setting), changed through `setLaunchAtLogin` |
+| System | Tools (`tools`) | `ToolsPage`: every tool in order with its `TOOL_INFO` (`toolInfo.ts`: label, description, icon), Rail and Window switches (Window off for the Daybook tool), Move Up and Move Down |
+| System | Shortcuts (`shortcuts`) | `ShortcutsPage`: Global shortcuts from `api.shortcutOverview()` (`GlobalShortcuts`: each marked Global, recorded in Settings notation by `shortcutFromKeyEvent`, saved into `settings.hotkeys`, a conflict with macOS, another global shortcut or a menu key shown as "Also used by …"; a note when this build registers none), the app menu's keys read-only (`MenuShortcuts`), then the page commands of every window with their scope (a search field, the conflicts; recorded in page notation, an X removes, a reset arrow drops an override; saved through `saveKeybindings`). Both use `ShortcutRecorder` (`data-recording`; shortcuts pause meanwhile; ⌫ clears, Escape cancels) |
+| System | Appearance (`appearance`) | Look: "Light mode scheme" and "Dark mode scheme", stacked rows of three tiles each (`SchemePicker`, a miniature window per scheme drawn with `schemeLook`, pressed for `lightScheme` or `darkScheme`), Accent (`AccentSwatches withSystem`); Text: Text size (`Segmented` over `TEXT_SIZES`) |
+
+The Workflows group shows once its first page registers.
 
 ## Styling
 

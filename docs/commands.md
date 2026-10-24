@@ -35,7 +35,9 @@ notification (`notify.rs`). The managed `bus::Commands` holds the app's bus, fil
 
 | Id | Title | Notes |
 |---|---|---|
-| `app:settings` | Settings… | opens Settings (`window::open_settings`) |
+| `app:settings` | Settings… | opens the Settings window where it was (`window::open_settings`) |
+| `settings:<page>` | Open a Settings page | family; choices: `window::settings::PAGES`; an unknown page is `not_found` |
+| `view:toggleInspector` | Show or Hide the Inspector | shows the Daybook window and toggles its right column |
 | `app:quit` | Quit Daybook | quits |
 | `app:logs` | Open Log Folder | |
 | `app:readme` | README | |
@@ -103,8 +105,10 @@ menu item's command.
 `tauri-plugin-global-shortcut` by `apply` (again after a save that changed them); a shortcut whose command no
 feature registered is skipped. `shortcuts_pause(paused)` takes them away while Settings records one.
 Release builds register none while the prototype runs (`REGISTERED`,
-[ADR 0018](adr/0018-global-shortcuts-only-in-debug-builds.md)); `shortcuts::shown` is what menus show next
-to their items, so a release build shows no hints.
+[ADR 0018](adr/0018-global-shortcuts-only-in-debug-builds.md)); `shortcuts::shown` is what menus and the Daybook window's sidebar show next
+to their items, so a release build shows no hints. `HOTKEY_ACTIONS` pairs each `Hotkeys` key with its command;
+`shortcut_overview` (`shortcuts/overview.rs`) gives Settings → Shortcuts the ones whose command exists, with
+the bus's title and help, plus the app menu's keys.
 
 ## Palette
 
@@ -113,7 +117,8 @@ ranks and runs.
 
 - `palette_entries(state, hotkeys, commands)`: the menu-bar menu built with every tool, pruned, flattened
   (`PaletteEntry`: kind, label, detail, shortcut, command), plus direct commands (the rail, a call check,
-  the CLI install, the log folder, the sample overlays in debug builds). A command reads as `Music: Pause`
+  the CLI install, the log folder, a "Settings: <Title>" entry per Settings page, the sample overlays in
+  debug builds). A command reads as `Music: Pause`
   (its submenu path, without overflow submenus or a repeat of the label); links, projects, music and contexts
   are named by themselves, with the link's group and "Current" as detail. Each command once; not the status
   toggle or the palette itself; nothing without a vault.

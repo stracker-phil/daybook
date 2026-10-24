@@ -113,6 +113,19 @@ notes: string, journal: SectionPlacement, focus: SectionPlacement, plan: Section
 order: Array<DailySection>, };
 
 /**
+ * The daily-notes folder (relative to the vault) and the note name format.
+ */
+export type DailyNoteFormat = { 
+/**
+ * Empty: the vault's root.
+ */
+folder: string, format: string, 
+/**
+ * Read from Obsidian's settings rather than the fallback.
+ */
+fromObsidian: boolean, };
+
+/**
  * Today's note as the page shows it.
  */
 export type DailyNoteState = { 
@@ -167,12 +180,46 @@ export type Focus = { enabled: boolean,
  */
 endOfDayTitle: string, };
 
+export type GlobalShortcut = { 
+/**
+ * Its key in `Settings.hotkeys`.
+ */
+action: string, command: string, title: string, help: string, };
+
 export type HeadingLevel = "##" | "###" | "####";
 
 /**
  * Global shortcuts in lowercase `ctrl+alt+cmd+a` notation; empty: no shortcut.
  */
 export type Hotkeys = { switchActivity: string, toggleStatus: string, jiraOpen: string, journal: string, search: string, toggleRail: string, hub: string, links: string, quickNotes: string, switchContext: string, focus: string, music: string, palette: string, projects: string, };
+
+export type HubTool = { "kind": "tool" } & ToolRow | { "kind": "separator" };
+
+export type HubView = { 
+/**
+ * `YYYY-MM-DD`.
+ */
+day: string, isToday: boolean, 
+/**
+ * "Saturday".
+ */
+weekday: string, 
+/**
+ * "24 October 2026".
+ */
+date: string, 
+/**
+ * The board's title: a greeting today, the day's name on another day.
+ */
+title: string, 
+/**
+ * The closest days with a note, for ‹ and ›.
+ */
+previousDay: string | null, nextDay: string | null, 
+/**
+ * The sidebar's tool rows, in Settings → Tools order.
+ */
+tools: Array<HubTool>, };
 
 /**
  * "Open Jira Issue" opens `base_url` + the key; a bare number gets `default_prefix`.
@@ -238,6 +285,12 @@ export type MeetingRule = { enabled: boolean,
 app: string, bundleId: string, windowTitle: string | null, slack: SlackStatus, };
 
 export type Meetings = { detection: boolean, rules: Array<MeetingRule>, };
+
+export type MenuShortcut = { command: string, title: string, 
+/**
+ * Settings notation (`cmd+k`).
+ */
+shortcut: string, };
 
 /**
  * Minutes after midnight, `from` before `to`.
@@ -525,6 +578,12 @@ music: Array<MusicEntry>, search: Search, journal: Array<JournalGroup>, routines
  */
 reminders: Array<ReminderRule>, rail: Rail, tools: Array<ToolPlacement>, hotkeys: Hotkeys, api: Api, jira: Jira, };
 
+export type ShortcutOverview = { 
+/**
+ * Whether this build registers global shortcuts (ADR 0018).
+ */
+registered: boolean, global: Array<GlobalShortcut>, menu: Array<MenuShortcut>, };
+
 export type Slack = { 
 /**
  * The channel (e.g. `#team-status`) that gets the status message on every status change; empty
@@ -638,7 +697,25 @@ export type ToolPlacement = { id: ToolId, rail: boolean,
  */
 window: boolean, };
 
+export type ToolRow = { id: ToolId, title: string, 
+/**
+ * What a click runs; `None` for a row that only tells (the call).
+ */
+command: string | null, 
+/**
+ * The global shortcut, in Settings notation (`ctrl+alt+cmd+f`).
+ */
+shortcut: string | null, 
+/**
+ * Shown in the context's colour.
+ */
+accent: boolean, enabled: boolean, };
+
 export type UiState = { sidebarHidden: boolean, 
+/**
+ * The Daybook window's right column.
+ */
+inspectorHidden: boolean, 
 /**
  * In px.
  */
@@ -657,6 +734,15 @@ name: string,
  * Overrides the Obsidian CLI lookup; empty: find it automatically.
  */
 obsidianCliPath: string, };
+
+/**
+ * Where the daily notes are and whether today's note and the Obsidian CLI were found.
+ */
+export type VaultInfo = { 
+/**
+ * `None` without a vault.
+ */
+dailyNotes: DailyNoteFormat | null, todayNote: string | null, todayNoteExists: boolean, obsidianCli: string | null, };
 
 /**
  * On `days` (0 = Sunday; empty: every day) from `from` to `to` (`HH:MM`; a `to` before `from` runs

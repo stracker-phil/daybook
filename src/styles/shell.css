@@ -1,16 +1,19 @@
 /* ---------- layout ---------- */
 /* The sidebar runs the full height, under the window buttons; each view (its toolbar first) sits beside it. Hiding the sidebar (sidebar.toggle) drops its column. The body stays transparent so the window's
    sidebar material can show through a translucent sidebar (sidebar.css). */
-.app {
+.app { height: 100%; }
+.workspace {
   display: grid; height: 100%;
-  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--inspector-width);
   grid-template-rows: minmax(0, 1fr);
-  grid-template-areas: "sidebar work";
+  grid-template-areas: "sidebar work inspector";
 }
-.app:has(> .workspace.no-sidebar) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "work"; }
-.workspace { display: contents; }
+.workspace.no-sidebar { grid-template-columns: 0 minmax(0, 1fr) var(--inspector-width); }
+.workspace.no-inspector { grid-template-columns: var(--sidebar-width) minmax(0, 1fr) 0; }
+.workspace.no-sidebar.no-inspector { grid-template-columns: 0 minmax(0, 1fr) 0; }
 .workspace > .sidebar { grid-area: sidebar; }
 .workspace > .main { grid-area: work; }
+.workspace > .inspector { grid-area: inspector; }
 .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; background: var(--bg); }
 /* A view under its toolbar. */
 .view-page { flex: 1; display: flex; flex-direction: column; min-height: 0; }
@@ -39,8 +42,12 @@
 .toolbar select.input { width: auto; }
 .toolbar .inline-switch { margin: 0 var(--space-2); }
 
-.empty-view { flex: 1; display: grid; place-items: center; color: var(--o3); font-size: var(--fs-title); }
-.empty-view-title { margin: 0; font-size: inherit; font-weight: 500; }
+.board { flex: 1; min-height: 0; overflow: auto; }
+
+/* The inspector: a column beside the board on the quiet pane tone. */
+.inspector { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--bg-quiet); box-shadow: inset 1px 0 0 var(--line); }
+.inspector .toolbar { background: transparent; }
+.inspector-body { flex: 1; min-height: 0; overflow: auto; padding: var(--space-3) var(--margin); }
 
 .crash { padding: 3.077rem; display: flex; flex-direction: column; gap: var(--space-3); align-items: flex-start; }
 .crash pre { font-family: var(--font-mono); font-size: var(--data-font-size); color: var(--style-red); white-space: pre-wrap; user-select: text; }

@@ -1,4 +1,4 @@
-/** Settings pages by id. Core and modules register their own; the dialog reads them here. */
+/** Settings pages by id. Core and modules register their own; the Settings window reads them here. */
 import { useSyncExternalStore, type ComponentType, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import type { Settings } from "../api";
@@ -21,7 +21,7 @@ interface SettingsPage {
 }
 
 /** Nav order of the known groups; any other group follows them, by name. */
-const GROUP_ORDER = ["App"];
+const GROUP_ORDER = ["Setup", "Obsidian", "Workflows", "System"];
 
 const pages = new Map<string, SettingsPage>();
 const listeners = new Set<() => void>();
@@ -74,7 +74,7 @@ function subscribe(listener: () => void) {
   return () => void listeners.delete(listener);
 }
 
-/** Re-renders the caller when a page is registered, so a module may register after the dialog opened. */
+/** Re-renders the caller when a page is registered, so a module may register after the window opened. */
 export function useSettingsPagesVersion(): number {
   return useSyncExternalStore(subscribe, () => version);
 }

@@ -61,19 +61,32 @@ Light scheme in light mode and the Dark scheme in dark mode the sidebar is trans
 
 ## Shell
 
-- **Sidebar** (`Sidebar`, `.sidebar`): full height on its own palette. On top a drag strip under the window
-  buttons (`.sidebar-titlebar`), then the app's name, `Daybook` (`.sidebar-app-name`, `--fs-title`, bold,
-  `--sidebar-strong`). At the bottom (`.sidebar-footer`) the Settings gear, a borderless `.icon-btn` in
-  `--sidebar-muted` whose tooltip names its key (`Settings (⌘,)`). Entries added by later steps use the sidebar
-  row (`.si`, see [Rows](#rows)). ⌘⌃S hides the sidebar and drops its column; the state is kept in
-  `ui_state.json` (`sidebarHidden`).
-- **Main pane** (`.main` on `--bg`): empty for now (`EmptyView`). Views come with their steps.
+The Daybook window has three columns: the sidebar, the board and the inspector.
+
+- **Sidebar** (`Sidebar`, `.sidebar`): full height on its own palette (dark in the Default scheme). On top a drag
+  strip under the window buttons (`.sidebar-titlebar`), then the day (`.day-header`): the weekday in
+  `--fs-title` bold `--sidebar-strong` over the date in `--fs-meta` `--sidebar-muted`, one button that opens the
+  day's note in Obsidian, with ‹ › beside it (borderless, 30% while there is no day that way). Below it the tools
+  in Settings → Tools order (`.si` rows, see [Rows](#rows)): icon, title and, where one works, the global
+  shortcut as a dimmed key cap; the context row in the context's colour (`--context`, taken in the sidebar's
+  tone); a row that only tells (the call) reads in `--sidebar-muted`; `--sidebar-line` hairlines for the
+  separators. A tool shows only once its feature exists and while it has something to offer. At the bottom
+  (`.sidebar-footer`) a slot for the Slack status, then the Settings gear, a borderless `.icon-btn` in
+  `--sidebar-muted` whose tooltip names its key (`Settings (⌘,)`). ⌘⌃S hides the sidebar and drops its column;
+  the state is kept in `ui_state.json` (`sidebarHidden`).
+- **Board** (`.main` on `--bg`, `Board`): the toolbar's title is the greeting (Good morning, Good afternoon,
+  Good evening) or, for another day, its name; below it the board (`.board`), whose sections come with their
+  features: the Today card, events and the timeline, the routine and journal chips, today's notes.
+- **Inspector** (`Inspector`, `.inspector`): a 24.5rem column on `--bg-quiet` with a `--line` hairline at its
+  left edge and its own toolbar; it holds the open todos, then the Activity tab. ⌘⌃I and the toolbar's
+  `PanelRight` button (`aria-pressed`) show and hide it; the state is kept in `ui_state.json`
+  (`inspectorHidden`).
 - **Unified toolbar** (`Toolbar`, `.toolbar`): every view starts with one 52px row beside the window buttons
   (which sit centered in it, 20px from the left): the view's title (`.toolbar-title`, `--fs-title`, bold,
   `--text-strong`), its detail (`.toolbar-detail`, `--fs-meta`, `--o2`), then its actions at the trailing end,
   with a hairline below. Empty parts drag the window. There is no app title and no Settings button (⌘, the app
   menu, the sidebar gear and the palette open Settings). Without the sidebar the row leaves `--traffic-lights` for
-  the window buttons. The empty main pane has no toolbar yet.
+  the window buttons.
 - There is no status bar.
 
 ## Appearance and tokens
@@ -316,10 +329,11 @@ text, as in Spotlight. Group headings are small `--o3` text; a row's detail foll
 
 ## Settings
 
-- For now a dialog (`SettingsDialog`, a `Modal` panel, `.settings-window`); step 07 makes it a window of its own.
-  It has the System Settings layout: the page list on `--chrome` (`.settings-nav`, 28px rows under small `--o3`
-  group headings; the current page filled with the accent and `--on-accent` text, as a focused macOS sidebar)
-  and the page on `--bg` (`.settings-pane`): the title in `--fs-title` bold with a close button, the intro in
+- A window of its own (880 × 720, at least 760 × 560), on the pointer's screen; Esc, ⌘W and the close button
+  hide it, and it reopens on the page it showed. It has the System Settings layout: the page list on `--chrome`
+  (`.settings-nav`, under a drag strip for the window buttons; 28px rows under small `--o3` group headings; the
+  current page filled with the accent and `--on-accent` text, as a focused macOS sidebar) and the page on
+  `--bg` (`.settings-pane`): the title in `--fs-title` bold in a 52px row that drags the window, the intro in
   `--o2`, then groups. Every change applies at once; there is no Save.
 - A group (`Group`, `.settings-group`) is a 13px semibold `--text` heading over its inset group
   (`.settings-card`); each row (`Row`, `.settings-row`, at least 36px) has the label and its description
@@ -327,11 +341,14 @@ text, as in Spotlight. Group headings are small `--o3` text; a row's detail foll
   (`.stacked`) puts the control under the label; a row that depends on a switch sits indented under it
   (`.nested`). Number fields and number popups share one width. Counts use tabular figures; paths, bundle ids and
   commands are mono and selectable. A failure reads in red on a light red tint (`.settings-alert`).
-- Pages register in `registry/settingsPages.ts`, in groups; the core pages form the App group: **General**
-  (Launch at login), **Appearance** (Look: the two scheme rows with their tiles, Accent; Text: Text size) and
-  **Shortcuts** (every command that can take a key, without menu-only toggles such as Launch at login; a key
-  field records the next key, Escape stops, ⌫ unbinds; conflicts show in a `--style-yellow` tint). Later steps
-  add their pages; a concept with several items gets a page with one card per item.
+- A group may carry a description under its heading (`.settings-group-desc`, `--fs-meta`, `--o2`). A lookup
+  reads Found in `--style-green` or Missing in `--style-yellow` (`.settings-state`).
+- Pages register in `registry/settingsPages.ts`, in four groups: **Setup** (Vault, Contexts, Projects),
+  **Obsidian** (Daily Note), **Workflows** (with its first page) and **System** (General, Tools, Shortcuts,
+  Appearance). Shortcuts lists the global shortcuts first, each marked Global (`.shortcut-global`), then the
+  app menu's keys (fixed), then the windows' own keys; a key field records the next key, Escape stops, ⌫
+  unbinds; conflicts show in `--style-yellow`. A concept with several items gets a page with one card per item;
+  a fixed list (sections, tools) moves its rows up and down.
 - A scheme tile (`.scheme-option`, `.scheme-tile`) is a miniature window in the scheme's look; the chosen one is
   ringed in the accent. There is no Logging page: Help → Open Log Folder opens the logs and `--log-level` sets
   their level for a run.
@@ -356,9 +373,11 @@ Rules of the page's keys (`handleKeydown`):
 
 | Command | Label | Default key | Scope |
 |---|---|---|---|
-| `shortcuts.show` | Keyboard shortcuts | ? | global |
-| `sidebar.toggle` | Toggle sidebar | ⌘⌃S | global |
-| `zoom.in` / `zoom.out` / `zoom.reset` | Larger text / Smaller text / Default text size | ⌘= / ⌘- / – | global |
+| `shortcuts.show` | Keyboard shortcuts | ? | Daybook window |
+| `sidebar.toggle` | Toggle sidebar | ⌘⌃S | Daybook window |
+| `inspector.toggle` | Toggle inspector | ⌘⌃I | Daybook window |
+| `window.close` | Close window (not while editing text; a dialog takes Escape first) | Esc | every window |
+| `zoom.in` / `zoom.out` / `zoom.reset` | Larger text / Smaller text / Default text size | ⌘= / ⌘- / – | every window |
 
 Keys of controls, not commands (they act on the focused control and are not rebindable):
 

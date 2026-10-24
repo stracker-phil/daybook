@@ -56,7 +56,8 @@
   --radius-sm: 0.462rem;
   --radius: 0.769rem;
   --radius-lg: 0.923rem;
-  --sidebar-width: 16rem;
+  --sidebar-width: 18.5rem;
+  --inspector-width: 24.5rem;
   /* The unified toolbar: the window buttons (trafficLightPosition in tauri.conf.json) sit centered in its height
      and don't scale with the UI size, so neither does it. */
   --toolbar-height: 52px;

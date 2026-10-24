@@ -24,4 +24,4 @@ export const SYSTEM_ACCENT = "system";
 export type Keybindings = Record<string, string | null>;
 
 /** Until Rust's state loads. */
-export const EMPTY_UI_STATE: UiState = { sidebarHidden: false, sidebarWidth: 200, paneSizes: {} };
+export const EMPTY_UI_STATE: UiState = { sidebarHidden: false, inspectorHidden: false, sidebarWidth: 200, paneSizes: {} };

@@ -76,12 +76,14 @@ runs; a later launch or the tray shows it.
 The main window is declared in `tauri.conf.json`: label `main`, title Daybook, 1200 × 800 (minimum 900 ×
 560), invisible until setup shows it, overlay title bar with hidden title, traffic lights at 20/28,
 transparent background with the `sidebar` vibrancy effect (`followsWindowActiveState`). The overlay panel
-(`window/panel/`) is built at setup; both share the capability `capabilities/default.json`. Window behaviour,
+(`window/panel/`) is built at setup, the Settings window (`window/settings.rs`) on first use; all three share the
+capability `capabilities/default.json`. Window behaviour,
 the overlay and focus hand-back: [windows.md](windows.md).
 
 | Event | Result |
 |---|---|
-| close button / ⌘W and ⌘Q (`window:close`, `window::close_focused`) | `window::hide_main`: the window and the Dock icon hide, and an active Daybook hides so macOS picks what comes forward; the tray keeps running. With the overlay in front it closes instead |
+| close button / ⌘W and ⌘Q (`window:close`, `window::close_focused`), Esc in a window (`window.close`) | the window in front hides (`window::close_requested`); with the last regular window the Dock icon goes and an active Daybook hides, so macOS picks what comes forward; the tray keeps running. With the overlay in front it closes instead |
+| `app:settings`, `settings:<page>`, the sidebar gear, Choose Vault… | `window::settings::open`: the Settings window on the pointer's screen, at the page, in front; the Dock icon shows |
 | last window closed (`ExitRequested { code: None }`) | prevented |
 | "Open Daybook" (`hub:open`), a second `daybook` launch, `daybook focus`, Dock icon click (`RunEvent::Reopen`) | `window::show_main`: the Dock icon returns, the window moves to the pointer's screen, show, unminimize, focus |
 | `daybook show` | `window::show_main_in_background`: shown without taking focus |
@@ -121,7 +123,7 @@ its module.
 |---|---|---|---|
 | `get_settings` | – | `Settings` | – |
 | `update_settings` | `settings: Settings`; `launchAtLogin` is kept as stored (only `autostart_set` changes it) | `Settings` (repaired by `from_json`); emits `settings_changed` | `io` |
-| `get_keybindings` / `set_keybindings` | – / `bindings: Keybindings` | `Keybindings` (sanitized) | `io` |
+| `get_keybindings` / `set_keybindings` | – / `bindings: Keybindings` | `Keybindings` (sanitized); `set_keybindings` emits `keybindings_changed` | `io` |
 | `get_ui_state` / `set_ui_state` | – / `ui: UiState` | `UiState` | `io` |
 | `autostart_set` (`autostart.rs`) | `enabled: bool` | `bool`: whether the LaunchAgent is installed now; also saves `settings.launchAtLogin` | `io` |
 | `autostart_status` (`autostart.rs`) | – | `bool`: whether the LaunchAgent is installed | – |
@@ -132,11 +134,13 @@ its module.
 | `choose_folder` | – | `string \| null` (the folder panel, which can create a folder; `null` when cancelled) | `io` |
 | `reveal_path` | `path: String` | – (Finder shows the enclosing folder with `path` selected) | `io` |
 | `context_state` (`contexts/mod.rs`) | – | `ContextState` | – |
+| `hub_view` (`hub/mod.rs`) | `day: string \| null` (`YYYY-MM-DD`, today when null) | `HubView`: the day, its weekday and date, the board's title (a greeting today), the closest days with a note (null until their step), the sidebar's tool rows | `invalid_input` for a malformed day |
+| `shortcut_overview` (`shortcuts/overview.rs`) | – | `ShortcutOverview`: whether this build registers global shortcuts, the global shortcuts of the commands that exist (action, command, title, help), the app menu's keys | – |
 | `run_command` (`bus/app.rs`) | `id: String` | – (runs a bus command, [commands.md](commands.md)) | `not_found` (unknown), `invalid_input` (disabled), the command's error |
 | `palette_query`, `palette_run` (`palette/mod.rs`) | `query` / `command` | `PaletteResults` / – ([commands.md](commands.md#palette)) | `palette_run`: `not_found` |
 | `shortcuts_pause` (`shortcuts/mod.rs`) | `paused: bool` | – (global shortcuts and the app menu's keys step aside) | – |
 | `remote_reply` (`remote.rs`) | `id, result, error` | – | – |
-| `daily_note_state`, `daily_note_open`, `daily_note_create` (`vault/commands.rs`) | see [vault.md](vault.md#commands) | | |
+| `daily_note_state`, `daily_note_open`, `daily_note_create`, `vault_info` (`vault/commands.rs`) | see [vault.md](vault.md#commands) | | |
 | `panel_open`, `panel_close`, `panel_session`, `panel_ready`, `panel_painted`, `panel_set_height` (`window/panel/commands.rs`) | see [windows.md](windows.md#commands-and-events) | | |
 | `dev_edit_today_note` (`dev.rs`, debug builds only) | `op: NoteOp` | `WriteOutcome` | as `edit_today` |
 
@@ -157,7 +161,9 @@ its module.
 | `PANEL_SESSION_EVENT` | `panel_session` | to the overlay window: the `PanelSession` to render, `null` once it closed ([windows.md](windows.md#the-overlay)) |
 | `NOTE_CHANGED_EVENT` | `note_changed` | `NoteChanged { day }`: today's note, the waiting changes or another daily note changed ([vault.md](vault.md#watcher)) |
 | `CONTEXT_CHANGED_EVENT` | `context_changed` | `ContextChanged { id }`: another context became current |
-| `OPEN_SETTINGS_EVENT` | `open_settings` | to the Daybook window: the Settings page to open, `null` for the first (`window::open_settings`) |
+| `OPEN_SETTINGS_EVENT` | `open_settings` | to the Settings window: the id of the page to show (a window built for a page reads it from `?page=` instead) |
+| `TOGGLE_INSPECTOR_EVENT` | `toggle_inspector` | to the Daybook window: none; shows or hides the inspector (`view:toggleInspector`) |
+| `KEYBINDINGS_CHANGED_EVENT` | `keybindings_changed` | the saved `Keybindings`, so the other window takes them |
 | `SETTINGS_CHANGED_EVENT` | `settings_changed` | the saved `Settings`, after every `update_settings` and `autostart_set` |
 
 ## Launch queue
@@ -342,7 +348,7 @@ failed save leaves memory unchanged. `JsonStore::open_with` normalizes the loade
 |---|---|
 | `settings.json` | `Settings` ([Settings](#settings)) |
 | `keybindings.json` | `{ "commandId": "Mod+Shift+X" \| null }` overrides; `null` unbinds ([Key bindings](#key-bindings)) |
-| `ui_state.json` | `UiState` (`store/ui_state.rs`): `sidebarHidden`, `sidebarWidth` (px, default 200), `paneSizes` (splitter positions in px by pane id); missing keys take the defaults, unknown keys are ignored |
+| `ui_state.json` | `UiState` (`store/ui_state.rs`): `sidebarHidden`, `inspectorHidden`, `sidebarWidth` (px, default 200), `paneSizes` (splitter positions in px by pane id); missing keys take the defaults, unknown keys are ignored |
 | `daybook.sock`, `daybook.lock` | single instance |
 | `context.json`, `status-memory.json`, `jira-tickets.json`, `routines.json`, `day-message.json`, `slack-shown.json`, `pending-entries.json` | written only by the [prototype import](#prototype-import) so far; their steps add the stores that read them |
 

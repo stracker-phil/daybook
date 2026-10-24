@@ -5,19 +5,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../api", async (orig) => ({ ...(await orig<object>()), api: (await import("../../test/apiMock")).createApiMock() }));
 
 import { api, type Project, type Settings } from "../../api";
-import { installCommands } from "../../commands";
 import { resetStore } from "../../state/store";
 import { settings } from "../../test/settings";
-import { SettingsDialog } from "./SettingsDialog";
+import { SettingsWindow } from "./SettingsWindow";
 
 const mocked = vi.mocked(api, true);
 
 const project = (patch: Partial<Project>): Project => ({ name: "Project", slackEmoji: "", active: true, contexts: [], keywords: [], launcherProjects: [], ...patch });
 
 function renderPage(patch: Partial<Settings> = {}) {
-  resetStore({ settings: settings(patch), dialog: { type: "settings", page: "projects" } });
-  installCommands();
-  render(<SettingsDialog />);
+  resetStore({ settings: settings(patch) });
+  render(<SettingsWindow page="projects" onPage={() => {}} />);
 }
 
 const card = (title: string) => within(screen.getByRole("heading", { name: title }).closest("section")!);

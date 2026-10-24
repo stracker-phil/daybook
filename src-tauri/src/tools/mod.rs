@@ -10,4 +10,4 @@ mod visibility;
 pub use choices::{Choice, Step, choice_commands, link_command, link_target, tool_choices};
 pub use snapshot::snapshot;
 pub use state::*;
-pub use visibility::{Surface, visible_tools};
+pub use visibility::{Surface, tidy_separators, visible_tools};

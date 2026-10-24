@@ -8,7 +8,9 @@ use std::time::SystemTime;
 
 use chrono::{Datelike, NaiveDate};
 use regex::{Captures, Regex};
+use serde::Serialize;
 use serde_json::Value;
+use ts_rs::TS;
 
 use crate::lock::MutexExt;
 use crate::store::settings::DailyNote;
@@ -89,8 +91,11 @@ pub fn format_moment(day: NaiveDate, format: &str) -> String {
 }
 
 /// The daily-notes folder (relative to the vault) and the note name format.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Serialize, Clone, Debug, PartialEq, TS)]
+#[ts(export, export_to = "src/api/types.gen.ts")]
+#[serde(rename_all = "camelCase")]
 pub struct DailyNoteFormat {
+    /// Empty: the vault's root.
     pub folder: String,
     pub format: String,
     /// Read from Obsidian's settings rather than the fallback.

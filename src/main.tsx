@@ -8,7 +8,7 @@ import { applyInitialLook } from "./lib/theme";
 import { installModules } from "./modules";
 import { useStore } from "./state/store";
 
-installModules();
+installModules("main");
 applyInitialLook();
 installNativeMenuGuard();
 installInputModality();

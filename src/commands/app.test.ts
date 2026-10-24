@@ -20,15 +20,17 @@ async function press(keys: string) {
   }
 }
 
+const OPEN_DIALOG = { type: "confirm", title: "Delete", message: "Really?", confirmLabel: "Delete", onConfirm: () => {} } as const;
+
 describe("app commands", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetStore({ settings: settings({ textSize: "medium" }) });
-    installCommands();
+    installCommands("main");
   });
 
   it("registers only the window's own commands", () => {
-    expect(allCommands().map((c) => c.id).sort()).toEqual(["shortcuts.show", "sidebar.toggle", "zoom.in", "zoom.out", "zoom.reset"]);
+    expect(allCommands().map((c) => c.id).sort()).toEqual(["inspector.toggle", "shortcuts.show", "sidebar.toggle", "window.close", "zoom.in", "zoom.out", "zoom.reset"]);
   });
 
   it.each(["app.settings", "palette.toggle", "app.background", "app.quit", "settings.toggle"])("has no %s command", (id) => {
@@ -44,9 +46,77 @@ describe("app commands", () => {
     });
 
     it("does not run on its keys while a dialog is open", async () => {
-      resetStore({ settings: settings(), dialog: { type: "settings" } });
+      resetStore({ settings: settings(), dialog: OPEN_DIALOG });
       await press("{Meta>}{Control>}s{/Control}{/Meta}");
       expect(useStore.getState().uiState.sidebarHidden).toBe(false);
+    });
+
+    it("does not run in the Settings window", async () => {
+      installCommands("settings");
+      await press("{Meta>}{Control>}s{/Control}{/Meta}");
+      expect(useStore.getState().uiState.sidebarHidden).toBe(false);
+    });
+  });
+
+  describe("inspector.toggle", () => {
+    it("hides and shows the inspector", () => {
+      expect(runCommand("inspector.toggle")).toBe(true);
+      expect(useStore.getState().uiState.inspectorHidden).toBe(true);
+      runCommand("inspector.toggle");
+      expect(useStore.getState().uiState.inspectorHidden).toBe(false);
+    });
+
+    it("toggles on ⌘⌃I", async () => {
+      await press("{Meta>}{Control>}i{/Control}{/Meta}");
+      expect(useStore.getState().uiState.inspectorHidden).toBe(true);
+    });
+
+    it("follows a rebinding from the keybindings", async () => {
+      useStore.getState().applyKeybindings({ "inspector.toggle": "Mod+Shift+J" });
+      await press("{Meta>}{Control>}i{/Control}{/Meta}");
+      expect(useStore.getState().uiState.inspectorHidden).toBe(false);
+      await press("{Meta>}{Shift>}j{/Shift}{/Meta}");
+      expect(useStore.getState().uiState.inspectorHidden).toBe(true);
+    });
+
+    it("does not toggle on its keys while a dialog is open", async () => {
+      resetStore({ settings: settings(), dialog: OPEN_DIALOG });
+      await press("{Meta>}{Control>}i{/Control}{/Meta}");
+      expect(useStore.getState().uiState.inspectorHidden).toBe(false);
+    });
+  });
+
+  describe("window.close", () => {
+    it("asks Rust to close the window on Escape", async () => {
+      await press("{Escape}");
+      expect(mocked.runCommand).toHaveBeenCalledWith("window:close");
+    });
+
+    it("also runs in the Settings window", async () => {
+      installCommands("settings");
+      await press("{Escape}");
+      expect(mocked.runCommand).toHaveBeenCalledWith("window:close");
+    });
+
+    it("leaves Escape to a focused text input", async () => {
+      const input = document.createElement("input");
+      document.body.append(input);
+      input.focus();
+      await press("{Escape}");
+      input.remove();
+      expect(mocked.runCommand).not.toHaveBeenCalled();
+    });
+
+    it("leaves Escape to an open dialog", async () => {
+      resetStore({ settings: settings(), dialog: OPEN_DIALOG });
+      await press("{Escape}");
+      expect(mocked.runCommand).not.toHaveBeenCalled();
+    });
+
+    it("toasts when Rust cannot close the window", async () => {
+      mocked.runCommand.mockRejectedValueOnce({ kind: "io", message: "No window", code: null });
+      await press("{Escape}");
+      await vi.waitFor(() => expect(useStore.getState().toasts.map((t) => t.message).join()).toContain("No window"));
     });
   });
 
@@ -63,9 +133,9 @@ describe("app commands", () => {
     });
 
     it("leaves another open dialog alone", () => {
-      resetStore({ settings: settings(), dialog: { type: "settings" } });
+      resetStore({ settings: settings(), dialog: OPEN_DIALOG });
       runCommand("shortcuts.show");
-      expect(useStore.getState().dialog).toEqual({ type: "settings" });
+      expect(useStore.getState().dialog).toEqual(OPEN_DIALOG);
     });
   });
 
@@ -100,7 +170,7 @@ describe("app commands", () => {
     });
 
     it("still zooms while a dialog is open", async () => {
-      resetStore({ settings: settings({ textSize: "medium" }), dialog: { type: "settings" } });
+      resetStore({ settings: settings({ textSize: "medium" }), dialog: OPEN_DIALOG });
       await press("{Meta>}={/Meta}");
       expect(mocked.updateSettings).toHaveBeenLastCalledWith(expect.objectContaining({ textSize: "large" }));
     });

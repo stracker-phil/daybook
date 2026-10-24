@@ -3,12 +3,13 @@ import { fail } from "../requests";
 import type { Slice } from "../store";
 
 export interface ViewStateSlice {
-  /** Window layout that survives a restart (sidebar, pane sizes). */
+  /** Window layout that survives a restart (sidebar, inspector, pane sizes). */
   uiState: UiState;
   loadUiState: () => Promise<void>;
   /** Stores a splitter position (px) under its pane id. */
   setPaneSize: (pane: string, px: number) => void;
   toggleSidebar: () => void;
+  toggleInspector: () => void;
 }
 
 export const viewStateSlice: Slice<ViewStateSlice> = {
@@ -36,6 +37,10 @@ export const viewStateSlice: Slice<ViewStateSlice> = {
 
       toggleSidebar() {
         patchUiState((current) => ({ sidebarHidden: !current.sidebarHidden }));
+      },
+
+      toggleInspector() {
+        patchUiState((current) => ({ inspectorHidden: !current.inspectorHidden }));
       },
     };
   },

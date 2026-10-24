@@ -1,7 +1,6 @@
 import { useStore } from "../state/store";
 import { Modal } from "./Modal";
 import { PromptDialog } from "./PromptDialog";
-import { SettingsDialog } from "./settings/SettingsDialog";
 import { ShortcutsDialog } from "./ShortcutsDialog";
 
 function ConfirmDialog({ title, message, confirmLabel, cancelLabel = "Cancel", onConfirm }: { title: string; message: string; confirmLabel: string; cancelLabel?: string; onConfirm: () => void }) {
@@ -30,8 +29,6 @@ function ConfirmDialog({ title, message, confirmLabel, cancelLabel = "Cancel", o
 export function Dialogs() {
   const dialog = useStore((s) => s.dialog);
   switch (dialog?.type) {
-    case "settings":
-      return <SettingsDialog />;
     case "shortcuts":
       return <ShortcutsDialog scopes={dialog.scopes} />;
     case "confirm":

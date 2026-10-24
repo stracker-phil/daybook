@@ -2,6 +2,7 @@
 //! Settings records a new one.
 
 mod accelerator;
+pub mod overview;
 
 pub use accelerator::accelerator;
 
@@ -17,25 +18,45 @@ use crate::{bus, menu};
 /// Release builds register none (ADR 0018).
 pub const REGISTERED: bool = cfg!(debug_assertions);
 
-/// The command each global shortcut runs.
+pub struct HotkeyAction {
+    /// Its key in `Settings.hotkeys`, as stored.
+    pub action: &'static str,
+    pub command: &'static str,
+    pub shortcut: fn(&Hotkeys) -> &String,
+}
+
+const fn action(
+    action: &'static str,
+    command: &'static str,
+    shortcut: fn(&Hotkeys) -> &String,
+) -> HotkeyAction {
+    HotkeyAction {
+        action,
+        command,
+        shortcut,
+    }
+}
+
+/// Every global shortcut and the command it runs, in the Shortcuts page's order.
+pub const HOTKEY_ACTIONS: [HotkeyAction; 14] = [
+    action("palette", "palette:open", |h| &h.palette),
+    action("switchActivity", "activity:switch", |h| &h.switch_activity),
+    action("hub", "hub:toggle", |h| &h.hub),
+    action("switchContext", "context:switch", |h| &h.switch_context),
+    action("toggleStatus", "status:toggle", |h| &h.toggle_status),
+    action("focus", "focus:open", |h| &h.focus),
+    action("jiraOpen", "jira:open", |h| &h.jira_open),
+    action("journal", "journal:open", |h| &h.journal),
+    action("search", "search:open", |h| &h.search),
+    action("quickNotes", "notes:quick", |h| &h.quick_notes),
+    action("links", "links:open", |h| &h.links),
+    action("projects", "projects:open", |h| &h.projects),
+    action("music", "music:open", |h| &h.music),
+    action("toggleRail", "rail:toggle", |h| &h.toggle_rail),
+];
+
 pub fn hotkey_commands(hotkeys: &Hotkeys) -> [(&str, &'static str); 14] {
-    [
-        (&hotkeys.switch_activity, "activity:switch"),
-        (&hotkeys.toggle_status, "status:toggle"),
-        (&hotkeys.jira_open, "jira:open"),
-        (&hotkeys.journal, "journal:open"),
-        (&hotkeys.search, "search:open"),
-        (&hotkeys.toggle_rail, "rail:toggle"),
-        (&hotkeys.hub, "hub:toggle"),
-        (&hotkeys.links, "links:open"),
-        (&hotkeys.quick_notes, "notes:quick"),
-        (&hotkeys.switch_context, "context:switch"),
-        (&hotkeys.focus, "focus:open"),
-        (&hotkeys.music, "music:open"),
-        (&hotkeys.palette, "palette:open"),
-        (&hotkeys.projects, "projects:open"),
-    ]
-    .map(|(shortcut, command)| (shortcut.as_str(), command))
+    HOTKEY_ACTIONS.map(|hotkey| ((hotkey.shortcut)(hotkeys).as_str(), hotkey.command))
 }
 
 /// Paused while a shortcut is being recorded, so its keys reach the page.
@@ -98,6 +119,61 @@ pub fn shortcuts_pause(app: AppHandle, paused: bool) {
 mod tests {
     use super::*;
 
+    fn distinct_hotkeys() -> Hotkeys {
+        Hotkeys {
+            switch_activity: "1".into(),
+            toggle_status: "2".into(),
+            jira_open: "3".into(),
+            journal: "4".into(),
+            search: "5".into(),
+            toggle_rail: "6".into(),
+            hub: "7".into(),
+            links: "8".into(),
+            quick_notes: "9".into(),
+            switch_context: "10".into(),
+            focus: "11".into(),
+            music: "12".into(),
+            palette: "13".into(),
+            projects: "14".into(),
+        }
+    }
+
+    #[test]
+    fn each_hotkey_action_reads_the_field_it_is_named_after() {
+        let hotkeys = distinct_hotkeys();
+        let json = serde_json::to_value(&hotkeys).unwrap();
+        for entry in &HOTKEY_ACTIONS {
+            assert_eq!(
+                json[entry.action].as_str(),
+                Some((entry.shortcut)(&hotkeys).as_str()),
+                "{}",
+                entry.action
+            );
+        }
+    }
+
+    #[test]
+    fn hotkey_actions_and_commands_are_unique_and_cover_every_field() {
+        let json = serde_json::to_value(distinct_hotkeys()).unwrap();
+        let mut actions: Vec<&str> = HOTKEY_ACTIONS.iter().map(|entry| entry.action).collect();
+        let mut commands: Vec<&str> = HOTKEY_ACTIONS.iter().map(|entry| entry.command).collect();
+        let mut fields: Vec<&str> = json
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        actions.sort_unstable();
+        commands.sort_unstable();
+        fields.sort_unstable();
+        let (action_count, command_count) = (actions.len(), commands.len());
+        actions.dedup();
+        commands.dedup();
+        assert_eq!(actions.len(), action_count);
+        assert_eq!(commands.len(), command_count);
+        assert_eq!(actions, fields);
+    }
+
     #[test]
     fn each_hotkey_runs_its_command() {
         let hotkeys = Hotkeys {
@@ -116,8 +192,10 @@ mod tests {
             palette: "13".into(),
             projects: "14".into(),
         };
+        let mut pairs = hotkey_commands(&hotkeys).to_vec();
+        pairs.sort_by_key(|(key, _)| key.parse::<u32>().unwrap());
         assert_eq!(
-            hotkey_commands(&hotkeys),
+            pairs,
             [
                 ("1", "activity:switch"),
                 ("2", "status:toggle"),

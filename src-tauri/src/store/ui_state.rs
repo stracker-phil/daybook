@@ -1,4 +1,4 @@
-//! Window layout that survives a restart (`ui_state.json`): the sidebar and pane sizes. Unknown keys are
+//! Window layout that survives a restart (`ui_state.json`): the sidebar, the inspector and pane sizes. Unknown keys are
 //! ignored.
 
 use std::collections::HashMap;
@@ -15,6 +15,8 @@ use crate::error::AppResult;
 #[serde(default, rename_all = "camelCase")]
 pub struct UiState {
     pub sidebar_hidden: bool,
+    /// The Daybook window's right column.
+    pub inspector_hidden: bool,
     /// In px.
     pub sidebar_width: u16,
     /// Splitter positions by pane id, in px.
@@ -25,6 +27,7 @@ impl Default for UiState {
     fn default() -> Self {
         Self {
             sidebar_hidden: false,
+            inspector_hidden: false,
             sidebar_width: 200,
             pane_sizes: HashMap::new(),
         }
@@ -69,6 +72,7 @@ mod tests {
             ui,
             UiState {
                 sidebar_hidden: false,
+                inspector_hidden: false,
                 sidebar_width: 200,
                 pane_sizes: HashMap::new(),
             }
@@ -76,10 +80,33 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn the_hidden_inspector_persists_and_defaults_to_shown() {
+        let dir = temp_config_dir();
+        let ui = UiState {
+            inspector_hidden: true,
+            ..UiState::default()
+        };
+        UiStateStore::open(dir.path())
+            .set(ui.clone())
+            .await
+            .unwrap();
+        assert_eq!(UiStateStore::open(dir.path()).get(), ui);
+
+        let other = temp_config_dir();
+        std::fs::write(
+            other.path().join("ui_state.json"),
+            r#"{"sidebarWidth": 300}"#,
+        )
+        .unwrap();
+        assert!(!UiStateStore::open(other.path()).get().inspector_hidden);
+    }
+
+    #[tokio::test]
     async fn saved_state_persists_across_reopen() {
         let dir = temp_config_dir();
         let ui = UiState {
             sidebar_hidden: true,
+            inspector_hidden: true,
             sidebar_width: 260,
             pane_sizes: HashMap::from([("list".to_string(), 320.0)]),
         };
@@ -110,6 +137,7 @@ mod tests {
             serde_json::to_value(UiState::default()).unwrap(),
             serde_json::json!({
                 "sidebarHidden": false,
+                "inspectorHidden": false,
                 "sidebarWidth": 200,
                 "paneSizes": {}
             })

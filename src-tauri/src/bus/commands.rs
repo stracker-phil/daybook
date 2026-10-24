@@ -3,7 +3,7 @@
 use serde_json::Value;
 use tauri::{AppHandle, Manager};
 
-use super::{Command, CommandBus};
+use super::{ArgChoice, Command, CommandBus};
 use crate::error::AppResult;
 use crate::state::AppState;
 use crate::{commands, help, vault, window};
@@ -13,6 +13,16 @@ type Bus = CommandBus<AppHandle>;
 async fn open_panel(app: AppHandle, view: &str) -> AppResult<()> {
     window::panel::open(&app, view, Value::Null).await;
     Ok(())
+}
+
+fn settings_pages(_: &AppHandle) -> Vec<ArgChoice> {
+    window::settings::PAGES
+        .iter()
+        .map(|(id, title)| ArgChoice {
+            title: Some(title.to_string()),
+            ..ArgChoice::new(*id)
+        })
+        .collect()
 }
 
 fn creating_today(app: &AppHandle) -> bool {
@@ -25,6 +35,12 @@ pub fn register(bus: &mut Bus) {
         Command::new("app:settings", "Settings…")
             .help("Open Settings")
             .run_now(|app: &AppHandle| window::open_settings(app, None)),
+    );
+    bus.add_family(
+        Command::new("settings:", "Open a Settings page")
+            .family("<page>")
+            .choices(settings_pages)
+            .run(|app, page| async move { window::settings::open_page(&app, &page) }),
     );
     bus.add(
         Command::new("app:quit", "Quit Daybook")
@@ -55,6 +71,11 @@ pub fn register(bus: &mut Bus) {
         Command::new("hub:toggle", "Show or Hide Daybook")
             .help("Show or hide the Daybook window")
             .run_now(window::toggle_main),
+    );
+    bus.add(
+        Command::new("view:toggleInspector", "Show or Hide the Inspector")
+            .help("Show or hide the Daybook window's right column")
+            .run_now(window::toggle_inspector),
     );
     bus.add(
         Command::new("palette:open", "Command Palette…")

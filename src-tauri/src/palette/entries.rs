@@ -10,6 +10,7 @@ use crate::bus::CommandStatus;
 use crate::menu::model::{MenuEntry, MenuInput, build_menu, prune};
 use crate::store::settings::{Hotkeys, default_tools};
 use crate::tools::ToolState;
+use crate::window::settings::PAGES;
 
 #[derive(Serialize, Clone, Copy, Debug, PartialEq, Eq, TS)]
 #[ts(export, export_to = "src/api/types.gen.ts")]
@@ -178,6 +179,13 @@ fn direct(state: &ToolState, hotkeys: &Hotkeys) -> Vec<PaletteEntry> {
     }
     entries.push(command("Install Command Line Tool", "cli:install", ""));
     entries.push(command("Open Log Folder", "app:logs", ""));
+    for (page, title) in PAGES {
+        entries.push(command(
+            &format!("Settings: {title}"),
+            &format!("settings:{page}"),
+            "",
+        ));
+    }
     if cfg!(debug_assertions) {
         entries.push(command("Sample Overlay", "sample:open", ""));
         entries.push(command("Sample Overlay (Sticky)", "sample:sticky", ""));
@@ -483,6 +491,40 @@ mod tests {
             find(&entries, "app:logs").map(|e| e.label.as_str()),
             Some("Open Log Folder")
         );
+    }
+
+    #[test]
+    fn every_settings_page_has_a_direct_entry() {
+        let entries = list(&fixture());
+        assert_eq!(
+            find(&entries, "settings:vault"),
+            Some(&entry(
+                PaletteKind::Command,
+                "Settings: Vault",
+                "",
+                None,
+                "settings:vault"
+            ))
+        );
+        for (page, title) in PAGES {
+            let command = format!("settings:{page}");
+            assert_eq!(
+                find(&entries, &command).map(|e| e.label.clone()),
+                Some(format!("Settings: {title}")),
+                "{page}"
+            );
+        }
+    }
+
+    #[test]
+    fn settings_pages_nobody_registered_are_absent() {
+        let commands = CommandsStub {
+            unknown: vec!["settings:vault"],
+            ..CommandsStub::default()
+        };
+        let entries = palette_entries(&fixture(), &hotkeys(), &commands);
+        assert_eq!(find(&entries, "settings:vault"), None);
+        assert!(find(&entries, "settings:tools").is_some());
     }
 
     #[test]

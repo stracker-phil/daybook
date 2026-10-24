@@ -1,16 +1,16 @@
 /* A context's colour as `--context` (text, dots, pills) and `--context-tint` (selection, highlights), on any element
-   with `data-context`; the root carries the current context's. Built from the palettes' hues, so each scheme keeps
-   its contrast (docs/ux.md, Context colours). */
-[data-context="blue"] { --context: var(--a-blue); }
-[data-context="purple"] { --context: var(--a-purple); }
-[data-context="pink"] { --context: var(--a-magenta); }
-[data-context="red"] { --context: var(--a-red); }
-[data-context="orange"] { --context: var(--a-orange); }
-[data-context="yellow"] { --context: var(--a-gold); }
-[data-context="green"] { --context: var(--style-green); }
-[data-context="teal"] { --context: var(--a-teal); }
-[data-context="graphite"] { --context: var(--a-graphite); }
-[data-context] { --context-tint: color-mix(in srgb, var(--context) 16%, transparent); }
+   with `data-context`; the root carries the current context's, and the sidebar takes it in its own tone. Built from
+   the palettes' hues, so each scheme keeps its contrast (docs/ux.md, Context colours). */
+[data-context="blue"], [data-context="blue"] .sidebar { --context: var(--a-blue); }
+[data-context="purple"], [data-context="purple"] .sidebar { --context: var(--a-purple); }
+[data-context="pink"], [data-context="pink"] .sidebar { --context: var(--a-magenta); }
+[data-context="red"], [data-context="red"] .sidebar { --context: var(--a-red); }
+[data-context="orange"], [data-context="orange"] .sidebar { --context: var(--a-orange); }
+[data-context="yellow"], [data-context="yellow"] .sidebar { --context: var(--a-gold); }
+[data-context="green"], [data-context="green"] .sidebar { --context: var(--style-green); }
+[data-context="teal"], [data-context="teal"] .sidebar { --context: var(--a-teal); }
+[data-context="graphite"], [data-context="graphite"] .sidebar { --context: var(--a-graphite); }
+[data-context], [data-context] .sidebar { --context-tint: color-mix(in srgb, var(--context) 16%, transparent); }
 
 /* The current item in a list, e.g. the current context in the switcher. */
 .context-pill {

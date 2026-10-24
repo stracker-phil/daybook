@@ -4,57 +4,136 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../api", async (orig) => ({ ...(await orig<object>()), api: (await import("../test/apiMock")).createApiMock() }));
 
-import { api } from "../api";
-import { installCommands } from "../commands";
-import { resetStore, type Store } from "../state/store";
+import { api, type HubTool, type HubView, type ToolRow } from "../api";
+import { resetStore, useStore } from "../state/store";
 import { settings } from "../test/settings";
-import { Dialogs } from "./Dialogs";
 import { Sidebar } from "./Sidebar";
 
 const mocked = vi.mocked(api, true);
 
-function renderSidebar(patch: Partial<Store> = {}) {
-  resetStore({ settings: settings(), ...patch });
-  installCommands();
-  render(
-    <>
-      <Sidebar />
-      <Dialogs />
-    </>,
-  );
+const tool = (patch: Partial<ToolRow> & Pick<ToolRow, "id" | "title">): HubTool => ({
+  kind: "tool",
+  command: `tool:${patch.id}`,
+  shortcut: null,
+  accent: false,
+  enabled: true,
+  ...patch,
+});
+
+const separator: HubTool = { kind: "separator" };
+
+const hubView = (patch: Partial<HubView> = {}): HubView => ({
+  day: "2026-10-24",
+  isToday: true,
+  weekday: "Saturday",
+  date: "24 October 2026",
+  title: "Good morning",
+  previousDay: null,
+  nextDay: null,
+  tools: [],
+  ...patch,
+});
+
+function renderSidebar(patch: Partial<HubView> = {}) {
+  resetStore({ settings: settings(), hub: hubView(patch) });
+  render(<Sidebar />);
 }
 
-const gear = () => screen.getByRole("button", { name: "Settings" });
+const tools = () => within(screen.getByRole("navigation", { name: "Tools" }));
+const row = (title: string) => tools().getByRole("button", { name: new RegExp(`^${title}`) });
 
 describe("Sidebar", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("shows the app name", () => {
-    renderSidebar();
-    expect(within(screen.getByRole("complementary", { name: "Sidebar" })).getByText("Daybook")).toBeInTheDocument();
+  describe("day header", () => {
+    it("shows the weekday and the date of the day", () => {
+      renderSidebar();
+      expect(screen.getByRole("heading", { name: "Saturday" })).toBeInTheDocument();
+      expect(screen.getByText("24 October 2026")).toBeInTheDocument();
+    });
+
+    it("shows no header before the hub arrived", () => {
+      resetStore({ settings: settings(), hub: null });
+      render(<Sidebar />);
+      expect(screen.queryByRole("heading")).not.toBeInTheDocument();
+    });
+
+    it("opens today's note through the command bus", async () => {
+      renderSidebar();
+      await userEvent.click(screen.getByRole("button", { name: /Saturday/ }));
+      expect(mocked.runCommand).toHaveBeenCalledWith("daily:open");
+    });
+
+    it("opens the note of another day by its date", async () => {
+      renderSidebar({ day: "2026-10-20", isToday: false, weekday: "Tuesday", date: "20 October 2026" });
+      await userEvent.click(screen.getByRole("button", { name: /Tuesday/ }));
+      expect(mocked.dailyNoteOpen).toHaveBeenCalledWith("2026-10-20");
+    });
+
+    it("enables the day arrows only where a neighbouring note exists", () => {
+      renderSidebar({ previousDay: "2026-10-22", nextDay: null });
+      expect(screen.getByRole("button", { name: "Previous Day with a Note" })).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Next Day with a Note" })).toBeDisabled();
+    });
+  });
+
+  describe("tools", () => {
+    it("lists the tool rows in the given order", () => {
+      renderSidebar({ tools: [tool({ id: "search", title: "Search vault" }), tool({ id: "status", title: "Status" }), tool({ id: "links", title: "Links" })] });
+      expect(tools().getAllByRole("button").map((b) => b.textContent)).toEqual(["Search vault", "Status", "Links"]);
+    });
+
+    it("shows a key cap from the row's global shortcut", () => {
+      renderSidebar({ tools: [tool({ id: "search", title: "Search vault", shortcut: "ctrl+alt+cmd+f" })] });
+      expect(within(row("Search vault")).getByText("⌃⌥⌘F")).toBeInTheDocument();
+    });
+
+    it("shows no key cap for a row without a shortcut", () => {
+      renderSidebar({ tools: [tool({ id: "status", title: "Status" })] });
+      expect(row("Status").querySelector("kbd")).toBeNull();
+    });
+
+    it("draws separators between the rows", () => {
+      renderSidebar({ tools: [tool({ id: "status", title: "Status" }), separator, tool({ id: "links", title: "Links" })] });
+      expect(tools().getAllByRole("separator")).toHaveLength(1);
+      expect(tools().getAllByRole("button")).toHaveLength(2);
+    });
+
+    it("runs the command of the clicked row", async () => {
+      renderSidebar({ tools: [tool({ id: "search", title: "Search vault", command: "search:open" })] });
+      await userEvent.click(row("Search vault"));
+      expect(mocked.runCommand).toHaveBeenCalledWith("search:open");
+    });
+
+    it("disables a row without a command", () => {
+      renderSidebar({ tools: [tool({ id: "call", title: "Call", command: null })] });
+      expect(row("Call")).toBeDisabled();
+    });
+
+    it("disables a row that is not enabled", () => {
+      renderSidebar({ tools: [tool({ id: "jira", title: "Open Jira issue", enabled: false })] });
+      expect(row("Open Jira issue")).toBeDisabled();
+    });
+
+    it("toasts when a row's command fails", async () => {
+      mocked.runCommand.mockRejectedValueOnce({ kind: "io", message: "Not available", code: null });
+      renderSidebar({ tools: [tool({ id: "search", title: "Search vault" })] });
+      await userEvent.click(row("Search vault"));
+      await vi.waitFor(() => expect(useStore.getState().toasts.map((t) => t.message).join()).toContain("Not available"));
+    });
   });
 
   describe("settings gear", () => {
     it("runs the app:settings command of the Rust command bus", async () => {
       renderSidebar();
-      await userEvent.click(gear());
+      await userEvent.click(screen.getByRole("button", { name: "Settings" }));
       expect(mocked.runCommand).toHaveBeenCalledWith("app:settings");
     });
 
     it("opens no dialog by itself", async () => {
       renderSidebar();
-      await userEvent.click(gear());
+      await userEvent.click(screen.getByRole("button", { name: "Settings" }));
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    });
-
-    it("names the native menu shortcut in its title", () => {
-      renderSidebar();
-      expect(gear()).toHaveAttribute("title", "Settings (⌘,)");
-    });
-
-    it("keeps its title when the keybindings change", () => {
-      renderSidebar({ keybindings: { "sidebar.toggle": null } });
-      expect(gear()).toHaveAttribute("title", "Settings (⌘,)");
     });
   });
 });

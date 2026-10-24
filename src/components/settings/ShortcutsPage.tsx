@@ -1,49 +1,15 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { RotateCcw, Search, X } from "lucide-react";
 import { api } from "../../api";
-import { allCommands, bindingFor, bindingFromEvent, bindingLabel, conflicts, scopeLabel } from "../../commands";
+import { allCommands, bindingFor, bindingFromEvent, bindingLabel, conflicts, scopeLabel, type Command } from "../../commands";
+import type { Keybindings } from "../../api";
+import { useApiResult } from "../../lib/useApiResult";
+import type { SettingsPageProps } from "../../registry/settingsPages";
 import { useStore } from "../../state/store";
 import { InsetField } from "../Field";
 import { Group, Row } from "./controls";
-
-function ShortcutField({ value, onChange }: { value: string | null; onChange: (binding: string | null) => void }) {
-  const [recording, setRecording] = useState(false);
-  // Global shortcuts and the menu's keys would take the keys being recorded.
-  useEffect(() => {
-    if (!recording) return;
-    void api.shortcutsPause(true).catch(() => {});
-    return () => void api.shortcutsPause(false).catch(() => {});
-  }, [recording]);
-  return (
-    <button
-      type="button"
-      data-recording={recording || undefined}
-      className={`shortcut-field${recording ? " recording" : ""}${value === null && !recording ? " unbound" : ""}`}
-      aria-label={recording ? "Press the new shortcut" : "Record shortcut"}
-      onClick={(e) => {
-        e.currentTarget.focus();
-        setRecording(true);
-      }}
-      onBlur={() => setRecording(false)}
-      onKeyDown={(e) => {
-        if (!recording) return;
-        e.preventDefault();
-        e.stopPropagation();
-        if (e.key === "Escape") return setRecording(false);
-        if (e.key === "Backspace" || e.key === "Delete") {
-          onChange(null);
-          return setRecording(false);
-        }
-        const binding = bindingFromEvent(e);
-        if (!binding) return;
-        onChange(binding);
-        setRecording(false);
-      }}
-    >
-      {recording ? "Press keys…" : value ? bindingLabel(value) : "unbound"}
-    </button>
-  );
-}
+import { GlobalShortcuts, MenuShortcuts } from "./GlobalShortcuts";
+import { ShortcutRecorder } from "./ShortcutRecorder";
 
 function RemoveShortcut({ title, onRemove }: { title: string; onRemove: () => void }) {
   return (
@@ -53,18 +19,42 @@ function RemoveShortcut({ title, onRemove }: { title: string; onRemove: () => vo
   );
 }
 
-export function ShortcutsPage() {
+const matchesCommand = (c: Command, needle: string) => !needle || c.title.toLowerCase().includes(needle) || c.id.toLowerCase().includes(needle);
+
+function withoutBinding(bindings: Keybindings, id: string): Keybindings {
+  const rest = { ...bindings };
+  delete rest[id];
+  return rest;
+}
+
+function WindowShortcutRow({ command: c, bindings, save }: { command: Command; bindings: Keybindings; save: (bindings: Keybindings) => void }) {
+  const overridden = Object.hasOwn(bindings, c.id);
+  const binding = bindingFor(c.id, bindings);
+  const set = (next: string | null) => save({ ...bindings, [c.id]: next });
+  return (
+    <Row label={c.title} description={scopeLabel(c.scope)}>
+      <div className="shortcut-control">
+        {overridden && (
+          <button type="button" className="icon-btn tiny" aria-label={`Reset ${c.title}`} title="Reset to default" onClick={() => save(withoutBinding(bindings, c.id))}>
+            <RotateCcw size="0.846rem" />
+          </button>
+        )}
+        {binding && <RemoveShortcut title={c.title} onRemove={() => set(null)} />}
+        <ShortcutRecorder value={binding} parse={bindingFromEvent} label={bindingLabel} onChange={set} name={c.title} />
+      </div>
+    </Row>
+  );
+}
+
+/** The windows' own keys (`keybindings.json`), in page notation (`Mod+Shift+K`). */
+function WindowShortcuts() {
   const bindings = useStore((s) => s.keybindings);
-  const save = useStore((s) => s.saveKeybindings);
+  const saveKeybindings = useStore((s) => s.saveKeybindings);
+  const save = (next: Keybindings) => void saveKeybindings(next);
   const [search, setSearch] = useState("");
   const needle = search.trim().toLowerCase();
-  const list = allCommands().filter((c) => (!needle || c.title.toLowerCase().includes(needle) || c.id.toLowerCase().includes(needle)));
+  const list = allCommands().filter((c) => matchesCommand(c, needle));
   const clashes = conflicts(bindings);
-  const set = (id: string, binding: string | null) => void save({ ...bindings, [id]: binding });
-  const reset = (id: string) => {
-    const { [id]: _gone, ...rest } = bindings;
-    void save(rest);
-  };
   return (
     <>
       <InsetField icon={<Search size="1.077rem" />} className="settings-search">
@@ -79,26 +69,24 @@ export function ShortcutsPage() {
           ))}
         </div>
       )}
-      <Group title="In Daybook">
+      <Group title="In the windows">
         {list.length === 0 && <div className="settings-row muted">No matching commands.</div>}
-        {list.map((c) => {
-          const overridden = Object.hasOwn(bindings, c.id);
-          const binding = bindingFor(c.id, bindings);
-          return (
-            <Row key={c.id} label={c.title} description={scopeLabel(c.scope)}>
-              <div className="shortcut-control">
-                {overridden && (
-                  <button type="button" className="icon-btn tiny" aria-label={`Reset ${c.title}`} title="Reset to default" onClick={() => reset(c.id)}>
-                    <RotateCcw size="0.846rem" />
-                  </button>
-                )}
-                {binding && <RemoveShortcut title={c.title} onRemove={() => set(c.id, null)} />}
-                <ShortcutField value={binding} onChange={(b) => set(c.id, b)} />
-              </div>
-            </Row>
-          );
-        })}
+        {list.map((c) => (
+          <WindowShortcutRow key={c.id} command={c} bindings={bindings} save={save} />
+        ))}
       </Group>
+    </>
+  );
+}
+
+/** Global shortcuts first, then the app menu's fixed keys, then the windows' own keys. */
+export function ShortcutsPage({ s, set }: SettingsPageProps) {
+  const overview = useApiResult("shortcuts", api.shortcutOverview).data;
+  return (
+    <>
+      {overview && <GlobalShortcuts overview={overview} s={s} set={set} />}
+      {overview && overview.menu.length > 0 && <MenuShortcuts menu={overview.menu} />}
+      <WindowShortcuts />
     </>
   );
 }

@@ -1,14 +1,33 @@
-import { DEFAULT_TEXT_SIZE, TEXT_SIZES, type TextSize } from "../api";
+import { DEFAULT_TEXT_SIZE, TEXT_SIZES, api, type TextSize } from "../api";
+import { fail } from "../state/requests";
 import { useStore } from "../state/store";
-import { allCommands, bindingFor, bindingLabel, getCommand, isRecordingTarget, registerCommands, resolveKeydown, setOverrides, type Command } from "./registry";
+import {
+  allCommands,
+  bindingFor,
+  bindingLabel,
+  getCommand,
+  isRecordingTarget,
+  isTextInput,
+  registerCommands,
+  resolveKeydown,
+  setOverrides,
+  type Command,
+} from "./registry";
 import { activeScopes, registerScope } from "./scopes";
 
 export * from "./registry";
 export * from "./scopes";
 
+/** The window this page runs in: the Daybook window (`main`) or Settings. */
+export type WindowName = "main" | "settings";
+
+let currentWindow: WindowName = "main";
+
 /** Registers the core scopes; safe to call again (tests and re-installs do). */
 export function registerCoreScopes() {
-  registerScope({ id: "global", parent: null, label: "Everywhere", isActive: () => true });
+  registerScope({ id: "global", parent: null, label: "Every window", isActive: () => true });
+  // Settings lists the Daybook window's keys without running them.
+  registerScope({ id: "hub", parent: "global", label: "Daybook window", isActive: () => currentWindow === "main" });
 }
 
 function saveTextSize(textSize: TextSize) {
@@ -34,20 +53,24 @@ function toggleShortcuts() {
   if (!s.dialog) s.openDialog({ type: "shortcuts", scopes: activeScopes() });
 }
 
-/** The window's own keys; Settings, the palette and closing are Rust commands with app menu keys. */
+function closeWindow() {
+  void api.runCommand("window:close").catch((e) => fail(e, "Could not close the window"));
+}
+
+/** The windows' own keys; Settings, the palette and ⌘W are Rust commands with app menu keys. */
 const APP_COMMANDS: Command[] = [
-  { id: "shortcuts.show", title: "Keyboard shortcuts", scope: "global", defaultBinding: "Shift+?", run: toggleShortcuts },
-  { id: "sidebar.toggle", title: "Toggle sidebar", scope: "global", defaultBinding: "Mod+Ctrl+S", run: () => useStore.getState().toggleSidebar() },
+  { id: "shortcuts.show", title: "Keyboard shortcuts", scope: "hub", defaultBinding: "Shift+?", run: toggleShortcuts },
+  { id: "sidebar.toggle", title: "Toggle sidebar", scope: "hub", defaultBinding: "Mod+Ctrl+S", run: () => useStore.getState().toggleSidebar() },
+  { id: "inspector.toggle", title: "Toggle inspector", scope: "hub", defaultBinding: "Mod+Ctrl+I", run: () => useStore.getState().toggleInspector() },
+  { id: "window.close", title: "Close window", scope: "global", defaultBinding: "Escape", when: () => !isTextInput(document.activeElement), run: closeWindow },
   { id: "zoom.in", title: "Larger text", scope: "global", defaultBinding: "Mod+=", run: () => zoomText(1) },
   { id: "zoom.out", title: "Smaller text", scope: "global", defaultBinding: "Mod+-", run: () => zoomText(-1) },
   { id: "zoom.reset", title: "Default text size", scope: "global", run: () => saveTextSize(DEFAULT_TEXT_SIZE) },
 ];
 
-/**
- * Registers the core scopes and the app's commands (again after `clearCommands`) and syncs user overrides
- * from the store.
- */
-export function installCommands() {
+/** Every window registers every command, so Settings can list them; a scope keeps a key to its window. */
+export function installCommands(windowName: WindowName = currentWindow) {
+  currentWindow = windowName;
   registerCoreScopes();
   if (allCommands().length === 0) registerCommands(APP_COMMANDS);
   setOverrides(useStore.getState().keybindings);

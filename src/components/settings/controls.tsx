@@ -2,10 +2,11 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { SegmentedControl, type SegmentedControlProps } from "../SegmentedControl";
 
-export function Group({ title, children }: { title?: string; children: ReactNode }) {
+export function Group({ title, description, children }: { title?: string; description?: ReactNode; children: ReactNode }) {
   return (
     <section className="settings-group">
       {title && <h3>{title}</h3>}
+      {description && <p className="settings-group-desc">{description}</p>}
       <div className="settings-card">{children}</div>
     </section>
   );

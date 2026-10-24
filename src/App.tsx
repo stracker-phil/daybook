@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import { api, toAppError, type LaunchEvent } from "./api";
 import { Dialogs } from "./components/Dialogs";
-import { EmptyView } from "./components/EmptyView";
+import { Board } from "./components/hub/Board";
+import { Inspector } from "./components/hub/Inspector";
 import { Sidebar } from "./components/Sidebar";
 import { Toasts } from "./components/Toasts";
 import { handleKeydown, installCommands } from "./commands";
@@ -21,17 +22,25 @@ function handleLaunchEvents(events: LaunchEvent[]) {
 
 function useBackendEvents() {
   useEffect(() => {
-    const { loadSettings, loadUiState, applySettings, toast, openDialog } = useStore.getState();
+    const { loadSettings, loadUiState, loadHub, applySettings, applyKeybindings, toggleInspector, toast } = useStore.getState();
     const drainLaunches = () => api.takeLaunchEvents().then(handleLaunchEvents, (e) => toast("error", `Launch request failed: ${toAppError(e).message}`));
 
     // Re-installing applies the user's keybinding overrides, which arrive with the settings.
-    void loadSettings().then(() => (installCommands(), drainLaunches()));
+    void loadSettings().then(() => (installCommands("main"), drainLaunches()));
     void loadUiState();
+    void loadHub();
+    const reloadHub = () => void loadHub();
+    // The greeting and the day follow the clock.
+    const everyMinute = window.setInterval(reloadHub, 60_000);
     const unlisten = [
       api.onLaunch(() => void drainLaunches()),
-      api.onOpenSettings((page) => openDialog({ type: "settings", page: page ?? undefined })),
       api.onRemote((e) => void answerRemote(e)),
-      api.onSettingsChanged(applySettings),
+      api.onSettingsChanged((settings) => (applySettings(settings), reloadHub())),
+      api.onKeybindingsChanged(applyKeybindings),
+      api.onToggleInspector(toggleInspector),
+      api.onContextChanged(reloadHub),
+      api.onNoteChanged(reloadHub),
+      api.onWindowOpened(reloadHub),
     ];
 
     const onError = (e: ErrorEvent) => toast("error", `Unexpected error: ${e.message}`);
@@ -41,6 +50,7 @@ function useBackendEvents() {
     window.addEventListener("unhandledrejection", onRejection);
     window.addEventListener("beforeunload", flushUiState);
     return () => {
+      window.clearInterval(everyMinute);
       unlisten.forEach((p) => void p.then((fn) => fn()).catch(() => {}));
       window.removeEventListener("keydown", handleKeydown, true);
       window.removeEventListener("error", onError);
@@ -50,15 +60,18 @@ function useBackendEvents() {
   }, []);
 }
 
-/** Hiding the sidebar removes it entirely; `main` keeps its tree position so views keep their state. */
+/** Hiding the sidebar or the inspector removes it; `main` keeps its tree position so the board keeps its state. */
 function Workspace() {
   const sidebarHidden = useStore((s) => s.uiState.sidebarHidden);
+  const inspectorHidden = useStore((s) => s.uiState.inspectorHidden);
+  const className = ["workspace", sidebarHidden && "no-sidebar", inspectorHidden && "no-inspector"].filter(Boolean).join(" ");
   return (
-    <div className={sidebarHidden ? "workspace no-sidebar" : "workspace"}>
+    <div className={className}>
       {!sidebarHidden && <Sidebar />}
       <main className="main">
-        <EmptyView />
+        <Board />
       </main>
+      {!inspectorHidden && <Inspector />}
     </div>
   );
 }

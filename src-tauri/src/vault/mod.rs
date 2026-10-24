@@ -47,6 +47,18 @@ pub struct DailyNoteState {
     pub waiting: u32,
 }
 
+/// Where the daily notes are and whether today's note and the Obsidian CLI were found.
+#[derive(Serialize, Clone, Debug, PartialEq, TS)]
+#[ts(export, export_to = "src/api/types.gen.ts")]
+#[serde(rename_all = "camelCase")]
+pub struct VaultInfo {
+    /// `None` without a vault.
+    pub daily_notes: Option<DailyNoteFormat>,
+    pub today_note: Option<String>,
+    pub today_note_exists: bool,
+    pub obsidian_cli: Option<String>,
+}
+
 #[derive(Serialize, Clone, Copy, Debug, PartialEq, Eq, TS)]
 #[ts(export, export_to = "src/api/types.gen.ts")]
 #[serde(rename_all = "camelCase")]
@@ -142,6 +154,23 @@ impl DailyNotes {
         let vault = vault(settings)?;
         let format = self.formats.get(&vault, &settings.daily_note);
         Ok((vault, format))
+    }
+
+    /// Settings → Vault's view; looking up the Obsidian CLI can take seconds.
+    pub fn info(&self, settings: &Settings) -> VaultInfo {
+        let today = self.state(settings);
+        VaultInfo {
+            daily_notes: self
+                .vault_and_format(settings)
+                .ok()
+                .map(|(_, format)| format),
+            today_note: today.path,
+            today_note_exists: today.exists,
+            obsidian_cli: self
+                .cli
+                .find(&settings.vault.obsidian_cli_path)
+                .map(|path| path.to_string_lossy().into_owned()),
+        }
     }
 
     /// Where `day`'s note belongs, whether or not it exists.
@@ -418,6 +447,54 @@ mod tests {
         assert!(
             matches!(path, Err(AppError::InvalidInput(m)) if m == "Choose your vault in Settings first.")
         );
+    }
+
+    #[test]
+    fn info_reports_the_fallback_format_and_whether_today_has_a_note() {
+        let mut fx = Fixture::new(&[], fast());
+        fx.install_cli("exit 0");
+        let cli = fx.settings.vault.obsidian_cli_path.clone();
+        let note = Some(fx.note().to_string_lossy().into_owned());
+        let format = DailyNoteFormat {
+            folder: "1-Journal".into(),
+            format: "YYYY-MM-DD".into(),
+            from_obsidian: false,
+        };
+
+        let before = fx.notes.info(&fx.settings);
+        fx.write_note("# Day\n");
+        let after = fx.notes.info(&fx.settings);
+
+        assert_eq!(
+            before,
+            VaultInfo {
+                daily_notes: Some(format.clone()),
+                today_note: note.clone(),
+                today_note_exists: false,
+                obsidian_cli: Some(cli.clone()),
+            }
+        );
+        assert_eq!(
+            after,
+            VaultInfo {
+                daily_notes: Some(format),
+                today_note: note,
+                today_note_exists: true,
+                obsidian_cli: Some(cli),
+            }
+        );
+    }
+
+    #[test]
+    fn info_without_a_vault_has_no_daily_notes_and_no_today_note() {
+        let config = temp_config_dir();
+        let notes = DailyNotes::with_clock(config.path(), fixed_today, fast());
+
+        let info = notes.info(&Settings::default());
+
+        assert_eq!(info.daily_notes, None);
+        assert_eq!(info.today_note, None);
+        assert!(!info.today_note_exists);
     }
 
     #[test]

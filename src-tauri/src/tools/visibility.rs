@@ -14,7 +14,7 @@ pub fn is_separator(id: ToolId) -> bool {
 }
 
 /// Drops separators at the start, at the end and right after another one.
-fn collapse_separators(ids: Vec<ToolId>) -> Vec<ToolId> {
+pub fn tidy_separators(ids: Vec<ToolId>) -> Vec<ToolId> {
     let mut result: Vec<ToolId> = Vec::new();
     for id in ids {
         if is_separator(id) && result.last().is_none_or(|last| is_separator(*last)) {
@@ -60,7 +60,7 @@ pub fn visible_tools(tools: &[ToolPlacement], state: &ToolState, surface: Surfac
         .filter(|tool| applies(tool.id, state))
         .map(|tool| tool.id)
         .collect();
-    collapse_separators(shown)
+    tidy_separators(shown)
 }
 
 #[cfg(test)]

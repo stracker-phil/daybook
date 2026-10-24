@@ -149,6 +149,7 @@ another note in the folder.
 | `daily_note_state` | – | `DailyNoteState` | – |
 | `daily_note_open` | `day: string \| null` (`YYYY-MM-DD`, default today) | – (opens the note in Obsidian through `obsidian://open`; today's missing note is created instead) | `invalid_input` (no vault, not a day), `not_found` (no note that day), `io` |
 | `daily_note_create` | – | `bool`: whether today's note exists afterwards | `invalid_input`, `io` |
+| `vault_info` | – | `VaultInfo` (`DailyNotes::info`, for Settings → Vault): the `DailyNoteFormat` in use (`null` without a vault), today's note path and whether it exists, the Obsidian CLI's path | – |
 | `dev_edit_today_note` (debug builds, `dev.rs`) | `op: NoteOp` | `WriteOutcome` | as `edit_today` |
 
 Drive the write path from a debug build with `scripts/dev/js.sh`, e.g.

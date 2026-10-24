@@ -9,7 +9,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_opener::OpenerExt;
 use ts_rs::TS;
 
-use super::{DailyNoteState, DailyNotes, NoteEvent, obsidian};
+use super::{DailyNoteState, DailyNotes, NoteEvent, VaultInfo, obsidian};
 use crate::error::{AppError, AppResult};
 use crate::events::NOTE_CHANGED_EVENT;
 use crate::state::AppState;
@@ -91,6 +91,13 @@ fn on_note_event(app: &AppHandle, event: NoteEvent) {
     if matches!(event, NoteEvent::Changed(_)) {
         tauri::async_runtime::spawn_blocking(move || notes.note_appeared(&settings));
     }
+}
+
+#[tauri::command]
+pub async fn vault_info(state: State<'_, AppState>) -> AppResult<VaultInfo> {
+    let notes = Arc::clone(&state.notes);
+    let settings = state.settings.get();
+    blocking(move || Ok(notes.info(&settings))).await
 }
 
 #[tauri::command]

@@ -12,6 +12,7 @@ pub mod error;
 pub mod events;
 mod handlers;
 pub mod help;
+pub mod hub;
 mod instance;
 pub mod ipc;
 pub mod launch;

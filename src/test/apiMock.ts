@@ -32,6 +32,18 @@ export function createApiMock(): typeof realApi {
     dailyNoteState: vi.fn().mockResolvedValue({ path: null, exists: false, creating: false, waiting: 0 }),
     dailyNoteOpen: vi.fn().mockResolvedValue(undefined),
     dailyNoteCreate: vi.fn().mockResolvedValue(false),
+    shortcutOverview: vi.fn().mockResolvedValue({ registered: true, global: [], menu: [] }),
+    hubView: vi.fn().mockResolvedValue({
+      day: "2026-10-24",
+      isToday: true,
+      weekday: "Saturday",
+      date: "24 October 2026",
+      title: "Good morning",
+      previousDay: null,
+      nextDay: null,
+      tools: [],
+    }),
+    vaultInfo: vi.fn().mockResolvedValue({ dailyNotes: null, todayNote: null, todayNoteExists: false, obsidianCli: null }),
     panelOpen: vi.fn().mockResolvedValue(undefined),
     panelClose: vi.fn().mockResolvedValue(undefined),
     panelSession: vi.fn().mockResolvedValue(null),
@@ -46,5 +58,7 @@ export function createApiMock(): typeof realApi {
     onSettingsChanged: vi.fn(noUnlisten),
     onContextChanged: vi.fn(noUnlisten),
     onNoteChanged: vi.fn(noUnlisten),
+    onToggleInspector: vi.fn(noUnlisten),
+    onKeybindingsChanged: vi.fn(noUnlisten),
   };
 }

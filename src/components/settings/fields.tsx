@@ -168,8 +168,8 @@ export function ChoiceList({ label, choices, chosen, onChange, placeholder }: { 
   );
 }
 
-/** Up, down and remove for one card of a list. */
-export function ItemActions({ index, count, onMove, onRemove, removeLabel }: { index: number; count: number; onMove: (from: number, to: number) => void; onRemove: () => void; removeLabel: string }) {
+/** Up, down and, for a list you can add to, remove. */
+export function ItemActions({ index, count, onMove, onRemove, removeLabel }: { index: number; count: number; onMove: (from: number, to: number) => void; onRemove?: () => void; removeLabel?: string }) {
   return (
     <div className="item-actions">
       <button type="button" className="btn btn-quiet" disabled={index === 0} onClick={() => onMove(index, index - 1)}>
@@ -178,9 +178,11 @@ export function ItemActions({ index, count, onMove, onRemove, removeLabel }: { i
       <button type="button" className="btn btn-quiet" disabled={index === count - 1} onClick={() => onMove(index, index + 1)}>
         Move Down
       </button>
-      <button type="button" className="btn btn-danger" onClick={onRemove}>
-        {removeLabel}
-      </button>
+      {onRemove && (
+        <button type="button" className="btn btn-danger" onClick={onRemove}>
+          {removeLabel}
+        </button>
+      )}
     </div>
   );
 }

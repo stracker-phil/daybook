@@ -47,8 +47,8 @@ line number.
   `handlers.rs` (command registration), `cli/` (argv, replies), `ipc.rs` (single-instance socket),
   `pending.rs`, `launch.rs`, `remote.rs` (requests the page answers), `deep_link.rs`, `events.rs` (every event
   name), `state.rs` (`AppState`), `store/` (JSON files: settings, keybindings, ui state), `autostart.rs`,
-  `commands.rs`, `bus/` (the command bus, docs/commands.md), `contexts/`, `projects/`, `tools/`, `palette/`, `shortcuts/` (global shortcuts),
-  `menu/` (app menu, menu-bar menu model), `help.rs`, `tray.rs`, `notify.rs`, `window/`, `error.rs`,
+  `commands.rs`, `bus/` (the command bus, docs/commands.md), `contexts/`, `projects/`, `tools/`, `hub/` (the Daybook window's view model), `palette/`, `shortcuts/` (global shortcuts),
+  `menu/` (app menu, menu-bar menu model), `help.rs`, `tray.rs`, `notify.rs`, `window/` (Daybook window, Settings window, overlay), `error.rs`,
   `lock.rs`, `dev.rs` (debug builds), `test_support/` (tests).
 - Errors cross the boundary as `{ kind, message }` (`error.rs`). IPC types are generated with ts-rs.
 - The data is the vault plus small JSON files; no database (ADR 0012).
