@@ -281,18 +281,20 @@ separate windows; they come with steps 04, 16 and 20 and get their sections here
 
 ## Palette
 
-⌘K opens it (`CommandPalette`, a panel near the top of the window). The field reads "Command or settings page…".
-Empty, it lists the commands of the active scopes, and the footer names the prefixes. Typing searches, ranked
-by match quality (whole name, then its start, then the start of a word, then anywhere) and grouped in sections,
-the best section first:
+⌘K, the palette tool and its global shortcut open it as an overlay over any app (`PaletteView`); ⌘K again
+closes it. The field reads "Search commands, links, projects, music and contexts…". Empty, each group shows
+its first six; typing ranks the matches (the name's start, then a word's start, then every word somewhere,
+then the letters in order) and shows eight per group. Groups: Commands, Links, Projects, Music, Contexts. A
+first character narrows to one group and lists all of it: `>` commands, `#` links, `/` projects, `:` music,
+`@` contexts; the footer has a button per prefix. A command reads as its menu path (`Music: Pause`), with
+its global shortcut as a key cap; a link names its project as detail, a current context or playlist says
+"Current". Disabled commands are absent.
 
-- **Settings:** `Settings: Appearance` and every other registered page; ↵ opens Settings on it.
-- **Commands:** the enabled commands of the active scopes, with their keys as key caps.
-
-The prefix `>` limits the list to commands. ↑ ↓ move, ↵ runs, Esc closes; the footer
-names the keys. Results use the row anatomy with a 6px radius; the active one is filled with
-the accent and `--on-accent` text, as in Spotlight. Section labels are small `--o3` text; a row's detail follows
-its title in `--o2`.
+↑ ↓ move, ↵ or a click runs, Esc closes. A pick that brings a window or another app forward (the Daybook
+window, Settings, a note, a link) closes the palette first and leaves that in front; a pick that opens another
+overlay replaces the palette; anything else runs and the palette closes, handing focus back to where you were.
+Results use the row anatomy with a 6px radius; the active one is filled with the accent and `--on-accent`
+text, as in Spotlight. Group headings are small `--o3` text; a row's detail follows its label in `--o3`.
 
 ## Settings
 
@@ -318,70 +320,61 @@ its title in `--o2`.
 
 ## Keys
 
-Every action is a command (`APP_COMMANDS` in `src/commands/index.ts`) with a rebindable key (Settings →
-Shortcuts, `keybindings.json`) or, without a default key, an item in the [menu bar](#menu-bar); every command is
-in the palette too (⌘K, `>` lists the commands of the active scopes). `?` lists the bound commands of the scopes
-active when it opens, most specific first, in a sheet: only the list scrolls, Close stays below it.
+App-level actions are Rust commands ([commands.md](commands.md)): the app menu gives them their keys in a
+Daybook window, global shortcuts (Settings notation, `ctrl+alt+cmd+f`) run them from anywhere. The page's
+registry (`APP_COMMANDS` in `src/commands/index.ts`) only has the keys inside a window, rebindable in
+Settings → Shortcuts (`keybindings.json`). `?` lists the bound page commands of the scopes active when it
+opens, most specific first, in a sheet: only the list scrolls, Close stays below it.
 
-Rules of the keys (`handleKeydown`):
+Rules of the page's keys (`handleKeydown`):
 
 - Bare keys never fire in text fields; there only ⌘ and ⌃ combinations and Escape do.
-- While a dialog or the palette is open, only Settings, `?`, the palette, zoom, Close window, Hide to Menu Bar
-  and Quit run (`MODAL_ALLOWED`); every other key belongs to the overlay. A context menu keeps its own keys the
-  same way.
+- While a dialog is open, only `?` and the text size keys run (`MODAL_ALLOWED`); every other key belongs to
+  the dialog. A context menu keeps its own keys the same way.
 - ↵ and Space on a focused button or link activate it.
 - A held key repeats only the text size steps.
 - A command has one binding.
 - `Tab` is never bound: it moves the keyboard focus, and dialogs keep it inside (see [Overlays](#overlays)).
 
-Scopes are the registry's (`src/commands/scopes.ts`); for now there is only `global` ("Everywhere"). Views add
-theirs under it with their steps.
-
 | Command | Label | Default key | Scope |
 |---|---|---|---|
-| `settings.toggle` | Settings… | ⌘, | global |
-| `app.launchAtLogin` | Launch at login (a check item) | menu | global |
 | `shortcuts.show` | Keyboard shortcuts | ? | global |
-| `palette.toggle` | Command palette | ⌘K | global |
 | `sidebar.toggle` | Toggle sidebar | ⌘⌃S | global |
-| `zoom.in` / `zoom.out` / `zoom.reset` | Larger text / Smaller text / Default text size | ⌘= / ⌘- / ⌘0 | global |
-| `window.hide` | Close window | ⌘W | global |
-| `logs.open` | Open log folder | menu | global |
-| `help.readme` | Open README | menu | global |
-| `app.background` | Hide to Menu Bar (the window and the Dock icon hide; the app keeps running in the menu bar) | ⌘Q | global |
-| `app.quit` | Quit Daybook | menu | global |
+| `zoom.in` / `zoom.out` / `zoom.reset` | Larger text / Smaller text / Default text size | ⌘= / ⌘- / – | global |
 
 Keys of controls, not commands (they act on the focused control and are not rebindable):
 
 | Where | Keys |
 |---|---|
 | Dialogs | Tab and ⇧Tab cycle inside; Escape closes |
+| Overlays | Tab stays inside; Escape closes |
 | Palette | ↑↓ move, ↵ runs, Escape closes |
 | Context menu | ↑↓ items, ↵ runs, Escape closes |
-| Settings → Shortcuts | a key field records the next key; Escape stops, ⌫ unbinds |
+| Settings → Shortcuts | a key field records the next key (global shortcuts and the menu's keys pause meanwhile); Escape stops, ⌫ unbinds |
+
+Global shortcuts are registered only by the debug build while the prototype runs
+([ADR 0018](adr/0018-global-shortcuts-only-in-debug-builds.md)).
 
 ## Menu bar
 
-Every command with `menu: true` has a menu item with its key shown (`MENU_ITEMS` in `src-tauri/src/menu/items.rs`,
-synced as in [backend.md](backend.md#native-menu)). An item whose command cannot run now is greyed out: outside
-its scope, when its `when` is false, and while a dialog or the palette is open (except the `MODAL_ALLOWED`
-commands). Rebinding a key in Settings → Shortcuts updates the menu.
-
-Keys with ⌘ or ⌃ are real menu accelerators. Single keys and ⌥ keys are shown in the item's title, `Keyboard
-Shortcuts (⇧?)`, and are never accelerators: an accelerator would take the key from every text field. The page's
-key handler runs them, with the rules above.
+The app menu (only visible while a Daybook window is in front) runs Rust commands; an item whose command
+does not exist yet is left out, a disabled one is greyed out.
 
 | Menu | Items (command; key) |
 |---|---|
-| Daybook | About; Settings… (`settings.toggle`; ⌘,); Launch at Login (`app.launchAtLogin`, a check item); Services; Hide, Hide Others, Show All; Hide to Menu Bar (`app.background`; ⌘Q), Quit Daybook (`app.quit`) |
-| File | Close Window (`window.hide`; ⌘W) |
+| Daybook | About; Settings… (`app:settings`; ⌘,); Services; Hide, Hide Others, Show All; Close Window (`window:close`; ⌘Q) |
+| File | Command Palette… (`palette:open`; ⌘K), Search Vault… (⌘F), Journal… (⌘J), Daybook (`hub:open`; ⌘0); Close Window (`window:close`; ⌘W) |
 | Edit | Undo, Redo; Cut, Copy, Paste, Select All (native) |
-| View | Toggle Sidebar (`sidebar.toggle`; ⌘⌃S); Enter Full Screen (native) |
 | Window | Minimize, Zoom, Bring All to Front (native) |
-| Help | Keyboard Shortcuts (`shortcuts.show`; ⇧?), Command Palette… (`palette.toggle`; ⌘K); Open Log Folder (`logs.open`), README (`help.readme`) |
+| Help | Open Log Folder (`app:logs`), README (`app:readme`); Sample Overlay, Sample Overlay (Sticky) in debug builds |
 
-The text size commands (`zoom.*`) have keys and the palette only. The tray icon's menu has Open Daybook and Quit
-Daybook.
+⌘Q only closes the window in front, as ⌘W does: Daybook keeps running in the menu bar, and Quit is in the
+menu-bar menu.
+
+The menu-bar menu: Create Today's Note while it is missing (with how many changes wait for it), the tools in
+Settings → Tools order (a tool with things to pick is a submenu: its overlay first, then the picks, the current
+one ticked), the links, Open Today's Note, Settings…, Quit Daybook; without a vault only Choose Vault….
+Global shortcuts show next to their items. The item's title is the current context's label (an emoji).
 
 ## Scheme audit
 

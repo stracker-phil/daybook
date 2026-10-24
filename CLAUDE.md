@@ -47,7 +47,8 @@ line number.
   `handlers.rs` (command registration), `cli/` (argv, replies), `ipc.rs` (single-instance socket),
   `pending.rs`, `launch.rs`, `remote.rs` (requests the page answers), `deep_link.rs`, `events.rs` (every event
   name), `state.rs` (`AppState`), `store/` (JSON files: settings, keybindings, ui state), `autostart.rs`,
-  `commands.rs`, `menu/` (menu bar, item list, enabled state), `help.rs`, `tray.rs`, `window.rs`, `error.rs`,
+  `commands.rs`, `bus/` (the command bus, docs/commands.md), `tools/`, `palette/`, `shortcuts/` (global shortcuts),
+  `menu/` (app menu, menu-bar menu model), `help.rs`, `tray.rs`, `notify.rs`, `window/`, `error.rs`,
   `lock.rs`, `dev.rs` (debug builds), `test_support/` (tests).
 - Errors cross the boundary as `{ kind, message }` (`error.rs`). IPC types are generated with ts-rs.
 - The data is the vault plus small JSON files; no database (ADR 0012).

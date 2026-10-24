@@ -30,14 +30,10 @@ export type Dialog =
 export interface UiSlice {
   toasts: Toast[];
   dialog: Dialog | null;
-  paletteOpen: boolean;
-  /** Text the palette opens with, e.g. `>` for commands. */
-  paletteSeed: string;
   toast: (kind: Toast["kind"], message: string, action?: ToastAction) => void;
   dismissToast: (id: number) => void;
   openDialog: (dialog: Dialog) => void;
   closeDialog: () => void;
-  setPaletteOpen: (open: boolean, seed?: string) => void;
 }
 
 let nextToastId = 1;
@@ -46,8 +42,6 @@ export const uiSlice: Slice<UiSlice> = {
   create: (set, get) => ({
     toasts: [],
     dialog: null,
-    paletteOpen: false,
-    paletteSeed: "",
 
     toast(kind, message, action) {
       if (kind === "error") void api.logError(message).catch(() => {});
@@ -70,10 +64,6 @@ export const uiSlice: Slice<UiSlice> = {
 
     closeDialog() {
       set({ dialog: null });
-    },
-
-    setPaletteOpen(paletteOpen, seed = "") {
-      set({ paletteOpen, paletteSeed: seed });
     },
   }),
 };

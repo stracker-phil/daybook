@@ -22,12 +22,11 @@ renders and forwards intent; [Rust owns the logic](architecture.md#design-rules)
       user's bindings, and `drainLaunches()` pulls the queued launch events (`api.takeLaunchEvents`): `error`
       shows an error toast, `notice` an info toast; `activate` is Rust's and needs nothing from the page.
       `loadUiState()` loads the window layout.
-   2. It subscribes to `launch` (drain again), `command` (menu and tray items, to `runMenuCommand`) and
-      `remote` (to `answerRemote`).
+   2. It subscribes to `launch` (drain again), `open_settings` (opens the Settings dialog at the page Rust
+      names), `remote` (to `answerRemote`) and `settings_changed`.
    3. It adds a capture-phase `keydown` to `handleKeydown`, `error` and `unhandledrejection` to an error
       toast ("Unexpected error: …"), and `beforeunload` to `flushUiState`.
-8. `useMenuSync()` starts `installMenuSync()` ([Menu](#menu)).
-9. `applyAppearance(settings, systemDark)` runs whenever the settings or the OS appearance change.
+8. `applyAppearance(settings, systemDark)` runs whenever the settings or the OS appearance change.
 
 ```
 App
@@ -36,7 +35,6 @@ App
 │     ├─ Sidebar    the app name; the Settings gear at the bottom (not rendered while hidden)
 │     └─ main       EmptyView
 ├─ Dialogs          settings, shortcuts, confirm, prompt
-├─ CommandPalette
 └─ Toasts
 ```
 
@@ -56,7 +54,7 @@ the `AppError`. The store re-exports it with `flushUiState` and the `Dialog` and
 | Slice | Holds |
 |---|---|
 | `settings` | `settings` (`null` until loaded), `keybindings`, `loadSettings` (settings and keybindings in parallel; keybindings fall back to `{}`), `applySettings(settings)` (settings Rust saved elsewhere, from `settings_changed`), `saveSettings(settings, { quiet? })` (stores what `api.updateSettings` returns, toasts "Settings saved" unless `quiet`), `saveKeybindings(bindings)` (stores Rust's answer and calls `setOverrides`), `setLaunchAtLogin(enabled)` (`api.autostartSet`, then patches `settings.launchAtLogin` so a later save keeps it; resolves whether it is on now, `null` on a toasted failure) |
-| `ui` | `toasts`, `toast(kind, message, action?)`, `dismissToast(id)`, `dialog` (a `Dialog` or `null`), `openDialog`, `closeDialog`, `paletteOpen`, `paletteSeed`, `setPaletteOpen(open, seed?)` |
+| `ui` | `toasts`, `toast(kind, message, action?)`, `dismissToast(id)`, `dialog` (a `Dialog` or `null`), `openDialog`, `closeDialog` |
 | `viewState` | `uiState` (`UiState` from Rust: `sidebarHidden`, `sidebarWidth`, `paneSizes`; `EMPTY_UI_STATE` until it loads), `loadUiState`, `setPaneSize(pane, px)`, `toggleSidebar` |
 
 Every `viewState` change is written through `api.setUiState` 500 ms after the last one (drags fire
@@ -78,10 +76,12 @@ it. `src/api/index.ts` exports `api`, a flat object of thin `invoke` wrappers fo
   `Settings::from_json`), `getKeybindings`, `setKeybindings`, `getUiState`, `setUiState`;
 - launch at login: `autostartSet`, `autostartStatus` (whether the LaunchAgent is installed, the truth that
   `settings.launchAtLogin` mirrors);
-- the app: `menuSync`, `takeLaunchEvents`, `remoteReply(id, result, error)`, `hideWindow`, `hideToMenuBar`,
-  `quitApp`, `openLogFolder`, `openReadme`, `openUrl` (http(s) only), `chooseFolder` (`null` on cancel),
-  `revealPath`, `logError`;
-- the subscriptions `onLaunch`, `onWindowOpened`, `onCommand`, `onRemote` and `onSettingsChanged` (the saved settings, from any window; `App` hands them to `applySettings`), each resolving to its unlisten
+- the app: `runCommand(id)` (a Rust command, [commands.md](commands.md)), `takeLaunchEvents`,
+  `remoteReply(id, result, error)`, `openLogFolder`, `openUrl` (http(s) only), `chooseFolder` (`null` on
+  cancel), `revealPath`, `logError`, `shortcutsPause(paused)`;
+- the palette: `paletteQuery(query)`, `paletteRun(command)`; the vault's and the overlay's calls
+  ([vault.md](vault.md#commands), [windows.md](windows.md#commands-and-events));
+- the subscriptions `onLaunch`, `onWindowOpened`, `onOpenSettings`, `onRemote`, `onNoteChanged`, `onPanelSession` and `onSettingsChanged` (the saved settings, from any window; `App` hands them to `applySettings`), each resolving to its unlisten
   function.
 
 `toAppError(e)` normalizes a rejection: a value with a known `kind` and a `message` is an `AppError`; anything
@@ -113,32 +113,26 @@ dialog opened.
 
 ## Commands
 
-Every user action that has a shortcut or appears in the palette is a `Command` (`commands/registry.ts`):
-`{ id, title, scope, defaultBinding?, when?, run, menu?, checked?, menuOnly? }`. `when` false means the
-command neither fires nor shows in the palette; `menu` marks a native menu item; `checked` gives a check item
-its mark; `menuOnly` marks a menu item not meant to take a key, which Settings → Shortcuts leaves out.
+App-level actions are Rust commands ([commands.md](commands.md)); the page runs one with `api.runCommand(id)`.
+The page's registry (`commands/registry.ts`) only holds the keys inside one window: `Command` is `{ id,
+title, scope, defaultBinding?, when?, run }`; `when` false means the command does not fire.
 
-The core commands are `APP_COMMANDS` (`commands/index.ts`), all in `global`:
+The core's are `APP_COMMANDS` (`commands/index.ts`), all in `global`:
 
-| Id | Title | Default | Menu |
-|---|---|---|---|
-| `settings.toggle` | Settings… | ⌘, | yes |
-| `app.launchAtLogin` | Launch at login (`menuOnly`, checked by `settings.launchAtLogin`, enabled once settings loaded) | | yes |
-| `shortcuts.show` | Keyboard shortcuts (opens the overview of the active scopes; pressed again closes it) | ⇧? | yes |
-| `palette.toggle` | Command palette | ⌘K | yes |
-| `sidebar.toggle` | Toggle sidebar (`toggleSidebar`) | ⌘⌃S | yes |
-| `zoom.in`, `zoom.out` | Larger text, Smaller text (step through `TEXT_SIZES`, saved quietly; past either end nothing changes) | ⌘= ⌘- | |
-| `zoom.reset` | Default text size (`DEFAULT_TEXT_SIZE`) | ⌘0 | |
-| `window.hide` | Close window (`api.hideWindow`) | ⌘W | yes |
-| `logs.open` | Open log folder | | yes |
-| `help.readme` | Open README (`api.openReadme`; a failure toasts) | | yes |
-| `app.background` | Hide to Menu Bar (`api.hideToMenuBar`) | ⌘Q | yes |
-| `app.quit` | Quit Daybook (`api.quitApp`) | | yes |
+| Id | Title | Default |
+|---|---|---|
+| `shortcuts.show` | Keyboard shortcuts (opens the overview of the active scopes; pressed again it closes it) | ⇧? |
+| `sidebar.toggle` | Toggle sidebar (`toggleSidebar`) | ⌘⌃S |
+| `zoom.in`, `zoom.out` | Larger text, Smaller text (step through `TEXT_SIZES`, saved quietly; past either end nothing changes) | ⌘= ⌘- |
+| `zoom.reset` | Default text size (`DEFAULT_TEXT_SIZE`) | – (⌘0 is the app menu's Daybook) |
+
+Settings ⌘,, the palette ⌘K, Close Window ⌘W and ⌘Q are app menu items running Rust commands; the native
+menu takes their keys before the page sees them.
 
 `installCommands()` registers the core scopes, registers `APP_COMMANDS` when the registry is empty, and
 applies the store's keybindings with `setOverrides`; it is safe to call again. Module scopes must be
 registered before their commands: `registerCommands` throws on an unknown scope, which catches typos at
-install time. `runCommand(id)` runs a command whose `when` holds (the palette and tests use it).
+install time. `runCommand(id)` runs a command whose `when` holds (tests use it).
 
 - **Bindings** are strings like `Mod+Shift+K` (`Mod` is ⌘), normalized to the order `Mod, Ctrl, Alt, Shift`
   (`cmd`, `meta` and `cmdorctrl` read as `Mod`; a trailing `++` is the `+` key) and shown as `⌘⇧K` by
@@ -154,20 +148,13 @@ install time. `runCommand(id)` runs a command whose `when` holds (the palette an
 - **Keys.** `handleKeydown` runs in the capture phase and resolves the key through `resolveKeydown`. Inside
   text inputs only `Mod` and `Ctrl` combinations and Escape fire. A shortcut field that is recording
   (`[data-recording]`) keeps every key. Bare ↵ and Space on a focused button, link or option stay with it
-  (`activatesControl`). While a dialog or the palette is open, and inside a context menu (`[role="menu"]`),
-  only `MODAL_ALLOWED` commands run (settings, shortcuts, palette, zoom, close, hide, quit). A matched key is
-  prevented and stopped; auto-repeat is swallowed unless the command is in `REPEATABLE` (`zoom.in`,
-  `zoom.out`), so the native accelerator does not repeat it either.
-
-### Menu
-
-Native menu and tray items emit `command` with a command id; `runMenuCommand(id)` runs it when
-`canRunFromMenu` says so (an active scope, `when` not false, not held back by an overlay). A command with
-`menu: true` has the same id and default binding as its `MENU_ITEMS` entry in `src-tauri/src/menu/items.rs`.
-`installMenuSync()` (`commands/menu.ts`) reports `menuState()`, the menu commands that can run now
-(`enabled`) and the checked ones (`checked`), on every store change and every `focusin` and `focusout`;
-`syncMenu` sends it through `api.menuSync` only when it changed (a failed send is retried on the next
-change), so Rust greys out and checks the items.
+  (`activatesControl`). While a dialog is open, and inside a context menu (`[role="menu"]`), only
+  `MODAL_ALLOWED` commands run (shortcuts and zoom). A matched key is prevented and stopped; auto-repeat is
+  swallowed unless the command is in `REPEATABLE` (`zoom.in`, `zoom.out`).
+- **Global shortcuts** in Settings notation (`shift+cmd+k`) have their helpers in `lib/shortcuts.ts`:
+  `shortcutFromKeyEvent` (a key press by physical key; needs ⌘, ⌃ or ⌥ except for function keys),
+  `findShortcutConflict` against `SYSTEM_SHORTCUTS` or other actions whatever the spelling, and
+  `shortcutKeys` (`["⌃", "⌥", "⌘", "J"]`).
 
 ### Remote
 
@@ -178,19 +165,11 @@ logged.
 
 ## Palette
 
-`CommandPalette` is a `Modal` panel opened by `palette.toggle` (`paletteOpen`), mounted afresh per opening and
-per `paletteSeed`, the text it opens with. ↑ ↓ move, ↵ or a click runs the item. It lists
-two kinds, from `components/palette/`:
-
-- `parse.ts`: `parsePrefix(input)` splits off the prefix (`>`, commands only) and the needle; `score(fields,
-  needle)` ranks a match: 5 equal, 4 prefix, 3 the start of a word, 2 inside a word, 0 none, ignoring case
-  (an empty needle matches everything with 1).
-- `usePaletteItems(query)`: one provider per kind. Settings pages (`Settings: <label>`, only for a typed needle
-  without a prefix) open `openDialog({ type: "settings", page })`; commands are those of the active scopes
-  whose `when` holds, with their key caps, except `palette.toggle`. Each section's matches best first, the
-  sections by their best match, ties in provider order, at most 80 items. An item closes the palette before it
-  acts, so a command that opens it again with a seed wins.
-- `PaletteList.tsx`: `PaletteList` (section labels, rows with `KeyCap`) and `PaletteFooter`.
+The palette is an overlay view (`windows/panel/PaletteView.tsx`, view `palette`): a search field, the groups
+Rust returns for what is typed (`api.paletteQuery` on every change; [commands.md](commands.md#palette)), a
+footer with one button per prefix. ↑ ↓ move (wrapping), ↵ or a click runs `api.paletteRun(command)`; a failed
+run shows its message in the footer. Rows carry the kind's icon, the label, the detail and the shortcut as a
+key cap (`shortcutKeys`).
 
 ## Dialogs and toasts
 
@@ -222,7 +201,7 @@ clipboard is not available.
 Shell components in `components/`:
 
 - `Sidebar`: the drag strip under the window buttons (`data-tauri-drag-region`), "Daybook", and the Settings
-  gear in the footer (its tooltip shows the binding of `settings.toggle`).
+  gear in the footer (runs `app:settings`; its tooltip names ⌘,).
 - `EmptyView`: the main pane until the first view exists.
 - `Toolbar`: the unified toolbar a view renders first: `title`, an optional `detail`, the actions as children;
   its empty space drags the window. No view uses it yet.

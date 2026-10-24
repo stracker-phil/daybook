@@ -1,12 +1,10 @@
 import { useEffect } from "react";
 import { api, toAppError, type LaunchEvent } from "./api";
-import { CommandPalette } from "./components/CommandPalette";
 import { Dialogs } from "./components/Dialogs";
 import { EmptyView } from "./components/EmptyView";
 import { Sidebar } from "./components/Sidebar";
 import { Toasts } from "./components/Toasts";
-import { handleKeydown, installCommands, runMenuCommand } from "./commands";
-import { installMenuSync } from "./commands/menu";
+import { handleKeydown, installCommands } from "./commands";
 import { answerRemote } from "./commands/remote";
 import { applyAppearance, useSystemDark } from "./lib/theme";
 import { flushUiState, useStore } from "./state/store";
@@ -22,7 +20,7 @@ function handleLaunchEvents(events: LaunchEvent[]) {
 
 function useBackendEvents() {
   useEffect(() => {
-    const { loadSettings, loadUiState, applySettings, toast } = useStore.getState();
+    const { loadSettings, loadUiState, applySettings, toast, openDialog } = useStore.getState();
     const drainLaunches = () => api.takeLaunchEvents().then(handleLaunchEvents, (e) => toast("error", `Launch request failed: ${toAppError(e).message}`));
 
     // Re-installing applies the user's keybinding overrides, which arrive with the settings.
@@ -30,7 +28,7 @@ function useBackendEvents() {
     void loadUiState();
     const unlisten = [
       api.onLaunch(() => void drainLaunches()),
-      api.onCommand(runMenuCommand),
+      api.onOpenSettings((page) => openDialog({ type: "settings", page: page ?? undefined })),
       api.onRemote((e) => void answerRemote(e)),
       api.onSettingsChanged(applySettings),
     ];
@@ -51,10 +49,6 @@ function useBackendEvents() {
   }, []);
 }
 
-function useMenuSync() {
-  useEffect(() => installMenuSync(), []);
-}
-
 /** Hiding the sidebar removes it entirely; `main` keeps its tree position so views keep their state. */
 function Workspace() {
   const sidebarHidden = useStore((s) => s.uiState.sidebarHidden);
@@ -72,7 +66,6 @@ export default function App() {
   const settings = useStore((s) => s.settings);
   const systemDark = useSystemDark();
   useBackendEvents();
-  useMenuSync();
 
   useEffect(() => {
     if (settings) applyAppearance(settings, systemDark);
@@ -84,7 +77,6 @@ export default function App() {
         <Workspace />
       </div>
       <Dialogs />
-      <CommandPalette />
       <Toasts />
     </>
   );

@@ -6,12 +6,11 @@ use crate::autostart;
 use crate::error::{AppError, AppResult};
 use crate::events::SETTINGS_CHANGED_EVENT;
 use crate::launch::LaunchEvent;
-use crate::menu;
 use crate::state::AppState;
 use crate::store::keybindings::Keybindings;
 use crate::store::settings::Settings;
 use crate::store::ui_state::UiState;
-use crate::window;
+use crate::{shortcuts, tray};
 
 #[tauri::command]
 pub fn get_settings(state: State<'_, AppState>) -> Settings {
@@ -76,6 +75,10 @@ pub(crate) async fn save_settings(
 fn settings_saved(app: &AppHandle, previous: &Settings, saved: &Settings) {
     apply_settings(app, Some(previous), saved);
     app.state::<AppState>().notes.watch_today_folder(saved);
+    if previous.hotkeys != saved.hotkeys {
+        shortcuts::apply(app);
+    }
+    tray::refresh(app);
     if let Err(e) = app.emit(SETTINGS_CHANGED_EVENT, saved) {
         log::warn!("Couldn't announce the saved settings: {e}");
     }
@@ -89,13 +92,10 @@ pub fn get_keybindings(state: State<'_, AppState>) -> Keybindings {
 
 #[tauri::command]
 pub async fn set_keybindings(
-    app: AppHandle,
     state: State<'_, AppState>,
     bindings: Keybindings,
 ) -> AppResult<Keybindings> {
-    let saved = state.keybindings.update(bindings).await?;
-    menu::rebuild(&app);
-    Ok(saved)
+    state.keybindings.update(bindings).await
 }
 
 #[tauri::command]
@@ -164,21 +164,6 @@ pub fn reveal_path(app: AppHandle, path: String) -> AppResult<()> {
 #[tauri::command]
 pub fn take_launch_events(state: State<'_, AppState>) -> Vec<LaunchEvent> {
     state.launches.take_events()
-}
-
-#[tauri::command]
-pub fn hide_window(app: AppHandle) {
-    window::hide_main(&app);
-}
-
-#[tauri::command]
-pub fn hide_to_menu_bar(app: AppHandle) {
-    window::hide_main(&app);
-}
-
-#[tauri::command]
-pub fn quit_app(app: AppHandle) {
-    app.exit(0);
 }
 
 #[tauri::command]

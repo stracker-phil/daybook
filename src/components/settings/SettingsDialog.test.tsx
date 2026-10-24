@@ -194,13 +194,6 @@ describe("SettingsDialog", () => {
       expect(commandField()).toHaveTextContent("⌘⌃S");
     });
 
-    it("omits the menu-only command Launch at login", async () => {
-      renderDialog();
-      await openPage("Shortcuts");
-      expect(screen.getByText("Toggle sidebar")).toBeInTheDocument();
-      expect(screen.queryByText("Launch at login")).not.toBeInTheDocument();
-    });
-
     it("says so when no command matches the search", async () => {
       renderDialog();
       await openPage("Shortcuts");
@@ -245,9 +238,9 @@ describe("SettingsDialog", () => {
     });
 
     it("warns when two commands share a binding", async () => {
-      renderDialog({ keybindings: { "palette.toggle": "Mod+Ctrl+S" } });
+      renderDialog({ keybindings: { "zoom.in": "Mod+Ctrl+S" } });
       await openPage("Shortcuts");
-      expect(screen.getByRole("alert")).toHaveTextContent("⌘⌃S is used by both “Command palette” and “Toggle sidebar”.");
+      expect(screen.getByRole("alert")).toHaveTextContent("⌘⌃S is used by both “Toggle sidebar” and “Larger text”.");
     });
   });
 });

@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { RotateCcw, Search, X } from "lucide-react";
+import { api } from "../../api";
 import { allCommands, bindingFor, bindingFromEvent, bindingLabel, conflicts, scopeLabel } from "../../commands";
 import { useStore } from "../../state/store";
 import { InsetField } from "../Field";
@@ -7,6 +8,12 @@ import { Group, Row } from "./controls";
 
 function ShortcutField({ value, onChange }: { value: string | null; onChange: (binding: string | null) => void }) {
   const [recording, setRecording] = useState(false);
+  // Global shortcuts and the menu's keys would take the keys being recorded.
+  useEffect(() => {
+    if (!recording) return;
+    void api.shortcutsPause(true).catch(() => {});
+    return () => void api.shortcutsPause(false).catch(() => {});
+  }, [recording]);
   return (
     <button
       type="button"
@@ -51,7 +58,7 @@ export function ShortcutsPage() {
   const save = useStore((s) => s.saveKeybindings);
   const [search, setSearch] = useState("");
   const needle = search.trim().toLowerCase();
-  const list = allCommands().filter((c) => !c.menuOnly && (!needle || c.title.toLowerCase().includes(needle) || c.id.toLowerCase().includes(needle)));
+  const list = allCommands().filter((c) => (!needle || c.title.toLowerCase().includes(needle) || c.id.toLowerCase().includes(needle)));
   const clashes = conflicts(bindings);
   const set = (id: string, binding: string | null) => void save({ ...bindings, [id]: binding });
   const reset = (id: string) => {

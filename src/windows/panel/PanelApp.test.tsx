@@ -50,6 +50,19 @@ describe("PanelApp", () => {
       expect(field()).toHaveAttribute("placeholder", "Hello, sticky overlay");
     });
 
+    it("renders the command palette for the palette view", async () => {
+      mocked.paletteQuery.mockResolvedValue({
+        prefix: null,
+        prefixes: [],
+        groups: [{ kind: "command", heading: "Commands", entries: [{ kind: "command", label: "Open Hub", detail: "", shortcut: null, command: "hub:open" }] }],
+      });
+      mocked.panelSession.mockResolvedValue(session("palette"));
+      render(<PanelApp />);
+      expect(await screen.findByRole("option", { name: "Open Hub" })).toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: "Search" })).toHaveFocus();
+      expect(mocked.panelReady).toHaveBeenCalledWith(1, expect.any(Number));
+    });
+
     it("renders nothing for an unknown view", async () => {
       mocked.panelSession.mockResolvedValue(session("nope"));
       render(<PanelApp />);

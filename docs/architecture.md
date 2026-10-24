@@ -129,9 +129,9 @@ Changing the accent, the main write path today:
 - **Launch requests are pulled, not pushed.** Rust queues `LaunchEvent`s (`Error`, `Notice`, `Activate`) and
   emits a bare `launch` event; the page calls `take_launch_events`, so it can't miss the request that started
   the app. Deep links (`deep_link.rs`; only `daybook://show`) go through the same queue.
-- **The native menu emits `command` events** carrying a command id. The page runs that id through the same
-  registry that handles shortcuts and the palette. The page reports back which menu items can run and which
-  are checked (`menu_sync`), so Rust greys them out.
+- **Commands live in Rust.** Menus, global shortcuts and the palette run commands of one Rust bus by id;
+  the page runs window-level commands through `run_command` and keeps its registry for keys inside a window
+  ([commands.md](commands.md), [ADR 0017](adr/0017-commands-live-in-rust.md)).
 - **Requests only the page can answer** go out as a `remote` event with an id and come back through
   `remote_reply` (`remote::Bridge`). `RemoteRequest` has no variants yet.
 
@@ -151,9 +151,14 @@ src-tauri/
   src/error.rs lock.rs       AppError (+ ErrorKind), poison-tolerant lock helpers
   src/store/                 JsonFile, JsonStore, settings/, keybindings.rs, ui_state.rs
   src/commands.rs            settings, keybindings, ui state, window, links, folders, logs
-  src/tray.rs deep_link.rs   tray, daybook:// links
+  src/bus/                   the command bus and the app's commands (commands.md)
+  src/tools/                 the tools and their choices, which tools a surface shows
+  src/palette/               palette entries, ranking, running a pick
+  src/shortcuts/             global shortcuts, accelerator names
+  src/tray.rs notify.rs      menu-bar item, notifications
+  src/deep_link.rs           daybook:// links
   src/window/                the Daybook window, the overlay panel (panel/), screens, focus hand-back (windows.md)
-  src/menu/                  native menu: items.rs (MENU_ITEMS), mod.rs (build, forward), sync.rs (enabled and checked items)
+  src/menu/                  app menu (mod.rs), its keys (command_shortcuts.rs), the menu-bar menu model (model.rs)
   src/help.rs                Help menu targets outside the app (the README)
   src/autostart.rs           launch at login
   src/vault/                 daily notes: location, note edits, ops, writer, pending changes, Obsidian CLI, watcher (vault.md)
@@ -164,8 +169,9 @@ src/
   main.tsx modules.ts App.tsx
   api/index.ts types.gen.ts types.ts
   state/store.ts requests.ts slices/ (settings, ui, viewState)
-  commands/                  registry, scopes (only `global`), index (APP_COMMANDS), menu sync, remote
-  components/                Sidebar, EmptyView, Toolbar, Modal, Dialogs, CommandPalette, palette/, Toasts, settings/, …
+  commands/                  registry, scopes (only `global`), index (APP_COMMANDS: the window's own keys), remote
+  components/                Sidebar, EmptyView, Toolbar, Modal, Dialogs, Toasts, settings/, …
+  windows/panel/             the overlay page: PanelApp, PaletteView, SampleView
   registry/settingsPages.ts
   lib/ styles/ test/
 docs/                        this folder; adr/ holds the decision records

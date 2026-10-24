@@ -2,8 +2,6 @@
 
 /// No payload; the page then calls `take_launch_events`.
 pub const LAUNCH_EVENT: &str = "launch";
-/// Payload: a command id.
-pub const COMMAND_EVENT: &str = "command";
 /// Payload: a `RemoteEvent`.
 pub const REMOTE_EVENT: &str = "remote";
 /// No payload; the hidden main window was shown again.
@@ -14,3 +12,5 @@ pub const NOTE_CHANGED_EVENT: &str = "note_changed";
 pub const PANEL_SESSION_EVENT: &str = "panel_session";
 /// Payload: the saved `Settings`.
 pub const SETTINGS_CHANGED_EVENT: &str = "settings_changed";
+/// To the Daybook window. Payload: the Settings page to open, `null` for the first.
+pub const OPEN_SETTINGS_EVENT: &str = "open_settings";

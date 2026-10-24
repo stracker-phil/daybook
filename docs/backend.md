@@ -29,19 +29,19 @@ the binary `daybook`. There is no database: the data is small JSON files in the 
    answer`.
 4. **`AppState`.** `AppState::open(&config_dir)` opens every JSON store. The log level is the CLI
    `--log-level`, else Info (`LogLevel::default`), so logging never starts at `Trace`.
-5. **`app::start`** (`app.rs`) builds Tauri with `.manage(state)` first, then `remote::Bridge` and
-   `menu::MenuSync`:
+5. **`app::start`** (`app.rs`) builds Tauri with `.manage(state)` first, then `remote::Bridge`, the overlay's
+   `Panel`, the command bus (`bus::Commands`, filled by `commands_bus`), `shortcuts::Pause` and `tray::Shown`:
    - plugins: `log_plugin()` (stdout plus a rotating file in the log dir, 3 × 5 MiB, local timestamps,
      `tao`/`wry` capped at Warn, `tauri_runtime_wry` at Info), `init_logging(level)` (sets the effective
      level right after the log plugin's setup, whose dispatch level caps every later change), opener,
-     dialog, deep-link, autostart (`MacosLauncher::LaunchAgent` with `--hidden`);
-   - `on_menu_event` → `menu::forward`;
+     dialog, deep-link, global shortcut, notification, autostart (`MacosLauncher::LaunchAgent` with `--hidden`);
+   - `on_menu_event` → `menu::clicked` (every item's id is a command id, [commands.md](commands.md));
    - `on_window_event`: `CloseRequested` on `main` prevents the close and hides the window.
 
-   Then `setup` runs: it logs the version, sets the native menu (`menu::build`), queues the initial launch
+   Then `setup` runs: it logs the version, sets the app menu (`menu::build`), queues the initial launch
    message (`LaunchQueue::push`), reports the prototype import (`report_import`: the log and a launch notice,
-   see [Prototype import](#prototype-import)), calls `commands::apply_settings(app, None, &settings)`, installs the tray
-   (`tray::install`), applies `DAYBOOK_WINDOW_FRAME` in debug builds (`apply_dev_frame`), binds and serves the
+   see [Prototype import](#prototype-import)), calls `commands::apply_settings(app, None, &settings)`, installs the vault
+   service, the tray (`tray::install`) and the global shortcuts (`shortcuts::apply`), builds the overlay, applies `DAYBOOK_WINDOW_FRAME` in debug builds (`apply_dev_frame`), binds and serves the
    socket (`start_ipc`; a bind error is logged and the app runs without handoff), registers
    `deep_link::listen`, and shows the window in front (`window::show_main`) unless started with
    `--hidden`, which hides the Dock icon instead (`window::hide_main`). The window is declared
@@ -81,13 +81,13 @@ the overlay and focus hand-back: [windows.md](windows.md).
 
 | Event | Result |
 |---|---|
-| close button / ⌘W (`window.hide`, `hide_window`) | `window::hide_main`: the window and the Dock icon hide, and an active Daybook hides so macOS picks what comes forward; the tray keeps running |
+| close button / ⌘W and ⌘Q (`window:close`, `window::close_focused`) | `window::hide_main`: the window and the Dock icon hide, and an active Daybook hides so macOS picks what comes forward; the tray keeps running. With the overlay in front it closes instead |
 | last window closed (`ExitRequested { code: None }`) | prevented |
-| ⌘Q (`app.background`, `hide_to_menu_bar`) | `window::hide_main`: the same as closing |
-| tray "Open Daybook", a second `daybook` launch, `daybook focus`, Dock icon click (`RunEvent::Reopen`) | `window::show_main`: the Dock icon returns, the window moves to the pointer's screen, show, unminimize, focus |
+| "Open Daybook" (`hub:open`), a second `daybook` launch, `daybook focus`, Dock icon click (`RunEvent::Reopen`) | `window::show_main`: the Dock icon returns, the window moves to the pointer's screen, show, unminimize, focus |
 | `daybook show` | `window::show_main_in_background`: shown without taking focus |
 | `daybook --hidden` (launch at login) | first instance: the window is never shown and the Dock icon is hidden; running instance: nothing |
-| "Quit Daybook" (`app.quit`, no default key) in the app menu, the palette and the tray, `quit_app` | `app.exit(0)` |
+| `hub:toggle` (a global shortcut) | hides the window when it is in front, else `window::show_main` |
+| "Quit Daybook" (`app:quit`, no key) in the menu-bar menu and the palette | `app.exit(0)` |
 
 `show_main_in_background` emits `window_opened` when the window was hidden before (`main_visible`).
 `window/mod.rs` never sets the window theme, so its native appearance follows macOS (the page draws every surface
@@ -102,13 +102,13 @@ itself. Panics unwind ([ADR 0005](adr/0005-panic-unwind.md)), so code takes `std
 | Field | Type | Holds |
 |---|---|---|
 | `settings` | `SettingsStore` | `settings.json` |
-| `keybindings` | `KeybindingsStore` | `keybindings.json`; also feeds the menu |
+| `keybindings` | `KeybindingsStore` | `keybindings.json`, the page's key overrides |
 | `ui_state` | `UiStateStore` | `ui_state.json` |
 | `launches` | `LaunchQueue` | launch events the page has not taken yet |
 | `notes` | `Arc<DailyNotes>` | the vault service: `pending-entries.json`, the writer, the watcher ([vault.md](vault.md)) |
 
-Managed beside it: `remote::Bridge` (requests waiting for the page) and `menu::MenuSync` (the page's last
-menu report).
+Managed beside it: `remote::Bridge` (requests waiting for the page), `window::panel::Panel` (the overlay),
+`bus::Commands` (the command bus), `shortcuts::Pause` and `tray::Shown` (what the menu-bar item shows).
 
 ## Tauri commands
 
@@ -120,7 +120,7 @@ its module.
 |---|---|---|---|
 | `get_settings` | – | `Settings` | – |
 | `update_settings` | `settings: Settings`; `launchAtLogin` is kept as stored (only `autostart_set` changes it) | `Settings` (repaired by `from_json`); emits `settings_changed` | `io` |
-| `get_keybindings` / `set_keybindings` | – / `bindings: Keybindings` | `Keybindings` (sanitized; the menu is rebuilt) | `io` |
+| `get_keybindings` / `set_keybindings` | – / `bindings: Keybindings` | `Keybindings` (sanitized) | `io` |
 | `get_ui_state` / `set_ui_state` | – / `ui: UiState` | `UiState` | `io` |
 | `autostart_set` (`autostart.rs`) | `enabled: bool` | `bool`: whether the LaunchAgent is installed now; also saves `settings.launchAtLogin` | `io` |
 | `autostart_status` (`autostart.rs`) | – | `bool`: whether the LaunchAgent is installed | – |
@@ -128,13 +128,11 @@ its module.
 | `open_url` | `url: String` | – | `invalid_input` unless `http(s)` without credentials (`is_web_url`) |
 | `log_frontend_error` | `message: String` | – | – |
 | `take_launch_events` | – | `LaunchEvent[]` (`error`, `notice`, `activate`) | – |
-| `hide_window` | – | – | – |
-| `hide_to_menu_bar` | – | – (the window and the Dock icon hide) | – |
-| `quit_app` | – | never returns | – |
 | `choose_folder` | – | `string \| null` (the folder panel, which can create a folder; `null` when cancelled) | `io` |
 | `reveal_path` | `path: String` | – (Finder shows the enclosing folder with `path` selected) | `io` |
-| `open_readme` (`help.rs`) | – | – (opens the README, see [Native menu](#native-menu)) | `not_found` (none in this build), `io` |
-| `menu_sync` (`menu/sync.rs`) | `state: MenuState { enabled, checked }` | – (greys out and checks the menu items) | – |
+| `run_command` (`bus/app.rs`) | `id: String` | – (runs a bus command, [commands.md](commands.md)) | `not_found` (unknown), `invalid_input` (disabled), the command's error |
+| `palette_query`, `palette_run` (`palette/mod.rs`) | `query` / `command` | `PaletteResults` / – ([commands.md](commands.md#palette)) | `palette_run`: `not_found` |
+| `shortcuts_pause` (`shortcuts/mod.rs`) | `paused: bool` | – (global shortcuts and the app menu's keys step aside) | – |
 | `remote_reply` (`remote.rs`) | `id, result, error` | – | – |
 | `daily_note_state`, `daily_note_open`, `daily_note_create` (`vault/commands.rs`) | see [vault.md](vault.md#commands) | | |
 | `panel_open`, `panel_close`, `panel_session`, `panel_ready`, `panel_painted`, `panel_set_height` (`window/panel/commands.rs`) | see [windows.md](windows.md#commands-and-events) | | |
@@ -152,11 +150,11 @@ its module.
 | Constant | Name | Payload |
 |---|---|---|
 | `LAUNCH_EVENT` | `launch` | none; the page calls `take_launch_events` |
-| `COMMAND_EVENT` | `command` | a command id (menu) |
 | `REMOTE_EVENT` | `remote` | `RemoteEvent { id, request }`, answered with `remote_reply` |
 | `WINDOW_OPENED_EVENT` | `window_opened` | none; `window::show_main_in_background` showed the hidden window |
 | `PANEL_SESSION_EVENT` | `panel_session` | to the overlay window: the `PanelSession` to render, `null` once it closed ([windows.md](windows.md#the-overlay)) |
 | `NOTE_CHANGED_EVENT` | `note_changed` | `NoteChanged { day }`: today's note, the waiting changes or another daily note changed ([vault.md](vault.md#watcher)) |
+| `OPEN_SETTINGS_EVENT` | `open_settings` | to the Daybook window: the Settings page to open, `null` for the first (`window::open_settings`) |
 | `SETTINGS_CHANGED_EVENT` | `settings_changed` | the saved `Settings`, after every `update_settings` and `autostart_set` |
 
 ## Launch queue
@@ -293,12 +291,8 @@ link`): the window shows a toast.
 
 `tray.rs`: `tray::install(app)` builds the menu bar item `main` from `icons/tray/tray.png` (36 px, the menu bar's
 18 pt icon height) as a template image (macOS tints it for the menu bar), tooltip `APP_NAME`, menu on click.
-The item ids carry a `tray.` prefix, because menu events also reach `menu::forward`:
-
-| Item | Id | Action |
-|---|---|---|
-| Open Daybook | `tray.open` | `window::show_main` |
-| Quit Daybook | `tray.quit` | `app.exit(0)` |
+Its title and menu come from `menu::model` and are rebuilt by `tray::refresh` when they changed; item ids are
+command ids, so clicks run through `menu::clicked`. The menu's contents: [commands.md](commands.md#menu-bar-menu).
 
 ## Persistence
 
@@ -397,67 +391,23 @@ again, since the prototype's `slack-token.bin` is encrypted for it alone); `Impo
 
 ### Key bindings
 
-`store/keybindings.rs`. The webview resolves most shortcuts; the native menu reads the same overrides for its
-accelerators, so the two never disagree.
+`store/keybindings.rs`: the user's overrides of the page's keys (`src/commands`).
 
 - `Keybindings` is a `BTreeMap<String, Option<String>>`. `KeybindingsStore::update` replaces all overrides.
 - `sanitize` drops (and logs) entries whose id is not `[A-Za-z0-9.]+` or whose binding is malformed. Ids are
-  not checked against the registry: the frontend owns most commands.
+  not checked against the page's registry, which Rust does not know.
 - A binding is modifiers from `Mod`, `Ctrl`, `Alt`, `Shift` and one key (one character or a name such as
   `Enter`), joined by `+`; a trailing `++` (or a bare `+`) is the `+` key (`split`).
-- `menu_binding(id)`: the user override, else the menu default (`menu::default_binding`).
-- `is_chord`: holds ⌘ or ⌃, so it never types a character. `accelerator` converts to Tauri's form (`Mod` →
-  `CmdOrCtrl`, `-` → `Minus`, `=` → `Equal`, `+` → `Shift+Equal`; `None` for a key Tauri cannot name).
-  `is_global` is a chord with an accelerator. `key_label` gives `⇧Y`, as `bindingLabel` in
-  `src/commands/registry.ts` shows it.
 
 ## Native menu
 
-`menu/` builds the menu bar: Daybook (About, Settings…, Launch at Login, Services, Hide, Hide Others, Show
-All, Hide to Menu Bar, Quit Daybook), File (Close Window), Edit (native Undo, Redo, Cut, Copy, Paste, Select
-All), View (Toggle Sidebar, then the native Enter Full Screen), Window (native Minimize, Zoom, Bring All to
-Front) and Help (Keyboard Shortcuts, Command Palette…, Open Log Folder, README). [ux.md](ux.md) lists the
-keys.
+`menu/mod.rs` builds the app menu from bus commands with the keys of `menu/command_shortcuts.rs`; items whose
+command is unknown are left out. The menus, keys and clicks: [commands.md](commands.md#app-menu); the keys also
+in [ux.md](ux.md#menu-bar).
 
-- **Items.** `menu/items.rs` lists every item that runs an app command once in `MENU_ITEMS` (`MenuItemDef`:
-  `id`, `label`, `default_binding`, `check`; built with `item` and `check`). `build()` in `menu/mod.rs`
-  places them, in groups of ids with a separator between (`groups`). The TypeScript command with the same id
-  has `menu: true` and the same default.
-
-  | Id | Label | Default |
-  |---|---|---|
-  | `settings.toggle` | Settings… | `Mod+,` |
-  | `app.launchAtLogin` | Launch at Login (check item) | – |
-  | `app.background` | Hide to Menu Bar | `Mod+Q` |
-  | `app.quit` | Quit Daybook | – |
-  | `window.hide` | Close Window | `Mod+W` |
-  | `sidebar.toggle` | Toggle Sidebar | `Mod+Ctrl+S` |
-  | `shortcuts.show` | Keyboard Shortcuts | `Shift+?` |
-  | `palette.toggle` | Command Palette… | `Mod+K` |
-  | `logs.open` | Open Log Folder | – |
-  | `help.readme` | README | – |
-
-- **Bindings.** An item shows `KeybindingsStore::menu_binding` of its command. `label_and_accelerator` turns
-  a chord (`keybindings::is_chord`) into an accelerator; any other binding goes into the label (`Keyboard
-  Shortcuts (⇧?)`) and is never an accelerator, because a bare-key or ⌥ accelerator would take its key from
-  text fields; the page's key handler runs those keys. `set_keybindings` rebuilds the menu (`menu::rebuild`).
-  No two items share a default binding (a test checks it).
-- **Enabled and checked.** The page reports `MenuState { enabled, checked }` (ids) through `menu_sync`
-  whenever it changes; `menu/sync.rs` keeps it in the managed `MenuSync` and applies it to every listed item
-  (`item_state`, `apply`): items missing from `enabled` are greyed out, check items show `checked` (Launch at
-  Login). Before the first report every item is enabled; `app.quit` and `app.background` always are
-  (`ALWAYS_ENABLED`). `rebuild` builds with the last report.
-- **Clicks.** `menu::forward`: `app.quit` exits and `app.background` hides to the menu bar right there, so
-  both work even when the page is broken; every other listed id is emitted as `command` (`is_menu_command`
-  filters out the native items). A click on a check item re-applies the last report first, since macOS
-  toggles the mark itself; the page's next report sets it.
-- **README.** Help → README calls `open_readme` (`help.rs`): the `README.md` bundled as a resource
+- **README.** Help → README runs `app:readme` (`help::open_readme`): the `README.md` bundled as a resource
   (`bundle.resources` in `tauri.conf.json`), else in debug builds the repository's (`readme_path`), opened in
   the default app.
-
-**Adding a menu item:** add the TypeScript command with `menu: true` (and `checked` for a check item), add
-the id, label and default to `MENU_ITEMS` (and to the `DOCUMENTED_IDS` test list), place it in `build()`,
-and list it in [ux.md](ux.md).
 
 ## Logging
 
@@ -517,6 +467,9 @@ dev-dependency on itself turns on for integration tests ([ADR 0006](adr/0006-tes
 | `tauri-plugin-dialog` | the folder panel |
 | `tauri-plugin-deep-link` | `daybook://` links |
 | `tauri-plugin-autostart` | launch at login (LaunchAgent) |
+| `tauri-plugin-global-shortcut` | global shortcuts ([commands.md](commands.md#global-shortcuts)) |
+| `tauri-plugin-notification` | notifications (`notify.rs`): failed commands nobody waits for |
+| `percent-encoding` | a link's target in its command id (`tools::link_command`) |
 | `tokio` | runtime, IPC socket, timeouts |
 | `serde`, `serde_json` (`preserve_order`) | IPC, stores |
 | `clap` | CLI |

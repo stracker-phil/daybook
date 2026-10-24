@@ -2,7 +2,7 @@
 
 use tauri::ipc::Invoke;
 
-use crate::{autostart, commands, help, menu, remote, vault, window};
+use crate::{autostart, bus, commands, palette, remote, shortcuts, vault, window};
 
 pub fn handlers() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
     tauri::generate_handler![
@@ -18,13 +18,12 @@ pub fn handlers() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         commands::open_url,
         commands::log_frontend_error,
         commands::take_launch_events,
-        commands::hide_window,
-        commands::hide_to_menu_bar,
-        commands::quit_app,
         commands::choose_folder,
         commands::reveal_path,
-        help::open_readme,
-        menu::sync::menu_sync,
+        bus::app::run_command,
+        palette::palette_query,
+        palette::palette_run,
+        shortcuts::shortcuts_pause,
         remote::remote_reply,
         vault::commands::daily_note_state,
         vault::commands::daily_note_open,

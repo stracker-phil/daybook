@@ -26,7 +26,6 @@ fn repo_readme() -> PathBuf {
 }
 
 /// Opens the README in the default app for Markdown files.
-#[tauri::command]
 pub fn open_readme(app: AppHandle) -> AppResult<()> {
     let resources = app.path().resource_dir().ok();
     let path = readme_path(resources.as_deref())

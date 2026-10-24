@@ -1,111 +1,161 @@
-mod items;
-pub mod sync;
+//! The app menu (Daybook, File, Edit, Window, Help) and clicks on any menu item: every item's id is the
+//! command it runs. The menu-bar menu's model is in `model`.
 
-use tauri::menu::{
-    AboutMetadata, CheckMenuItemBuilder, Menu, MenuItemBuilder, MenuItemKind, SubmenuBuilder,
+mod command_shortcuts;
+pub mod model;
+mod prune;
+
+pub use command_shortcuts::MENU_KEYS;
+
+use tauri::menu::{AboutMetadata, Menu, MenuItem, MenuItemBuilder, SubmenuBuilder};
+use tauri::{AppHandle, Manager, Wry};
+
+use self::command_shortcuts::{
+    CLOSE, CLOSE_WITH_Q, DAYBOOK, JOURNAL, MenuKey, PALETTE, SEARCH, SETTINGS,
 };
-use tauri::{AppHandle, Emitter, Manager, Wry};
+use crate::bus::{self, CommandStatus};
+use crate::shortcuts::{self, accelerator};
+use crate::tray;
 
-use crate::events::COMMAND_EVENT;
-use crate::state::AppState;
-use crate::store::keybindings::{KeybindingsStore, accelerator, is_chord, key_label};
-
-pub use items::default_binding;
-use items::menu_item;
-pub use sync::MenuSync;
-use sync::{MenuState, apply, current_state, item_state};
-
-/// A binding without ⌘ or ⌃ would take its key from text fields as a menu accelerator, so its keys go
-/// into the label instead: `Previous (P)`.
-fn label_and_accelerator(label: &str, binding: Option<String>) -> (String, Option<String>) {
-    let Some(binding) = binding else {
-        return (label.to_string(), None);
-    };
-    if !is_chord(&binding) {
-        return match key_label(&binding) {
-            Some(keys) => (format!("{label} ({keys})"), None),
-            None => (label.to_string(), None),
-        };
-    }
-    let accel = accelerator(&binding);
-    if accel.is_none() {
-        log::warn!("No menu accelerator for {label} = {binding:?}");
-    }
-    (label.to_string(), accel)
+/// What one item runs and with which key.
+struct Item {
+    label: &'static str,
+    command: &'static str,
+    shortcut: Option<&'static str>,
 }
 
-fn build_item<M: Manager<Wry>>(
-    app: &M,
-    bindings: &KeybindingsStore,
-    state: Option<&MenuState>,
-    id: &str,
-) -> tauri::Result<MenuItemKind<Wry>> {
-    let Some(def) = menu_item(id) else {
-        log::warn!("Menu item {id} is missing from MENU_ITEMS");
-        return Ok(MenuItemKind::MenuItem(
-            MenuItemBuilder::with_id(id, id).build(app)?,
-        ));
-    };
-    let (label, accel) = label_and_accelerator(def.label, bindings.menu_binding(id));
-    let shown = item_state(state, id);
-    if def.check {
-        let mut builder = CheckMenuItemBuilder::with_id(id, label)
-            .enabled(shown.enabled)
-            .checked(shown.checked);
-        if let Some(accel) = accel {
-            builder = builder.accelerator(accel);
-        }
-        return Ok(MenuItemKind::Check(builder.build(app)?));
+const fn keyed(label: &'static str, key: &MenuKey) -> Item {
+    Item {
+        label,
+        command: key.command,
+        shortcut: Some(key.shortcut),
     }
-    let mut builder = MenuItemBuilder::with_id(id, label).enabled(shown.enabled);
-    if let Some(accel) = accel {
+}
+
+const fn plain(label: &'static str, command: &'static str) -> Item {
+    Item {
+        label,
+        command,
+        shortcut: None,
+    }
+}
+
+/// `None` for a command no feature registered.
+fn build_item(
+    app: &AppHandle,
+    commands: &dyn CommandStatus,
+    item: &Item,
+    keys: bool,
+) -> tauri::Result<Option<MenuItem<Wry>>> {
+    if !commands.knows(item.command) {
+        return Ok(None);
+    }
+    let mut builder = MenuItemBuilder::with_id(item.command, item.label)
+        .enabled(commands.is_enabled(item.command));
+    if keys && let Some(accel) = item.shortcut.and_then(accelerator) {
         builder = builder.accelerator(accel);
     }
-    Ok(MenuItemKind::MenuItem(builder.build(app)?))
+    builder.build(app).map(Some)
 }
 
-/// Adds groups of items, with a separator before each group but the first.
-fn groups<'m, M: Manager<Wry>>(
-    app: &'m M,
-    mut builder: SubmenuBuilder<'m, Wry, M>,
-    bindings: &KeybindingsStore,
-    state: Option<&MenuState>,
-    groups: &[&[&str]],
-) -> tauri::Result<SubmenuBuilder<'m, Wry, M>> {
-    for (i, group) in groups.iter().enumerate() {
-        if i > 0 {
+/// A submenu of the items whose commands exist, with a separator between non-empty groups.
+fn submenu(
+    app: &AppHandle,
+    commands: &dyn CommandStatus,
+    title: &str,
+    groups: &[&[Item]],
+    keys: bool,
+) -> tauri::Result<tauri::menu::Submenu<Wry>> {
+    let mut builder = SubmenuBuilder::new(app, title);
+    let mut filled = false;
+    for group in groups {
+        let mut items = Vec::new();
+        for item in *group {
+            items.extend(build_item(app, commands, item, keys)?);
+        }
+        if items.is_empty() {
+            continue;
+        }
+        if filled {
             builder = builder.separator();
         }
-        for id in *group {
-            builder = builder.item(&build_item(app, bindings, state, id)?);
+        for item in &items {
+            builder = builder.item(item);
         }
+        filled = true;
     }
-    Ok(builder)
+    builder.build()
 }
 
-pub fn build<M: Manager<Wry>>(app: &M, bindings: &KeybindingsStore) -> tauri::Result<Menu<Wry>> {
-    let state = current_state(app);
-    let state = state.as_ref();
-    let sub = |title: &str, ids: &[&[&str]]| {
-        groups(app, SubmenuBuilder::new(app, title), bindings, state, ids)
-    };
-    let app_menu = SubmenuBuilder::new(app, crate::APP_NAME)
+fn help_items() -> Vec<Item> {
+    let mut items = vec![
+        plain("Open Log Folder", "app:logs"),
+        plain("README", "app:readme"),
+    ];
+    if cfg!(debug_assertions) {
+        items.push(plain("Sample Overlay", "sample:open"));
+        items.push(plain("Sample Overlay (Sticky)", "sample:sticky"));
+    }
+    items
+}
+
+/// About, Settings…, the services and hiding, Close Window (⌘Q).
+fn daybook_submenu(
+    app: &AppHandle,
+    commands: &dyn CommandStatus,
+    settings: &Item,
+) -> tauri::Result<tauri::menu::Submenu<Wry>> {
+    let mut daybook = SubmenuBuilder::new(app, crate::APP_NAME)
         .about(Some(AboutMetadata::default()))
-        .separator()
-        .item(&build_item(app, bindings, state, "settings.toggle")?)
-        .separator()
-        .item(&build_item(app, bindings, state, "app.launchAtLogin")?)
-        .separator()
+        .separator();
+    if let Some(item) = build_item(app, commands, settings, true)? {
+        daybook = daybook.item(&item).separator();
+    }
+    daybook = daybook
         .services()
         .separator()
         .hide()
         .hide_others()
         .show_all()
-        .separator()
-        .item(&build_item(app, bindings, state, "app.background")?)
-        .item(&build_item(app, bindings, state, "app.quit")?)
-        .build()?;
-    let file = sub("File", &[&["window.hide"]])?.build()?;
+        .separator();
+    if let Some(item) = build_item(app, commands, &keyed("Close Window", &CLOSE_WITH_Q), true)? {
+        daybook = daybook.item(&item);
+    }
+    daybook.build()
+}
+
+pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
+    let registry = app.state::<bus::Commands>();
+    let commands = registry.available(app);
+    let settings = keyed("Settings…", &SETTINGS);
+    if shortcuts::paused(app) {
+        // Native items always carry their keys (⌘H, ⌘C…), so they are left out while a shortcut is
+        // recorded.
+        let daybook = submenu(
+            app,
+            &commands,
+            crate::APP_NAME,
+            &[std::slice::from_ref(&settings)],
+            false,
+        )?;
+        return Menu::with_items(app, &[&daybook]);
+    }
+    let daybook = daybook_submenu(app, &commands, &settings)?;
+    let file = submenu(
+        app,
+        &commands,
+        "File",
+        &[
+            &[
+                keyed("Command Palette…", &PALETTE),
+                keyed("Search Vault…", &SEARCH),
+                keyed("Journal…", &JOURNAL),
+                keyed("Daybook", &DAYBOOK),
+            ],
+            &[keyed("Close Window", &CLOSE)],
+        ],
+        true,
+    )?;
     let edit = SubmenuBuilder::new(app, "Edit")
         .undo()
         .redo()
@@ -115,108 +165,29 @@ pub fn build<M: Manager<Wry>>(app: &M, bindings: &KeybindingsStore) -> tauri::Re
         .paste()
         .select_all()
         .build()?;
-    let view = sub("View", &[&["sidebar.toggle"]])?
-        .separator()
-        .fullscreen()
-        .build()?;
     let window = SubmenuBuilder::new(app, "Window")
         .minimize()
         .maximize()
         .separator()
         .bring_all_to_front()
         .build()?;
-    let help = sub(
-        "Help",
-        &[
-            &["shortcuts.show", "palette.toggle"],
-            &["logs.open", "help.readme"],
-        ],
-    )?
-    .build()?;
-    Menu::with_items(app, &[&app_menu, &file, &edit, &view, &window, &help])
+    let help = submenu(app, &commands, "Help", &[&help_items()], true)?;
+    Menu::with_items(app, &[&daybook, &file, &edit, &window, &help])
 }
 
-/// Rebuilds the menu so changed key bindings show as accelerators.
+/// Rebuilds the app menu, e.g. without key equivalents while a shortcut is recorded.
 pub fn rebuild(app: &AppHandle) {
-    let state = app.state::<AppState>();
-    let result = build(app, &state.keybindings).and_then(|menu| app.set_menu(menu));
-    if let Err(e) = result {
+    if let Err(e) = build(app).and_then(|menu| app.set_menu(menu)) {
         log::warn!("Couldn't rebuild the menu: {e}");
     }
 }
 
-/// Quit and Hide to Menu Bar are handled here, so they work even when the page is broken; every other item
-/// runs its command in the page.
-pub fn forward(app: &AppHandle, id: &str) {
-    let Some(def) = menu_item(id) else {
+/// A click on any menu item, the app menu's or the menu-bar menu's.
+pub fn clicked(app: &AppHandle, id: &str) {
+    if !app.state::<bus::Commands>().knows(id) {
         return;
-    };
-    match id {
-        "app.quit" => return app.exit(0),
-        "app.background" => return crate::window::hide_main(app),
-        _ => {}
     }
-    // macOS toggled the checkmark on click; the page's next report decides it.
-    if def.check {
-        apply(app);
-    }
-    if let Err(e) = app.emit(COMMAND_EVENT, id) {
-        log::warn!("Couldn't forward menu command {id}: {e}");
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::items::MENU_ITEMS;
-    use super::*;
-
-    #[test]
-    fn every_menu_item_has_a_label() {
-        for item in MENU_ITEMS {
-            assert!(!item.label.is_empty(), "{} has no label", item.id);
-        }
-    }
-
-    #[test]
-    fn chord_binding_becomes_an_accelerator_with_the_plain_label() {
-        assert_eq!(
-            label_and_accelerator("Close Window", Some("Mod+W".into())),
-            ("Close Window".to_string(), Some("CmdOrCtrl+W".to_string()))
-        );
-    }
-
-    #[test]
-    fn plain_key_binding_is_appended_to_the_label_without_accelerator() {
-        for (label, binding, expected) in [
-            ("Copy Value", "Y", "Copy Value (Y)"),
-            ("Copy Value", "Shift+Y", "Copy Value (⇧Y)"),
-            ("Keyboard Shortcuts", "Shift+?", "Keyboard Shortcuts (⇧?)"),
-        ] {
-            assert_eq!(
-                label_and_accelerator(label, Some(binding.into())),
-                (expected.to_string(), None),
-                "{binding}"
-            );
-        }
-    }
-
-    #[test]
-    fn missing_binding_keeps_the_label_unchanged() {
-        assert_eq!(
-            label_and_accelerator("Open Log Folder", None),
-            ("Open Log Folder".to_string(), None)
-        );
-    }
-
-    #[test]
-    fn sidebar_toggle_gets_command_control_s_accelerator() {
-        let def = menu_item("sidebar.toggle").unwrap();
-        assert_eq!(
-            label_and_accelerator(def.label, Some(def.default_binding.into())),
-            (
-                "Toggle Sidebar".to_string(),
-                Some("CmdOrCtrl+Ctrl+S".to_string())
-            )
-        );
-    }
+    bus::spawn(app, id);
+    // macOS ticked a radio item itself; the menu shows the state once the command changed it.
+    tray::refresh(app);
 }

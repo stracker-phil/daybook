@@ -1,5 +1,4 @@
-import { api, DEFAULT_TEXT_SIZE, TEXT_SIZES, type TextSize } from "../api";
-import { fail } from "../state/requests";
+import { DEFAULT_TEXT_SIZE, TEXT_SIZES, type TextSize } from "../api";
 import { useStore } from "../state/store";
 import { allCommands, bindingFor, bindingLabel, getCommand, isRecordingTarget, registerCommands, resolveKeydown, setOverrides, type Command } from "./registry";
 import { activeScopes, registerScope } from "./scopes";
@@ -25,13 +24,7 @@ function zoomText(step: 1 | -1) {
 }
 
 function overlayOpen(): boolean {
-  const s = useStore.getState();
-  return s.dialog !== null || s.paletteOpen;
-}
-
-function togglePalette() {
-  const s = useStore.getState();
-  s.setPaletteOpen(!s.paletteOpen);
+  return useStore.getState().dialog !== null;
 }
 
 /** `?` opens the overview of the scopes active now; pressed again it closes it. */
@@ -41,31 +34,13 @@ function toggleShortcuts() {
   if (!s.dialog) s.openDialog({ type: "shortcuts", scopes: activeScopes() });
 }
 
-function toggleLaunchAtLogin() {
-  const s = useStore.getState();
-  if (s.settings) void s.setLaunchAtLogin(!s.settings.launchAtLogin);
-}
-
-function toggleSettings() {
-  const s = useStore.getState();
-  if (s.dialog?.type === "settings") s.closeDialog();
-  else s.openDialog({ type: "settings" });
-}
-
+/** The window's own keys; Settings, the palette and closing are Rust commands with app menu keys. */
 const APP_COMMANDS: Command[] = [
-  { id: "settings.toggle", title: "Settings…", scope: "global", defaultBinding: "Mod+,", menu: true, run: toggleSettings },
-  { id: "app.launchAtLogin", title: "Launch at login", scope: "global", menu: true, menuOnly: true, when: () => useStore.getState().settings !== null, checked: () => !!useStore.getState().settings?.launchAtLogin, run: toggleLaunchAtLogin },
-  { id: "shortcuts.show", title: "Keyboard shortcuts", scope: "global", defaultBinding: "Shift+?", menu: true, run: toggleShortcuts },
-  { id: "palette.toggle", title: "Command palette", scope: "global", defaultBinding: "Mod+K", menu: true, run: togglePalette },
-  { id: "sidebar.toggle", title: "Toggle sidebar", scope: "global", defaultBinding: "Mod+Ctrl+S", menu: true, run: () => useStore.getState().toggleSidebar() },
+  { id: "shortcuts.show", title: "Keyboard shortcuts", scope: "global", defaultBinding: "Shift+?", run: toggleShortcuts },
+  { id: "sidebar.toggle", title: "Toggle sidebar", scope: "global", defaultBinding: "Mod+Ctrl+S", run: () => useStore.getState().toggleSidebar() },
   { id: "zoom.in", title: "Larger text", scope: "global", defaultBinding: "Mod+=", run: () => zoomText(1) },
   { id: "zoom.out", title: "Smaller text", scope: "global", defaultBinding: "Mod+-", run: () => zoomText(-1) },
-  { id: "zoom.reset", title: "Default text size", scope: "global", defaultBinding: "Mod+0", run: () => saveTextSize(DEFAULT_TEXT_SIZE) },
-  { id: "window.hide", title: "Close window", scope: "global", defaultBinding: "Mod+W", menu: true, run: () => void api.hideWindow() },
-  { id: "logs.open", title: "Open log folder", scope: "global", menu: true, run: () => void api.openLogFolder() },
-  { id: "help.readme", title: "Open README", scope: "global", menu: true, run: () => void api.openReadme().catch((e) => fail(e, "Couldn't open the README")) },
-  { id: "app.background", title: "Hide to Menu Bar", scope: "global", defaultBinding: "Mod+Q", menu: true, run: () => void api.hideToMenuBar() },
-  { id: "app.quit", title: "Quit Daybook", scope: "global", menu: true, run: () => void api.quitApp() },
+  { id: "zoom.reset", title: "Default text size", scope: "global", run: () => saveTextSize(DEFAULT_TEXT_SIZE) },
 ];
 
 /**
@@ -92,26 +67,13 @@ export function runCommand(id: string): boolean {
   return true;
 }
 
-/** While a dialog or the palette is open, only these run; other keys belong to the overlay. */
-const MODAL_ALLOWED = new Set(["settings.toggle", "shortcuts.show", "palette.toggle", "zoom.in", "zoom.out", "zoom.reset", "window.hide", "app.background", "app.quit"]);
+/** While a dialog is open, only these run; other keys belong to the dialog. */
+const MODAL_ALLOWED = new Set(["shortcuts.show", "zoom.in", "zoom.out", "zoom.reset"]);
 
 /** Commands that keep firing while their key is held. */
 const REPEATABLE = new Set(["zoom.in", "zoom.out"]);
 
 const blockedByOverlay = (id: string) => overlayOpen() && !MODAL_ALLOWED.has(id);
-
-/** Whether a native menu item runs its command now: in an active scope, enabled, not held back by an overlay. */
-export function canRunFromMenu(c: Command, scopes: string[] = activeScopes()): boolean {
-  return scopes.includes(c.scope) && c.when?.() !== false && !blockedByOverlay(c.id);
-}
-
-/** Runs a native menu or tray item's command in an active scope. */
-export function runMenuCommand(id: string): boolean {
-  const target = getCommand(id);
-  if (!target || !canRunFromMenu(target)) return false;
-  void target.run();
-  return true;
-}
 
 /** A context menu takes its own keys, like a dialog. */
 const inMenu = (target: EventTarget | null) => target instanceof Element && !!target.closest('[role="menu"]');

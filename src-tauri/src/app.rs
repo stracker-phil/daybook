@@ -11,7 +11,7 @@ use crate::handlers::handlers;
 use crate::ipc::IpcMessage;
 use crate::state::AppState;
 use crate::store::import::Import;
-use crate::{commands, deep_link, ipc, menu, remote, tray, vault, window};
+use crate::{bus, commands, deep_link, ipc, menu, remote, shortcuts, tray, vault, window};
 
 const MAX_LOG_BYTES: u128 = 5 * 1024 * 1024;
 
@@ -26,18 +26,22 @@ pub fn start(
     tauri::Builder::default()
         .manage(state)
         .manage(remote::Bridge::default())
-        .manage(menu::MenuSync::default())
         .manage(window::panel::Panel::default())
+        .manage(commands_bus())
+        .manage(shortcuts::Pause::default())
+        .manage(tray::Shown::default())
         .plugin(log_plugin())
         .plugin(init_logging(log_level))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
             Some(vec!["--hidden"]),
         ))
-        .on_menu_event(|app, event| menu::forward(app, event.id().as_ref()))
+        .on_menu_event(|app, event| menu::clicked(app, event.id().as_ref()))
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event
                 && window.label() == "main"
@@ -49,12 +53,13 @@ pub fn start(
         .setup(move |app| {
             log::info!("Daybook {} started", env!("CARGO_PKG_VERSION"));
             let state = app.state::<AppState>();
-            app.set_menu(menu::build(app, &state.keybindings)?)?;
+            app.set_menu(menu::build(app.handle())?)?;
             state.launches.push(initial);
             report_import(&state, import);
             commands::apply_settings(app.handle(), None, &state.settings.get());
             vault::commands::install(app.handle());
             tray::install(app.handle())?;
+            shortcuts::apply(app.handle());
             window::panel::build(app.handle())?;
             #[cfg(debug_assertions)]
             apply_dev_frame(app);
@@ -78,6 +83,12 @@ pub fn start(
             RunEvent::Reopen { .. } => window::show_main(app),
             _ => {}
         });
+}
+
+fn commands_bus() -> bus::Commands {
+    let mut commands = bus::CommandBus::default();
+    bus::register(&mut commands);
+    bus::Commands(commands)
 }
 
 /// Logs the prototype import and tells the page what came over.

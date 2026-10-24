@@ -25,3 +25,5 @@ it stands in Daybook. The numbers in this table are Daybook's.
 | [0014](0014-debug-build-has-its-own-data.md) | The debug build has its own data folder and socket | Accepted (2026-10-24), implemented |
 | [0015](0015-one-write-path-into-the-vault.md) | Every vault write goes through the note writer; the app never touches frontmatter | Accepted (2026-10-24), implemented |
 | [0016](0016-overlays-never-navigate.md) | Overlays are a non-activating panel that never navigates | Accepted (2026-10-24), implemented |
+| [0017](0017-commands-live-in-rust.md) | Commands live in Rust | Accepted (2026-10-24), implemented |
+| [0018](0018-global-shortcuts-only-in-debug-builds.md) | Release builds register no global shortcuts while the prototype runs | Accepted (2026-10-24), implemented |

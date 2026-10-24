@@ -4,11 +4,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../api", async (orig) => ({ ...(await orig<object>()), api: (await import("../test/apiMock")).createApiMock() }));
 
+import { api } from "../api";
 import { installCommands } from "../commands";
 import { resetStore, type Store } from "../state/store";
 import { settings } from "../test/settings";
 import { Dialogs } from "./Dialogs";
 import { Sidebar } from "./Sidebar";
+
+const mocked = vi.mocked(api, true);
 
 function renderSidebar(patch: Partial<Store> = {}) {
   resetStore({ settings: settings(), ...patch });
@@ -32,26 +35,26 @@ describe("Sidebar", () => {
   });
 
   describe("settings gear", () => {
-    it("opens the Settings dialog on its first page", async () => {
+    it("runs the app:settings command of the Rust command bus", async () => {
       renderSidebar();
       await userEvent.click(gear());
-      const dialog = await screen.findByRole("dialog");
-      expect(within(dialog).getByRole("heading", { name: "General" })).toBeInTheDocument();
+      expect(mocked.runCommand).toHaveBeenCalledWith("app:settings");
     });
 
-    it("names the shortcut in its title", () => {
+    it("opens no dialog by itself", async () => {
+      renderSidebar();
+      await userEvent.click(gear());
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    it("names the native menu shortcut in its title", () => {
       renderSidebar();
       expect(gear()).toHaveAttribute("title", "Settings (⌘,)");
     });
 
-    it("follows a rebinding of the shortcut", () => {
-      renderSidebar({ keybindings: { "settings.toggle": "Mod+J" } });
-      expect(gear()).toHaveAttribute("title", "Settings (⌘J)");
-    });
-
-    it("has a plain title while the shortcut is unbound", () => {
-      renderSidebar({ keybindings: { "settings.toggle": null } });
-      expect(gear()).toHaveAttribute("title", "Settings");
+    it("keeps its title when the keybindings change", () => {
+      renderSidebar({ keybindings: { "sidebar.toggle": null } });
+      expect(gear()).toHaveAttribute("title", "Settings (⌘,)");
     });
   });
 });

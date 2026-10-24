@@ -6,8 +6,8 @@ import type {
   ErrorKind,
   Keybindings,
   LaunchEvent,
-  MenuState,
   NoteChanged,
+  PaletteResults,
   PanelSession,
   RemoteEvent,
   Settings,
@@ -30,21 +30,20 @@ export const api = {
   /** Whether the LaunchAgent is installed (the truth; `settings.launchAtLogin` mirrors it). */
   autostartStatus: () => invoke<boolean>("autostart_status"),
   openLogFolder: () => invoke<void>("open_log_folder"),
-  /** Opens the bundled README (in debug builds the repository's) in the default Markdown app. */
-  openReadme: () => invoke<void>("open_readme"),
-  /** Reports which native menu items can run now and which are checked. */
-  menuSync: (state: MenuState) => invoke<void>("menu_sync", { state }),
+  /** Runs a command of the Rust command bus by id (`app:settings`, `hub:open`, …); rejects when it is unknown, disabled or fails. */
+  runCommand: (id: string) => invoke<void>("run_command", { id }),
+  /** The palette's results for what was typed, grouped by kind. */
+  paletteQuery: (query: string) => invoke<PaletteResults>("palette_query", { query }),
+  /** Runs a palette pick; the palette closes or another overlay replaces it. */
+  paletteRun: (command: string) => invoke<void>("palette_run", { command }),
+  /** While Settings records a shortcut, global shortcuts and the menu's key equivalents step aside. */
+  shortcutsPause: (paused: boolean) => invoke<void>("shortcuts_pause", { paused }),
   /** http(s) links only; Rust refuses anything else. */
   openUrl: (url: string) => invoke<void>("open_url", { url }),
   logError: (message: string) => invoke<void>("log_frontend_error", { message }),
   takeLaunchEvents: () => invoke<LaunchEvent[]>("take_launch_events"),
   /** Answers a `remote` event; a non-null `error` fails the request. */
   remoteReply: (id: string, result: unknown, error: string | null) => invoke<void>("remote_reply", { id, result, error }),
-  /** Hides the window; the app keeps running in the menu bar. */
-  hideWindow: () => invoke<void>("hide_window"),
-  /** Hides the window and the Dock icon; the app keeps running in the menu bar. */
-  hideToMenuBar: () => invoke<void>("hide_to_menu_bar"),
-  quitApp: () => invoke<void>("quit_app"),
   /** The native folder panel; `null` when the user cancels. */
   chooseFolder: () => invoke<string | null>("choose_folder"),
   /** Opens the enclosing folder in Finder with `path` selected. */
@@ -69,8 +68,8 @@ export const api = {
   onLaunch: (handler: () => void): Promise<UnlistenFn> => listen("launch", handler),
   /** The hidden main window was shown again (the Dock icon came back). */
   onWindowOpened: (handler: () => void): Promise<UnlistenFn> => listen("window_opened", handler),
-  /** Native menu and tray items emit the id of the command they run. */
-  onCommand: (handler: (id: string) => void): Promise<UnlistenFn> => listen<string>("command", (e) => handler(e.payload)),
+  /** To the Daybook window: open Settings at this page (`null`: the first). */
+  onOpenSettings: (handler: (page: string | null) => void): Promise<UnlistenFn> => listen<string | null>("open_settings", (e) => handler(e.payload)),
   /** Settings were saved, from any window. */
   onSettingsChanged: (handler: (settings: Settings) => void): Promise<UnlistenFn> => listen<Settings>("settings_changed", (e) => handler(e.payload)),
   /** A daily note, or the changes waiting for today's note, changed. */

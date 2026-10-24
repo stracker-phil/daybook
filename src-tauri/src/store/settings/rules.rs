@@ -540,6 +540,16 @@ mod hotkeys {
         assert_eq!(hotkeys.toggle_rail, defaults.toggle_rail);
         assert_eq!(hotkeys.quick_notes, defaults.quick_notes);
     }
+
+    #[test]
+    fn none_leaves_every_shortcut_empty() {
+        let value = serde_json::to_value(Hotkeys::none()).unwrap();
+        let fields = value.as_object().unwrap();
+        assert_eq!(fields.len(), 14);
+        for (name, shortcut) in fields {
+            assert_eq!(shortcut, "", "{name}");
+        }
+    }
 }
 
 mod reminders {

@@ -1,5 +1,6 @@
 mod app;
 pub mod autostart;
+pub mod bus;
 pub mod cli;
 pub mod clock;
 pub mod commands;
@@ -15,13 +16,17 @@ pub mod ipc;
 pub mod launch;
 pub mod lock;
 pub mod menu;
+pub mod notify;
+pub mod palette;
 pub mod pending;
 pub mod process;
 pub mod remote;
+pub mod shortcuts;
 pub mod state;
 pub mod store;
 #[cfg(any(test, feature = "test-util"))]
 pub mod test_support;
+pub mod tools;
 pub mod tray;
 pub mod vault;
 pub mod window;

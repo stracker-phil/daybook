@@ -147,6 +147,25 @@ impl Default for Hotkeys {
 }
 
 impl Hotkeys {
+    pub fn none() -> Self {
+        Self {
+            switch_activity: String::new(),
+            toggle_status: String::new(),
+            jira_open: String::new(),
+            journal: String::new(),
+            search: String::new(),
+            toggle_rail: String::new(),
+            hub: String::new(),
+            links: String::new(),
+            quick_notes: String::new(),
+            switch_context: String::new(),
+            focus: String::new(),
+            music: String::new(),
+            palette: String::new(),
+            projects: String::new(),
+        }
+    }
+
     /// A stored `""` means the shortcut was cleared; only shortcuts never stored get their default.
     pub fn read(raw: Option<&Value>) -> Self {
         let d = Self::default();

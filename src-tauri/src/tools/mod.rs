@@ -1,0 +1,22 @@
+//! The tools (context, status, journal, search, links, music, …) and what each lets you pick directly.
+//! The menu-bar menu shows the choices as submenus, the palette lists them, and the rail (later) shows them
+//! below a tool's tooltip. Pure except `snapshot`: `ToolState` holds everything the tools read.
+
+mod choices;
+mod snapshot;
+mod state;
+mod visibility;
+
+pub use choices::{Choice, Step, choice_commands, link_command, link_target, tool_choices};
+pub use snapshot::snapshot;
+pub use state::*;
+pub use visibility::{Surface, visible_tools};
+
+/// "🐈 Personal": the context's label (an emoji) before its name.
+pub fn context_title(label: &str, name: &str) -> String {
+    [label.trim(), name]
+        .into_iter()
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ")
+}

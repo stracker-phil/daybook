@@ -42,6 +42,9 @@ regex = "1"
 # Pinned (Tauri pulls it in): the overlay's panel class repeats `TaoWindow`'s `focusable` ivar, which 0.37.2
 # moved into a Rust struct. See docs/windows.md.
 tao = { version = "=0.37.1", default-features = false }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-notification = "2"
+percent-encoding = "2"
 
 [features]
 # Exposes test helpers to integration tests in tests/.

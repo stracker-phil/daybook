@@ -8,7 +8,7 @@ pub mod panel;
 
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::events::WINDOW_OPENED_EVENT;
+use crate::events::{OPEN_SETTINGS_EVENT, WINDOW_OPENED_EVENT};
 
 const MAIN: &str = "main";
 
@@ -80,5 +80,37 @@ pub fn hide_main(app: &AppHandle) {
     });
     if let Err(e) = hidden {
         log::warn!("Couldn't hide Daybook: {e}");
+    }
+}
+
+/// Hides the Daybook window when it is in front, else shows it.
+pub fn toggle_main(app: &AppHandle) {
+    if main_visible(app) && focused(app, MAIN) {
+        hide_main(app);
+    } else {
+        show_main(app);
+    }
+}
+
+fn focused(app: &AppHandle, label: &str) -> bool {
+    app.get_webview_window(label)
+        .and_then(|window| window.is_focused().ok())
+        .unwrap_or(false)
+}
+
+/// ⌘W and ⌘Q: an overlay closes as Esc closes it, the Daybook window hides.
+pub fn close_focused(app: &AppHandle) {
+    if focused(app, panel::LABEL) {
+        panel::close(app, false);
+    } else if focused(app, MAIN) {
+        hide_main(app);
+    }
+}
+
+/// Settings at `page` (the first page when unknown), in the Daybook window.
+pub fn open_settings(app: &AppHandle, page: Option<&str>) {
+    show_main(app);
+    if let Err(e) = app.emit_to(MAIN, OPEN_SETTINGS_EVENT, page) {
+        log::warn!("Couldn't open Settings: {e}");
     }
 }

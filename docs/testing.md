@@ -48,7 +48,10 @@ launch and commit at the end of every step.
   `src/api/types.gen.ts` (`bun run types`).
 - **Contracts:** `identifier_matches_the_tauri_config` (`lib.rs`) compares `IDENTIFIER` with
   `tauri.conf.json`; `accents_match_the_frontend_list` (`store/settings/mod.rs`) compares `ACCENTS` with
-  `src/api/types.ts`; `src/commands/menu.test.ts` compares `MENU_ITEMS` with the page's commands and their default bindings.
+  `src/api/types.ts`.
+- **Ported oracles:** the prototype's menu, palette, tool-choice, tool-visibility and accelerator tests live
+  as Rust tests next to `menu/model.rs`, `palette/`, `tools/` and `shortcuts/accelerator.rs`;
+  `lib/shortcuts.test.ts` ports its shortcut recorder tests.
 
 ## Frontend
 

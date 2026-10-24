@@ -87,6 +87,7 @@ fn on_note_event(app: &AppHandle, event: NoteEvent) {
     if let Err(e) = app.emit(NOTE_CHANGED_EVENT, NoteChanged { day: day.map(iso) }) {
         log::warn!("Couldn't announce a note change: {e}");
     }
+    crate::tray::refresh(app);
     if matches!(event, NoteEvent::Changed(_)) {
         tauri::async_runtime::spawn_blocking(move || notes.note_appeared(&settings));
     }
@@ -105,14 +106,15 @@ fn obsidian_url(settings: &Settings, file: &Path) -> AppResult<String> {
 
 /// Opens `day`'s note (default today) in Obsidian; today's is created when it doesn't exist yet.
 #[tauri::command]
-pub async fn daily_note_open(
-    app: AppHandle,
-    state: State<'_, AppState>,
-    day: Option<String>,
-) -> AppResult<()> {
+pub async fn daily_note_open(app: AppHandle, day: Option<String>) -> AppResult<()> {
+    open_day(&app, day.as_deref()).await
+}
+
+pub async fn open_day(app: &AppHandle, day: Option<&str>) -> AppResult<()> {
+    let state = app.state::<AppState>();
     let notes = Arc::clone(&state.notes);
     let settings = state.settings.get();
-    let day = parse_day(day.as_deref(), &notes)?;
+    let day = parse_day(day, &notes)?;
     let url = blocking(move || {
         let Some(file) = notes.find_note(&settings, day)? else {
             if day != notes.today() {
@@ -137,7 +139,12 @@ pub async fn daily_note_open(
 
 /// Creates today's note and reports whether it exists afterwards.
 #[tauri::command]
-pub async fn daily_note_create(state: State<'_, AppState>) -> AppResult<bool> {
+pub async fn daily_note_create(app: AppHandle) -> AppResult<bool> {
+    create_today(&app).await
+}
+
+pub async fn create_today(app: &AppHandle) -> AppResult<bool> {
+    let state = app.state::<AppState>();
     let notes = Arc::clone(&state.notes);
     let settings = state.settings.get();
     blocking(move || notes.create_today(&settings)).await

@@ -33,12 +33,10 @@ describe("ShortcutsDialog", () => {
   });
 
   it.each([
-    ["Settings…", "⌘,"],
-    ["Command palette", "⌘K"],
+    ["Keyboard shortcuts", "⇧?"],
     ["Toggle sidebar", "⌘⌃S"],
     ["Larger text", "⌘="],
     ["Smaller text", "⌘-"],
-    ["Default text size", "⌘0"],
   ])("lists %s with %s among the global shortcuts", (title, keys) => {
     render(<ShortcutsDialog scopes={["global"]} />);
     const group = screen.getByRole("region", { name: "Everywhere" });
@@ -48,7 +46,7 @@ describe("ShortcutsDialog", () => {
   it("omits commands without a key binding", () => {
     render(<ShortcutsDialog scopes={["global"]} />);
     const group = screen.getByRole("region", { name: "Everywhere" });
-    expect(within(group).queryByText("Quit Daybook")).not.toBeInTheDocument();
+    expect(within(group).queryByText("Default text size")).not.toBeInTheDocument();
   });
 
   it("shows a rebound key instead of the default", () => {

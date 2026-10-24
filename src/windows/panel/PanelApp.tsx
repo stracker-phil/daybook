@@ -3,12 +3,15 @@ import { api, type PanelSession } from "../../api";
 import { useTabTrap } from "../../lib/useTabTrap";
 import { applyAppearance, systemIsDark } from "../../lib/theme";
 import { handlePanelKeydown, installPanelCommands } from "./commands";
+import { PaletteView } from "./PaletteView";
 import { SampleView } from "./SampleView";
 
 installPanelCommands();
 
 function View({ session }: { session: PanelSession }) {
   switch (session.view) {
+    case "palette":
+      return <PaletteView />;
     case "sample":
     case "sample-sticky":
       return <SampleView sticky={session.view === "sample-sticky"} />;

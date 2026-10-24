@@ -111,8 +111,9 @@ An activation that fails falls back to hiding Daybook when no Daybook window is 
 reports ready and painted, observes its height, and loads the appearance from Settings for each session.
 `commands.ts` registers the `panel` scope with `panel.close` (Escape, also inside text fields) and routes the
 window's keys through the registry. `useTabTrap` (`src/lib/`) keeps Tab and ⇧Tab inside the page: leaving the
-web content would move focus out of the window, and the overlay would close. The sample view (`sample`,
-`sample-sticky`) has a text field, a list and a button.
+web content would move focus out of the window, and the overlay would close. Views: `palette` (`PaletteView`,
+[commands.md](commands.md#palette)) and the sample view (`sample`, `sample-sticky`: a text field, a list and a
+button; opened in debug builds by `sample:open` and `sample:sticky`).
 
 `scripts/dev/overlay.sh [sticky] [delay]` opens the sample overlay in the debug app after a delay, so you can
 switch to another app or Space first.

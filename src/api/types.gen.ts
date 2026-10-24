@@ -224,11 +224,6 @@ app: string, bundleId: string, windowTitle: string | null, slack: SlackStatus, }
 export type Meetings = { detection: boolean, rules: Array<MeetingRule>, };
 
 /**
- * What the page reports: the items whose commands can run now and the checked ones.
- */
-export type MenuState = { enabled: Array<string>, checked: Array<string>, };
-
-/**
  * Minutes after midnight, `from` before `to`.
  */
 export type MinuteRange = { from: number, to: number, };
@@ -274,6 +269,35 @@ export type OpenEvent = "start" | "context" | "meeting-start" | "meeting-end" | 
  * The app that opens each service's join links; `None`: the app macOS has for the link.
  */
 export type OpenWith = { Zoom: AppRef | null, Teams: AppRef | null, Meet: AppRef | null, };
+
+export type PaletteEntry = { kind: PaletteKind, label: string, 
+/**
+ * Dimmed after the label: where a link belongs, or "Current".
+ */
+detail: string, 
+/**
+ * A global shortcut in Settings notation.
+ */
+shortcut: string | null, command: string, };
+
+export type PaletteGroup = { kind: PaletteKind, heading: string, entries: Array<PaletteEntry>, };
+
+export type PaletteKind = "command" | "link" | "project" | "music" | "context";
+
+/**
+ * Typing one of these first limits the results to one kind.
+ */
+export type PalettePrefix = { char: string, kind: PaletteKind, label: string, };
+
+export type PaletteResults = { 
+/**
+ * The prefix typed, if any.
+ */
+prefix: PalettePrefix | null, prefixes: Array<PalettePrefix>, 
+/**
+ * Only groups with entries, in a fixed order.
+ */
+groups: Array<PaletteGroup>, };
 
 /**
  * What the overlay page renders.

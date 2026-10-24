@@ -32,7 +32,7 @@ describe("App", () => {
       expect(screen.getByRole("region", { name: "Daybook" })).toBeEmptyDOMElement();
     });
 
-    it("shows no dialog or palette on start", async () => {
+    it("shows no dialog on start", async () => {
       await renderApp();
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
@@ -81,32 +81,41 @@ describe("App", () => {
   });
 
   describe("settings", () => {
-    it("opens with ⌘, and closes with it again", async () => {
+    async function openSettingsEvent(page: string | null) {
+      await vi.waitFor(() => expect(mocked.onOpenSettings).toHaveBeenCalled());
+      const announce = mocked.onOpenSettings.mock.calls[0][0];
+      act(() => announce(page));
+    }
+
+    it("opens on the named page when Rust asks for it", async () => {
       await renderApp();
-      await userEvent.keyboard("{Meta>},{/Meta}");
+      await openSettingsEvent("appearance");
+      const dialog = await screen.findByRole("dialog");
+      expect(within(dialog).getByRole("heading", { name: "Appearance" })).toBeInTheDocument();
+    });
+
+    it("opens on the first page when Rust names none", async () => {
+      await renderApp();
+      await openSettingsEvent(null);
       const dialog = await screen.findByRole("dialog");
       expect(within(dialog).getByRole("heading", { name: "General" })).toBeInTheDocument();
+    });
+
+    it("does not open with ⌘, in the window; the native menu owns that key", async () => {
+      await renderApp();
       await userEvent.keyboard("{Meta>},{/Meta}");
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
 
-    it("opens from the gear in the sidebar", async () => {
+    it("asks Rust to open Settings from the gear in the sidebar", async () => {
       await renderApp();
       await userEvent.click(within(sidebar()!).getByRole("button", { name: "Settings" }));
-      expect(await screen.findByRole("heading", { name: "General" })).toBeInTheDocument();
-    });
-
-    it("opens from the command palette", async () => {
-      await renderApp();
-      await userEvent.keyboard("{Meta>}k{/Meta}");
-      await userEvent.type(await screen.findByLabelText("Search"), "settings");
-      await userEvent.click(screen.getByRole("option", { name: /^Settings…/ }));
-      expect(await screen.findByRole("heading", { name: "General" })).toBeInTheDocument();
+      expect(mocked.runCommand).toHaveBeenCalledWith("app:settings");
     });
 
     it("closes with Escape", async () => {
       await renderApp();
-      await userEvent.keyboard("{Meta>},{/Meta}");
+      await openSettingsEvent(null);
       await screen.findByRole("dialog");
       await userEvent.keyboard("{Escape}");
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -134,35 +143,10 @@ describe("App", () => {
   });
 
   describe("command palette", () => {
-    it("opens with ⌘K", async () => {
+    it("does not open in the window with ⌘K; it is an overlay window now", async () => {
       await renderApp();
-      await userEvent.keyboard("{Meta>}k{/Meta}");
-      expect(await screen.findByRole("dialog", { name: "Command palette" })).toBeInTheDocument();
-    });
-
-    it("closes with ⌘K again", async () => {
-      await renderApp();
-      await userEvent.keyboard("{Meta>}k{/Meta}");
-      await screen.findByRole("dialog", { name: "Command palette" });
       await userEvent.keyboard("{Meta>}k{/Meta}");
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    });
-
-    it("runs the chosen command on Enter and closes", async () => {
-      await renderApp();
-      await userEvent.keyboard("{Meta>}k{/Meta}");
-      await userEvent.type(await screen.findByLabelText("Search"), ">toggle sidebar{Enter}");
-      expect(sidebar()).not.toBeInTheDocument();
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    });
-
-    it("closes with Escape without running anything", async () => {
-      await renderApp();
-      await userEvent.keyboard("{Meta>}k{/Meta}");
-      await screen.findByRole("dialog");
-      await userEvent.keyboard("{Escape}");
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-      expect(sidebar()).toBeInTheDocument();
     });
   });
 });
