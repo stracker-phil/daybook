@@ -8,6 +8,7 @@ import type {
   LaunchEvent,
   MenuState,
   NoteChanged,
+  PanelSession,
   RemoteEvent,
   Settings,
   UiState,
@@ -54,6 +55,16 @@ export const api = {
   dailyNoteOpen: (day?: string) => invoke<void>("daily_note_open", { day: day ?? null }),
   /** Creates today's note through the Obsidian CLI; resolves whether it exists now. */
   dailyNoteCreate: () => invoke<boolean>("daily_note_create"),
+  /** Opens `view` in the overlay; the same view again closes it. */
+  panelOpen: (view: string, args?: unknown) => invoke<void>("panel_open", { view, args: args ?? null }),
+  panelClose: () => invoke<void>("panel_close"),
+  /** The overlay's current session, `null` while it is closed. */
+  panelSession: () => invoke<PanelSession | null>("panel_session"),
+  /** The overlay page rendered `session` at this content height. */
+  panelReady: (session: number, height: number) => invoke<void>("panel_ready", { session, height }),
+  /** The overlay page painted `session`'s first frame. */
+  panelPainted: (session: number) => invoke<void>("panel_painted", { session }),
+  panelSetHeight: (height: number) => invoke<void>("panel_set_height", { height }),
 
   onLaunch: (handler: () => void): Promise<UnlistenFn> => listen("launch", handler),
   /** The hidden main window was shown again (the Dock icon came back). */
@@ -64,6 +75,9 @@ export const api = {
   onSettingsChanged: (handler: (settings: Settings) => void): Promise<UnlistenFn> => listen<Settings>("settings_changed", (e) => handler(e.payload)),
   /** A daily note, or the changes waiting for today's note, changed. */
   onNoteChanged: (handler: (change: NoteChanged) => void): Promise<UnlistenFn> => listen<NoteChanged>("note_changed", (e) => handler(e.payload)),
+  /** To the overlay page: the session to render, `null` once the overlay closed. */
+  onPanelSession: (handler: (session: PanelSession | null) => void): Promise<UnlistenFn> =>
+    listen<PanelSession | null>("panel_session", (e) => handler(e.payload)),
   /** Requests from other processes; answer each with `remoteReply`. */
   onRemote: (handler: (event: RemoteEvent) => void): Promise<UnlistenFn> => listen<RemoteEvent>("remote", (e) => handler(e.payload)),
 };

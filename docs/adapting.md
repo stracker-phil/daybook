@@ -48,6 +48,7 @@ The app's name and ids live in a few places. Change them together.
 | **Install and dev scripts** (zsh, `ln` into `~/Applications` and `~/.local/bin`, `codesign`, Swift, CoreGraphics, `screencapture`) | `scripts/install.sh`, `scripts/stop-app.sh`, `scripts/sign-app.sh`, `scripts/create-signing-cert.sh`, `scripts/dev/` | Link into `~/.local/bin` and a `.desktop` file; rewrite the dev scripts or use `bun tauri dev` | PowerShell |
 | **Obsidian CLI**: looked up in a login `/bin/zsh`, then in `/usr/local/bin`, `/opt/homebrew/bin` and `Obsidian.app`; child processes get the Homebrew folders on the `PATH` | `vault/obsidian.rs` `CANDIDATES`, `process.rs` (`EXTRA_PATH`, `run_in_login_shell`) | The user's shell and `/usr/bin/obsidian`; drop the Homebrew paths | `where obsidian` and `%LOCALAPPDATA%\Obsidian`; no login shell |
 | **File watcher**: `notify`'s FSEvents backend; reported paths are canonical (`/private/var` for `/var`) | `vault/watch.rs`, `vault/commands.rs` `same_file` | inotify; works as is | ReadDirectoryChangesW; works as is |
+| **Overlay panel**: a non-activating `NSPanel` by class swap, Space behaviour, `NSScreen`/`NSEvent` for the pointer's screen, `NSWorkspace` and the window list for focus hand-back | `window/native.rs`, `window/panel/native.rs` | An always-on-top undecorated window; no Spaces | A tool window with `WS_EX_NOACTIVATE` |
 | **Tests**: the setup pretends to be a Mac (`navigator.platform`) | `src/test-setup.ts` | Make the platform a parameter | Same |
 
 A port is done when `bun run test`, `bun run lint` and `bun run release` pass on the target, and the app can:
@@ -75,7 +76,7 @@ The tray is the only way back to a hidden window besides a second launch, a Dock
 so decide first: either quit on close (remove `prevent_close` in `app.rs`'s `WindowEvent::CloseRequested`
 handler and the `ExitRequested` `prevent_exit`), or keep running and rely on the Dock (`RunEvent::Reopen` →
 `window::show_main`, already wired; then Hide to Menu Bar must stop hiding the Dock icon in
-`window::hide_to_menu_bar`). Then delete `tray.rs`, `pub mod tray;` in `lib.rs`, `tray::install` in `app.rs`,
+`window::hide_main`). Then delete `tray.rs`, `pub mod tray;` in `lib.rs`, `tray::install` in `app.rs`,
 `src-tauri/icons/tray/`, and the `tray-icon` feature of `tauri` in `Cargo.toml`. Update the Tray section of
 [backend.md](backend.md#tray).
 

@@ -27,6 +27,7 @@ pub fn start(
         .manage(state)
         .manage(remote::Bridge::default())
         .manage(menu::MenuSync::default())
+        .manage(window::panel::Panel::default())
         .plugin(log_plugin())
         .plugin(init_logging(log_level))
         .plugin(tauri_plugin_opener::init())
@@ -42,7 +43,7 @@ pub fn start(
                 && window.label() == "main"
             {
                 api.prevent_close();
-                let _ = window.hide();
+                window::hide_main(window.app_handle());
             }
         })
         .setup(move |app| {
@@ -54,13 +55,14 @@ pub fn start(
             commands::apply_settings(app.handle(), None, &state.settings.get());
             vault::commands::install(app.handle());
             tray::install(app.handle())?;
+            window::panel::build(app.handle())?;
             #[cfg(debug_assertions)]
             apply_dev_frame(app);
             start_ipc(app.handle().clone(), &socket);
             deep_link::listen(app.handle());
             // The window starts invisible (tauri.conf.json), so a hidden start never flashes it.
             if hidden {
-                window::hide_to_menu_bar(app.handle());
+                window::hide_main(app.handle());
             } else {
                 window::show_main(app.handle());
             }

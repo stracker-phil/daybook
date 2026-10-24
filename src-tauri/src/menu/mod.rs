@@ -153,7 +153,7 @@ pub fn forward(app: &AppHandle, id: &str) {
     };
     match id {
         "app.quit" => return app.exit(0),
-        "app.background" => return crate::window::hide_to_menu_bar(app),
+        "app.background" => return crate::window::hide_main(app),
         _ => {}
     }
     // macOS toggled the checkmark on click; the page's next report decides it.

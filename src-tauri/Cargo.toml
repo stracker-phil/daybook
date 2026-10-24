@@ -33,7 +33,15 @@ ts-rs = { version = "12", features = ["serde-compat", "serde-json-impl", "no-ser
 libc = "0.2"
 tempfile = { version = "3", optional = true }
 notify = "8"
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString", "NSGeometry"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "libc", "NSWorkspace", "NSRunningApplication"] }
+objc2-core-foundation = { version = "0.3", default-features = false, features = ["std", "CFArray"] }
+objc2-core-graphics = { version = "0.3", default-features = false, features = ["std", "CGWindow"] }
 regex = "1"
+# Pinned (Tauri pulls it in): the overlay's panel class repeats `TaoWindow`'s `focusable` ivar, which 0.37.2
+# moved into a Rust struct. See docs/windows.md.
+tao = { version = "=0.37.1", default-features = false }
 
 [features]
 # Exposes test helpers to integration tests in tests/.

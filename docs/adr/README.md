@@ -24,3 +24,4 @@ it stands in Daybook. The numbers in this table are Daybook's.
 | [0013](0013-one-settings-model-imported-once.md) | Settings are one JSON model; the prototype is imported once | Accepted (2026-10-24), implemented |
 | [0014](0014-debug-build-has-its-own-data.md) | The debug build has its own data folder and socket | Accepted (2026-10-24), implemented |
 | [0015](0015-one-write-path-into-the-vault.md) | Every vault write goes through the note writer; the app never touches frontmatter | Accepted (2026-10-24), implemented |
+| [0016](0016-overlays-never-navigate.md) | Overlays are a non-activating panel that never navigates | Accepted (2026-10-24), implemented |

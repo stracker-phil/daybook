@@ -173,7 +173,7 @@ pub fn hide_window(app: AppHandle) {
 
 #[tauri::command]
 pub fn hide_to_menu_bar(app: AppHandle) {
-    window::hide_to_menu_bar(&app);
+    window::hide_main(&app);
 }
 
 #[tauri::command]

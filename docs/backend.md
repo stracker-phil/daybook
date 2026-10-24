@@ -44,7 +44,7 @@ the binary `daybook`. There is no database: the data is small JSON files in the 
    (`tray::install`), applies `DAYBOOK_WINDOW_FRAME` in debug builds (`apply_dev_frame`), binds and serves the
    socket (`start_ipc`; a bind error is logged and the app runs without handoff), registers
    `deep_link::listen`, and shows the window in front (`window::show_main`) unless started with
-   `--hidden`, which hides the Dock icon instead (`window::hide_to_menu_bar`). The window is declared
+   `--hidden`, which hides the Dock icon instead (`window::hide_main`). The window is declared
    `"visible": false`, so a hidden start never flashes it.
 
    The run loop prevents `RunEvent::ExitRequested { code: None }`, which macOS sends when the last window
@@ -75,21 +75,22 @@ runs; a later launch or the tray shows it.
 
 The main window is declared in `tauri.conf.json`: label `main`, title Daybook, 1200 × 800 (minimum 900 ×
 560), invisible until setup shows it, overlay title bar with hidden title, traffic lights at 20/28,
-transparent background with the `sidebar` vibrancy effect (`followsWindowActiveState`). It is the only
-window; its capability is `capabilities/default.json`.
+transparent background with the `sidebar` vibrancy effect (`followsWindowActiveState`). The overlay panel
+(`window/panel/`) is built at setup; both share the capability `capabilities/default.json`. Window behaviour,
+the overlay and focus hand-back: [windows.md](windows.md).
 
 | Event | Result |
 |---|---|
-| close button / ⌘W (`window.hide`, `hide_window`) | `window::hide_main`: the window hides; the app, the tray and the Dock icon stay |
+| close button / ⌘W (`window.hide`, `hide_window`) | `window::hide_main`: the window and the Dock icon hide, and an active Daybook hides so macOS picks what comes forward; the tray keeps running |
 | last window closed (`ExitRequested { code: None }`) | prevented |
-| ⌘Q (`app.background`, `hide_to_menu_bar`) | `window::hide_to_menu_bar`: the window and the Dock icon hide (`set_dock_icon`, `set_dock_visibility`); the tray keeps running |
-| tray "Open Daybook", a second `daybook` launch, `daybook focus`, Dock icon click (`RunEvent::Reopen`) | `window::show_main`: the Dock icon returns, show, unminimize, focus |
+| ⌘Q (`app.background`, `hide_to_menu_bar`) | `window::hide_main`: the same as closing |
+| tray "Open Daybook", a second `daybook` launch, `daybook focus`, Dock icon click (`RunEvent::Reopen`) | `window::show_main`: the Dock icon returns, the window moves to the pointer's screen, show, unminimize, focus |
 | `daybook show` | `window::show_main_in_background`: shown without taking focus |
 | `daybook --hidden` (launch at login) | first instance: the window is never shown and the Dock icon is hidden; running instance: nothing |
 | "Quit Daybook" (`app.quit`, no default key) in the app menu, the palette and the tray, `quit_app` | `app.exit(0)` |
 
 `show_main_in_background` emits `window_opened` when the window was hidden before (`main_visible`).
-`window.rs` never sets the window theme, so its native appearance follows macOS (the page draws every surface
+`window/mod.rs` never sets the window theme, so its native appearance follows macOS (the page draws every surface
 opaquely). `bring_to_front` does nothing with `DAYBOOK_BACKGROUND=1` in debug builds.
 
 ## AppState
@@ -136,6 +137,7 @@ its module.
 | `menu_sync` (`menu/sync.rs`) | `state: MenuState { enabled, checked }` | – (greys out and checks the menu items) | – |
 | `remote_reply` (`remote.rs`) | `id, result, error` | – | – |
 | `daily_note_state`, `daily_note_open`, `daily_note_create` (`vault/commands.rs`) | see [vault.md](vault.md#commands) | | |
+| `panel_open`, `panel_close`, `panel_session`, `panel_ready`, `panel_painted`, `panel_set_height` (`window/panel/commands.rs`) | see [windows.md](windows.md#commands-and-events) | | |
 | `dev_edit_today_note` (`dev.rs`, debug builds only) | `op: NoteOp` | `WriteOutcome` | as `edit_today` |
 
 **Adding a command:** write it in its module (or `commands.rs` for app-wide ones), register it in
@@ -153,6 +155,7 @@ its module.
 | `COMMAND_EVENT` | `command` | a command id (menu) |
 | `REMOTE_EVENT` | `remote` | `RemoteEvent { id, request }`, answered with `remote_reply` |
 | `WINDOW_OPENED_EVENT` | `window_opened` | none; `window::show_main_in_background` showed the hidden window |
+| `PANEL_SESSION_EVENT` | `panel_session` | to the overlay window: the `PanelSession` to render, `null` once it closed ([windows.md](windows.md#the-overlay)) |
 | `NOTE_CHANGED_EVENT` | `note_changed` | `NoteChanged { day }`: today's note, the waiting changes or another daily note changed ([vault.md](vault.md#watcher)) |
 | `SETTINGS_CHANGED_EVENT` | `settings_changed` | the saved `Settings`, after every `update_settings` and `autostart_set` |
 
@@ -521,6 +524,9 @@ dev-dependency on itself turns on for integration tests ([ADR 0006](adr/0006-tes
 | `chrono`, `uuid`, `url` | quarantine time stamps, request ids, links and `is_web_url` |
 | `ts-rs` | TypeScript types for IPC |
 | `libc` | `getuid` for the IPC peer check |
+| `objc2`, `objc2-foundation`, `objc2-app-kit`, `objc2-core-foundation`, `objc2-core-graphics` | the overlay panel, screens, the pointer, the front app ([windows.md](windows.md#what-needed-objc2)) |
+| `notify` | the daily-notes watcher ([vault.md](vault.md#watcher)) |
+| `regex` | note edits ([vault.md](vault.md#sections)) |
 | `tempfile` (dev, and optional behind `test-util`) | store, socket and README tests |
 
 No database and no HTTP client yet. The library builds as `rlib`. The release profile uses LTO,

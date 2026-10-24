@@ -275,6 +275,15 @@ export type OpenEvent = "start" | "context" | "meeting-start" | "meeting-end" | 
  */
 export type OpenWith = { Zoom: AppRef | null, Teams: AppRef | null, Meet: AppRef | null, };
 
+/**
+ * What the overlay page renders.
+ */
+export type PanelSession = { 
+/**
+ * Counts up with every opening; the page answers with it.
+ */
+session: number, view: string, args: unknown, };
+
 export type Presence = "auto" | "away" | "keep";
 
 /**

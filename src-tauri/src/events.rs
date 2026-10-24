@@ -10,5 +10,7 @@ pub const REMOTE_EVENT: &str = "remote";
 pub const WINDOW_OPENED_EVENT: &str = "window_opened";
 /// Payload: a `NoteChanged`; a daily note or the changes waiting for today's note changed.
 pub const NOTE_CHANGED_EVENT: &str = "note_changed";
+/// To the overlay window. Payload: the `PanelSession` to render, `null` once it closed.
+pub const PANEL_SESSION_EVENT: &str = "panel_session";
 /// Payload: the saved `Settings`.
 pub const SETTINGS_CHANGED_EVENT: &str = "settings_changed";

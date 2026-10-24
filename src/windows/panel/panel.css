@@ -1,0 +1,5 @@
+/* The overlay window is transparent; the card draws the surface (docs/windows.md). */
+.panel-body, .panel-body #root { background: transparent; height: auto; }
+.panel-root { display: flex; flex-direction: column; }
+.panel-card { display: flex; flex-direction: column; background: var(--pop); border-radius: var(--radius-lg); overflow: hidden; }
+.panel-actions { display: flex; justify-content: flex-end; padding: var(--space-2) var(--space-3) var(--space-3); }

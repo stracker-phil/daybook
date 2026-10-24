@@ -60,7 +60,10 @@ These rules hold everywhere in the code. Keep them when you change things.
    `vault::writer::NoteWriter::edit_note` writes into the vault; a change is a `NoteOp` applied by a pure
    function that touches only its section's lines. Daily notes are created by Obsidian, and nothing goes into
    frontmatter.
-8. **The look is native** ([ADR 0011](adr/0011-native-macos-look.md)): system font, inset groups, a unified
+8. **Overlays never navigate** ([ADR 0016](adr/0016-overlays-never-navigate.md)). Overlays are a
+   non-activating panel; closing one never switches Spaces or brings back an app the owner left
+   ([windows.md](windows.md)).
+9. **The look is native** ([ADR 0011](adr/0011-native-macos-look.md)): system font, inset groups, a unified
    toolbar, AppKit control metrics ([ux.md](ux.md)).
 
 ## A setting, end to end
@@ -114,10 +117,12 @@ Changing the accent, the main write path today:
   second `daybook …` sends its request over the socket and exits
   ([backend: single instance](backend.md#cli-and-single-instance-handoff),
   [ADR 0008](adr/0008-cli-asks-the-running-app.md)).
-- **Window.** Closing the window hides it; the app keeps running. ⌘Q is Hide to Menu Bar: it hides the window
-  and the Dock icon. Quit only from the tray menu, the app menu's Quit Daybook, or `daybook quit`
+- **Window.** Closing the window (also ⌘Q, Hide to Menu Bar) hides it and the Dock icon; the app keeps running
+  in the menu bar. Every show moves it to the pointer's screen. Quit only from the tray menu, the app menu's Quit Daybook, or `daybook quit`
   ([backend: window lifecycle](backend.md#window-lifecycle)). A Dock click shows the window again; showing a
   hidden window emits `window_opened`.
+- **Overlay.** A non-activating panel (`window/panel/`) with its own page (`src/windows/panel/`) renders one view
+  at a time over any app, on the pointer's screen ([windows.md](windows.md)).
 - **Tray.** A template-image menu bar item with Open Daybook and Quit Daybook (`tray.rs`).
 - **Launch at login** through `tauri-plugin-autostart` (a LaunchAgent) with `--hidden`, so the app starts
   without showing the window.
@@ -146,7 +151,8 @@ src-tauri/
   src/error.rs lock.rs       AppError (+ ErrorKind), poison-tolerant lock helpers
   src/store/                 JsonFile, JsonStore, settings/, keybindings.rs, ui_state.rs
   src/commands.rs            settings, keybindings, ui state, window, links, folders, logs
-  src/tray.rs window.rs deep_link.rs   tray, window helpers, daybook:// links
+  src/tray.rs deep_link.rs   tray, daybook:// links
+  src/window/                the Daybook window, the overlay panel (panel/), screens, focus hand-back (windows.md)
   src/menu/                  native menu: items.rs (MENU_ITEMS), mod.rs (build, forward), sync.rs (enabled and checked items)
   src/help.rs                Help menu targets outside the app (the README)
   src/autostart.rs           launch at login

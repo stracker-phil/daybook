@@ -9,6 +9,7 @@ use it, see the [project README](../README.md).
 | [backend.md](backend.md) | Rust core: startup, `AppState`, Tauri commands, events, CLI and single-instance IPC, window lifecycle, tray, persistence, errors, native menu, logging, content security policy |
 | [frontend.md](frontend.md) | React app: boot, store, API boundary, command registry, components, styling, tests |
 | [vault.md](vault.md) | The vault: daily-note location, sections, note ops, the writer, waiting changes, creating notes, the watcher |
+| [windows.md](windows.md) | Every window, its level and focus rules, the overlay's open protocol, focus hand-back, the pointer screen, what needed objc2 |
 | [ux.md](ux.md) | Design language: principles, surfaces, appearance and tokens, type, components, inputs, overlays, keys |
 | [testing.md](testing.md) | Unit and integration tests, the test agents, scripts that drive the app in the background |
 | [adapting.md](adapting.md) | Identity, platform-specific code, common changes, conventions to keep |
