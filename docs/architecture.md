@@ -10,7 +10,7 @@ its window is closed. The layer pages go into detail: [backend](backend.md), [fr
 
 The app is a shell so far: a tray icon, the Daybook window (the dark sidebar with the day and the tools, the
 board under a greeting, the inspector column), the Settings window (Vault, Calendar, Contexts, Projects, Daily Note,
-Workflows, Reminders, General, Tools, Shortcuts, Appearance), the status (Working, Break, Off), the day's calendar events with a timeline and the reminder line, the overlays (palette,
+Workflows, Reminders, Calls, General, Tools, Shortcuts, Appearance), the status (Working, Break, Off), the day's calendar events with a timeline and the reminder line, presence and call detection with joining, the overlays (palette,
 context switcher, status, offer-off), the shortcuts dialog,
 toasts, the native menu and the CLI. The features arrive step by step
 (`docs/plan/README.md`, gitignored).
@@ -133,6 +133,9 @@ Changing the accent, the main write path today:
   menu from `menu/model.rs`.
 - **Calendar.** EventKit through objc2 (`calendar/`): the current context's calendars, cached for five minutes and
   dropped on `EKEventStoreChangedNotification`; the reminder engine is `reminders/` ([calendar.md](calendar.md)).
+- **Presence and calls.** Sleep, lock and wake notifications plus `ioreg` (`presence/`); a 15 s call check over
+  `lsappinfo`, `pgrep`, `pmset`, `ps`, the window server, Chrome through JXA and Accessibility (`calls/`);
+  joining in the chosen app ([presence-and-calls.md](presence-and-calls.md)).
 - **Status.** Working, Break and Off live in `status-memory.json`; a change is announced as `status_changed`,
   which other features listen to ([status.md](status.md)).
 - **Launch at login** through `tauri-plugin-autostart` (a LaunchAgent) with `--hidden`, so the app starts
@@ -166,6 +169,7 @@ src-tauri/
   src/contexts/ projects/    the current context and switching it; the projects gate
   src/status/                Working, Break, Off: memory, the change rule, status_changed (status.md)
   src/calendar/ reminders/   EventKit, the day's events and meeting links; the reminder rules (calendar.md)
+  src/presence/ calls/       away (asleep, locked); call detection, the grace rule, joining (presence-and-calls.md)
   src/tools/                 the tools and their choices, which tools a surface shows
   src/hub/                   the Daybook window's view model (hub_view) and its sidebar rows
   src/palette/               palette entries, ranking, running a pick

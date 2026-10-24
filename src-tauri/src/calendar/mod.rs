@@ -163,15 +163,13 @@ pub async fn calendar_request_access(app: AppHandle) -> AppResult<CalendarAccess
     }
 }
 
-/// Opens an event's call; only join links are opened.
+/// Joins an event's call in its chosen app; only join links are opened.
 #[tauri::command]
-pub fn calendar_join(app: AppHandle, url: String) -> AppResult<()> {
-    if !events::is_meeting_url(&url) {
+pub async fn calendar_join(app: AppHandle, url: String) -> AppResult<()> {
+    let Some(link) = events::join_link(&url) else {
         return Err(AppError::InvalidInput("Not a meeting link".into()));
-    }
-    app.opener()
-        .open_url(&url, None::<&str>)
-        .map_err(|e| AppError::Io(format!("Couldn't open the meeting: {e}")))
+    };
+    crate::calls::join(&app, link).await
 }
 
 fn changed(app: &AppHandle) {

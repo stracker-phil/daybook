@@ -107,6 +107,7 @@ describe("App", () => {
       ["onContextChanged", mocked.onContextChanged],
       ["onNoteChanged", mocked.onNoteChanged],
       ["onCalendarChanged", mocked.onCalendarChanged],
+      ["onCallChanged", mocked.onCallChanged],
       ["onWindowOpened", mocked.onWindowOpened],
     ])("reloads the hub on %s", async (_name, listen) => {
       await renderApp();

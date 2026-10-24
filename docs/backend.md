@@ -136,7 +136,8 @@ its module.
 | `reveal_path` | `path: String` | – (Finder shows the enclosing folder with `path` selected) | `io` |
 | `context_state` (`contexts/mod.rs`) | – | `ContextState` | – |
 | `hub_view` (`hub/mod.rs`) | `day: string \| null` (`YYYY-MM-DD`, today when null) | `HubView`: the day, its weekday and date, the board's title (a greeting today), the closest days with a note (null until their step), the sidebar's tool rows, today's status, the reminder (today only) and the day's events ([calendar.md](calendar.md#the-day-model)) | `invalid_input` for a malformed day |
-| `calendar_info`, `calendar_request_access`, `calendar_join` (`calendar/mod.rs`) | – / – / `url` | `CalendarInfo` / `CalendarAccess` / – ([calendar.md](calendar.md)) | `calendar_request_access`: `io` when the privacy settings don't open; `calendar_join`: `invalid_input` unless a join link |
+| `calendar_info`, `calendar_request_access`, `calendar_join` (`calendar/mod.rs`) | – / – / `url` | `CalendarInfo` / `CalendarAccess` / – ([calendar.md](calendar.md)); `calendar_join` joins through `calls::join` ([presence-and-calls.md](presence-and-calls.md#joining)) | `calendar_request_access`: `io` when the privacy settings don't open; `calendar_join`: `invalid_input` unless a join link |
+| `calls_info`, `calls_request_access`, `calls_pick_app` (`calls/mod.rs`) | – / `permission` / – | `CallsInfo` / whether Accessibility is allowed / `AppRef \| null` ([presence-and-calls.md](presence-and-calls.md#commands)) | `calls_request_access`: `io`; `calls_pick_app`: `invalid_input` for anything but an app |
 | `shortcut_overview` (`shortcuts/overview.rs`) | – | `ShortcutOverview`: whether this build registers global shortcuts, the global shortcuts of the commands that exist (action, command, title, help), the app menu's keys | – |
 | `run_command` (`bus/app.rs`) | `id: String` | – (runs a bus command, [commands.md](commands.md)) | `not_found` (unknown), `invalid_input` (disabled), the command's error |
 | `palette_query`, `palette_run` (`palette/mod.rs`) | `query` / `command` | `PaletteResults` / – ([commands.md](commands.md#palette)) | `palette_run`: `not_found` |
@@ -165,6 +166,7 @@ its module.
 | `NOTE_CHANGED_EVENT` | `note_changed` | `NoteChanged { day }`: today's note, the waiting changes or another daily note changed ([vault.md](vault.md#watcher)) |
 | `CONTEXT_CHANGED_EVENT` | `context_changed` | `ContextChanged { id }`: another context became current |
 | `CALENDAR_CHANGED_EVENT` | `calendar_changed` | none; an event, a calendar or the calendar access changed ([calendar.md](calendar.md#reading-events)) |
+| `CALL_CHANGED_EVENT` | `call_changed` | none; a call started, changed or ended ([presence-and-calls.md](presence-and-calls.md#calls)) |
 | `STATUS_CHANGED_EVENT` | `status_changed` | `StatusChanged`: today's status changed; Rust features listen too ([status.md](status.md#status_changed)) |
 | `OPEN_SETTINGS_EVENT` | `open_settings` | to the Settings window: the id of the page to show (a window built for a page reads it from `?page=` instead) |
 | `TOGGLE_INSPECTOR_EVENT` | `toggle_inspector` | to the Daybook window: none; shows or hides the inspector (`view:toggleInspector`) |

@@ -1,0 +1,6 @@
+[ NULL ]  ASN:0x0-0x153153: 
+    bundleID=[ NULL ] 
+    bundle path="/System/Library/CoreServices/Finder.app"
+    executable path=[ NULL ] 
+ !cgsConnection !signalled type=[ NULL ]  flavor=[ NULL ]  Version=[ NULL ]  Arch=!!none 
+

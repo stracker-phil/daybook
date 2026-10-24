@@ -1,0 +1,28 @@
+Assertion status system-wide:
+   BackgroundTask                 0
+   ApplePushServiceTask           0
+   UserIsActive                   0
+   PreventUserIdleDisplaySleep    1
+   SoftwareUpdateTask             0
+   PreventSystemSleep             0
+   PreventSystemSleepSecurityIndicator 0
+   ExternalMedia                  0
+   PreventUserIdleSystemSleep     1
+   NetworkClientActive            0
+Listed by owning process:
+   pid 378(powerd): [0x000318220001847f] 02:23:50 PreventUserIdleSystemSleep named: "Powerd - Prevent sleep while display is on"  
+   pid 7252(caffeinate): [0x000339b200018f07] 00:00:39 PreventUserIdleSystemSleep named: "caffeinate command-line tool"  
+	Details: caffeinate asserting for 300 secs
+	Localized=THE CAFFEINATE TOOL IS PREVENTING SLEEP.
+	Timeout will fire in 261 secs Action=TimeoutActionRelease
+   pid 59870(TV): [0x000331ac00058cba] 00:34:53 PreventUserIdleDisplaySleep named: "com.apple.coremedia.iq.ca.client-1"  
+   pid 565(coreaudiod): [0x0003318400018c84] 00:35:32 PreventUserIdleSystemSleep named: "com.apple.audio.00-00-00-00-00-00:output.context.preventuseridlesleep"  
+	Created for PID: 59870. 
+	Resources: audio-out 00-00-00-00-00-00:output 
+   pid 1842(cloudd): [0x000339d6000c8f17] 00:00:03 SystemIsActive named: "NSURLSessionTask 00000000-0000-0000-0000-000000000000"  
+	Timeout will fire in 10797 secs Action=TimeoutActionTurnOff
+Kernel Assertions: 0x104=USB,MAGICWAKE
+   id=556  level=255 0x100=MAGICWAKE creat=20.10.26, 20:37  mod=23.10.26, 15:36 description=en0 owner=IOSkywalkNetworkBSDClient
+   id=974  level=255 0x4=USB creat=24.10.26, 12:26 description=com.apple.usb.externaldevice.00100000 owner=USB2.0 Hub
+   id=975  level=255 0x4=USB creat=24.10.26, 12:26 description=com.apple.usb.externaldevice.00200000 owner=USB3.0 Hub
+   id=978  level=255 0x4=USB creat=24.10.26, 12:25 description=com.apple.usb.externaldevice.00110000 owner=USB 2.0 BILLBOARD

@@ -202,16 +202,27 @@ fn is_current(app: &AppHandle, session: u32) -> bool {
 
 async fn recheck_focus(app: AppHandle, session: u32) {
     tokio::time::sleep(FOCUS_CHECK).await;
-    if !is_current(&app, session) {
+    focus(&app, session).await;
+}
+
+async fn focus(app: &AppHandle, session: u32) {
+    if !is_current(app, session) {
         return;
     }
     // SAFETY: on the main thread with the live overlay window.
-    on_main(&app, |ns_window| unsafe {
+    on_main(app, |ns_window| unsafe {
         if !native::is_key(ns_window) {
             native::show(ns_window);
         }
     })
     .await;
+}
+
+/// Gives an open overlay the focus again, e.g. after the lock screen took it.
+pub async fn refocus(app: &AppHandle) {
+    if let Some(session) = session_id(app) {
+        focus(app, session).await;
+    }
 }
 
 /// Centred on the pointer's screen, a fifth of the way down.

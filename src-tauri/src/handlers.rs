@@ -3,8 +3,8 @@
 use tauri::ipc::Invoke;
 
 use crate::{
-    autostart, bus, calendar, commands, contexts, hub, palette, remote, shortcuts, status, vault,
-    window,
+    autostart, bus, calendar, calls, commands, contexts, hub, palette, remote, shortcuts, status,
+    vault, window,
 };
 
 pub fn handlers() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
@@ -30,6 +30,9 @@ pub fn handlers() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         calendar::calendar_info,
         calendar::calendar_request_access,
         calendar::calendar_join,
+        calls::calls_info,
+        calls::calls_request_access,
+        calls::calls_pick_app,
         palette::palette_query,
         palette::palette_run,
         shortcuts::shortcuts_pause,

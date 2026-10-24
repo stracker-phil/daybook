@@ -11,6 +11,7 @@ use it, see the [project README](../README.md).
 | [vault.md](vault.md) | The vault: daily-note location, sections, note ops, the writer, waiting changes, creating notes, the watcher |
 | [commands.md](commands.md) | The command bus, tools and their choices, the menu-bar menu, the app menu, global shortcuts, the palette, adding commands |
 | [calendar.md](calendar.md) | Calendar access through EventKit, reading and caching events, meeting links, the day model (timeline, rows), reminders |
+| [presence-and-calls.md](presence-and-calls.md) | Away (asleep, locked) and its checks, call detectors, the grace rule, permissions, joining a call |
 | [status.md](status.md) | Working, Break and Off: status memory, the change rule, `status_changed` and its listeners, the status and offer-off overlays |
 | [windows.md](windows.md) | Every window, its level and focus rules, the overlay's open protocol, focus hand-back, the pointer screen, what needed objc2 |
 | [ux.md](ux.md) | Design language: principles, surfaces, appearance and tokens, type, components, inputs, overlays, keys |

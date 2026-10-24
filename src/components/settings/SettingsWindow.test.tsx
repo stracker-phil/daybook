@@ -79,6 +79,7 @@ describe("SettingsWindow", () => {
         "Daily Note",
         "Workflows",
         "Reminders",
+        "Calls",
         "Demo flow",
         "General",
         "Tools",
@@ -90,7 +91,7 @@ describe("SettingsWindow", () => {
     it("groups them under Setup, Obsidian, Workflows and System, in that order", () => {
       renderWindow();
       const text = nav().textContent.replace(/\s+/g, "");
-      expect(text).toBe("SetupVaultCalendarContextsProjectsObsidianDailyNoteWorkflowsWorkflowsRemindersDemoflowSystemGeneralToolsShortcutsAppearance");
+      expect(text).toBe("SetupVaultCalendarContextsProjectsObsidianDailyNoteWorkflowsWorkflowsRemindersCallsDemoflowSystemGeneralToolsShortcutsAppearance");
     });
   });
 
@@ -217,6 +218,24 @@ describe("SettingsWindow", () => {
       mocked.autostartStatus.mockResolvedValueOnce(true);
       renderWindow("general");
       await vi.waitFor(() => expect(screen.getByRole("switch", { name: "Launch at login" })).toBeChecked());
+    });
+
+    it("shows Accessibility as Allowed when access is granted", async () => {
+      renderWindow("general");
+      expect(await screen.findByText("Allowed")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Allow Access…" })).not.toBeInTheDocument();
+    });
+
+    it("offers to allow Accessibility access when it is missing", async () => {
+      const granted = await mocked.callsInfo();
+      mocked.callsInfo.mockResolvedValue({ ...granted, accessibility: false });
+      try {
+        renderWindow("general");
+        expect(await screen.findByRole("button", { name: "Allow Access…" })).toBeInTheDocument();
+        expect(screen.queryByText("Allowed")).not.toBeInTheDocument();
+      } finally {
+        mocked.callsInfo.mockResolvedValue(granted);
+      }
     });
   });
 });

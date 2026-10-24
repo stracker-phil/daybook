@@ -16,6 +16,8 @@ pub const CONTEXT_CHANGED_EVENT: &str = "context_changed";
 pub const STATUS_CHANGED_EVENT: &str = "status_changed";
 /// No payload; an event, a calendar or the calendar access changed.
 pub const CALENDAR_CHANGED_EVENT: &str = "calendar_changed";
+/// No payload; a call started, changed or ended (docs/presence-and-calls.md).
+pub const CALL_CHANGED_EVENT: &str = "call_changed";
 /// Payload: the saved `Settings`.
 pub const SETTINGS_CHANGED_EVENT: &str = "settings_changed";
 /// Payload: the saved `Keybindings`.

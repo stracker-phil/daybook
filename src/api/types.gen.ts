@@ -35,6 +35,11 @@ export type AppErrorField = { path: string, message: string, };
 export type AppRef = { app: string, bundleId: string, };
 
 /**
+ * An app trigger Settings can add again, with what its built-in check looks for.
+ */
+export type BuiltInCall = { rule: MeetingRule, check: string, };
+
+/**
  * Whether Daybook may read the calendars.
  */
 export type CalendarAccess = "not-determined" | "restricted" | "denied" | "full-access" | "write-only";
@@ -49,6 +54,30 @@ export type CalendarInfo = { access: CalendarAccess,
 calendars: Array<string>, };
 
 export type CallApp = "Zoom" | "Teams" | "Meet";
+
+export type CallView = { app: string, title: string, 
+/**
+ * `HH:MM` the call was first seen.
+ */
+since: string, };
+
+export type CallsInfo = { 
+/**
+ * See `detecting`.
+ */
+detecting: boolean, active: CallView | null, 
+/**
+ * Daybook may read other apps' window titles.
+ */
+accessibility: boolean, 
+/**
+ * Permissions a check was refused.
+ */
+missing: Array<Missing>, 
+/**
+ * Why the last check failed.
+ */
+error: string | null, builtIns: Array<BuiltInCall>, };
 
 export type Context = { id: string, 
 /**
@@ -376,6 +405,11 @@ shortcut: string, };
  * Minutes after midnight, `from` before `to`.
  */
 export type MinuteRange = { from: number, to: number, };
+
+/**
+ * A permission a detector found missing.
+ */
+export type Missing = "accessibility" | "automation";
 
 export type MusicEntry = { id: string, name: string, kind: MusicKind, source: string, 
 /**

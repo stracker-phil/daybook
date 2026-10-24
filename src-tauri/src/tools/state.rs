@@ -111,6 +111,8 @@ pub struct ToolState {
     pub projects: Vec<ProjectGroup>,
     /// `HH:MM` the detected call started.
     pub meeting_since: Option<String>,
+    /// The app trigger of the detected call, e.g. Zoom.
+    pub meeting_app: Option<String>,
     pub meeting_detection: bool,
     pub music: Music,
     pub search_scopes: Vec<String>,

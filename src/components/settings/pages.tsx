@@ -1,11 +1,12 @@
 /** The core settings pages. Modules register their own pages from their install function. */
-import { BellRing, CalendarDays, FolderKanban, FolderOpen, Keyboard, Layers, LayoutList, NotebookPen, Palette, Power, Workflow } from "lucide-react";
+import { BellRing, CalendarDays, FolderKanban, FolderOpen, Keyboard, Layers, LayoutList, NotebookPen, Palette, Power, Video, Workflow } from "lucide-react";
 import { TEXT_SIZES, type Scheme } from "../../api";
 import { schemeLook } from "../../lib/theme";
 import { registerSettingsPage, type SettingsPageProps } from "../../registry/settingsPages";
 import { AccentSwatches } from "../Accent";
 import { Group, Row, Segmented } from "./controls";
 import { LaunchAtLoginSwitch } from "./LaunchAtLoginSwitch";
+import { AccessibilityRow, CallsPage } from "./CallsPage";
 import { CalendarPage } from "./CalendarPage";
 import { ContextsPage } from "./ContextsPage";
 import { DailyNotePage } from "./DailyNotePage";
@@ -93,9 +94,14 @@ function AppearancePage({ s, set }: SettingsPageProps) {
 
 function GeneralPage() {
   return (
-    <Group>
-      <LaunchAtLoginSwitch />
-    </Group>
+    <>
+      <Group>
+        <LaunchAtLoginSwitch />
+      </Group>
+      <Group title="Permissions">
+        <AccessibilityRow />
+      </Group>
+    </>
   );
 }
 
@@ -108,6 +114,7 @@ export function registerCoreSettingsPages() {
   registerSettingsPage({ id: "daily-note", group: "Obsidian", label: "Daily Note", icon: NotebookPen, order: 0, intro: "Where Daybook writes into today's note. Sections are created in this order when Daybook first writes to them; your template only needs the title and the notes heading.", Body: DailyNotePage });
   registerSettingsPage({ id: "workflows", group: "Workflows", label: "Workflows", icon: Workflow, order: 0, intro: "What Daybook does when something happens: each workflow is a trigger and what follows from it.", Body: WorkflowsPage });
   registerSettingsPage({ id: "reminders", group: "Workflows", label: "Reminders", icon: BellRing, order: 10, intro: "The top of the Daybook window shows one reminder: the first rule in this list that applies now. Every routine and journal group has a rule here.", Body: RemindersPage });
+  registerSettingsPage({ id: "calls", group: "Workflows", label: "Calls", icon: Video, order: 20, intro: "How Daybook recognizes that you're in a call, and what Join does.", Body: CallsPage });
   registerSettingsPage({ id: "general", group: "System", label: "General", icon: Power, order: 0, intro: "How Daybook starts.", Body: GeneralPage });
   registerSettingsPage({ id: "tools", group: "System", label: "Tools", icon: LayoutList, order: 10, Body: ToolsPage });
   registerSettingsPage({ id: "shortcuts", group: "System", label: "Shortcuts", icon: Keyboard, order: 20, Body: ShortcutsPage });

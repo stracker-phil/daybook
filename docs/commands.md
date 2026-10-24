@@ -31,7 +31,7 @@ notification (`notify.rs`). The managed `bus::Commands` holds the app's bus, fil
 
 ### The commands so far
 
-`bus/commands.rs` registers the app's own commands; each feature adds its own with its step (`contexts::register`, `status::register`).
+`bus/commands.rs` registers the app's own commands; each feature adds its own with its step (`contexts::register`, `status::register`, `calls::register`).
 
 | Id | Title | Notes |
 |---|---|---|
@@ -51,6 +51,7 @@ notification (`notify.rs`). The managed `bus::Commands` holds the app's bus, fil
 | `mode:<context>` | Switch to a context | family; needs a vault; choices: the contexts; leaving the status behind while Working offers Off ([status.md](status.md#offer-off)) |
 | `status:working`, `status:break`, `status:off` | Change Status to … | needs a vault; the status overlay with that status picked (`status/`) |
 | `status:toggle` | Change Status… | needs a vault; Break picked while Working, else Working |
+| `meetings:check` | Check for a Call Now | checks now; a call that is gone ends at once ([presence-and-calls.md](presence-and-calls.md#calls)) |
 | `sample:open`, `sample:sticky` | Sample Overlay (Sticky) | debug builds only |
 
 ## Tools and their choices
@@ -59,8 +60,8 @@ notification (`notify.rs`). The managed `bus::Commands` holds the app's bus, fil
 today's note, the contexts and the current one with its features, the status, journal and routine progress,
 links (matching now and the rest), projects, the call, music, search scopes, today's topics and tickets.
 `tools::snapshot(app)` builds it from the running app; each feature fills its part with its step (for now
-the vault, today's note, the contexts with the current one and its features, and the current projects' Launcher
-projects).
+the vault, today's note, the contexts with the current one and its features, the current projects' Launcher
+projects, the status, and the running call with whether detection runs).
 
 - `tool_choices(ToolId, &ToolState)` lists what a tool lets you pick: `Choice::Item` (label, command,
   detail, `checked` for a pick among several), `Heading`, `Separator` and `Steps` (a scale such as the

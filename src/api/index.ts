@@ -2,8 +2,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   AppError,
+  AppRef,
   CalendarAccess,
   CalendarInfo,
+  CallsInfo,
   ContextChanged,
   ContextState,
   DailyNoteState,
@@ -12,6 +14,7 @@ import type {
   HubView,
   Keybindings,
   LaunchEvent,
+  Missing,
   NoteChanged,
   PaletteResults,
   PanelSession,
@@ -58,8 +61,14 @@ export const api = {
   calendarInfo: () => invoke<CalendarInfo>("calendar_info"),
   /** Asks macOS the first time; after a refusal it opens the privacy settings. Resolves the access now. */
   calendarRequestAccess: () => invoke<CalendarAccess>("calendar_request_access"),
-  /** Opens an event's call; Rust opens join links only. */
+  /** Joins an event's call: starts the start-first apps, then opens the link in its app. Join links only. */
   calendarJoin: (url: string) => invoke<void>("calendar_join", { url }),
+  /** Settings → Calls: detection, the running call, permissions, the built-in app triggers. */
+  callsInfo: () => invoke<CallsInfo>("calls_info"),
+  /** Accessibility: macOS's prompt the first time, then its privacy settings; Automation: its privacy settings. */
+  callsRequestAccess: (permission: Missing) => invoke<boolean>("calls_request_access", { permission }),
+  /** An app chosen in the file panel, with its bundle id; null when cancelled. */
+  callsPickApp: () => invoke<AppRef | null>("calls_pick_app"),
   /** Where the daily notes are and whether today's note and the Obsidian CLI were found. */
   vaultInfo: () => invoke<VaultInfo>("vault_info"),
   /** While Settings records a shortcut, global shortcuts and the menu's key equivalents step aside. */
@@ -106,6 +115,8 @@ export const api = {
   onStatusChanged: (handler: (change: StatusChanged) => void): Promise<UnlistenFn> => listen<StatusChanged>("status_changed", (e) => handler(e.payload)),
   /** An event, a calendar or the calendar access changed. */
   onCalendarChanged: (handler: () => void): Promise<UnlistenFn> => listen("calendar_changed", handler),
+  /** A call started, changed or ended. */
+  onCallChanged: (handler: () => void): Promise<UnlistenFn> => listen("call_changed", handler),
   /** Settings were saved, from any window. */
   onSettingsChanged: (handler: (settings: Settings) => void): Promise<UnlistenFn> => listen<Settings>("settings_changed", (e) => handler(e.payload)),
   /** Shortcut overrides were saved, from any window. */

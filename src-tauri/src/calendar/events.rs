@@ -146,9 +146,13 @@ pub fn event_meeting_link(event: &Event) -> Option<MeetingLink> {
     )
 }
 
-/// Whether `url` is nothing but a join link: the only kind of address Daybook opens for an event.
+/// The call of an address that is nothing but a join link: the only kind Daybook opens for an event.
+pub fn join_link(url: &str) -> Option<MeetingLink> {
+    meeting_link(Some(url), None, None).filter(|link| link.url == url)
+}
+
 pub fn is_meeting_url(url: &str) -> bool {
-    meeting_link(Some(url), None, None).is_some_and(|link| link.url == url)
+    join_link(url).is_some()
 }
 
 #[cfg(test)]
@@ -359,6 +363,33 @@ mod tests {
             ("file:///etc/passwd", false),
         ] {
             assert_eq!(is_meeting_url(input), expected, "{input}");
+        }
+    }
+
+    #[test]
+    fn a_bare_join_link_gives_its_call_and_the_same_url() {
+        for (app, url) in [
+            (CallApp::Zoom, "https://zoom.us/j/123456789?pwd=abc"),
+            (CallApp::Meet, "https://meet.google.com/xyz-abcd-efg"),
+            (
+                CallApp::Teams,
+                "https://teams.microsoft.com/l/meetup-join/19%3ameeting",
+            ),
+        ] {
+            assert_eq!(join_link(url), link(app, url), "{url}");
+        }
+    }
+
+    #[test]
+    fn text_around_a_link_or_a_non_join_address_is_no_join_link() {
+        for input in [
+            "Join https://zoom.us/j/123456789",
+            "https://zoom.us/j/123456789 and more",
+            "https://support.zoom.us/hc/en-us/articles/201362193",
+            "https://example.com/?next=https://zoom.us/j/1",
+            "",
+        ] {
+            assert_eq!(join_link(input), None, "{input}");
         }
     }
 }

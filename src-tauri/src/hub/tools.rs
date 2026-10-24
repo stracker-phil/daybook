@@ -75,9 +75,12 @@ fn entry(id: ToolId, state: &ToolState) -> Entry {
         },
         ToolId::Activity => row("Log activity…", "activity:switch"),
         ToolId::Call => Entry::Row {
-            title: "In a meeting".into(),
+            title: state.meeting_since.as_ref().map_or_else(
+                || "In a meeting".into(),
+                |since| format!("In a meeting since {since}"),
+            ),
             command: None,
-            detail: None,
+            detail: state.meeting_app.clone(),
         },
         ToolId::Journal => row("Journal", "journal:open"),
         ToolId::Hub => row("Daybook", "hub:open"),
@@ -323,9 +326,10 @@ mod tests {
     }
 
     #[test]
-    fn the_call_row_only_tells() {
+    fn the_call_row_tells_since_when_and_in_which_app() {
         let state = ToolState {
             meeting_since: Some("10:15".into()),
+            meeting_app: Some("Zoom".into()),
             ..bare_state()
         };
         let tools = build(&place(&[ToolId::Call]), &state, &CommandsStub::default());
@@ -333,10 +337,10 @@ mod tests {
             tools,
             [HubTool::Tool(ToolRow {
                 id: ToolId::Call,
-                title: "In a meeting".into(),
+                title: "In a meeting since 10:15".into(),
                 command: None,
                 shortcut: None,
-                detail: None,
+                detail: Some("Zoom".into()),
                 accent: false,
                 enabled: true,
             })]
