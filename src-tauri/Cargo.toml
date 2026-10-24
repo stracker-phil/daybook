@@ -32,6 +32,8 @@ url = "2"
 ts-rs = { version = "12", features = ["serde-compat", "serde-json-impl", "no-serde-warnings"] }
 libc = "0.2"
 tempfile = { version = "3", optional = true }
+notify = "8"
+regex = "1"
 
 [features]
 # Exposes test helpers to integration tests in tests/.

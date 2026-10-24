@@ -97,6 +97,23 @@ notes: string, journal: SectionPlacement, focus: SectionPlacement, plan: Section
 order: Array<DailySection>, };
 
 /**
+ * Today's note as the page shows it.
+ */
+export type DailyNoteState = { 
+/**
+ * `None` without a vault.
+ */
+path: string | null, exists: boolean, 
+/**
+ * Obsidian is creating it.
+ */
+creating: boolean, 
+/**
+ * Changes waiting for it (or for an earlier day's note).
+ */
+waiting: number, };
+
+/**
  * The daily note's sections the app knows, in their default order.
  */
 export type DailySection = "journal" | "focus" | "plan" | "notes";
@@ -156,6 +173,11 @@ export type Joining = {
 startFirst: Array<AppRef>, openWith: OpenWith, };
 
 /**
+ * One question's answer as the note holds it; only the field of the question's kind is used.
+ */
+export type JournalAnswer = { items: Array<string>, tasks: Array<JournalTask>, text: string, };
+
+/**
  * One callout in the journal section; a group without questions is free text.
  */
 export type JournalGroup = { title: string, 
@@ -164,7 +186,19 @@ export type JournalGroup = { title: string,
  */
 callout: string, folded: boolean, questions: Array<JournalQuestion>, timing: Timing, };
 
+export type JournalGroupAnswers = { 
+/**
+ * By question text; a question without an entry is unanswered.
+ */
+answers: { [key in string]: JournalAnswer }, 
+/**
+ * The free text of a group without questions.
+ */
+note: string, };
+
 export type JournalQuestion = { question: string, hint: string, kind: AnswerKind, };
+
+export type JournalTask = { text: string, done: boolean, };
 
 /**
  * Something the page acts on once it listens: from the launch that started the app, a later launch,
@@ -211,6 +245,23 @@ artistId: string, storefront: string,
 shuffle: boolean, };
 
 export type MusicKind = "playlist" | "artist" | "link";
+
+/**
+ * The payload of `note_changed`.
+ */
+export type NoteChanged = { 
+/**
+ * The day whose note changed (`YYYY-MM-DD`); `None` for another note in the daily-notes folder.
+ */
+day: string | null, };
+
+export type NoteOp = { "kind": "journalGroup", group: string, answers: JournalGroupAnswers, } | { "kind": "planStep", title: string, done: boolean, } | { "kind": "planList", titles: Array<string>, } | { "kind": "focus", body: string, } | { "kind": "noteSection", title: string, level: number, newTitle: string, body: string, };
+
+export type NoteSectionRef = { title: string, 
+/**
+ * 3 for `###`, 4 for `####`, …
+ */
+level: number, };
 
 export type OnCall = "nothing" | "pause" | "lower";
 
@@ -563,3 +614,5 @@ obsidianCliPath: string, };
  * past midnight).
  */
 export type WorkHours = { days: Array<number>, from: string, to: string, };
+
+export type WriteOutcome = "written" | "unchanged" | "queued";

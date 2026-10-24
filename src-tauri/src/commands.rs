@@ -75,6 +75,7 @@ pub(crate) async fn save_settings(
 
 fn settings_saved(app: &AppHandle, previous: &Settings, saved: &Settings) {
     apply_settings(app, Some(previous), saved);
+    app.state::<AppState>().notes.watch_today_folder(saved);
     if let Err(e) = app.emit(SETTINGS_CHANGED_EVENT, saved) {
         log::warn!("Couldn't announce the saved settings: {e}");
     }

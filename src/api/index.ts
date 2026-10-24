@@ -1,6 +1,17 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { AppError, ErrorKind, Keybindings, LaunchEvent, MenuState, RemoteEvent, Settings, UiState } from "./types";
+import type {
+  AppError,
+  DailyNoteState,
+  ErrorKind,
+  Keybindings,
+  LaunchEvent,
+  MenuState,
+  NoteChanged,
+  RemoteEvent,
+  Settings,
+  UiState,
+} from "./types";
 
 export * from "./types";
 
@@ -37,6 +48,12 @@ export const api = {
   chooseFolder: () => invoke<string | null>("choose_folder"),
   /** Opens the enclosing folder in Finder with `path` selected. */
   revealPath: (path: string) => invoke<void>("reveal_path", { path }),
+  /** Today's note: where it is, whether it exists or is being created, and how many changes wait for it. */
+  dailyNoteState: () => invoke<DailyNoteState>("daily_note_state"),
+  /** Opens a day's note (`YYYY-MM-DD`, default today) in Obsidian; today's is created when missing. */
+  dailyNoteOpen: (day?: string) => invoke<void>("daily_note_open", { day: day ?? null }),
+  /** Creates today's note through the Obsidian CLI; resolves whether it exists now. */
+  dailyNoteCreate: () => invoke<boolean>("daily_note_create"),
 
   onLaunch: (handler: () => void): Promise<UnlistenFn> => listen("launch", handler),
   /** The hidden main window was shown again (the Dock icon came back). */
@@ -45,6 +62,8 @@ export const api = {
   onCommand: (handler: (id: string) => void): Promise<UnlistenFn> => listen<string>("command", (e) => handler(e.payload)),
   /** Settings were saved, from any window. */
   onSettingsChanged: (handler: (settings: Settings) => void): Promise<UnlistenFn> => listen<Settings>("settings_changed", (e) => handler(e.payload)),
+  /** A daily note, or the changes waiting for today's note, changed. */
+  onNoteChanged: (handler: (change: NoteChanged) => void): Promise<UnlistenFn> => listen<NoteChanged>("note_changed", (e) => handler(e.payload)),
   /** Requests from other processes; answer each with `remoteReply`. */
   onRemote: (handler: (event: RemoteEvent) => void): Promise<UnlistenFn> => listen<RemoteEvent>("remote", (e) => handler(e.payload)),
 };

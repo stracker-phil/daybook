@@ -6,6 +6,8 @@ use std::collections::HashSet;
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value};
 
+pub use crate::clock::{format_clock, parse_clock};
+
 pub type Obj = Map<String, Value>;
 
 pub fn obj(value: Option<&Value>) -> Option<&Obj> {
@@ -141,22 +143,6 @@ pub fn weekdays(value: Option<&Value>) -> Vec<u8> {
     days.sort_unstable();
     days.dedup();
     days
-}
-
-/// `"9:45"` → minutes after midnight; `None` when it isn't a time of day.
-pub fn parse_clock(value: &str) -> Option<u32> {
-    let (hours, minutes) = value.trim().split_once(':')?;
-    let digits = |part: &str, len: std::ops::RangeInclusive<usize>| {
-        (len.contains(&part.len()) && part.bytes().all(|b| b.is_ascii_digit()))
-            .then(|| part.parse::<u32>().ok())
-            .flatten()
-    };
-    let (hours, minutes) = (digits(hours, 1..=2)?, digits(minutes, 2..=2)?);
-    (hours <= 23 && minutes <= 59).then_some(hours * 60 + minutes)
-}
-
-pub fn format_clock(minutes: u32) -> String {
-    format!("{:02}:{:02}", minutes / 60, minutes % 60)
 }
 
 /// `"9:30"` → `"09:30"`; `None` for anything that isn't a time of day.

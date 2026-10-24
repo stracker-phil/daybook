@@ -1,15 +1,18 @@
 use std::path::Path;
+use std::sync::Arc;
 
 use crate::launch::LaunchQueue;
 use crate::store::keybindings::KeybindingsStore;
 use crate::store::settings::SettingsStore;
 use crate::store::ui_state::UiStateStore;
+use crate::vault::DailyNotes;
 
 pub struct AppState {
     pub settings: SettingsStore,
     pub keybindings: KeybindingsStore,
     pub ui_state: UiStateStore,
     pub launches: LaunchQueue,
+    pub notes: Arc<DailyNotes>,
 }
 
 impl AppState {
@@ -19,6 +22,7 @@ impl AppState {
             keybindings: KeybindingsStore::open(config_dir),
             ui_state: UiStateStore::open(config_dir),
             launches: LaunchQueue::default(),
+            notes: Arc::new(DailyNotes::open(config_dir)),
         }
     }
 }

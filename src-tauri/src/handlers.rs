@@ -2,7 +2,7 @@
 
 use tauri::ipc::Invoke;
 
-use crate::{autostart, commands, help, menu, remote};
+use crate::{autostart, commands, help, menu, remote, vault};
 
 pub fn handlers() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
     tauri::generate_handler![
@@ -26,5 +26,10 @@ pub fn handlers() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         help::open_readme,
         menu::sync::menu_sync,
         remote::remote_reply,
+        vault::commands::daily_note_state,
+        vault::commands::daily_note_open,
+        vault::commands::daily_note_create,
+        #[cfg(debug_assertions)]
+        crate::dev::dev_edit_today_note,
     ]
 }

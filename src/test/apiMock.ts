@@ -29,10 +29,14 @@ export function createApiMock(): typeof realApi {
     quitApp: vi.fn().mockResolvedValue(undefined),
     chooseFolder: vi.fn().mockResolvedValue(null),
     revealPath: vi.fn().mockResolvedValue(undefined),
+    dailyNoteState: vi.fn().mockResolvedValue({ path: null, exists: false, creating: false, waiting: 0 }),
+    dailyNoteOpen: vi.fn().mockResolvedValue(undefined),
+    dailyNoteCreate: vi.fn().mockResolvedValue(false),
     onLaunch: vi.fn(noUnlisten),
     onWindowOpened: vi.fn(noUnlisten),
     onCommand: vi.fn(noUnlisten),
     onRemote: vi.fn(noUnlisten),
     onSettingsChanged: vi.fn(noUnlisten),
+    onNoteChanged: vi.fn(noUnlisten),
   };
 }

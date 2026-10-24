@@ -20,14 +20,19 @@ no database. The JSON files live in the config dir, `~/Library/Application Suppo
 
 | File | Holds | Store |
 |---|---|---|
-| `settings.json` | `Settings`: `lightScheme`, `darkScheme`, `accent`, `textSize`, `launchAtLogin` | `store::settings::SettingsStore` |
+| `settings.json` | `Settings`: appearance, the vault and daily note, and every feature's configuration ([backend: settings](backend.md#settings)) | `store::settings::SettingsStore` |
 | `keybindings.json` | the owner's shortcut overrides by command id | `store::keybindings::KeybindingsStore` |
 | `ui_state.json` | window layout: `sidebarHidden`, `sidebarWidth`, `paneSizes` | `store::ui_state::UiStateStore` |
+| `pending-entries.json` | note changes waiting for their daily note | `vault::pending::Pending` |
+| `context.json`, `status-memory.json`, `jira-tickets.json`, `routines.json`, `day-message.json`, `slack-shown.json` | state imported from the prototype (step 02), read by later steps | – |
 
 Each store wraps a `JsonStore` (`store/json_store.rs`) over a `JsonFile` (`store/json_file.rs`): files are
 0600 in a 0700 folder and written atomically; a missing file loads as defaults, unknown keys are ignored and
 a file that cannot be parsed is moved aside as `<name>.<timestamp>.corrupt`. The config dir also holds the
-socket `daybook.sock` and the instance lock `daybook.lock`. The vault is not read yet.
+socket `daybook.sock` and the instance lock `daybook.lock`.
+
+The vault is `settings.vault.path`. Daybook reads its daily notes and adds lines to known sections through one
+write path ([vault.md](vault.md)).
 
 ## Design rules
 
@@ -51,7 +56,11 @@ These rules hold everywhere in the code. Keep them when you change things.
 6. **No color literal outside `src/styles/palettes/`** ([ADR 0007](adr/0007-color-palettes.md),
    [ADR 0009](adr/0009-three-schemes-four-palettes.md), [ADR 0010](adr/0010-a-scheme-per-system-mode.md)).
    Palettes are complete token sets; a Vitest scan enforces it.
-7. **The look is native** ([ADR 0011](adr/0011-native-macos-look.md)): system font, inset groups, a unified
+7. **One write path into the vault** ([ADR 0015](adr/0015-one-write-path-into-the-vault.md)). Only
+   `vault::writer::NoteWriter::edit_note` writes into the vault; a change is a `NoteOp` applied by a pure
+   function that touches only its section's lines. Daily notes are created by Obsidian, and nothing goes into
+   frontmatter.
+8. **The look is native** ([ADR 0011](adr/0011-native-macos-look.md)): system font, inset groups, a unified
    toolbar, AppKit control metrics ([ux.md](ux.md)).
 
 ## A setting, end to end
@@ -141,6 +150,8 @@ src-tauri/
   src/menu/                  native menu: items.rs (MENU_ITEMS), mod.rs (build, forward), sync.rs (enabled and checked items)
   src/help.rs                Help menu targets outside the app (the README)
   src/autostart.rs           launch at login
+  src/vault/                 daily notes: location, note edits, ops, writer, pending changes, Obsidian CLI, watcher (vault.md)
+  src/clock.rs process.rs    HH:MM and time windows; child processes with a timeout
   src/dev.rs                 debug builds only: window frame, background launch, eval
   src/test_support/          test helpers behind cfg(test) / feature test-util
 src/

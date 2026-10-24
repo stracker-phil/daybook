@@ -11,7 +11,7 @@ use crate::handlers::handlers;
 use crate::ipc::IpcMessage;
 use crate::state::AppState;
 use crate::store::import::Import;
-use crate::{commands, deep_link, ipc, menu, remote, tray, window};
+use crate::{commands, deep_link, ipc, menu, remote, tray, vault, window};
 
 const MAX_LOG_BYTES: u128 = 5 * 1024 * 1024;
 
@@ -52,6 +52,7 @@ pub fn start(
             state.launches.push(initial);
             report_import(&state, import);
             commands::apply_settings(app.handle(), None, &state.settings.get());
+            vault::commands::install(app.handle());
             tray::install(app.handle())?;
             #[cfg(debug_assertions)]
             apply_dev_frame(app);

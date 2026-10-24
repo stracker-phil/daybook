@@ -1,8 +1,15 @@
 //! Debug-build conveniences for driving the app from scripts/dev without disturbing the
-//! user: window placement and background launches. Only compiled into debug builds
+//! user: window placement, background launches and a check of the vault write path. Only compiled into debug builds
 //! (`#[cfg(debug_assertions)]` on the module and its call sites).
 
-use tauri::Manager;
+use std::sync::Arc;
+
+use tauri::{Manager, State};
+
+use crate::error::AppResult;
+use crate::state::AppState;
+use crate::vault::ops::NoteOp;
+use crate::vault::{WriteOutcome, commands::blocking};
 
 /// `DAYBOOK_WINDOW_FRAME="x,y,width,height"` (logical points) places the main window.
 pub fn window_frame() -> Option<(f64, f64, f64, f64)> {
@@ -27,6 +34,17 @@ pub fn eval(app: &tauri::AppHandle, js: &str) {
     if let Err(e) = window.eval(js) {
         log::warn!("Couldn't evaluate script from scripts/dev: {e}");
     }
+}
+
+/// Applies a note op to today's note, for checking the write path from `scripts/dev/js.sh`.
+#[tauri::command]
+pub async fn dev_edit_today_note(
+    state: State<'_, AppState>,
+    op: NoteOp,
+) -> AppResult<WriteOutcome> {
+    let notes = Arc::clone(&state.notes);
+    let settings = state.settings.get();
+    blocking(move || notes.edit_today(&settings, op)).await
 }
 
 fn parse_frame(raw: &str) -> Option<(f64, f64, f64, f64)> {

@@ -104,13 +104,15 @@ itself. Panics unwind ([ADR 0005](adr/0005-panic-unwind.md)), so code takes `std
 | `keybindings` | `KeybindingsStore` | `keybindings.json`; also feeds the menu |
 | `ui_state` | `UiStateStore` | `ui_state.json` |
 | `launches` | `LaunchQueue` | launch events the page has not taken yet |
+| `notes` | `Arc<DailyNotes>` | the vault service: `pending-entries.json`, the writer, the watcher ([vault.md](vault.md)) |
 
 Managed beside it: `remote::Bridge` (requests waiting for the page) and `menu::MenuSync` (the page's last
 menu report).
 
 ## Tauri commands
 
-Registered in `handlers.rs` (`handlers()`, one `generate_handler!` list). Commands stay thin; logic lives in
+Registered in `handlers.rs` (`handlers()`, one `generate_handler!` list; the dev commands carry
+`#[cfg(debug_assertions)]`). Commands stay thin; logic lives in
 its module.
 
 | Command | Args | Returns | Errors |
@@ -133,6 +135,8 @@ its module.
 | `open_readme` (`help.rs`) | – | – (opens the README, see [Native menu](#native-menu)) | `not_found` (none in this build), `io` |
 | `menu_sync` (`menu/sync.rs`) | `state: MenuState { enabled, checked }` | – (greys out and checks the menu items) | – |
 | `remote_reply` (`remote.rs`) | `id, result, error` | – | – |
+| `daily_note_state`, `daily_note_open`, `daily_note_create` (`vault/commands.rs`) | see [vault.md](vault.md#commands) | | |
+| `dev_edit_today_note` (`dev.rs`, debug builds only) | `op: NoteOp` | `WriteOutcome` | as `edit_today` |
 
 **Adding a command:** write it in its module (or `commands.rs` for app-wide ones), register it in
 `handlers.rs`, export its types with ts-rs (`#[ts(export, export_to = "src/api/types.gen.ts")]`, then
@@ -149,6 +153,7 @@ its module.
 | `COMMAND_EVENT` | `command` | a command id (menu) |
 | `REMOTE_EVENT` | `remote` | `RemoteEvent { id, request }`, answered with `remote_reply` |
 | `WINDOW_OPENED_EVENT` | `window_opened` | none; `window::show_main_in_background` showed the hidden window |
+| `NOTE_CHANGED_EVENT` | `note_changed` | `NoteChanged { day }`: today's note, the waiting changes or another daily note changed ([vault.md](vault.md#watcher)) |
 | `SETTINGS_CHANGED_EVENT` | `settings_changed` | the saved `Settings`, after every `update_settings` and `autostart_set` |
 
 ## Launch queue

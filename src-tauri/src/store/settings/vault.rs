@@ -54,6 +54,16 @@ pub enum HeadingLevel {
     H4,
 }
 
+impl HeadingLevel {
+    pub fn marker(self) -> &'static str {
+        match self {
+            Self::H2 => "##",
+            Self::H3 => "###",
+            Self::H4 => "####",
+        }
+    }
+}
+
 /// A section the app writes to, found by level and text (case-insensitive).
 #[derive(Serialize, Clone, Debug, PartialEq, TS)]
 #[ts(export, export_to = "src/api/types.gen.ts")]
@@ -68,6 +78,11 @@ impl SectionPlacement {
             level: HeadingLevel::H2,
             text: text.into(),
         }
+    }
+
+    /// The heading line, e.g. `## Focus`.
+    pub fn heading(&self) -> String {
+        format!("{} {}", self.level.marker(), self.text)
     }
 
     fn read(raw: Option<&Value>, fallback: Self) -> Self {
@@ -148,6 +163,24 @@ impl DailyNote {
             plan: SectionPlacement::read(field(source, "plan"), defaults.plan),
             order: section_order(field(source, "order")),
         }
+    }
+
+    /// Notes is stored as a heading line; the others are built from level and text.
+    pub fn heading(&self, section: DailySection) -> String {
+        match section {
+            DailySection::Journal => self.journal.heading(),
+            DailySection::Focus => self.focus.heading(),
+            DailySection::Plan => self.plan.heading(),
+            DailySection::Notes => self.notes.clone(),
+        }
+    }
+
+    /// The heading lines in `order`.
+    pub fn heading_order(&self) -> Vec<String> {
+        self.order
+            .iter()
+            .map(|section| self.heading(*section))
+            .collect()
     }
 }
 
