@@ -26,6 +26,7 @@ pub mod projects;
 pub mod remote;
 pub mod shortcuts;
 pub mod state;
+pub mod status;
 pub mod store;
 #[cfg(any(test, feature = "test-util"))]
 pub mod test_support;

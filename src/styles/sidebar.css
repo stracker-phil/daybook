@@ -53,3 +53,10 @@
 .sidebar-footer { flex: none; display: flex; align-items: center; gap: var(--space-1); padding: var(--space-2) var(--space-2) var(--space-3); }
 .sidebar-footer .icon-btn { color: var(--sidebar-muted); }
 .sidebar-footer .icon-btn:hover { background: var(--sidebar-hover); color: var(--sidebar-text); }
+
+/* The status row's dot takes the icon's place (1.077rem wide). */
+.status-dot { flex: none; width: 0.769rem; height: 0.769rem; margin: 0 0.154rem; border-radius: 50%; box-sizing: border-box; }
+.status-dot[data-status="working"] { background: var(--style-green); }
+.status-dot[data-status="break"] { background: var(--a-orange); }
+.status-dot[data-status="off"] { background: var(--sidebar-muted); }
+.status-dot[data-status="none"] { border: 1.5px solid var(--sidebar-muted); }

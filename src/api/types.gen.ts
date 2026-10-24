@@ -164,6 +164,20 @@ url: string,
  */
 done: string, incomplete: string, };
 
+/**
+ * The answer to the end-of-day check.
+ */
+export type EndOfDayAnswer = "done" | "incomplete";
+
+/**
+ * The end-of-day reminder and question shown before going Off.
+ */
+export type EndOfDayCheck = { reminder: string, question: string, 
+/**
+ * Opened from the question; empty for none.
+ */
+url: string, };
+
 export type ErrorKind = "io" | "invalid_input" | "not_found" | "cancelled";
 
 export type EventWindow = "until_end" | "during" | "before";
@@ -219,7 +233,11 @@ previousDay: string | null, nextDay: string | null,
 /**
  * The sidebar's tool rows, in Settings → Tools order.
  */
-tools: Array<HubTool>, };
+tools: Array<HubTool>, 
+/**
+ * Today's status, for the status row's dot; `None` before the day's first.
+ */
+status: Status | null, };
 
 /**
  * "Open Jira Issue" opens `base_url` + the key; a bare number gets `default_prefix`.
@@ -326,6 +344,15 @@ export type NoteSectionRef = { title: string,
  * 3 for `###`, 4 for `####`, …
  */
 level: number, };
+
+/**
+ * The offer-off overlay's session args.
+ */
+export type OfferOff = { 
+/**
+ * The context switched to, e.g. `🐈 Personal`.
+ */
+to: string, };
 
 export type OnCall = "nothing" | "pause" | "lower";
 
@@ -607,6 +634,31 @@ keepStatus: boolean, emoji: string, text: string, presence: Presence, };
 export type Status = "working" | "break" | "off";
 
 /**
+ * The payload of `status_changed`.
+ */
+export type StatusChanged = { 
+/**
+ * `None`: the day's first status.
+ */
+previous: Status | null, next: Status, 
+/**
+ * The day's first Working.
+ */
+first: boolean, 
+/**
+ * `HH:MM`
+ */
+since: string, 
+/**
+ * The channel message as confirmed in the overlay; empty sends none.
+ */
+message: string, 
+/**
+ * Going Off through the end-of-day check.
+ */
+endOfDay: EndOfDayAnswer | null, };
+
+/**
  * One value per status.
  */
 export type StatusMap<T> = { working: T, break: T, off: T, };
@@ -624,6 +676,27 @@ firstWorking: string, break: string, off: string, };
  * The reply to `status`.
  */
 export type StatusReport = { version: string, windowVisible: boolean, };
+
+/**
+ * The status overlay's session args.
+ */
+export type StatusRequest = { 
+/**
+ * Picked when the overlay opens.
+ */
+status: Status, 
+/**
+ * Today's status; `None` before the first one.
+ */
+current: Status | null, 
+/**
+ * The message each status suggests.
+ */
+messages: StatusMap<string>, 
+/**
+ * `None` when going Off asks nothing first.
+ */
+endOfDay: EndOfDayCheck | null, };
 
 /**
  * "An absence starts within `hours`": the enabled rule with the fewest hours that reaches it wins.
@@ -706,6 +779,10 @@ command: string | null,
  * The global shortcut, in Settings notation (`ctrl+alt+cmd+f`).
  */
 shortcut: string | null, 
+/**
+ * Shown after the title, e.g. the time the status was set.
+ */
+detail: string | null, 
 /**
  * Shown in the context's colour.
  */

@@ -15,3 +15,13 @@
 .context-number { flex: none; width: 1.846rem; font-size: var(--fs-meta); }
 /* The active row is accent-filled, so the pill reads on it in white. */
 .palette-list li.active .context-pill { background: color-mix(in srgb, var(--on-accent) 22%, transparent); color: inherit; }
+
+/* Status, end-of-day check, offer-off. */
+.current-pill { flex: none; padding: 0.077rem var(--space-2); border-radius: 999px; background: var(--fill); color: var(--o2); font-size: var(--fs-meta); }
+.palette-list li.active .current-pill { background: color-mix(in srgb, var(--on-accent) 22%, transparent); color: inherit; }
+.panel-body-text { display: flex; flex-direction: column; gap: var(--space-3); padding: 0 var(--space-4) var(--space-4); }
+.panel-body-text p { margin: 0; line-height: 1.4; }
+.numbered { display: flex; align-items: baseline; gap: var(--space-2); }
+.numbered .btn { align-self: center; }
+.panel-buttons { display: flex; gap: var(--space-2); }
+.panel-buttons .keycap { margin-left: var(--space-1); }

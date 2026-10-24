@@ -15,6 +15,7 @@ const tool = (patch: Partial<ToolRow> & Pick<ToolRow, "id" | "title">): HubTool 
   kind: "tool",
   command: `tool:${patch.id}`,
   shortcut: null,
+  detail: null,
   accent: false,
   enabled: true,
   ...patch,
@@ -31,6 +32,7 @@ const hubView = (patch: Partial<HubView> = {}): HubView => ({
   previousDay: null,
   nextDay: null,
   tools: [],
+  status: null,
   ...patch,
 });
 
@@ -113,6 +115,28 @@ describe("Sidebar", () => {
     it("disables a row that is not enabled", () => {
       renderSidebar({ tools: [tool({ id: "jira", title: "Open Jira issue", enabled: false })] });
       expect(row("Open Jira issue")).toBeDisabled();
+    });
+
+    describe("status row", () => {
+      const statusTool = (patch: Partial<ToolRow> = {}) =>
+        tool({ id: "status", title: "Taking a break", command: "status:toggle", detail: "12:05", ...patch });
+
+      it("shows the status title and the time it was set", () => {
+        renderSidebar({ status: "break", tools: [statusTool()] });
+        expect(row("Taking a break")).toHaveTextContent("Taking a break");
+        expect(within(row("Taking a break")).getByText("12:05")).toBeInTheDocument();
+      });
+
+      it("runs status:toggle when clicked", async () => {
+        renderSidebar({ status: "break", tools: [statusTool()] });
+        await userEvent.click(row("Taking a break"));
+        expect(mocked.runCommand).toHaveBeenCalledWith("status:toggle");
+      });
+
+      it("shows no time for a row without a detail", () => {
+        renderSidebar({ tools: [statusTool({ title: "No status yet", detail: null })] });
+        expect(row("No status yet").textContent).toBe("No status yet");
+      });
     });
 
     it("toasts when a row's command fails", async () => {

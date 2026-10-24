@@ -20,6 +20,7 @@ const hub = (patch: Partial<HubView> = {}): HubView => ({
   previousDay: null,
   nextDay: null,
   tools: [],
+  status: null,
   ...patch,
 });
 
@@ -88,7 +89,7 @@ describe("App", () => {
   describe("hub", () => {
     it("shows the day and the tools Rust sends", async () => {
       mocked.hubView.mockResolvedValueOnce(
-        hub({ tools: [{ kind: "tool", id: "search", title: "Search vault", command: "search:open", shortcut: "ctrl+alt+cmd+f", accent: false, enabled: true }] }),
+        hub({ tools: [{ kind: "tool", id: "search", title: "Search vault", command: "search:open", shortcut: "ctrl+alt+cmd+f", detail: null, accent: false, enabled: true }] }),
       );
       await renderApp();
       expect(await screen.findByRole("heading", { name: "Saturday" })).toBeInTheDocument();
@@ -110,6 +111,18 @@ describe("App", () => {
       mocked.hubView.mockResolvedValueOnce(hub({ title: "Good evening" }));
       await emit(listen);
       expect(await screen.findByText("Good evening")).toBeInTheDocument();
+    });
+
+    it("shows the new status row when Rust announces a status change", async () => {
+      const statusRow = (title: string, status: "working" | "break"): HubView =>
+        hub({ status, tools: [{ kind: "tool", id: "status", title, command: "status:toggle", shortcut: null, detail: "12:05", accent: false, enabled: true }] });
+      mocked.hubView.mockResolvedValueOnce(hub({ tools: [statusRow("No status yet", "working").tools[0]] }));
+      await renderApp();
+      const tools = () => within(screen.getByRole("navigation", { name: "Tools" }));
+      await tools().findByRole("button", { name: /No status yet/ });
+      mocked.hubView.mockResolvedValueOnce(statusRow("Taking a break", "break"));
+      await emit(mocked.onStatusChanged, { previous: "working", next: "break", first: false, since: "12:05", message: "", endOfDay: null });
+      expect(await tools().findByRole("button", { name: /Taking a break/ })).toBeInTheDocument();
     });
 
     it("reloads the hub when the settings change", async () => {

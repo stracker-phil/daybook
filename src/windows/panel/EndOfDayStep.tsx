@@ -1,0 +1,55 @@
+import { useEffect, useRef, type KeyboardEvent } from "react";
+import { ExternalLink } from "lucide-react";
+import { api, type EndOfDayAnswer, type EndOfDayCheck } from "../../api";
+
+const ANSWER_KEYS: Record<string, EndOfDayAnswer> = { y: "done", n: "incomplete" };
+
+/** Before going Off; the answer picks the channel message. The overlay stays open while the owner checks the link. */
+export function EndOfDayStep({ check, message, error, onAnswer }: { check: EndOfDayCheck; message: string; error: string | null; onAnswer: (answer: EndOfDayAnswer) => void }) {
+  const yesButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    void api.panelKeepOpen(true).catch(() => {});
+    yesButton.current?.focus();
+  }, []);
+
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const answer = ANSWER_KEYS[e.key.toLowerCase()];
+    if (!answer) return;
+    e.preventDefault();
+    onAnswer(answer);
+  };
+
+  return (
+    <div className="panel-card end-of-day" onKeyDown={onKeyDown}>
+      <div className="panel-heading o2">Done for today{message ? ` · ${message}` : ""}</div>
+      <div className="panel-body-text">
+        {check.reminder && (
+          <p className="numbered">
+            <span className="o3">1.</span>
+            {check.reminder}
+          </p>
+        )}
+        <div className="numbered">
+          {check.reminder && <span className="o3">2.</span>}
+          <span className="grow-text">{check.question}</span>
+          {check.url && (
+            <button type="button" className="btn btn-quiet" onClick={() => void api.openUrl(check.url).catch(() => {})}>
+              <ExternalLink size="1.077rem" aria-hidden="true" />
+              Open
+            </button>
+          )}
+        </div>
+        <div className="panel-buttons">
+          <button ref={yesButton} type="button" className="btn btn-primary" onClick={() => onAnswer("done")}>
+            Yes <kbd className="keycap">Y</kbd>
+          </button>
+          <button type="button" className="btn" onClick={() => onAnswer("incomplete")}>
+            Not yet <kbd className="keycap">N</kbd>
+          </button>
+        </div>
+      </div>
+      <div className="palette-foot o3">{error ? <span className="palette-error">{error}</span> : <span>esc cancel, send nothing</span>}</div>
+    </div>
+  );
+}

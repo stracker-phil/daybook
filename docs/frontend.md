@@ -23,7 +23,7 @@ renders and forwards intent; [Rust owns the logic](architecture.md#design-rules)
       shows an error toast, `notice` an info toast; `activate` is Rust's and needs nothing from the page.
       `loadUiState()` loads the window layout.
    2. `loadHub()` loads the Daybook window's view model, again every minute and on `settings_changed`,
-      `context_changed`, `note_changed` and `window_opened`.
+      `context_changed`, `status_changed`, `note_changed` and `window_opened`.
    3. It subscribes to `launch` (drain again), `remote` (to `answerRemote`), `settings_changed`,
       `keybindings_changed` (`applyKeybindings`) and `toggle_inspector` (`toggleInspector`).
    4. It adds a capture-phase `keydown` to `handleKeydown`, `error` and `unhandledrejection` to an error
@@ -34,7 +34,7 @@ renders and forwards intent; [Rust owns the logic](architecture.md#design-rules)
 App
 ├─ .app
 │  └─ Workspace     (.workspace grid; .no-sidebar, .no-inspector from uiState)
-│     ├─ Sidebar    the day (weekday, date, ‹ ›), the tool rows, the Settings gear (not rendered while hidden)
+│     ├─ Sidebar    the day (weekday, date, ‹ ›), the tool rows (the status with its dot and time), the Settings gear (not rendered while hidden)
 │     ├─ main       Board: the toolbar with the greeting and the inspector toggle, the board's column
 │     └─ Inspector  the right column: the Todos toolbar (not rendered while hidden)
 ├─ Dialogs          shortcuts, confirm, prompt
@@ -259,12 +259,11 @@ saves the current settings with the patch through `saveSettings` quietly, so eve
 | Setup | Vault (`vault`) | `VaultPage`: the vault folder (`api.chooseFolder`), its name, the daily notes' folder and format and today's note from `api.vaultInfo`; the Obsidian CLI's state and a custom path |
 | Setup | Contexts (`contexts`), Projects (`projects`) | one card per item (`ContextsPage`, `ProjectsPage`) |
 | Obsidian | Daily Note (`daily-note`) | `DailyNotePage`: the fallback folder and format; the sections in `dailyNote.order`, each with its heading level and text, moved up and down (the notes heading is one line, `dailyNote.notes`) |
+| Workflows | Workflows (`workflows`) | `WorkflowsPage`: "When you pick a status" (each status's workflow switch in `slack.manualWorkflows`, its suggested channel message in `statusMessages`, the first Working's, Off's "Ask first" = `endOfDay.enabled`) and "End-of-day check" (reminder, question, link, the messages for yes and not yet; the required ones ignore an empty value) ([status.md](status.md#settings)) |
 | System | General (`general`) | `LaunchAtLoginSwitch`: checked from `api.autostartStatus()` through `useApiResult` (the LaunchAgent, not the stored setting), changed through `setLaunchAtLogin` |
 | System | Tools (`tools`) | `ToolsPage`: every tool in order with its `TOOL_INFO` (`toolInfo.ts`: label, description, icon), Rail and Window switches (Window off for the Daybook tool), Move Up and Move Down |
 | System | Shortcuts (`shortcuts`) | `ShortcutsPage`: Global shortcuts from `api.shortcutOverview()` (`GlobalShortcuts`: each marked Global, recorded in Settings notation by `shortcutFromKeyEvent`, saved into `settings.hotkeys`, a conflict with macOS, another global shortcut or a menu key shown as "Also used by …"; a note when this build registers none), the app menu's keys read-only (`MenuShortcuts`), then the page commands of every window with their scope (a search field, the conflicts; recorded in page notation, an X removes, a reset arrow drops an override; saved through `saveKeybindings`). Both use `ShortcutRecorder` (`data-recording`; shortcuts pause meanwhile; ⌫ clears, Escape cancels) |
 | System | Appearance (`appearance`) | Look: "Light mode scheme" and "Dark mode scheme", stacked rows of three tiles each (`SchemePicker`, a miniature window per scheme drawn with `schemeLook`, pressed for `lightScheme` or `darkScheme`), Accent (`AccentSwatches withSystem`); Text: Text size (`Segmented` over `TEXT_SIZES`) |
-
-The Workflows group shows once its first page registers.
 
 ## Styling
 

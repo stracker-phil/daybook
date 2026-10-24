@@ -10,7 +10,8 @@ its window is closed. The layer pages go into detail: [backend](backend.md), [fr
 
 The app is a shell so far: a tray icon, the Daybook window (the dark sidebar with the day and the tools, the
 board under a greeting, the inspector column), the Settings window (Vault, Contexts, Projects, Daily Note,
-General, Tools, Shortcuts, Appearance), the overlays (palette, context switcher), the shortcuts dialog,
+Workflows, General, Tools, Shortcuts, Appearance), the status (Working, Break, Off), the overlays (palette,
+context switcher, status, offer-off), the shortcuts dialog,
 toasts, the native menu and the CLI. The features arrive step by step
 (`docs/plan/README.md`, gitignored).
 
@@ -25,7 +26,9 @@ no database. The JSON files live in the config dir, `~/Library/Application Suppo
 | `keybindings.json` | the owner's shortcut overrides by command id | `store::keybindings::KeybindingsStore` |
 | `ui_state.json` | window layout: `sidebarHidden`, `sidebarWidth`, `paneSizes` | `store::ui_state::UiStateStore` |
 | `pending-entries.json` | note changes waiting for their daily note | `vault::pending::Pending` |
-| `context.json`, `status-memory.json`, `jira-tickets.json`, `routines.json`, `day-message.json`, `slack-shown.json` | state imported from the prototype (step 02), read by later steps | – |
+| `context.json` | the current context | `contexts::Contexts` |
+| `status-memory.json` | today's status: date, status, since, whether you worked today ([status.md](status.md)) | `status::Statuses` |
+| `jira-tickets.json`, `routines.json`, `day-message.json`, `slack-shown.json` | state imported from the prototype (step 02), read by later steps | – |
 
 Each store wraps a `JsonStore` (`store/json_store.rs`) over a `JsonFile` (`store/json_file.rs`): files are
 0600 in a 0700 folder and written atomically; a missing file loads as defaults, unknown keys are ignored and
@@ -126,7 +129,10 @@ Changing the accent, the main write path today:
   use and hidden on close; `settings:<page>` opens a page ([windows.md](windows.md#settings)).
 - **Overlay.** A non-activating panel (`window/panel/`) with its own page (`src/windows/panel/`) renders one view
   at a time over any app, on the pointer's screen ([windows.md](windows.md)).
-- **Tray.** A template-image menu bar item with Open Daybook and Quit Daybook (`tray.rs`).
+- **Tray.** A template-image menu bar item (`tray.rs`): the context's label and the status as its title, the
+  menu from `menu/model.rs`.
+- **Status.** Working, Break and Off live in `status-memory.json`; a change is announced as `status_changed`,
+  which other features listen to ([status.md](status.md)).
 - **Launch at login** through `tauri-plugin-autostart` (a LaunchAgent) with `--hidden`, so the app starts
   without showing the window.
 - **Launch requests are pulled, not pushed.** Rust queues `LaunchEvent`s (`Error`, `Notice`, `Activate`) and
@@ -156,6 +162,7 @@ src-tauri/
   src/commands.rs            settings, keybindings, ui state, window, links, folders, logs
   src/bus/                   the command bus and the app's commands (commands.md)
   src/contexts/ projects/    the current context and switching it; the projects gate
+  src/status/                Working, Break, Off: memory, the change rule, status_changed (status.md)
   src/tools/                 the tools and their choices, which tools a surface shows
   src/hub/                   the Daybook window's view model (hub_view) and its sidebar rows
   src/palette/               palette entries, ranking, running a pick
@@ -176,7 +183,7 @@ src/
   state/store.ts requests.ts slices/ (settings, ui, viewState, hub)
   commands/                  registry, scopes (`global`, `hub`), index (APP_COMMANDS: the windows' own keys), remote
   components/                Sidebar, hub/ (Board, Inspector), Toolbar, Modal, Dialogs, Toasts, settings/, …
-  windows/panel/             the overlay page: PanelApp, PaletteView, ContextView, SampleView
+  windows/panel/             the overlay page: PanelApp, PaletteView, ContextView, StatusView, OfferOffView, SampleView
   windows/settings/          the Settings window's page: SettingsApp
   registry/settingsPages.ts
   lib/ styles/ test/

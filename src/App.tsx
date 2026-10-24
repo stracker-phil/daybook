@@ -39,6 +39,7 @@ function useBackendEvents() {
       api.onKeybindingsChanged(applyKeybindings),
       api.onToggleInspector(toggleInspector),
       api.onContextChanged(reloadHub),
+      api.onStatusChanged(reloadHub),
       api.onNoteChanged(reloadHub),
       api.onWindowOpened(reloadHub),
     ];

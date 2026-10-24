@@ -1,5 +1,5 @@
 /** The core settings pages. Modules register their own pages from their install function. */
-import { FolderKanban, FolderOpen, Keyboard, Layers, LayoutList, NotebookPen, Palette, Power } from "lucide-react";
+import { FolderKanban, FolderOpen, Keyboard, Layers, LayoutList, NotebookPen, Palette, Power, Workflow } from "lucide-react";
 import { TEXT_SIZES, type Scheme } from "../../api";
 import { schemeLook } from "../../lib/theme";
 import { registerSettingsPage, type SettingsPageProps } from "../../registry/settingsPages";
@@ -12,6 +12,7 @@ import { ProjectsPage } from "./ProjectsPage";
 import { ShortcutsPage } from "./ShortcutsPage";
 import { ToolsPage } from "./ToolsPage";
 import { VaultPage } from "./VaultPage";
+import { WorkflowsPage } from "./WorkflowsPage";
 
 const SCHEME_LABELS: Record<Scheme, string> = { default: "Default", light: "Light", dark: "Dark" };
 
@@ -80,6 +81,7 @@ export function registerCoreSettingsPages() {
   registerSettingsPage({ id: "contexts", group: "Setup", label: "Contexts", icon: Layers, order: 10, intro: "Each context turns features on and off, has its colour and work hours, and can become current by itself when they start.", Body: ContextsPage });
   registerSettingsPage({ id: "projects", group: "Setup", label: "Projects", icon: FolderKanban, order: 20, intro: "What you work on: offered for meetings and the Projects tool in the contexts you pick.", Body: ProjectsPage });
   registerSettingsPage({ id: "daily-note", group: "Obsidian", label: "Daily Note", icon: NotebookPen, order: 0, intro: "Where Daybook writes into today's note. Sections are created in this order when Daybook first writes to them; your template only needs the title and the notes heading.", Body: DailyNotePage });
+  registerSettingsPage({ id: "workflows", group: "Workflows", label: "Workflows", icon: Workflow, order: 0, intro: "What Daybook does when something happens: each workflow is a trigger and what follows from it.", Body: WorkflowsPage });
   registerSettingsPage({ id: "general", group: "System", label: "General", icon: Power, order: 0, intro: "How Daybook starts.", Body: GeneralPage });
   registerSettingsPage({ id: "tools", group: "System", label: "Tools", icon: LayoutList, order: 10, Body: ToolsPage });
   registerSettingsPage({ id: "shortcuts", group: "System", label: "Shortcuts", icon: Keyboard, order: 20, Body: ShortcutsPage });

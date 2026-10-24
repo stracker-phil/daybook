@@ -1,12 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { api, type PanelSession } from "../../api";
+import { api, type OfferOff, type PanelSession, type StatusRequest } from "../../api";
 import { useTabTrap } from "../../lib/useTabTrap";
 import { applyAppearance, systemIsDark } from "../../lib/theme";
 import { useContextColor } from "../../lib/useContextColor";
 import { handlePanelKeydown, installPanelCommands } from "./commands";
 import { ContextView } from "./ContextView";
+import { OfferOffView } from "./OfferOffView";
 import { PaletteView } from "./PaletteView";
 import { SampleView } from "./SampleView";
+import { StatusView } from "./StatusView";
 
 installPanelCommands();
 
@@ -16,6 +18,10 @@ function View({ session }: { session: PanelSession }) {
       return <ContextView />;
     case "palette":
       return <PaletteView />;
+    case "status":
+      return <StatusView request={session.args as StatusRequest} />;
+    case "offer-off":
+      return <OfferOffView offer={session.args as OfferOff} />;
     case "sample":
     case "sample-sticky":
       return <SampleView sticky={session.view === "sample-sticky"} />;

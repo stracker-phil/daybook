@@ -3,8 +3,8 @@
 use tauri::{AppHandle, Manager};
 
 use super::state::{ContextItem, TodayNote, ToolState};
-use crate::projects;
 use crate::state::AppState;
+use crate::{projects, status};
 
 pub fn snapshot(app: &AppHandle) -> ToolState {
     let state = app.state::<AppState>();
@@ -13,6 +13,7 @@ pub fn snapshot(app: &AppHandle) -> ToolState {
     let context = state.contexts.current(&settings);
     let context_id = context.map(|context| context.id.as_str());
     let offered = projects::current_projects(&settings.projects, context_id);
+    let today_status = status::today(app);
     ToolState {
         has_vault: settings.vault.path.is_some(),
         today: TodayNote {
@@ -33,6 +34,8 @@ pub fn snapshot(app: &AppHandle) -> ToolState {
         features: context
             .map(|context| context.features.clone())
             .unwrap_or_default(),
+        status: today_status.status,
+        status_since: today_status.since,
         projects: projects::project_groups(&offered, None),
         ..ToolState::default()
     }

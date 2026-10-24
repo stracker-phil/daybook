@@ -10,6 +10,7 @@ use it, see the [project README](../README.md).
 | [frontend.md](frontend.md) | React app: boot, store, API boundary, command registry, components, styling, tests |
 | [vault.md](vault.md) | The vault: daily-note location, sections, note ops, the writer, waiting changes, creating notes, the watcher |
 | [commands.md](commands.md) | The command bus, tools and their choices, the menu-bar menu, the app menu, global shortcuts, the palette, adding commands |
+| [status.md](status.md) | Working, Break and Off: status memory, the change rule, `status_changed` and its listeners, the status and offer-off overlays |
 | [windows.md](windows.md) | Every window, its level and focus rules, the overlay's open protocol, focus hand-back, the pointer screen, what needed objc2 |
 | [ux.md](ux.md) | Design language: principles, surfaces, appearance and tokens, type, components, inputs, overlays, keys |
 | [testing.md](testing.md) | Unit and integration tests, the test agents, scripts that drive the app in the background |

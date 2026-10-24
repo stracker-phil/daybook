@@ -2,6 +2,7 @@
 
 pub use super::prune::prune;
 use super::prune::tidy;
+pub use super::title::menu_bar_title;
 pub use crate::bus::CommandStatus;
 use crate::contexts::context_title;
 use crate::store::settings::{Feature, Hotkeys, ToolId, ToolPlacement};
@@ -71,17 +72,6 @@ fn submenu(label: impl Into<String>, items: Vec<MenuEntry>) -> MenuEntry {
         label: label.into(),
         items,
     }
-}
-
-/// The context's label in the menu bar; empty shows the icon alone.
-pub fn menu_bar_title(state: &ToolState) -> String {
-    if !state.has_vault {
-        return String::new();
-    }
-    state
-        .current_context()
-        .map(|context| context.label.trim().to_string())
-        .unwrap_or_default()
 }
 
 fn link_entry(link: &Link) -> MenuEntry {
@@ -1043,44 +1033,6 @@ mod tests {
             let menu = menu_of(&state, &[]);
             assert_eq!(menu[1], MenuEntry::Info(line.into()), "{waiting}");
             assert_eq!(menu[2], MenuEntry::Separator);
-        }
-    }
-
-    #[test]
-    fn the_menu_bar_title_is_the_trimmed_label_of_the_current_context() {
-        let relabelled = |label: &str| ToolState {
-            contexts: vec![ContextItem {
-                id: "work".into(),
-                label: label.into(),
-                name: "Work".into(),
-            }],
-            ..bare_state()
-        };
-        assert_eq!(menu_bar_title(&bare_state()), "[W]");
-        assert_eq!(menu_bar_title(&relabelled("  🐈 ")), "🐈");
-        assert_eq!(menu_bar_title(&relabelled("")), "");
-    }
-
-    #[test]
-    fn the_menu_bar_title_is_empty_without_a_vault_or_a_current_context() {
-        let no_vault = ToolState {
-            has_vault: false,
-            ..bare_state()
-        };
-        let unknown_context = ToolState {
-            context: Some("gone".into()),
-            ..bare_state()
-        };
-        let none = ToolState {
-            context: None,
-            ..bare_state()
-        };
-        for (name, state) in [
-            ("no vault", no_vault),
-            ("unknown", unknown_context),
-            ("none", none),
-        ] {
-            assert_eq!(menu_bar_title(&state), "", "{name}");
         }
     }
 

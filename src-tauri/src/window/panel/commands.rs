@@ -36,6 +36,12 @@ pub fn panel_painted(panel: State<'_, Panel>, session: u32) {
     panel.painted.answer(session, ());
 }
 
+/// The open overlay stays while focus moves elsewhere (`true`), or closes on focus loss again.
+#[tauri::command]
+pub async fn panel_keep_open(app: AppHandle, keep: bool) {
+    super::keep_open(&app, keep).await;
+}
+
 #[tauri::command]
 pub async fn panel_set_height(app: AppHandle, height: f64) {
     super::set_height(&app, height).await;

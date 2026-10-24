@@ -27,3 +27,4 @@ it stands in Daybook. The numbers in this table are Daybook's.
 | [0016](0016-overlays-never-navigate.md) | Overlays are a non-activating panel that never navigates | Accepted (2026-10-24), implemented |
 | [0017](0017-commands-live-in-rust.md) | Commands live in Rust | Accepted (2026-10-24), implemented |
 | [0018](0018-global-shortcuts-only-in-debug-builds.md) | Release builds register no global shortcuts while the prototype runs | Accepted (2026-10-24), implemented |
+| [0019](0019-daybook-owns-the-status.md) | Daybook owns the status; it is never read from the note | Accepted (2026-10-24), implemented |

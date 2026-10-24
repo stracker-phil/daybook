@@ -5,6 +5,7 @@ import type {
   ContextChanged,
   ContextState,
   DailyNoteState,
+  EndOfDayAnswer,
   ErrorKind,
   HubView,
   Keybindings,
@@ -15,6 +16,8 @@ import type {
   RemoteEvent,
   Settings,
   ShortcutOverview,
+  Status,
+  StatusChanged,
   UiState,
   VaultInfo,
 } from "./types";
@@ -39,6 +42,8 @@ export const api = {
   runCommand: (id: string) => invoke<void>("run_command", { id }),
   /** The contexts as the switcher shows them, and the current one. */
   contextState: () => invoke<ContextState>("context_state"),
+  /** Sets today's status and closes the status overlay; `endOfDay` is the end-of-day check's answer when going Off. */
+  statusSet: (status: Status, message: string, endOfDay?: EndOfDayAnswer) => invoke<void>("status_set", { status, message, endOfDay: endOfDay ?? null }),
   /** The palette's results for what was typed, grouped by kind. */
   paletteQuery: (query: string) => invoke<PaletteResults>("palette_query", { query }),
   /** Runs a palette pick; the palette closes or another overlay replaces it. */
@@ -77,6 +82,8 @@ export const api = {
   /** The overlay page painted `session`'s first frame. */
   panelPainted: (session: number) => invoke<void>("panel_painted", { session }),
   panelSetHeight: (height: number) => invoke<void>("panel_set_height", { height }),
+  /** The open overlay stays while focus is elsewhere, e.g. while a link it opened is checked. */
+  panelKeepOpen: (keep: boolean) => invoke<void>("panel_keep_open", { keep }),
 
   onLaunch: (handler: () => void): Promise<UnlistenFn> => listen("launch", handler),
   /** The hidden main window was shown again (the Dock icon came back). */
@@ -87,6 +94,8 @@ export const api = {
   onToggleInspector: (handler: () => void): Promise<UnlistenFn> => listen("toggle_inspector", handler),
   /** Another context became current. */
   onContextChanged: (handler: (change: ContextChanged) => void): Promise<UnlistenFn> => listen<ContextChanged>("context_changed", (e) => handler(e.payload)),
+  /** Today's status changed. */
+  onStatusChanged: (handler: (change: StatusChanged) => void): Promise<UnlistenFn> => listen<StatusChanged>("status_changed", (e) => handler(e.payload)),
   /** Settings were saved, from any window. */
   onSettingsChanged: (handler: (settings: Settings) => void): Promise<UnlistenFn> => listen<Settings>("settings_changed", (e) => handler(e.payload)),
   /** Shortcut overrides were saved, from any window. */

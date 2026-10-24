@@ -4,6 +4,7 @@
 pub mod command_shortcuts;
 pub mod model;
 mod prune;
+mod title;
 
 pub use command_shortcuts::MENU_KEYS;
 

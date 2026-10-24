@@ -79,6 +79,8 @@ pub struct PanelState {
     height: f64,
     target: Option<FrontApp>,
     opened_while_active: bool,
+    /// The page asked to stay open, e.g. while the owner checks a link it opened.
+    keep_open: bool,
 }
 
 impl Default for PanelState {
@@ -92,6 +94,7 @@ impl Default for PanelState {
             height: 120.0,
             target: None,
             opened_while_active: false,
+            keep_open: false,
         }
     }
 }
@@ -114,9 +117,20 @@ impl PanelState {
     }
 
     pub fn is_sticky(&self) -> bool {
-        self.session
-            .as_ref()
-            .is_some_and(|s| STICKY_VIEWS.contains(&s.view.as_str()))
+        self.keep_open
+            || self
+                .session
+                .as_ref()
+                .is_some_and(|s| STICKY_VIEWS.contains(&s.view.as_str()))
+    }
+
+    /// The open session behaves as a sticky view until it closes; `true` when that changed.
+    pub fn keep_open(&mut self, keep: bool) -> bool {
+        if !self.open || self.keep_open == keep {
+            return false;
+        }
+        self.keep_open = keep;
+        true
     }
 
     pub fn height(&self) -> f64 {
@@ -139,6 +153,7 @@ impl PanelState {
             return OpenDecision::Close;
         }
         self.counter += 1;
+        self.keep_open = false;
         let session = PanelSession {
             session: self.counter,
             view: view.to_string(),
@@ -179,6 +194,7 @@ impl PanelState {
         self.open = false;
         self.session = None;
         self.opened_at = None;
+        self.keep_open = false;
         if !was_open {
             return Closing::WasClosed;
         }
@@ -560,5 +576,58 @@ mod tests {
         let now = Instant::now();
         assert!(!open_panel("sample", now).is_sticky());
         assert!(!PanelState::default().is_sticky());
+    }
+
+    #[test]
+    fn keeping_an_open_panel_open_makes_it_sticky_until_asked_otherwise() {
+        let now = Instant::now();
+        let mut state = open_panel("sample", now);
+        assert_eq!(state.lost_focus(ms(now, 5000)), FocusLoss::Close);
+
+        assert!(state.keep_open(true));
+        assert!(state.is_sticky());
+        for millis in [0, 5000] {
+            assert_eq!(
+                state.lost_focus(ms(now, millis)),
+                FocusLoss::StayOpen,
+                "{millis} ms"
+            );
+        }
+
+        assert!(!state.keep_open(true));
+        assert!(state.keep_open(false));
+        assert!(!state.is_sticky());
+        assert_eq!(state.lost_focus(ms(now, 5000)), FocusLoss::Close);
+    }
+
+    #[test]
+    fn keeping_a_closed_panel_open_changes_nothing() {
+        let mut state = PanelState::default();
+        assert!(!state.keep_open(true));
+        assert!(!state.is_sticky());
+        assert_eq!(state.lost_focus(Instant::now()), FocusLoss::Ignore);
+    }
+
+    #[test]
+    fn a_new_session_drops_the_request_to_stay_open() {
+        let now = Instant::now();
+        let mut state = open_panel("sample", now);
+        assert!(state.keep_open(true));
+        let id = session_id(state.request("other", Value::Null, ms(now, 1000)));
+        state.show(id, None, ms(now, 1000)).unwrap();
+        assert!(!state.is_sticky());
+        assert_eq!(state.lost_focus(ms(now, 6000)), FocusLoss::Close);
+    }
+
+    #[test]
+    fn closing_drops_the_request_to_stay_open() {
+        let now = Instant::now();
+        let mut state = open_panel("sample", now);
+        assert!(state.keep_open(true));
+        state.close();
+        let id = session_id(state.request("sample", Value::Null, ms(now, 1000)));
+        state.show(id, None, ms(now, 1000)).unwrap();
+        assert!(!state.is_sticky());
+        assert_eq!(state.lost_focus(ms(now, 6000)), FocusLoss::Close);
     }
 }

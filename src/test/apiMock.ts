@@ -42,7 +42,10 @@ export function createApiMock(): typeof realApi {
       previousDay: null,
       nextDay: null,
       tools: [],
+      status: null,
     }),
+    statusSet: vi.fn().mockResolvedValue(undefined),
+    panelKeepOpen: vi.fn().mockResolvedValue(undefined),
     vaultInfo: vi.fn().mockResolvedValue({ dailyNotes: null, todayNote: null, todayNoteExists: false, obsidianCli: null }),
     panelOpen: vi.fn().mockResolvedValue(undefined),
     panelClose: vi.fn().mockResolvedValue(undefined),
@@ -58,6 +61,7 @@ export function createApiMock(): typeof realApi {
     onSettingsChanged: vi.fn(noUnlisten),
     onContextChanged: vi.fn(noUnlisten),
     onNoteChanged: vi.fn(noUnlisten),
+    onStatusChanged: vi.fn(noUnlisten),
     onToggleInspector: vi.fn(noUnlisten),
     onKeybindingsChanged: vi.fn(noUnlisten),
   };

@@ -345,6 +345,18 @@ async fn follow_front_app(app: AppHandle, session: u32) {
     }
 }
 
+/// Keeps the open overlay on screen while it loses focus (or lets it close again), as a sticky view.
+pub async fn keep_open(app: &AppHandle, keep: bool) {
+    let changed = panel(app).state.lock_unpoisoned().keep_open(keep);
+    if changed {
+        // SAFETY: on the main thread with the live overlay window.
+        on_main(app, move |ns_window| unsafe {
+            native::set_sticky(ns_window, keep)
+        })
+        .await;
+    }
+}
+
 pub async fn set_height(app: &AppHandle, height: f64) {
     let changed = panel(app).state.lock_unpoisoned().set_height(height);
     if let Some(height) = changed {

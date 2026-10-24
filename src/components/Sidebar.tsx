@@ -1,5 +1,6 @@
+import type { ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Settings } from "lucide-react";
-import { api, type HubTool, type HubView, type ToolRow } from "../api";
+import { api, type HubTool, type HubView, type Status, type ToolRow } from "../api";
 import { fail } from "../state/requests";
 import { useStore } from "../state/store";
 import { ShortcutCap } from "./Field";
@@ -33,21 +34,28 @@ function DayHeader({ hub }: { hub: HubView }) {
   );
 }
 
-function ToolButton({ row }: { row: ToolRow }) {
+function StatusDot({ status }: { status: Status | null }) {
+  return <span className="status-dot" data-status={status ?? "none"} aria-hidden="true" />;
+}
+
+/** `icon` replaces the tool's own, e.g. the status dot. */
+function ToolButton({ row, icon }: { row: ToolRow; icon?: ReactNode }) {
   const Icon = TOOL_INFO[row.id].icon;
   const command = row.command;
   const disabled = !command || !row.enabled;
   return (
     <button type="button" className={row.accent ? "si tool-row accent" : "si tool-row"} disabled={disabled} onClick={() => command && run(command)}>
-      <Icon size="1.077rem" aria-hidden="true" />
+      {icon ?? <Icon size="1.077rem" aria-hidden="true" />}
       <span className="label">{row.title}</span>
+      {row.detail && <span className="meta">{row.detail}</span>}
       <ShortcutCap shortcut={row.shortcut} />
     </button>
   );
 }
 
-function SidebarRow({ tool }: { tool: HubTool }) {
-  return tool.kind === "separator" ? <div role="separator" className="sidebar-separator" /> : <ToolButton row={tool} />;
+function SidebarRow({ tool, hub }: { tool: HubTool; hub: HubView }) {
+  if (tool.kind === "separator") return <div role="separator" className="sidebar-separator" />;
+  return <ToolButton row={tool} icon={tool.id === "status" ? <StatusDot status={hub.status} /> : undefined} />;
 }
 
 /** Always dark in the Default scheme. */
@@ -59,7 +67,7 @@ export function Sidebar() {
       <div className="sidebar-body">
         {hub && <DayHeader hub={hub} />}
         <nav className="sidebar-nav" aria-label="Tools">
-          {hub?.tools.map((tool, i) => <SidebarRow key={tool.kind === "separator" ? `separator-${i}` : tool.id} tool={tool} />)}
+          {hub?.tools.map((tool, i) => <SidebarRow key={tool.kind === "separator" ? `separator-${i}` : tool.id} tool={tool} hub={hub} />)}
         </nav>
       </div>
       <footer className="sidebar-footer">

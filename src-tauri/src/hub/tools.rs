@@ -6,6 +6,7 @@ use ts_rs::TS;
 
 use crate::bus::CommandStatus;
 use crate::contexts::context_title;
+use crate::status::status_label;
 use crate::store::settings::{Hotkeys, ToolId, ToolPlacement};
 use crate::tools::{Surface, ToolState, tidy_separators, visible_tools};
 
@@ -19,6 +20,8 @@ pub struct ToolRow {
     pub command: Option<String>,
     /// The global shortcut, in Settings notation (`ctrl+alt+cmd+f`).
     pub shortcut: Option<String>,
+    /// Shown after the title, e.g. the time the status was set.
+    pub detail: Option<String>,
     /// Shown in the context's colour.
     pub accent: bool,
     pub enabled: bool,
@@ -45,6 +48,7 @@ enum Entry {
         title: String,
         /// `None` for a row that only tells.
         command: Option<&'static str>,
+        detail: Option<String>,
     },
     Separator,
 }
@@ -53,6 +57,7 @@ fn entry(id: ToolId, state: &ToolState) -> Entry {
     let row = |title: &str, command| Entry::Row {
         title: title.to_string(),
         command: Some(command),
+        detail: None,
     };
     match id {
         ToolId::Context => Entry::Row {
@@ -61,12 +66,18 @@ fn entry(id: ToolId, state: &ToolState) -> Entry {
                 .map(|context| context_title(&context.label, &context.name))
                 .unwrap_or_else(|| "Context".into()),
             command: Some("context:switch"),
+            detail: None,
         },
-        ToolId::Status => row("Status", "status:toggle"),
+        ToolId::Status => Entry::Row {
+            title: status_label(state.status).into(),
+            command: Some("status:toggle"),
+            detail: state.status.and(state.status_since.clone()),
+        },
         ToolId::Activity => row("Log activity…", "activity:switch"),
         ToolId::Call => Entry::Row {
             title: "In a meeting".into(),
             command: None,
+            detail: None,
         },
         ToolId::Journal => row("Journal", "journal:open"),
         ToolId::Hub => row("Daybook", "hub:open"),
@@ -120,11 +131,16 @@ pub fn hub_tools(input: HubInput) -> Vec<HubTool> {
         .filter_map(|id| kept.find(|(kept_id, _)| *kept_id == id))
         .map(|(id, entry)| match entry {
             Entry::Separator => HubTool::Separator,
-            Entry::Row { title, command } => HubTool::Tool(ToolRow {
+            Entry::Row {
+                title,
+                command,
+                detail,
+            } => HubTool::Tool(ToolRow {
                 id,
                 title,
                 command: command.map(str::to_string),
                 shortcut: shortcut_for(id, input.hotkeys).map(str::to_string),
+                detail,
                 accent: id == ToolId::Context,
                 enabled: command.is_none_or(|command| input.commands.is_enabled(command)),
             }),
@@ -137,7 +153,7 @@ mod tests {
     use super::*;
     use crate::menu::model::CommandsStub;
     use crate::store::settings::{Feature, default_tools};
-    use crate::tools::bare_state;
+    use crate::tools::{Status, bare_state};
 
     fn hotkeys() -> Hotkeys {
         Hotkeys {
@@ -274,6 +290,7 @@ mod tests {
                 title: "[W] Work".into(),
                 command: Some("context:switch".into()),
                 shortcut: Some("ctrl+alt+cmd+c".into()),
+                detail: None,
                 accent: true,
                 enabled: true,
             })]
@@ -294,6 +311,7 @@ mod tests {
                 title: "Search vault".into(),
                 command: Some("search:open".into()),
                 shortcut: Some("ctrl+alt+cmd+f".into()),
+                detail: None,
                 accent: false,
                 enabled: true,
             })
@@ -318,10 +336,47 @@ mod tests {
                 title: "In a meeting".into(),
                 command: None,
                 shortcut: None,
+                detail: None,
                 accent: false,
                 enabled: true,
             })]
         );
+    }
+
+    #[test]
+    fn the_status_row_is_titled_by_the_status_and_tells_since_when() {
+        for (status, title) in [
+            (Some(Status::Working), "Working and present"),
+            (Some(Status::Break), "Taking a break"),
+            (Some(Status::Off), "Done for today"),
+            (None, "No status yet"),
+        ] {
+            let state = ToolState {
+                status,
+                status_since: Some("10:05".into()),
+                ..bare_state()
+            };
+            let tools = build(&place(&[ToolId::Status]), &state, &CommandsStub::default());
+            let status_row = row(&tools, ToolId::Status).unwrap();
+            assert_eq!(status_row.title, title, "{status:?}");
+            assert_eq!(status_row.command.as_deref(), Some("status:toggle"));
+            assert_eq!(
+                status_row.detail,
+                status.map(|_| "10:05".to_string()),
+                "{status:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_status_row_has_no_detail_before_the_days_first_status() {
+        let state = ToolState {
+            status: None,
+            status_since: None,
+            ..bare_state()
+        };
+        let tools = build(&place(&[ToolId::Status]), &state, &CommandsStub::default());
+        assert_eq!(row(&tools, ToolId::Status).unwrap().detail, None);
     }
 
     #[test]
@@ -354,6 +409,7 @@ mod tests {
                     "title": "Search vault",
                     "command": "search:open",
                     "shortcut": "ctrl+alt+cmd+f",
+                    "detail": null,
                     "accent": false,
                     "enabled": true
                 },
@@ -364,6 +420,7 @@ mod tests {
                     "title": "Journal",
                     "command": "journal:open",
                     "shortcut": null,
+                    "detail": null,
                     "accent": false,
                     "enabled": true
                 }

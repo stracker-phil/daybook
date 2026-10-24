@@ -3,6 +3,7 @@
 
 use std::sync::Mutex;
 
+use chrono::Local;
 use tauri::image::Image;
 use tauri::menu::{
     CheckMenuItemBuilder, IsMenuItem, Menu, MenuItemBuilder, MenuItemKind, PredefinedMenuItem,
@@ -60,7 +61,7 @@ fn entries(app: &AppHandle, state: &ToolState) -> Vec<MenuEntry> {
 pub fn refresh(app: &AppHandle) {
     let state = tools::snapshot(app);
     let next = Showing {
-        title: menu_bar_title(&state),
+        title: menu_bar_title(&state, Local::now().naive_local()),
         entries: entries(app, &state),
     };
     if !changed(app, &next) {

@@ -1,13 +1,7 @@
 //! What the tools read: a snapshot that each feature fills with its part.
 
 use crate::store::settings::Feature;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Status {
-    Working,
-    Break,
-    Off,
-}
+pub use crate::store::settings::Status;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct TodayNote {
@@ -105,6 +99,8 @@ pub struct ToolState {
     pub features: Vec<Feature>,
     /// `None` until a status was set today.
     pub status: Option<Status>,
+    /// `HH:MM` the status was set.
+    pub status_since: Option<String>,
     pub journal: Progress,
     pub journal_groups: Vec<GroupProgress>,
     pub routines: Vec<RoutineProgress>,

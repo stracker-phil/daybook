@@ -31,7 +31,7 @@ notification (`notify.rs`). The managed `bus::Commands` holds the app's bus, fil
 
 ### The commands so far
 
-`bus/commands.rs` registers the app's own commands; each feature adds its own with its step (`contexts::register`).
+`bus/commands.rs` registers the app's own commands; each feature adds its own with its step (`contexts::register`, `status::register`).
 
 | Id | Title | Notes |
 |---|---|---|
@@ -48,7 +48,9 @@ notification (`notify.rs`). The managed `bus::Commands` holds the app's bus, fil
 | `daily:open` | Open Today's Note | needs a vault; creates the note when missing |
 | `daily:create` | Create Today's Note | needs a vault; disabled while Obsidian creates it |
 | `context:switch` | Switch Context… | needs a vault; the switcher overlay (`contexts/`) |
-| `mode:<context>` | Switch to a context | family; needs a vault; choices: the contexts |
+| `mode:<context>` | Switch to a context | family; needs a vault; choices: the contexts; leaving the status behind while Working offers Off ([status.md](status.md#offer-off)) |
+| `status:working`, `status:break`, `status:off` | Change Status to … | needs a vault; the status overlay with that status picked (`status/`) |
+| `status:toggle` | Change Status… | needs a vault; Break picked while Working, else Working |
 | `sample:open`, `sample:sticky` | Sample Overlay (Sticky) | debug builds only |
 
 ## Tools and their choices
@@ -83,9 +85,9 @@ command ids.
   Settings…, Quit Daybook. Separators never lead, trail or repeat; empty submenus go.
 - `prune(entries, &dyn CommandStatus)` leaves out what runs an unknown command, greys disabled ones and drops
   submenus with nothing left to run, so a tool appears once its step registers its commands.
-- `menu_bar_title(state)`: the current context's label; empty (icon only) without a vault.
-- `tray::refresh(app)` rebuilds the title and menu when they changed: after a settings save, a note event
-  and a menu click (macOS ticks a radio item itself).
+- `menu_bar_title(state, now)`: the current context's label, then the status (`Working`, `Break · 12m`) in a context with the `status` feature; empty (icon only) without a vault.
+- `tray::refresh(app)` rebuilds the title and menu when they changed: after a settings save, a note event,
+  a status change, every minute (`status::start`) and a menu click (macOS ticks a radio item itself).
 
 ## App menu
 

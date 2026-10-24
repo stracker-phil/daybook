@@ -19,6 +19,7 @@ use crate::error::{AppError, AppResult};
 use crate::events::CONTEXT_CHANGED_EVENT;
 use crate::lock::MutexExt;
 use crate::state::AppState;
+use crate::status::{self, OfferOff};
 use crate::store::json_store::JsonStore;
 use crate::store::settings::{Context, ContextColor, Settings};
 use crate::{notify, tray, window};
@@ -170,10 +171,22 @@ fn switch(app: &AppHandle, id: &str) -> AppResult<Option<(Option<Context>, Conte
     Ok(Some((previous, next.clone())))
 }
 
-/// A switch from the switcher, the menu or a shortcut; the switcher closes afterwards.
+/// Whether the switch leaves the status behind while Working.
+fn offers_off(app: &AppHandle, previous: Option<&Context>, next: &Context) -> bool {
+    status::offers_off(previous, next, status::today(app).status)
+}
+
+/// A switch from the switcher, the menu or a shortcut. Leaving the status behind while Working asks
+/// whether to go Off; otherwise the switcher closes.
 async fn switch_by_hand(app: AppHandle, id: String) -> AppResult<()> {
-    switch(&app, &id)?;
-    if window::panel::view(&app).as_deref() == Some("context") {
+    if let Some((previous, next)) = switch(&app, &id)?
+        && offers_off(&app, previous.as_ref(), &next)
+    {
+        let offer = OfferOff {
+            to: context_title(&next.label, &next.name),
+        };
+        window::panel::open(&app, "offer-off", serde_json::to_value(offer)?).await;
+    } else if window::panel::view(&app).as_deref() == Some("context") {
         window::panel::close(&app, false);
     }
     Ok(())
@@ -188,8 +201,15 @@ fn apply_schedule(app: &AppHandle) {
     };
     match switch(app, &id) {
         Ok(Some((previous, next))) => {
-            let was = previous.map_or(String::new(), |previous| format!("Was {}.", previous.name));
-            notify::show(app, &format!("Switched to {}", next.name), &was);
+            let title = format!("Switched to {}", next.name);
+            if offers_off(app, previous.as_ref(), &next) {
+                let body = "You’re still set to Working.";
+                notify::show_with_action(app, &title, body, ("status:off", "Set to Off"));
+            } else {
+                let was =
+                    previous.map_or(String::new(), |previous| format!("Was {}.", previous.name));
+                notify::show(app, &title, &was);
+            }
         }
         Ok(None) => {}
         Err(e) => log::warn!("Couldn't switch the context by its work hours: {e}"),

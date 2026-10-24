@@ -109,6 +109,7 @@ itself. Panics unwind ([ADR 0005](adr/0005-panic-unwind.md)), so code takes `std
 | `launches` | `LaunchQueue` | launch events the page has not taken yet |
 | `notes` | `Arc<DailyNotes>` | the vault service: `pending-entries.json`, the writer, the watcher ([vault.md](vault.md)) |
 | `contexts` | `Contexts` | `context.json`, the current context, the work-hours check |
+| `statuses` | `Statuses` | `status-memory.json`, today's status ([status.md](status.md)) |
 
 Managed beside it: `remote::Bridge` (requests waiting for the page), `window::panel::Panel` (the overlay),
 `bus::Commands` (the command bus), `shortcuts::Pause` and `tray::Shown` (what the menu-bar item shows).
@@ -141,7 +142,8 @@ its module.
 | `shortcuts_pause` (`shortcuts/mod.rs`) | `paused: bool` | – (global shortcuts and the app menu's keys step aside) | – |
 | `remote_reply` (`remote.rs`) | `id, result, error` | – | – |
 | `daily_note_state`, `daily_note_open`, `daily_note_create`, `vault_info` (`vault/commands.rs`) | see [vault.md](vault.md#commands) | | |
-| `panel_open`, `panel_close`, `panel_session`, `panel_ready`, `panel_painted`, `panel_set_height` (`window/panel/commands.rs`) | see [windows.md](windows.md#commands-and-events) | | |
+| `status_set` (`status/mod.rs`) | `status, message, endOfDay: "done" \| "incomplete" \| null` | – (sets today's status, closes the status overlay) | `io` |
+| `panel_open`, `panel_close`, `panel_session`, `panel_ready`, `panel_painted`, `panel_set_height`, `panel_keep_open` (`window/panel/commands.rs`) | see [windows.md](windows.md#commands-and-events) | | |
 | `dev_edit_today_note` (`dev.rs`, debug builds only) | `op: NoteOp` | `WriteOutcome` | as `edit_today` |
 
 **Adding a command:** write it in its module (or `commands.rs` for app-wide ones), register it in
@@ -161,6 +163,7 @@ its module.
 | `PANEL_SESSION_EVENT` | `panel_session` | to the overlay window: the `PanelSession` to render, `null` once it closed ([windows.md](windows.md#the-overlay)) |
 | `NOTE_CHANGED_EVENT` | `note_changed` | `NoteChanged { day }`: today's note, the waiting changes or another daily note changed ([vault.md](vault.md#watcher)) |
 | `CONTEXT_CHANGED_EVENT` | `context_changed` | `ContextChanged { id }`: another context became current |
+| `STATUS_CHANGED_EVENT` | `status_changed` | `StatusChanged`: today's status changed; Rust features listen too ([status.md](status.md#status_changed)) |
 | `OPEN_SETTINGS_EVENT` | `open_settings` | to the Settings window: the id of the page to show (a window built for a page reads it from `?page=` instead) |
 | `TOGGLE_INSPECTOR_EVENT` | `toggle_inspector` | to the Daybook window: none; shows or hides the inspector (`view:toggleInspector`) |
 | `KEYBINDINGS_CHANGED_EVENT` | `keybindings_changed` | the saved `Keybindings`, so the other window takes them |
@@ -304,8 +307,9 @@ first; `Contexts` (in `AppState`) reads and sets it and gives the current contex
 
 - **Switching.** `mode:<id>` (a family, needs a vault) switches by hand and closes the switcher if it made the
   switch; `context:switch` opens the switcher overlay (`context` view). A switch saves `context.json`, logs,
-  emits `context_changed` (`ContextChanged { id }`) and refreshes the menu-bar item, whose title is the
-  current context's emoji.
+  emits `context_changed` (`ContextChanged { id }`) and refreshes the menu-bar item, whose title starts with
+  the current context's emoji. Leaving the status behind while Working offers Off instead of closing the
+  switcher ([status.md](status.md#offer-off)).
 - **Work hours.** `contexts::start` checks every 30 s. `AutoSwitch::check` (`contexts/schedule.rs`, pure)
   switches to the first context with auto-switch whose work hours contain now, when they start; a switch by
   hand holds until the next start, and nothing happens when they end. On the first check after launch, hours
@@ -350,7 +354,9 @@ failed save leaves memory unchanged. `JsonStore::open_with` normalizes the loade
 | `keybindings.json` | `{ "commandId": "Mod+Shift+X" \| null }` overrides; `null` unbinds ([Key bindings](#key-bindings)) |
 | `ui_state.json` | `UiState` (`store/ui_state.rs`): `sidebarHidden`, `inspectorHidden`, `sidebarWidth` (px, default 200), `paneSizes` (splitter positions in px by pane id); missing keys take the defaults, unknown keys are ignored |
 | `daybook.sock`, `daybook.lock` | single instance |
-| `context.json`, `status-memory.json`, `jira-tickets.json`, `routines.json`, `day-message.json`, `slack-shown.json`, `pending-entries.json` | written only by the [prototype import](#prototype-import) so far; their steps add the stores that read them |
+| `context.json` | `Active { id, setAt }`, the current context (`contexts::Contexts`) |
+| `status-memory.json` | `StatusMemory { date, status, since, workedToday }`, today's status (`status::Statuses`, [status.md](status.md)) |
+| `jira-tickets.json`, `routines.json`, `day-message.json`, `slack-shown.json` | written only by the [prototype import](#prototype-import) so far; their steps add the stores that read them |
 
 ### Settings
 

@@ -51,10 +51,10 @@ export function Row({ label, icon, description, htmlFor, stacked, nested, childr
   );
 }
 
-export function Switch({ label, description, checked, onChange }: { label: string; description?: ReactNode; checked: boolean; onChange: (v: boolean) => void }) {
+export function Switch({ label, description, checked, onChange, nested }: { label: string; description?: ReactNode; checked: boolean; onChange: (v: boolean) => void; nested?: boolean }) {
   const id = useId();
   return (
-    <Row label={label} description={description} htmlFor={id}>
+    <Row label={label} description={description} htmlFor={id} nested={nested}>
       <input id={id} className="switch" type="checkbox" role="switch" checked={checked} onChange={(e) => onChange(e.target.checked)} />
     </Row>
   );
@@ -70,7 +70,7 @@ export function Segmented<T extends string>({ label, description, ...buttons }: 
 
 /** Text input that commits on blur or Enter, so half-typed values never reach the backend.
  *  Number spinner steps (input without typing) also commit, debounced, so they preview right away. */
-export function TextField({ label, description, value, onCommit, type = "text", min, max, suffix, placeholder }: {
+export function TextField({ label, description, value, onCommit, type = "text", min, max, suffix, placeholder, nested, required }: {
   label: string;
   description?: ReactNode;
   value: string;
@@ -80,6 +80,9 @@ export function TextField({ label, description, value, onCommit, type = "text", 
   max?: number;
   suffix?: string;
   placeholder?: string;
+  nested?: boolean;
+  /** An empty value isn't saved; the field shows the saved one again. */
+  required?: boolean;
 }) {
   const id = useId();
   const [text, setText] = useState(value);
@@ -87,7 +90,8 @@ export function TextField({ label, description, value, onCommit, type = "text", 
   useEffect(() => setText(value), [value]);
   useEffect(() => () => clearTimeout(stepTimer.current), []);
 
-  const inRange = (draft: string) => {
+  const isValid = (draft: string) => {
+    if (required && !draft.trim()) return false;
     if (type !== "number") return true;
     const n = Number(draft);
     return draft.trim() !== "" && n >= (min ?? -Infinity) && n <= (max ?? Infinity);
@@ -95,12 +99,12 @@ export function TextField({ label, description, value, onCommit, type = "text", 
   const commit = (draft: string) => {
     clearTimeout(stepTimer.current);
     if (draft === value) return;
-    if (inRange(draft)) onCommit(draft);
+    if (isValid(draft)) onCommit(draft);
     else setText(value);
   };
 
   return (
-    <Row label={label} description={description} htmlFor={id}>
+    <Row label={label} description={description} htmlFor={id} nested={nested}>
       <div className="settings-input">
         <input
           id={id}
@@ -115,7 +119,7 @@ export function TextField({ label, description, value, onCommit, type = "text", 
             setText(next);
             // Typing reports an inputType; spinner clicks and arrow-key steps do not.
             const typed = !!(e.nativeEvent as InputEvent).inputType;
-            if (type !== "number" || typed || !inRange(next)) return;
+            if (type !== "number" || typed || !isValid(next)) return;
             clearTimeout(stepTimer.current);
             stepTimer.current = setTimeout(() => commit(next), 300);
           }}

@@ -13,6 +13,7 @@ pub use tools::{HubInput, HubTool, ToolRow, hub_tools};
 use crate::bus;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
+use crate::store::settings::Status;
 use crate::{shortcuts, tools as tool_state};
 
 #[derive(Serialize, Clone, Debug, PartialEq, TS)]
@@ -33,6 +34,8 @@ pub struct HubView {
     pub next_day: Option<String>,
     /// The sidebar's tool rows, in Settings → Tools order.
     pub tools: Vec<HubTool>,
+    /// Today's status, for the status row's dot; `None` before the day's first.
+    pub status: Option<Status>,
 }
 
 fn greeting(hour: u32) -> &'static str {
@@ -44,7 +47,12 @@ fn greeting(hour: u32) -> &'static str {
 }
 
 /// The view of `day` (today when `None`) at `now`.
-pub fn hub_view_at(day: Option<NaiveDate>, now: NaiveDateTime, tools: Vec<HubTool>) -> HubView {
+pub fn hub_view_at(
+    day: Option<NaiveDate>,
+    now: NaiveDateTime,
+    tools: Vec<HubTool>,
+    status: Option<Status>,
+) -> HubView {
     let today = now.date();
     let day = day.unwrap_or(today);
     let is_today = day == today;
@@ -61,6 +69,7 @@ pub fn hub_view_at(day: Option<NaiveDate>, now: NaiveDateTime, tools: Vec<HubToo
         previous_day: None,
         next_day: None,
         tools,
+        status,
     }
 }
 
@@ -86,7 +95,12 @@ pub fn hub_view(app: AppHandle, day: Option<String>) -> AppResult<HubView> {
         hotkeys: &hotkeys,
         commands: &commands.available(&app),
     });
-    Ok(hub_view_at(day, Local::now().naive_local(), tools))
+    Ok(hub_view_at(
+        day,
+        Local::now().naive_local(),
+        tools,
+        state.status,
+    ))
 }
 
 #[cfg(test)]
@@ -110,7 +124,7 @@ mod tests {
             (18, "Good evening"),
             (23, "Good evening"),
         ] {
-            let view = hub_view_at(None, at(hour), Vec::new());
+            let view = hub_view_at(None, at(hour), Vec::new(), None);
             assert_eq!(view.title, title, "{hour}");
             assert!(view.is_today, "{hour}");
         }
@@ -118,7 +132,7 @@ mod tests {
 
     #[test]
     fn today_shows_its_day_weekday_and_date() {
-        let view = hub_view_at(None, at(9), Vec::new());
+        let view = hub_view_at(None, at(9), Vec::new(), None);
         assert_eq!(view.day, "2026-10-24");
         assert_eq!(view.weekday, "Saturday");
         assert_eq!(view.date, "24 October 2026");
@@ -129,7 +143,7 @@ mod tests {
     #[test]
     fn another_day_is_titled_by_its_name() {
         let day = NaiveDate::from_ymd_opt(2026, 10, 23);
-        let view = hub_view_at(day, at(9), Vec::new());
+        let view = hub_view_at(day, at(9), Vec::new(), None);
         assert!(!view.is_today);
         assert_eq!(view.title, "Friday, 23 October");
         assert_eq!(view.day, "2026-10-23");
@@ -140,8 +154,26 @@ mod tests {
     #[test]
     fn asking_for_today_explicitly_is_today() {
         let day = NaiveDate::from_ymd_opt(2026, 10, 24);
-        let view = hub_view_at(day, at(19), Vec::new());
+        let view = hub_view_at(day, at(19), Vec::new(), None);
         assert!(view.is_today);
         assert_eq!(view.title, "Good evening");
+    }
+
+    #[test]
+    fn the_view_carries_todays_status_for_the_status_dot() {
+        for status in [
+            None,
+            Some(Status::Working),
+            Some(Status::Break),
+            Some(Status::Off),
+        ] {
+            let view = hub_view_at(None, at(9), Vec::new(), status);
+            assert_eq!(view.status, status, "{status:?}");
+        }
+        let view = hub_view_at(None, at(9), Vec::new(), Some(Status::Break));
+        assert_eq!(
+            serde_json::to_value(&view).unwrap()["status"],
+            serde_json::json!("break")
+        );
     }
 }

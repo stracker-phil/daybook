@@ -12,7 +12,8 @@ use crate::ipc::IpcMessage;
 use crate::state::AppState;
 use crate::store::import::Import;
 use crate::{
-    bus, commands, contexts, deep_link, ipc, menu, remote, shortcuts, tray, vault, window,
+    bus, commands, contexts, deep_link, ipc, menu, notify, remote, shortcuts, status, tray, vault,
+    window,
 };
 
 const MAX_LOG_BYTES: u128 = 5 * 1024 * 1024;
@@ -62,6 +63,8 @@ pub fn start(
             tray::install(app.handle())?;
             shortcuts::apply(app.handle());
             contexts::start(app.handle());
+            status::start(app.handle());
+            notify::install(app.handle());
             window::panel::build(app.handle())?;
             #[cfg(debug_assertions)]
             apply_dev_frame(app);
@@ -91,6 +94,7 @@ fn commands_bus() -> bus::Commands {
     let mut commands = bus::CommandBus::default();
     bus::register(&mut commands);
     contexts::register(&mut commands);
+    status::register(&mut commands);
     bus::Commands(commands)
 }
 

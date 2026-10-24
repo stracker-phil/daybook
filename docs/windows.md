@@ -71,6 +71,10 @@ at the floating level and ignore focus loss, because macOS can't tell a Space sw
 While a sticky view waits unfocused, the app in front is followed every 500 ms, so closing hands focus to
 where the owner is now. Other views appear on the active Space (also over a full-screen app) and stay there.
 
+**Keeping open** (`panel_keep_open`, `PanelState::keep_open`): the page can make the open session behave as a
+sticky view until it closes, e.g. the end-of-day check while the owner looks at the link it opened. A new
+session or closing drops it.
+
 **Focus loss** (`PanelState::lost_focus`): within 400 ms after opening the panel takes the keyboard back
 (macOS shuffles focus right after a window appears); later a click elsewhere closes it, and the app that took
 focus keeps it.
@@ -128,7 +132,8 @@ reports ready and painted, observes its height, and loads the appearance from Se
 `commands.ts` registers the `panel` scope with `panel.close` (Escape, also inside text fields) and routes the
 window's keys through the registry. `useTabTrap` (`src/lib/`) keeps Tab and ⇧Tab inside the page: leaving the
 web content would move focus out of the window, and the overlay would close. Views: `context` (`ContextView`, the switcher), `palette` (`PaletteView`,
-[commands.md](commands.md#palette)) and the sample view (`sample`, `sample-sticky`: a text field, a list and a
+[commands.md](commands.md#palette)), `status` (`StatusView` with `EndOfDayStep`) and `offer-off`
+(`OfferOffView`) ([status.md](status.md#the-overlay)), and the sample view (`sample`, `sample-sticky`: a text field, a list and a
 button; opened in debug builds by `sample:open` and `sample:sticky`).
 
 `scripts/dev/overlay.sh [sticky] [delay]` opens the sample overlay in the debug app after a delay, so you can
@@ -144,5 +149,6 @@ switch to another app or Space first.
 | `panel_ready` | `session`, `height` | – |
 | `panel_painted` | `session` | – |
 | `panel_set_height` | `height` | – |
+| `panel_keep_open` | `keep: bool` | – (the open session stays while focus is elsewhere) |
 
 `panel_session` (event, to the `panel` window only): the `PanelSession` to render, `null` once it closed.

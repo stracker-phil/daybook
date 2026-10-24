@@ -63,6 +63,25 @@ describe("PanelApp", () => {
       expect(mocked.panelReady).toHaveBeenCalledWith(1, expect.any(Number));
     });
 
+    it("renders the status view with the request's preselected status", async () => {
+      mocked.panelSession.mockResolvedValue({
+        session: 1,
+        view: "status",
+        args: { status: "break", current: "working", messages: { working: "re", break: "afk", off: "bye" }, endOfDay: null },
+      });
+      render(<PanelApp />);
+      expect(await screen.findByText("What is your status?")).toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue("afk");
+      expect(mocked.panelReady).toHaveBeenCalledWith(1, expect.any(Number));
+    });
+
+    it("renders the offer to set Off for the offer-off view", async () => {
+      mocked.panelSession.mockResolvedValue({ session: 1, view: "offer-off", args: { to: "🐈 Personal" } });
+      render(<PanelApp />);
+      expect(await screen.findByText("Switched to 🐈 Personal")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Set to Off" })).toBeInTheDocument();
+    });
+
     it("renders nothing for an unknown view", async () => {
       mocked.panelSession.mockResolvedValue(session("nope"));
       render(<PanelApp />);

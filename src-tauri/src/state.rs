@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use crate::contexts::Contexts;
 use crate::launch::LaunchQueue;
+use crate::status::Statuses;
 use crate::store::keybindings::KeybindingsStore;
 use crate::store::settings::SettingsStore;
 use crate::store::ui_state::UiStateStore;
@@ -15,6 +16,7 @@ pub struct AppState {
     pub launches: LaunchQueue,
     pub notes: Arc<DailyNotes>,
     pub contexts: Contexts,
+    pub statuses: Statuses,
 }
 
 impl AppState {
@@ -26,6 +28,7 @@ impl AppState {
             launches: LaunchQueue::default(),
             notes: Arc::new(DailyNotes::open(config_dir)),
             contexts: Contexts::open(config_dir),
+            statuses: Statuses::open(config_dir),
         }
     }
 }
