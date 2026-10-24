@@ -21,6 +21,8 @@ pub struct UiState {
     pub sidebar_width: u16,
     /// Splitter positions by pane id, in px.
     pub pane_sizes: HashMap<String, f32>,
+    /// The board lists only today's events that aren't over.
+    pub hide_past_events: bool,
 }
 
 impl Default for UiState {
@@ -30,6 +32,7 @@ impl Default for UiState {
             inspector_hidden: false,
             sidebar_width: 200,
             pane_sizes: HashMap::new(),
+            hide_past_events: false,
         }
     }
 }
@@ -75,8 +78,27 @@ mod tests {
                 inspector_hidden: false,
                 sidebar_width: 200,
                 pane_sizes: HashMap::new(),
+                hide_past_events: false,
             }
         );
+    }
+
+    #[test]
+    fn a_file_without_the_hide_past_events_key_shows_past_events() {
+        let dir = temp_config_dir();
+        std::fs::write(dir.path().join("ui_state.json"), r#"{"sidebarWidth": 300}"#).unwrap();
+        assert!(!UiStateStore::open(dir.path()).get().hide_past_events);
+    }
+
+    #[tokio::test]
+    async fn hiding_past_events_persists_across_reopen() {
+        let dir = temp_config_dir();
+        let ui = UiState {
+            hide_past_events: true,
+            ..UiState::default()
+        };
+        UiStateStore::open(dir.path()).set(ui).await.unwrap();
+        assert!(UiStateStore::open(dir.path()).get().hide_past_events);
     }
 
     #[tokio::test]
@@ -109,6 +131,7 @@ mod tests {
             inspector_hidden: true,
             sidebar_width: 260,
             pane_sizes: HashMap::from([("list".to_string(), 320.0)]),
+            hide_past_events: true,
         };
         let saved = UiStateStore::open(dir.path())
             .set(ui.clone())
@@ -139,7 +162,8 @@ mod tests {
                 "sidebarHidden": false,
                 "inspectorHidden": false,
                 "sidebarWidth": 200,
-                "paneSizes": {}
+                "paneSizes": {},
+                "hidePastEvents": false
             })
         );
     }

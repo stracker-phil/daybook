@@ -1,14 +1,16 @@
 /** The core settings pages. Modules register their own pages from their install function. */
-import { FolderKanban, FolderOpen, Keyboard, Layers, LayoutList, NotebookPen, Palette, Power, Workflow } from "lucide-react";
+import { BellRing, CalendarDays, FolderKanban, FolderOpen, Keyboard, Layers, LayoutList, NotebookPen, Palette, Power, Workflow } from "lucide-react";
 import { TEXT_SIZES, type Scheme } from "../../api";
 import { schemeLook } from "../../lib/theme";
 import { registerSettingsPage, type SettingsPageProps } from "../../registry/settingsPages";
 import { AccentSwatches } from "../Accent";
 import { Group, Row, Segmented } from "./controls";
 import { LaunchAtLoginSwitch } from "./LaunchAtLoginSwitch";
+import { CalendarPage } from "./CalendarPage";
 import { ContextsPage } from "./ContextsPage";
 import { DailyNotePage } from "./DailyNotePage";
 import { ProjectsPage } from "./ProjectsPage";
+import { RemindersPage } from "./RemindersPage";
 import { ShortcutsPage } from "./ShortcutsPage";
 import { ToolsPage } from "./ToolsPage";
 import { VaultPage } from "./VaultPage";
@@ -40,7 +42,25 @@ function SchemePicker({ label, value, onChange }: { label: string; value: Scheme
   );
 }
 
+const HOURS = Array.from({ length: 25 }, (_, hour) => hour);
+const hourLabel = (hour: number) => `${String(hour).padStart(2, "0")}:00`;
+
+function HourSelect({ label, value, hours, onChange }: { label: string; value: number; hours: number[]; onChange: (hour: number) => void }) {
+  return (
+    <Row label={label}>
+      <select className="input" aria-label={label} value={value} onChange={(e) => onChange(Number(e.target.value))}>
+        {hours.map((hour) => (
+          <option key={hour} value={hour}>
+            {hourLabel(hour)}
+          </option>
+        ))}
+      </select>
+    </Row>
+  );
+}
+
 function AppearancePage({ s, set }: SettingsPageProps) {
+  const timeline = s.timeline;
   return (
     <>
       <Group title="Look">
@@ -63,6 +83,10 @@ function AppearancePage({ s, set }: SettingsPageProps) {
           onChange={(textSize) => set({ textSize })}
         />
       </Group>
+      <Group title="Day timeline" description="The ruler above the day's events in the Daybook window. Each context sets its own work hours in Settings → Contexts.">
+        <HourSelect label="Starts at" value={timeline.firstHour} hours={HOURS.filter((hour) => hour < timeline.lastHour)} onChange={(firstHour) => set({ timeline: { ...timeline, firstHour } })} />
+        <HourSelect label="Ends at" value={timeline.lastHour} hours={HOURS.filter((hour) => hour > timeline.firstHour)} onChange={(lastHour) => set({ timeline: { ...timeline, lastHour } })} />
+      </Group>
     </>
   );
 }
@@ -78,10 +102,12 @@ function GeneralPage() {
 /** Ids and order match Rust's `window::settings::PAGES`, which `settings:<page>` and the palette read. */
 export function registerCoreSettingsPages() {
   registerSettingsPage({ id: "vault", group: "Setup", label: "Vault", icon: FolderOpen, order: 0, intro: "Your Obsidian vault: Daybook reads it and writes into today's note.", Body: VaultPage });
+  registerSettingsPage({ id: "calendar", group: "Setup", label: "Calendar", icon: CalendarDays, order: 5, intro: "Daybook reads your calendars to show the day's events and remind you of meetings. It never changes them.", Body: CalendarPage });
   registerSettingsPage({ id: "contexts", group: "Setup", label: "Contexts", icon: Layers, order: 10, intro: "Each context turns features on and off, has its colour and work hours, and can become current by itself when they start.", Body: ContextsPage });
   registerSettingsPage({ id: "projects", group: "Setup", label: "Projects", icon: FolderKanban, order: 20, intro: "What you work on: offered for meetings and the Projects tool in the contexts you pick.", Body: ProjectsPage });
   registerSettingsPage({ id: "daily-note", group: "Obsidian", label: "Daily Note", icon: NotebookPen, order: 0, intro: "Where Daybook writes into today's note. Sections are created in this order when Daybook first writes to them; your template only needs the title and the notes heading.", Body: DailyNotePage });
   registerSettingsPage({ id: "workflows", group: "Workflows", label: "Workflows", icon: Workflow, order: 0, intro: "What Daybook does when something happens: each workflow is a trigger and what follows from it.", Body: WorkflowsPage });
+  registerSettingsPage({ id: "reminders", group: "Workflows", label: "Reminders", icon: BellRing, order: 10, intro: "The top of the Daybook window shows one reminder: the first rule in this list that applies now. Every routine and journal group has a rule here.", Body: RemindersPage });
   registerSettingsPage({ id: "general", group: "System", label: "General", icon: Power, order: 0, intro: "How Daybook starts.", Body: GeneralPage });
   registerSettingsPage({ id: "tools", group: "System", label: "Tools", icon: LayoutList, order: 10, Body: ToolsPage });
   registerSettingsPage({ id: "shortcuts", group: "System", label: "Shortcuts", icon: Keyboard, order: 20, Body: ShortcutsPage });

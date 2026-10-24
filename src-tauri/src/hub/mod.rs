@@ -1,6 +1,8 @@
 //! The Daybook window's view model: what the window shows for a day, built here and rendered by the
 //! page.
 
+mod day;
+mod reminder;
 mod tools;
 
 use chrono::{Local, NaiveDate, NaiveDateTime, Timelike};
@@ -8,10 +10,14 @@ use serde::Serialize;
 use tauri::{AppHandle, Manager};
 use ts_rs::TS;
 
+pub use day::{DayEvents, DayInput, day_events};
+pub use reminder::{ReminderLine, reminder_line};
 pub use tools::{HubInput, HubTool, ToolRow, hub_tools};
 
 use crate::bus;
+use crate::calendar;
 use crate::error::{AppError, AppResult};
+use crate::reminders::{ReminderInput, pick_reminder};
 use crate::state::AppState;
 use crate::store::settings::Status;
 use crate::{shortcuts, tools as tool_state};
@@ -36,6 +42,10 @@ pub struct HubView {
     pub tools: Vec<HubTool>,
     /// Today's status, for the status row's dot; `None` before the day's first.
     pub status: Option<Status>,
+    /// Today only: the first reminder rule that applies now.
+    pub reminder: Option<ReminderLine>,
+    /// The day's events in the current context's calendars.
+    pub events: DayEvents,
 }
 
 fn greeting(hour: u32) -> &'static str {
@@ -70,6 +80,8 @@ pub fn hub_view_at(
         next_day: None,
         tools,
         status,
+        reminder: None,
+        events: DayEvents::default(),
     }
 }
 
@@ -83,9 +95,13 @@ fn parse_day(day: Option<&str>) -> AppResult<Option<NaiveDate>> {
 
 /// The Daybook window's content for `day` (`YYYY-MM-DD`, today when absent).
 #[tauri::command]
-pub fn hub_view(app: AppHandle, day: Option<String>) -> AppResult<HubView> {
+pub async fn hub_view(app: AppHandle, day: Option<String>) -> AppResult<HubView> {
     let day = parse_day(day.as_deref())?;
-    let settings = app.state::<AppState>().settings.get();
+    let now = Local::now().naive_local();
+    let shown = day.unwrap_or(now.date());
+    let events = calendar::events_on(&app, shown, now.date()).await;
+    let app_state = app.state::<AppState>();
+    let settings = app_state.settings.get();
     let state = tool_state::snapshot(&app);
     let hotkeys = shortcuts::shown(&app);
     let commands = app.state::<bus::Commands>();
@@ -95,12 +111,27 @@ pub fn hub_view(app: AppHandle, day: Option<String>) -> AppResult<HubView> {
         hotkeys: &hotkeys,
         commands: &commands.available(&app),
     });
-    Ok(hub_view_at(
-        day,
-        Local::now().naive_local(),
-        tools,
-        state.status,
-    ))
+    let mut view = hub_view_at(day, now, tools, state.status);
+    let context = app_state.contexts.current(&settings);
+    view.events = day_events(&DayInput {
+        day: shown,
+        now,
+        events: &events,
+        timeline: &settings.timeline,
+        work_hours: context.and_then(|context| context.work_hours.as_ref()),
+    });
+    if view.is_today {
+        view.reminder = pick_reminder(&ReminderInput {
+            now,
+            rules: &settings.reminders,
+            events: &events,
+            routines: &[],
+            journal: &[],
+            todo_dates: &[],
+        })
+        .map(reminder_line);
+    }
+    Ok(view)
 }
 
 #[cfg(test)]

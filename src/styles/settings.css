@@ -97,3 +97,4 @@
 .choice-matches { border-radius: var(--radius-sm); box-shadow: inset 0 0 0 1px var(--line); padding: var(--space-1); }
 .choice-matches li { padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); }
 .choice-matches li.active { background: var(--fill); }
+.button-row { display: flex; flex-wrap: wrap; gap: var(--space-2); }

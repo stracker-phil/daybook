@@ -34,6 +34,22 @@ export type AppErrorField = { path: string, message: string, };
  */
 export type AppRef = { app: string, bundleId: string, };
 
+/**
+ * Whether Daybook may read the calendars.
+ */
+export type CalendarAccess = "not-determined" | "restricted" | "denied" | "full-access" | "write-only";
+
+/**
+ * Settings → Calendar and the contexts' calendar lists.
+ */
+export type CalendarInfo = { access: CalendarAccess, 
+/**
+ * The titles of this Mac's event calendars; empty without full access.
+ */
+calendars: Array<string>, };
+
+export type CallApp = "Zoom" | "Teams" | "Meet";
+
 export type Context = { id: string, 
 /**
  * The label in the menu bar, e.g. `[W]` or an emoji.
@@ -147,6 +163,25 @@ waiting: number, };
  */
 export type DailySection = "journal" | "focus" | "plan" | "notes";
 
+export type DayEvents = { timeline: DayTimeline, rows: Array<EventRow>, };
+
+/**
+ * The day as a ruler: the hours, the context's work hours, one block per event and now.
+ */
+export type DayTimeline = { hours: Array<TimelineHour>, 
+/**
+ * The current context's work hours on this day.
+ */
+workHours: Span | null, 
+/**
+ * Events that fill the whole day: a line along the bottom instead of blocks.
+ */
+fullDay: Array<string>, blocks: Array<TimelineBlock>, 
+/**
+ * Today only, while within the shown hours.
+ */
+now: number | null, };
+
 /**
  * Going Off asks this first (before anything is sent); the answer shapes the channel message.
  */
@@ -179,6 +214,20 @@ export type EndOfDayCheck = { reminder: string, question: string,
 url: string, };
 
 export type ErrorKind = "io" | "invalid_input" | "not_found" | "cancelled";
+
+export type EventRow = { key: string, 
+/**
+ * "09:00–09:30" or "All day".
+ */
+time: string, title: string, calendar: string, 
+/**
+ * The call it links to; the row then joins it.
+ */
+meeting: MeetingLink | null, 
+/**
+ * Over at the time of the view.
+ */
+past: boolean, };
 
 export type EventWindow = "until_end" | "during" | "before";
 
@@ -237,7 +286,15 @@ tools: Array<HubTool>,
 /**
  * Today's status, for the status row's dot; `None` before the day's first.
  */
-status: Status | null, };
+status: Status | null, 
+/**
+ * Today only: the first reminder rule that applies now.
+ */
+reminder: ReminderLine | null, 
+/**
+ * The day's events in the current context's calendars.
+ */
+events: DayEvents, };
 
 /**
  * "Open Jira Issue" opens `base_url` + the key; a bare number gets `default_prefix`.
@@ -291,6 +348,11 @@ export type LaunchEvent = { "type": "error", message: string, } | { "type": "not
  * A Project Launcher project: its id opens it, the name is the one it had when linked.
  */
 export type LinkedProject = { id: string, name: string, };
+
+/**
+ * The address that opens a call.
+ */
+export type MeetingLink = { app: CallApp, url: string, };
 
 /**
  * An app is in a meeting while it runs and, with `window_title`, has a window whose title contains
@@ -528,6 +590,17 @@ export type RailSpan = "full" | "rail";
 export type RailTheme = "system" | "light" | "dark";
 
 /**
+ * What a click or ↵ on the line does: a bus command, or joining an event's call.
+ */
+export type ReminderAction = { "kind": "command", label: string, command: string, } | { "kind": "join", label: string, url: string, };
+
+export type ReminderLine = { 
+/**
+ * "Now", "Next", "Routine", "Journal", "Todos".
+ */
+label: string, text: string, action: ReminderAction | null, };
+
+/**
  * What the Daybook window reminds of; the first enabled rule in the list that applies wins.
  */
 export type ReminderRule = { "kind": "meeting", enabled: boolean, minutesBefore: number, } | { "kind": "routine", enabled: boolean, routine: string, } | { "kind": "journal", enabled: boolean, group: string, } | { "kind": "todos", enabled: boolean, span: TodoSpan, from: string, to: string, };
@@ -630,6 +703,11 @@ export type SlackStatus = {
  * The emoji and text in Slack stay as they are.
  */
 keepStatus: boolean, emoji: string, text: string, presence: Presence, };
+
+/**
+ * From and to as fractions of the timeline's width, 0 to 1.
+ */
+export type Span = { from: number, to: number, };
 
 export type Status = "working" | "break" | "off";
 
@@ -741,6 +819,30 @@ export type TimeWindow = { from: string, to: string, };
  */
 export type Timeline = { firstHour: number, lastHour: number, };
 
+export type TimelineBlock = { 
+/**
+ * The event row's key.
+ */
+key: string, span: Span, 
+/**
+ * "09:00–09:30 Standup".
+ */
+label: string, past: boolean, 
+/**
+ * Another event runs up to or into its start.
+ */
+follows: boolean, };
+
+export type TimelineHour = { 
+/**
+ * "09".
+ */
+label: string, at: number, 
+/**
+ * Every hour has a tick; labels skip hours so they never crowd.
+ */
+labeled: boolean, };
+
 /**
  * When a routine or journal group is due, and when it opens by itself.
  */
@@ -800,7 +902,11 @@ sidebarWidth: number,
 /**
  * Splitter positions by pane id, in px.
  */
-paneSizes: { [key in string]: number }, };
+paneSizes: { [key in string]: number }, 
+/**
+ * The board lists only today's events that aren't over.
+ */
+hidePastEvents: boolean, };
 
 export type Vault = { path: string | null, 
 /**

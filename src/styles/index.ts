@@ -9,6 +9,7 @@ import "./base.css";
 import "./controls.css";
 import "./shell.css";
 import "./sidebar.css";
+import "./board.css";
 import "./overlays.css";
 import "./forms.css";
 import "./settings.css";

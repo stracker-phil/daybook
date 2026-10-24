@@ -73,10 +73,12 @@ describe("SettingsWindow", () => {
       renderWindow();
       expect(within(nav()).getAllByRole("button").map((b) => b.textContent?.trim())).toEqual([
         "Vault",
+        "Calendar",
         "Contexts",
         "Projects",
         "Daily Note",
         "Workflows",
+        "Reminders",
         "Demo flow",
         "General",
         "Tools",
@@ -88,7 +90,7 @@ describe("SettingsWindow", () => {
     it("groups them under Setup, Obsidian, Workflows and System, in that order", () => {
       renderWindow();
       const text = nav().textContent.replace(/\s+/g, "");
-      expect(text).toBe("SetupVaultContextsProjectsObsidianDailyNoteWorkflowsWorkflowsDemoflowSystemGeneralToolsShortcutsAppearance");
+      expect(text).toBe("SetupVaultCalendarContextsProjectsObsidianDailyNoteWorkflowsWorkflowsRemindersDemoflowSystemGeneralToolsShortcutsAppearance");
     });
   });
 
@@ -149,6 +151,38 @@ describe("SettingsWindow", () => {
       it("shows no pixel sizes", () => {
         renderAppearance();
         expect(document.body.textContent).not.toMatch(/\d\s*px|\bpx\b/i);
+      });
+    });
+
+    describe("Day timeline", () => {
+      const optionTexts = (name: string) => within(screen.getByRole("combobox", { name })).getAllByRole("option").map((o) => o.textContent);
+
+      it("shows the saved first and last hour", () => {
+        renderAppearance({ timeline: { firstHour: 7, lastHour: 22 } });
+        expect(screen.getByRole("combobox", { name: "Starts at" })).toHaveValue("7");
+        expect(screen.getByRole("combobox", { name: "Ends at" })).toHaveValue("22");
+      });
+
+      it("offers only hours before the end to start at and only hours after the start to end at", () => {
+        renderAppearance({ timeline: { firstHour: 20, lastHour: 23 } });
+        const starts = optionTexts("Starts at");
+        expect(starts[0]).toBe("00:00");
+        expect(starts.at(-1)).toBe("22:00");
+        const ends = optionTexts("Ends at");
+        expect(ends[0]).toBe("21:00");
+        expect(ends.at(-1)).toBe("24:00");
+      });
+
+      it("saves the chosen start and keeps the end", async () => {
+        renderAppearance({ timeline: { firstHour: 0, lastHour: 24 } });
+        await userEvent.selectOptions(screen.getByRole("combobox", { name: "Starts at" }), "08:00");
+        expect(mocked.updateSettings).toHaveBeenLastCalledWith(expect.objectContaining({ timeline: { firstHour: 8, lastHour: 24 } }));
+      });
+
+      it("saves the chosen end and keeps the start", async () => {
+        renderAppearance({ timeline: { firstHour: 6, lastHour: 24 } });
+        await userEvent.selectOptions(screen.getByRole("combobox", { name: "Ends at" }), "20:00");
+        expect(mocked.updateSettings).toHaveBeenLastCalledWith(expect.objectContaining({ timeline: { firstHour: 6, lastHour: 20 } }));
       });
     });
 

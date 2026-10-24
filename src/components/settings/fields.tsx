@@ -55,12 +55,12 @@ export function DaysField({ label, days, onChange }: { label: string; days: numb
 }
 
 /** An `HH:MM` field that saves on blur or ↵; saving per keystroke would garble the time mid-entry. */
-function TimeInput({ label, value, onCommit }: { label: string; value: string; onCommit: (value: string) => void }) {
+function TimeInput({ label, value, onCommit, openEnd }: { label: string; value: string; onCommit: (value: string) => void; openEnd?: boolean }) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
   const commit = () => {
     if (draft === value) return;
-    if (draft) onCommit(draft);
+    if (draft || openEnd) onCommit(draft);
     else setDraft(value);
   };
   return (
@@ -76,12 +76,13 @@ function TimeInput({ label, value, onCommit }: { label: string; value: string; o
   );
 }
 
-export function TimeRangeField({ label, from, to, onChange }: { label: string; from: string; to: string; onChange: (range: { from: string; to: string }) => void }) {
+/** With `openEnd`, the end may be cleared: the range then runs to the end of the day. */
+export function TimeRangeField({ label, from, to, onChange, openEnd }: { label: string; from: string; to: string; onChange: (range: { from: string; to: string }) => void; openEnd?: boolean }) {
   return (
     <div className="time-range">
       <TimeInput label={`${label} from`} value={from} onCommit={(next) => onChange({ from: next, to })} />
       <span className="o2">to</span>
-      <TimeInput label={`${label} until`} value={to} onCommit={(next) => onChange({ from, to: next })} />
+      <TimeInput label={`${label} until`} value={to} openEnd={openEnd} onCommit={(next) => onChange({ from, to: next })} />
     </div>
   );
 }

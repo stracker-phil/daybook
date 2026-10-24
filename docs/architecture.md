@@ -9,8 +9,8 @@ its window is closed. The layer pages go into detail: [backend](backend.md), [fr
 [design language](ux.md).
 
 The app is a shell so far: a tray icon, the Daybook window (the dark sidebar with the day and the tools, the
-board under a greeting, the inspector column), the Settings window (Vault, Contexts, Projects, Daily Note,
-Workflows, General, Tools, Shortcuts, Appearance), the status (Working, Break, Off), the overlays (palette,
+board under a greeting, the inspector column), the Settings window (Vault, Calendar, Contexts, Projects, Daily Note,
+Workflows, Reminders, General, Tools, Shortcuts, Appearance), the status (Working, Break, Off), the day's calendar events with a timeline and the reminder line, the overlays (palette,
 context switcher, status, offer-off), the shortcuts dialog,
 toasts, the native menu and the CLI. The features arrive step by step
 (`docs/plan/README.md`, gitignored).
@@ -24,7 +24,7 @@ no database. The JSON files live in the config dir, `~/Library/Application Suppo
 |---|---|---|
 | `settings.json` | `Settings`: appearance, the vault and daily note, and every feature's configuration ([backend: settings](backend.md#settings)) | `store::settings::SettingsStore` |
 | `keybindings.json` | the owner's shortcut overrides by command id | `store::keybindings::KeybindingsStore` |
-| `ui_state.json` | window layout: `sidebarHidden`, `sidebarWidth`, `paneSizes` | `store::ui_state::UiStateStore` |
+| `ui_state.json` | window layout: `sidebarHidden`, `inspectorHidden`, `sidebarWidth`, `paneSizes`, `hidePastEvents` | `store::ui_state::UiStateStore` |
 | `pending-entries.json` | note changes waiting for their daily note | `vault::pending::Pending` |
 | `context.json` | the current context | `contexts::Contexts` |
 | `status-memory.json` | today's status: date, status, since, whether you worked today ([status.md](status.md)) | `status::Statuses` |
@@ -131,6 +131,8 @@ Changing the accent, the main write path today:
   at a time over any app, on the pointer's screen ([windows.md](windows.md)).
 - **Tray.** A template-image menu bar item (`tray.rs`): the context's label and the status as its title, the
   menu from `menu/model.rs`.
+- **Calendar.** EventKit through objc2 (`calendar/`): the current context's calendars, cached for five minutes and
+  dropped on `EKEventStoreChangedNotification`; the reminder engine is `reminders/` ([calendar.md](calendar.md)).
 - **Status.** Working, Break and Off live in `status-memory.json`; a change is announced as `status_changed`,
   which other features listen to ([status.md](status.md)).
 - **Launch at login** through `tauri-plugin-autostart` (a LaunchAgent) with `--hidden`, so the app starts
@@ -163,6 +165,7 @@ src-tauri/
   src/bus/                   the command bus and the app's commands (commands.md)
   src/contexts/ projects/    the current context and switching it; the projects gate
   src/status/                Working, Break, Off: memory, the change rule, status_changed (status.md)
+  src/calendar/ reminders/   EventKit, the day's events and meeting links; the reminder rules (calendar.md)
   src/tools/                 the tools and their choices, which tools a surface shows
   src/hub/                   the Daybook window's view model (hub_view) and its sidebar rows
   src/palette/               palette entries, ranking, running a pick
@@ -182,7 +185,7 @@ src/
   api/index.ts types.gen.ts types.ts
   state/store.ts requests.ts slices/ (settings, ui, viewState, hub)
   commands/                  registry, scopes (`global`, `hub`), index (APP_COMMANDS: the windows' own keys), remote
-  components/                Sidebar, hub/ (Board, Inspector), Toolbar, Modal, Dialogs, Toasts, settings/, …
+  components/                Sidebar, hub/ (Board, TodayCard, Events, DayTimeline, Inspector), Toolbar, Modal, Dialogs, Toasts, settings/, …
   windows/panel/             the overlay page: PanelApp, PaletteView, ContextView, StatusView, OfferOffView, SampleView
   windows/settings/          the Settings window's page: SettingsApp
   registry/settingsPages.ts

@@ -58,6 +58,12 @@ a command that can't run now; `shortcut` is the global shortcut that works in th
 notation. Each feature's step adds its part of the view model and the board section or inspector tab that
 renders it.
 
+The board (`hub/Board.tsx`) shows `TodayCard` (the reminder line; with an action it is a button that takes the
+focus on mount and on `window_opened`, so ↵ runs it: a command through `runCommand`, a call through
+`calendarJoin`) and `Events` (the section title, the eye toggle `toggleHidePastEvents` saved as
+`uiState.hidePastEvents`, `DayTimeline`, the rows). `Events` keeps the hovered key, so a row and its timeline block
+highlight each other ([calendar.md](calendar.md#the-day-model)). The hub reloads on `calendar_changed` too.
+
 ## Store
 
 `state/store.ts`: one zustand store, `useStore`, assembled from slices. A `Slice<T>` has one `create(set, get)`
@@ -257,13 +263,15 @@ saves the current settings with the patch through `saveSettings` quietly, so eve
 | Group | Page (id) | Holds |
 |---|---|---|
 | Setup | Vault (`vault`) | `VaultPage`: the vault folder (`api.chooseFolder`), its name, the daily notes' folder and format and today's note from `api.vaultInfo`; the Obsidian CLI's state and a custom path |
-| Setup | Contexts (`contexts`), Projects (`projects`) | one card per item (`ContextsPage`, `ProjectsPage`) |
+| Setup | Calendar (`calendar`) | `CalendarPage`: the calendar access with Allow Access… or Open Privacy Settings (`useCalendarInfo`: `api.calendarInfo`, read again on `calendar_changed`) |
+| Setup | Contexts (`contexts`), Projects (`projects`) | one card per item (`ContextsPage`, `ProjectsPage`); a context's calendars are checkboxes of this Mac's calendars (`ContextCalendars`), a chosen one missing here stays listed |
 | Obsidian | Daily Note (`daily-note`) | `DailyNotePage`: the fallback folder and format; the sections in `dailyNote.order`, each with its heading level and text, moved up and down (the notes heading is one line, `dailyNote.notes`) |
 | Workflows | Workflows (`workflows`) | `WorkflowsPage`: "When you pick a status" (each status's workflow switch in `slack.manualWorkflows`, its suggested channel message in `statusMessages`, the first Working's, Off's "Ask first" = `endOfDay.enabled`) and "End-of-day check" (reminder, question, link, the messages for yes and not yet; the required ones ignore an empty value) ([status.md](status.md#settings)) |
+| Workflows | Reminders (`reminders`) | `RemindersPage`: a card per rule in order with its Remind switch: the meeting's minutes before, the todos' span and time range (`TimeRangeField openEnd`), the due time of a routine or journal group; Move Up/Down, Remove for meeting and todo rules, Add Upcoming meeting / Open todos |
 | System | General (`general`) | `LaunchAtLoginSwitch`: checked from `api.autostartStatus()` through `useApiResult` (the LaunchAgent, not the stored setting), changed through `setLaunchAtLogin` |
 | System | Tools (`tools`) | `ToolsPage`: every tool in order with its `TOOL_INFO` (`toolInfo.ts`: label, description, icon), Rail and Window switches (Window off for the Daybook tool), Move Up and Move Down |
 | System | Shortcuts (`shortcuts`) | `ShortcutsPage`: Global shortcuts from `api.shortcutOverview()` (`GlobalShortcuts`: each marked Global, recorded in Settings notation by `shortcutFromKeyEvent`, saved into `settings.hotkeys`, a conflict with macOS, another global shortcut or a menu key shown as "Also used by …"; a note when this build registers none), the app menu's keys read-only (`MenuShortcuts`), then the page commands of every window with their scope (a search field, the conflicts; recorded in page notation, an X removes, a reset arrow drops an override; saved through `saveKeybindings`). Both use `ShortcutRecorder` (`data-recording`; shortcuts pause meanwhile; ⌫ clears, Escape cancels) |
-| System | Appearance (`appearance`) | Look: "Light mode scheme" and "Dark mode scheme", stacked rows of three tiles each (`SchemePicker`, a miniature window per scheme drawn with `schemeLook`, pressed for `lightScheme` or `darkScheme`), Accent (`AccentSwatches withSystem`); Text: Text size (`Segmented` over `TEXT_SIZES`) |
+| System | Appearance (`appearance`) | Look: "Light mode scheme" and "Dark mode scheme", stacked rows of three tiles each (`SchemePicker`, a miniature window per scheme drawn with `schemeLook`, pressed for `lightScheme` or `darkScheme`), Accent (`AccentSwatches withSystem`); Text: Text size (`Segmented` over `TEXT_SIZES`); Day timeline: Starts at and Ends at (`timeline.firstHour`, `lastHour`) |
 
 ## Styling
 

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>NSCalendarsFullAccessUsageDescription</key>
+  <string>Daybook shows today's events of your contexts' calendars and reminds you of your next meeting.</string>
+  <key>NSCalendarsUsageDescription</key>
+  <string>Daybook shows today's events of your contexts' calendars and reminds you of your next meeting.</string>
+</dict>
+</plist>

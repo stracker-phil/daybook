@@ -107,6 +107,35 @@ describe("TimeRangeField", () => {
     expect(from()).toHaveValue("09:00");
     expect(onChange).not.toHaveBeenCalled();
   });
+
+  it("goes back to the end when it is emptied without openEnd", async () => {
+    const onChange = vi.fn();
+    render(<TimeRangeField label="Hours" from="09:00" to="18:00" onChange={onChange} />);
+    until().focus();
+    fireEvent.change(until(), { target: { value: "" } });
+    await userEvent.tab();
+    expect(until()).toHaveValue("18:00");
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("commits an empty end with openEnd and keeps the start", async () => {
+    const onChange = vi.fn();
+    render(<TimeRangeField label="Hours" from="09:00" to="18:00" openEnd onChange={onChange} />);
+    until().focus();
+    fireEvent.change(until(), { target: { value: "" } });
+    await userEvent.tab();
+    expect(onChange).toHaveBeenLastCalledWith({ from: "09:00", to: "" });
+  });
+
+  it("still reverts an emptied start with openEnd", async () => {
+    const onChange = vi.fn();
+    render(<TimeRangeField label="Hours" from="09:00" to="" openEnd onChange={onChange} />);
+    from().focus();
+    fireEvent.change(from(), { target: { value: "" } });
+    await userEvent.tab();
+    expect(from()).toHaveValue("09:00");
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });
 
 describe("ChoiceList", () => {

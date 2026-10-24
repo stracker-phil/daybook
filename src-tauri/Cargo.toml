@@ -34,7 +34,9 @@ libc = "0.2"
 tempfile = { version = "3", optional = true }
 notify = "8"
 objc2 = "0.6"
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString", "NSGeometry"] }
+block2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "block2", "NSArray", "NSDate", "NSError", "NSGeometry", "NSNotification", "NSPredicate", "NSString", "NSURL"] }
+objc2-event-kit = { version = "0.3", default-features = false, features = ["std", "block2", "EKCalendar", "EKCalendarItem", "EKEvent", "EKEventStore", "EKObject", "EKParticipant", "EKTypes"] }
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "libc", "NSWorkspace", "NSRunningApplication"] }
 objc2-core-foundation = { version = "0.3", default-features = false, features = ["std", "CFArray"] }
 objc2-core-graphics = { version = "0.3", default-features = false, features = ["std", "CGWindow"] }

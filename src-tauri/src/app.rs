@@ -12,8 +12,8 @@ use crate::ipc::IpcMessage;
 use crate::state::AppState;
 use crate::store::import::Import;
 use crate::{
-    bus, commands, contexts, deep_link, ipc, menu, notify, remote, shortcuts, status, tray, vault,
-    window,
+    bus, calendar, commands, contexts, deep_link, ipc, menu, notify, remote, shortcuts, status,
+    tray, vault, window,
 };
 
 const MAX_LOG_BYTES: u128 = 5 * 1024 * 1024;
@@ -62,6 +62,7 @@ pub fn start(
             vault::commands::install(app.handle());
             tray::install(app.handle())?;
             shortcuts::apply(app.handle());
+            calendar::install(app.handle());
             contexts::start(app.handle());
             status::start(app.handle());
             notify::install(app.handle());

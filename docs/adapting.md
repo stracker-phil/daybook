@@ -34,6 +34,7 @@ The app's name and ids live in a few places. Change them together.
 |---|---|---|---|
 | **Tray**: template images (black with alpha, tinted by macOS), menu on left click | `tray.rs`, `src-tauri/icons/tray/` | Works with an `AppIndicator`; template tinting does not apply, ship colored icons | Works; colored icons |
 | **Dock icon**: hidden by Hide to Menu Bar, shown with the window | `window.rs` `set_dock_icon` (`cfg(target_os = "macos")`) | No Dock; nothing to do | Same |
+| **Calendar**: EventKit through `objc2-event-kit`, the usage strings in `src-tauri/Info.plist` | `calendar/eventkit.rs` | No EventKit: read CalDAV or `.ics` instead behind the same `Store` | No EventKit: the Windows calendar APIs |
 | **Launch at login**: `MacosLauncher::LaunchAgent` with `--hidden` | `app.rs` (autostart plugin), `autostart.rs` | The plugin writes an XDG autostart entry | The plugin writes a registry key |
 | **Shortcuts**: `Mod` is ⌘, labels use ⌘⌥⇧ glyphs | `src/commands/registry.ts`, `store/keybindings.rs` `key_label`, `menu/mod.rs` | Map `Mod` to Ctrl | Same |
 | **Config dir** hard-coded to `~/Library/Application Support/<id>` | `lib.rs` `config_dir()`, `scripts/dev/js.sh` | `dirs::config_dir()`; it must resolve before Tauri starts, because the CLI and socket run first | `dirs::config_dir()` (`%APPDATA%\<id>`) |

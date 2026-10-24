@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../api", async (orig) => ({ ...(await orig<object>()), api: (await import("../../test/apiMock")).createApiMock() }));
 
-import { api, type Context, type Settings } from "../../api";
+import { api, type CalendarInfo, type Context, type Settings } from "../../api";
 import { resetStore } from "../../state/store";
 import { settings } from "../../test/settings";
 import { SettingsWindow } from "./SettingsWindow";
@@ -145,6 +145,51 @@ describe("ContextsPage", () => {
       renderPage();
       await userEvent.click(work().getByRole("switch", { name: "Switch automatically during work hours" }));
       expect(savedContext("work").autoSwitch).toBe(false);
+    });
+  });
+
+  describe("calendars", () => {
+    const withWorkCalendars = (calendars: string[]) => settings().contexts.map((c) => (c.id === "work" ? { ...c, calendars } : c));
+    const renderCalendars = (info: CalendarInfo, chosen: string[] = []) => {
+      mocked.calendarInfo.mockResolvedValue(info);
+      mocked.onCalendarChanged.mockResolvedValue(() => {});
+      renderPage({ contexts: withWorkCalendars(chosen) });
+    };
+
+    it("lists this Mac's calendars, checked where the context chose them", async () => {
+      renderCalendars({ access: "full-access", calendars: ["Home", "Work"] }, ["Work"]);
+      expect(await work().findByRole("checkbox", { name: "Work" })).toBeChecked();
+      expect(work().getByRole("checkbox", { name: "Home" })).not.toBeChecked();
+      expect(priv().getByRole("checkbox", { name: "Work" })).not.toBeChecked();
+    });
+
+    it("saves a ticked calendar on that context only", async () => {
+      renderCalendars({ access: "full-access", calendars: ["Home", "Work"] }, ["Work"]);
+      await userEvent.click(await work().findByRole("checkbox", { name: "Home" }));
+      expect(savedContext("work").calendars).toEqual(["Work", "Home"]);
+      expect(savedContext("private").calendars).toEqual([]);
+    });
+
+    it("saves an unticked calendar", async () => {
+      renderCalendars({ access: "full-access", calendars: ["Home", "Work"] }, ["Work"]);
+      await userEvent.click(await work().findByRole("checkbox", { name: "Work" }));
+      expect(savedContext("work").calendars).toEqual([]);
+    });
+
+    it("keeps a chosen calendar missing on this Mac listed as not on this Mac until it is unticked", async () => {
+      renderCalendars({ access: "full-access", calendars: ["Home"] }, ["Gone"]);
+      const gone = await work().findByRole("checkbox", { name: /Gone/ });
+      expect(gone).toBeChecked();
+      expect(work().getByText("not on this Mac")).toBeInTheDocument();
+      await userEvent.click(gone);
+      expect(savedContext("work").calendars).toEqual([]);
+    });
+
+    it("asks to allow access in Settings → Calendar and lists nothing without access", async () => {
+      renderCalendars({ access: "denied", calendars: [] }, ["Work"]);
+      expect(await work().findByText("Allow calendar access in Settings → Calendar to choose calendars.")).toBeInTheDocument();
+      expect(work().queryByRole("checkbox", { name: /Work/ })).not.toBeInTheDocument();
+      expect(work().queryByText("not on this Mac")).not.toBeInTheDocument();
     });
   });
 

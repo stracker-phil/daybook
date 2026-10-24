@@ -14,6 +14,8 @@ pub const PANEL_SESSION_EVENT: &str = "panel_session";
 pub const CONTEXT_CHANGED_EVENT: &str = "context_changed";
 /// Payload: a `StatusChanged`; today's status changed. Rust listens too (docs/status.md).
 pub const STATUS_CHANGED_EVENT: &str = "status_changed";
+/// No payload; an event, a calendar or the calendar access changed.
+pub const CALENDAR_CHANGED_EVENT: &str = "calendar_changed";
 /// Payload: the saved `Settings`.
 pub const SETTINGS_CHANGED_EVENT: &str = "settings_changed";
 /// Payload: the saved `Keybindings`.

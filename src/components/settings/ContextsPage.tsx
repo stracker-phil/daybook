@@ -1,8 +1,10 @@
 import { useRef } from "react";
-import type { Context, Feature, WorkHours } from "../../api";
+import type { CalendarInfo, Context, Feature, WorkHours } from "../../api";
 import type { SettingsPageProps } from "../../registry/settingsPages";
+import { ContextCalendars } from "./ContextCalendars";
 import { Group, Row, Switch, TextField } from "./controls";
 import { CONTEXT_COLORS, ColorField, DaysField, ItemActions, TimeRangeField, moveItem, replaceItem } from "./fields";
+import { useCalendarInfo } from "./useCalendarInfo";
 
 const FEATURES: { id: Feature; label: string }[] = [
   { id: "status", label: "Status" },
@@ -48,9 +50,10 @@ function WorkHoursRows({ context, onChange }: { context: Context; onChange: (pat
   );
 }
 
-function ContextCard({ context, scopes, index, count, onChange, onMove, onRemove }: {
+function ContextCard({ context, scopes, calendars, index, count, onChange, onMove, onRemove }: {
   context: Context;
   scopes: string[];
+  calendars: CalendarInfo | null;
   index: number;
   count: number;
   onChange: (patch: Partial<Context>) => void;
@@ -85,6 +88,7 @@ function ContextCard({ context, scopes, index, count, onChange, onMove, onRemove
         </select>
       </Row>
       <WorkHoursRows context={context} onChange={onChange} />
+      {calendars && <ContextCalendars info={calendars} chosen={context.calendars} onChange={(next) => onChange({ calendars: next })} />}
       <Row label="">
         <ItemActions index={index} count={count} onMove={onMove} onRemove={onRemove} removeLabel="Remove Context" />
       </Row>
@@ -111,6 +115,7 @@ function newContext(contexts: Context[]): Context {
 export function ContextsPage({ s, set }: SettingsPageProps) {
   const contexts = s.contexts;
   const scopes = [...new Set(["all", ...s.search.scopes.map((scope) => scope.name)])];
+  const calendars = useCalendarInfo().data;
   const save = (next: Context[]) => set({ contexts: next });
   return (
     <>
@@ -119,6 +124,7 @@ export function ContextsPage({ s, set }: SettingsPageProps) {
           key={context.id || i}
           context={context}
           scopes={scopes}
+          calendars={calendars}
           index={i}
           count={contexts.length}
           onChange={(patch) => save(replaceItem(contexts, i, patch))}

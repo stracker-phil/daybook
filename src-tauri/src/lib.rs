@@ -1,6 +1,7 @@
 mod app;
 pub mod autostart;
 pub mod bus;
+pub mod calendar;
 pub mod cli;
 pub mod clock;
 pub mod commands;
@@ -23,6 +24,7 @@ pub mod palette;
 pub mod pending;
 pub mod process;
 pub mod projects;
+pub mod reminders;
 pub mod remote;
 pub mod shortcuts;
 pub mod state;

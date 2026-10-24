@@ -2,6 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   AppError,
+  CalendarAccess,
+  CalendarInfo,
   ContextChanged,
   ContextState,
   DailyNoteState,
@@ -52,6 +54,12 @@ export const api = {
   shortcutOverview: () => invoke<ShortcutOverview>("shortcut_overview"),
   /** Everything the Daybook window shows for `day` (`YYYY-MM-DD`, default today). */
   hubView: (day?: string) => invoke<HubView>("hub_view", { day: day ?? null }),
+  /** Calendar access and this Mac's event calendars, for Settings. */
+  calendarInfo: () => invoke<CalendarInfo>("calendar_info"),
+  /** Asks macOS the first time; after a refusal it opens the privacy settings. Resolves the access now. */
+  calendarRequestAccess: () => invoke<CalendarAccess>("calendar_request_access"),
+  /** Opens an event's call; Rust opens join links only. */
+  calendarJoin: (url: string) => invoke<void>("calendar_join", { url }),
   /** Where the daily notes are and whether today's note and the Obsidian CLI were found. */
   vaultInfo: () => invoke<VaultInfo>("vault_info"),
   /** While Settings records a shortcut, global shortcuts and the menu's key equivalents step aside. */
@@ -96,6 +104,8 @@ export const api = {
   onContextChanged: (handler: (change: ContextChanged) => void): Promise<UnlistenFn> => listen<ContextChanged>("context_changed", (e) => handler(e.payload)),
   /** Today's status changed. */
   onStatusChanged: (handler: (change: StatusChanged) => void): Promise<UnlistenFn> => listen<StatusChanged>("status_changed", (e) => handler(e.payload)),
+  /** An event, a calendar or the calendar access changed. */
+  onCalendarChanged: (handler: () => void): Promise<UnlistenFn> => listen("calendar_changed", handler),
   /** Settings were saved, from any window. */
   onSettingsChanged: (handler: (settings: Settings) => void): Promise<UnlistenFn> => listen<Settings>("settings_changed", (e) => handler(e.payload)),
   /** Shortcut overrides were saved, from any window. */

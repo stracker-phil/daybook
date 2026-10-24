@@ -10,6 +10,8 @@ export interface ViewStateSlice {
   setPaneSize: (pane: string, px: number) => void;
   toggleSidebar: () => void;
   toggleInspector: () => void;
+  /** The board's events list: only today's events that aren't over, or all. */
+  toggleHidePastEvents: () => void;
 }
 
 export const viewStateSlice: Slice<ViewStateSlice> = {
@@ -41,6 +43,10 @@ export const viewStateSlice: Slice<ViewStateSlice> = {
 
       toggleInspector() {
         patchUiState((current) => ({ inspectorHidden: !current.inspectorHidden }));
+      },
+
+      toggleHidePastEvents() {
+        patchUiState((current) => ({ hidePastEvents: !current.hidePastEvents }));
       },
     };
   },

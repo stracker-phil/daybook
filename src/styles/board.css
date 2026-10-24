@@ -1,0 +1,53 @@
+/* ---------- the Daybook window's board ---------- */
+.board-content { display: flex; flex-direction: column; gap: var(--space-5); max-width: 64rem; padding: var(--space-4) var(--margin) var(--space-6); }
+
+/* The Today card: the reminder as one quiet line; with an action the whole line is the button. */
+.today-card { display: flex; flex-direction: column; padding: var(--space-1); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--fill) 50%, transparent); }
+.reminder {
+  display: flex; align-items: baseline; gap: var(--space-2); width: 100%; padding: var(--space-2) var(--space-3);
+  border: 0; border-radius: var(--radius); background: none; font: inherit; color: var(--text); text-align: left;
+}
+button.reminder:hover, button.reminder:focus-visible { background: var(--fill); }
+button.reminder:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.reminder-label { flex: none; font-size: var(--fs-meta); }
+.reminder-action { flex: none; font-size: var(--fs-meta); color: var(--accent); }
+
+.board-section { display: flex; flex-direction: column; gap: var(--space-2); }
+.board-section-head { display: flex; align-items: center; gap: var(--space-2); min-height: var(--control-h); }
+.board-section-title { flex: 1; margin: 0; font-size: var(--fs-meta); font-weight: 600; color: var(--o2); }
+.board-section-head .icon-btn { color: var(--o3); }
+.board-section-head .icon-btn:hover { color: var(--text); }
+.board-empty, .board-note { margin: 0; padding: 0 var(--space-3); font-size: var(--fs-meta); }
+
+/* The day timeline: hour labels and ticks above one rounded bar; work hours a line along its top, whole-day
+   events a line along its bottom, the event blocks between them, the now-line across. */
+.timeline { position: relative; height: 3.75rem; margin: 0 var(--space-3) var(--space-3); user-select: none; }
+.timeline-hour { position: absolute; top: 0; display: flex; flex-direction: column; align-items: center; transform: translateX(-50%); }
+.timeline-label { font-size: var(--fs-caption); line-height: 1.077rem; color: var(--o3); font-variant-numeric: tabular-nums; }
+.timeline-tick { width: 1px; height: 0.385rem; margin-top: 0.154rem; background: var(--line); }
+.timeline-bar { position: absolute; inset: 1.846rem 0 auto; height: 2.769rem; overflow: hidden; border-radius: var(--radius-sm); background: var(--fill); }
+.timeline-work { position: absolute; top: 0; height: 3px; background: color-mix(in srgb, var(--context) 55%, transparent); pointer-events: none; }
+.timeline-full-day { position: absolute; inset: auto 0 0; height: 3px; background: color-mix(in srgb, var(--context) 55%, transparent); pointer-events: none; }
+.timeline-full-day[data-highlighted="true"] { background: var(--context); animation: timeline-pulse 2.5s ease-in-out infinite; }
+.timeline-block { position: absolute; top: 4px; bottom: 4px; min-width: 3px; }
+.timeline-block-fill { position: absolute; inset: 0; border-radius: 3px; background: color-mix(in srgb, var(--context) 45%, transparent); transition: background-color 120ms; }
+.timeline-block[data-follows="true"] .timeline-block-fill { left: 1px; }
+.timeline-block[data-past="true"] .timeline-block-fill { background: color-mix(in srgb, var(--context) 22%, transparent); }
+.timeline-block[data-highlighted="true"] .timeline-block-fill { background: var(--context); animation: timeline-pulse 2.5s ease-in-out infinite; }
+.timeline-now { position: absolute; top: 1.231rem; bottom: 0; width: 2px; transform: translateX(-50%); background: var(--style-red); pointer-events: none; }
+@keyframes timeline-pulse { 50% { opacity: 0.6; } }
+@media (prefers-reduced-motion: reduce) { .timeline [data-highlighted="true"], .timeline [data-highlighted="true"] .timeline-block-fill { animation: none; } }
+
+/* Event rows; one with a call is the button that joins it. Past events fade until hovered. */
+.event-rows { display: flex; flex-direction: column; }
+.event-row {
+  display: flex; align-items: center; gap: var(--space-3); width: 100%; padding: var(--space-2) var(--space-3);
+  border: 0; border-radius: var(--radius-sm); background: none; font: inherit; color: var(--text); text-align: left;
+  transition: background-color 120ms;
+}
+.event-row[data-past="true"] { opacity: 0.5; }
+.event-row[data-highlighted="true"] { opacity: 1; background: var(--context-tint); }
+button.event-row:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.event-time { flex: none; width: 7.5rem; color: var(--o3); font-size: var(--data-font-size); font-variant-numeric: tabular-nums; }
+.event-app { flex: none; padding: 0 var(--space-2); border-radius: 999px; background: var(--fill); font-size: var(--fs-caption); line-height: 1.385rem; color: var(--o2); }
+.event-calendar { flex: none; max-width: 12rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-meta); }

@@ -76,7 +76,8 @@ The Daybook window has three columns: the sidebar, the board and the inspector.
   the state is kept in `ui_state.json` (`sidebarHidden`).
 - **Board** (`.main` on `--bg`, `Board`): the toolbar's title is the greeting (Good morning, Good afternoon,
   Good evening) or, for another day, its name; below it the board (`.board`), whose sections come with their
-  features: the Today card, events and the timeline, the routine and journal chips, today's notes.
+  features: the Today card, events and the timeline, the routine and journal chips, today's notes. See
+  [The board](#the-board).
 - **Inspector** (`Inspector`, `.inspector`): a 24.5rem column on `--bg-quiet` with a `--line` hairline at its
   left edge and its own toolbar; it holds the open todos, then the Activity tab. ⌘⌃I and the toolbar's
   `PanelRight` button (`aria-pressed`) show and hide it; the state is kept in `ui_state.json`
@@ -88,6 +89,26 @@ The Daybook window has three columns: the sidebar, the board and the inspector.
   menu, the sidebar gear and the palette open Settings). Without the sidebar the row leaves `--traffic-lights` for
   the window buttons.
 - There is no status bar.
+
+## The board
+
+A column of at most 64rem with the content margins; sections 20px apart, their titles `--fs-meta` semibold `--o2`.
+
+- **Today card** (`.today-card`): a light card (`--fill` at half strength, `--radius-lg`) holding the reminder as one
+  line (`.reminder`): the label (`Now`, `Next`, `Routine`, …) in `--fs-meta` `--o3`, the text, and the action's name in
+  the accent at the end. With an action the whole line is the button (hover and focus `--fill`, focus ring) and it
+  takes the focus whenever the window comes up, so ↵ runs it. The focus list joins it in step 12.
+- **Events** (`.board-section`): "Today's events" (or "Events" on another day), an eye toggle (today, with events)
+  that hides past events from the list, never from the timeline, with "N past events hidden" under it.
+- **Day timeline** (`.timeline`): hour labels (`--fs-caption`, `--o3`, tabular) over ticks, then one rounded bar on
+  `--fill`. The context's work hours are a 3px line along the bar's top (`--context` at 55%), whole-day events a
+  3px line along its bottom; event blocks fill the bar between with 4px insets (`--context` at 45%, past ones at
+  22%, a 1px gap where one event runs into the next). The now-line is a 2px `--style-red` line from the labels
+  down. Hovering a block highlights its row (`--context-tint`) and the other way round; the highlighted block
+  turns full `--context` and pulses gently (not with reduced motion).
+- **Event rows** (`.event-row`): the time (7.5rem, `--data-font-size`, `--o3`, tabular), the title, the call app as a
+  pill when the event links a call, the calendar in `--o3`. A row with a call is the button that joins it. Past
+  rows sit at 50% until hovered.
 
 ## Appearance and tokens
 
