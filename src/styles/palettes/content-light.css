@@ -1,0 +1,56 @@
+/* Light content: the macOS light window, white with neutral greys; any element can carry it (Settings previews). */
+[data-content="light"] {
+  color-scheme: light;
+
+  /* surfaces */
+  --bg: #ffffff;
+  --bg-quiet: #f7f7f7;
+  --chrome: #f5f5f5;
+  --pop: #ffffff;
+  --shade: #000000;
+  --text: #262626;
+  --text-strong: #000000;
+
+  /* translucent fills over any surface: quaternary (inset groups), tertiary (hover bezels, tracks), secondary
+     (pressed bezels) */
+  --fill-quiet: rgba(0, 0, 0, 0.035);
+  --fill: rgba(0, 0, 0, 0.055);
+  --fill-strong: rgba(0, 0, 0, 0.1);
+  --line: rgba(0, 0, 0, 0.12);
+
+  /* controls: push buttons, fields, the pressed segment, switch thumbs */
+  --control: #ffffff;
+  --control-pressed: #ebebeb;
+  --control-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.12);
+  --field: #ffffff;
+  --field-line: rgba(0, 0, 0, 0.16);
+  --raised: #ffffff;
+  --knob: #ffffff;
+
+  --shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 12px 36px rgba(0, 0, 0, 0.18);
+  --shadow-small: 0 0 0 0.5px rgba(0, 0, 0, 0.06), 0 0.5px 2px rgba(0, 0, 0, 0.2);
+  --scrim: rgba(0, 0, 0, 0.14);
+
+  /* white on the macOS accent */
+  --on-system-accent: #ffffff;
+
+  /* status colors; red, yellow, blue and purple are accent hues (theme.css) */
+  --style-green: #24853a;
+}
+
+/* The accent hues for this tone, on its content and on a sidebar of the same tone (the Default scheme puts a dark
+   sidebar beside light content). */
+[data-content="light"], [data-sidebar="light"] .sidebar {
+  /* text on an accent fill, at least 4.5:1 on every hue */
+  --on-accent: #ffffff;
+  --accent-text-max-l: 0.56;
+  --a-orange: #b9530f;
+  --a-gold: #9c6b00;
+  --a-red: #c8372d;
+  --a-magenta: #b0357e;
+  --a-purple: #8549c0;
+  --a-indigo: #4d55c8;
+  --a-blue: #1f6fbf;
+  --a-teal: #0f7d6c;
+  --a-graphite: #6e6e73;
+}

@@ -1,0 +1,35 @@
+/* ---------- sidebar ---------- */
+/* Only the sidebar tokens (`--sidebar-*`) inside; theme.css maps the generic ones to them for shared controls. */
+.sidebar {
+  display: flex; flex-direction: column; min-height: 0;
+  background: var(--sidebar-bg); color: var(--sidebar-text); box-shadow: inset -1px 0 0 var(--sidebar-line);
+}
+/* Where the sidebar's tone matches the macOS mode, the window's sidebar material shows through (vibrancy), as in a
+   native sidebar; the Default scheme's dark sidebar in light mode stays opaque. */
+@media (prefers-color-scheme: light) { [data-sidebar="light"] .sidebar { background: transparent; } }
+@media (prefers-color-scheme: dark) { [data-sidebar="dark"] .sidebar { background: transparent; } }
+/* The strip under the window buttons, a drag region. */
+.sidebar-titlebar { flex: none; height: var(--toolbar-height); }
+.sidebar-body { flex: 1; overflow: auto; padding: 0 0 var(--space-3); scrollbar-gutter: stable; }
+/* Sidebar entries: a 20px line with --pad and 4px more around it, an 8px inset, a 6px radius (docs/ux.md). On the
+   right the scrollbar's gutter (always kept) stands in for the inset, as far as it is wide. */
+.si {
+  display: flex; align-items: center; gap: var(--space-2); margin: 0 var(--space-2); padding: calc(var(--pad) + 2px) var(--space-2); line-height: 20px;
+  border: none; border-radius: var(--radius-sm); background: none; color: var(--sidebar-text); cursor: default; white-space: nowrap; text-align: left;
+}
+.sidebar-body .si { margin-right: max(0px, 8px - var(--scrollbar-size)); }
+.si:hover { background: var(--sidebar-hover); }
+.si.sel { background: var(--sidebar-selected); color: var(--sidebar-strong); font-weight: 500; }
+.si.sel svg { color: var(--accent); }
+.si:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.si .label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.si .meta { color: var(--sidebar-muted); font-size: var(--fs-meta); font-variant-numeric: tabular-nums; }
+.si svg { flex: none; color: var(--sidebar-muted); }
+.si .keycap { background: none; color: var(--sidebar-muted); }
+.sidebar-nav { display: flex; flex-direction: column; }
+.sidebar-app-name { padding: 0 var(--space-4); font-size: var(--fs-title); font-weight: 700; color: var(--sidebar-strong); }
+
+/* ---------- the bottom: the Settings gear ---------- */
+.sidebar-footer { flex: none; display: flex; align-items: center; gap: var(--space-1); padding: var(--space-2) var(--space-2) var(--space-3); }
+.sidebar-footer .icon-btn { color: var(--sidebar-muted); }
+.sidebar-footer .icon-btn:hover { background: var(--sidebar-hover); color: var(--sidebar-text); }

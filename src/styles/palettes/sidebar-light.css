@@ -1,0 +1,10 @@
+/* The light sidebar of the Light scheme: macOS's light sidebar grey. */
+[data-sidebar="light"] {
+  --sidebar-bg: #ebebeb;
+  --sidebar-text: #262626;
+  --sidebar-strong: #000000;
+  --sidebar-muted: #636363;
+  --sidebar-hover: rgba(0, 0, 0, 0.04);
+  --sidebar-selected: rgba(0, 0, 0, 0.09);
+  --sidebar-line: rgba(0, 0, 0, 0.1);
+}

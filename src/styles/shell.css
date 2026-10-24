@@ -1,0 +1,46 @@
+/* ---------- layout ---------- */
+/* The sidebar runs the full height, under the window buttons; each view (its toolbar first) sits beside it. Hiding the sidebar (sidebar.toggle) drops its column. The body stays transparent so the window's
+   sidebar material can show through a translucent sidebar (sidebar.css). */
+.app {
+  display: grid; height: 100%;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: "sidebar work";
+}
+.app:has(> .workspace.no-sidebar) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "work"; }
+.workspace { display: contents; }
+.workspace > .sidebar { grid-area: sidebar; }
+.workspace > .main { grid-area: work; }
+.main { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; background: var(--bg); }
+/* A view under its toolbar. */
+.view-page { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+/* The unified toolbar (`Toolbar`): the view's title, its detail and its actions in one row beside the window
+   buttons; a drag region. Its buttons are borderless with a hover bezel. */
+.toolbar {
+  flex: none; display: flex; align-items: center; gap: var(--space-2); height: var(--toolbar-height); min-width: 0;
+  padding: 0 var(--space-3) 0 var(--margin); background: var(--bg); border-bottom: 1px solid var(--line);
+}
+.no-sidebar .toolbar { padding-left: var(--traffic-lights); }
+.toolbar-title {
+  flex: 0 1 auto; min-width: 0; margin: 0; font-size: var(--fs-title); font-weight: 700; color: var(--text-strong);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.toolbar-detail { flex: 0 1 auto; min-width: 0; font-size: var(--fs-meta); color: var(--o2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.toolbar .btn:not(.btn-primary) { height: var(--toolbar-control-h); padding: 0 var(--space-2); background: transparent; box-shadow: none; color: var(--text); }
+.toolbar .btn:not(.btn-primary):hover:not(:disabled) { background: var(--fill); }
+.toolbar .btn:not(.btn-primary):active:not(:disabled) { background: var(--fill-strong); }
+.toolbar .btn svg { color: var(--o2); }
+/* A split button shows both halves and a hairline between them while either is hovered. */
+.toolbar .split-btn:hover > .btn:not(.btn-primary) { background: var(--fill); }
+.toolbar .split-btn > .btn:not(.btn-primary):hover:not(:disabled) { background: var(--fill-strong); }
+.toolbar .split-btn:hover > .split-btn-menu { box-shadow: inset 1px 0 0 var(--line); }
+.toolbar .icon-btn { width: var(--toolbar-control-h); height: var(--toolbar-control-h); color: var(--o2); }
+.toolbar select.input { width: auto; }
+.toolbar .inline-switch { margin: 0 var(--space-2); }
+
+.empty-view { flex: 1; display: grid; place-items: center; color: var(--o3); font-size: var(--fs-title); }
+.empty-view-title { margin: 0; font-size: inherit; font-weight: 500; }
+
+.crash { padding: 3.077rem; display: flex; flex-direction: column; gap: var(--space-3); align-items: flex-start; }
+.crash pre { font-family: var(--font-mono); font-size: var(--data-font-size); color: var(--style-red); white-space: pre-wrap; user-select: text; }

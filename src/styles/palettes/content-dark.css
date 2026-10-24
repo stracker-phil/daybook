@@ -1,0 +1,56 @@
+/* Dark content: the macOS dark window, near-black with neutral greys. */
+[data-content="dark"] {
+  color-scheme: dark;
+
+  /* surfaces */
+  --bg: #1e1e1e;
+  --bg-quiet: #222222;
+  --chrome: #252525;
+  --pop: #2c2c2c;
+  --shade: #000000;
+  --text: #e6e6e6;
+  --text-strong: #ffffff;
+
+  /* translucent fills over any surface: quaternary (inset groups), tertiary (hover bezels, tracks), secondary
+     (pressed bezels) */
+  --fill-quiet: rgba(255, 255, 255, 0.045);
+  --fill: rgba(255, 255, 255, 0.08);
+  --fill-strong: rgba(255, 255, 255, 0.14);
+  --line: rgba(255, 255, 255, 0.1);
+
+  /* controls: push buttons, fields, the pressed segment, switch thumbs */
+  --control: #4a4a4a;
+  --control-pressed: #5c5c5c;
+  --control-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.12), 0 0 0 0.5px rgba(0, 0, 0, 0.35), 0 0.5px 1px rgba(0, 0, 0, 0.3);
+  --field: rgba(255, 255, 255, 0.05);
+  --field-line: rgba(255, 255, 255, 0.16);
+  --raised: #5a5a5a;
+  --knob: #ffffff;
+
+  --shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.6), inset 0 0 0 0.5px rgba(255, 255, 255, 0.1), 0 12px 36px rgba(0, 0, 0, 0.5);
+  --shadow-small: 0 0 0 0.5px rgba(0, 0, 0, 0.3), 0 0.5px 2px rgba(0, 0, 0, 0.4);
+  --scrim: rgba(0, 0, 0, 0.35);
+
+  /* white on the macOS accent */
+  --on-system-accent: #ffffff;
+
+  /* status colors; red, yellow, blue and purple are accent hues (theme.css) */
+  --style-green: #8fd18a;
+}
+
+/* The accent hues for this tone, on its content and on a sidebar of the same tone (the Default scheme puts a dark
+   sidebar beside light content). */
+[data-content="dark"], [data-sidebar="dark"] .sidebar {
+  /* text on an accent fill, at least 4.5:1 on every hue */
+  --on-accent: #1a1a1a;
+  --accent-text-max-l: 1;
+  --a-orange: #f5a25d;
+  --a-gold: #e8c15a;
+  --a-red: #f2857a;
+  --a-magenta: #ee8fc8;
+  --a-purple: #c4a3f5;
+  --a-indigo: #a3acf7;
+  --a-blue: #7cb8f2;
+  --a-teal: #6fd1bb;
+  --a-graphite: #a1a1a6;
+}
