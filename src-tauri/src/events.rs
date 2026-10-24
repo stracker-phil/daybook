@@ -8,3 +8,5 @@ pub const COMMAND_EVENT: &str = "command";
 pub const REMOTE_EVENT: &str = "remote";
 /// No payload; the hidden main window was shown again.
 pub const WINDOW_OPENED_EVENT: &str = "window_opened";
+/// Payload: the saved `Settings`.
+pub const SETTINGS_CHANGED_EVENT: &str = "settings_changed";

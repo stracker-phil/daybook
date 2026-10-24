@@ -7,6 +7,8 @@ export interface SettingsSlice {
   settings: Settings | null;
   keybindings: Keybindings;
   loadSettings: () => Promise<void>;
+  /** Takes settings Rust saved elsewhere (`settings_changed`). */
+  applySettings: (settings: Settings) => void;
   /** `quiet` skips the toast, for settings that apply as they change. */
   saveSettings: (settings: Settings, opts?: { quiet?: boolean }) => Promise<void>;
   saveKeybindings: (bindings: Keybindings) => Promise<void>;
@@ -26,6 +28,10 @@ export const settingsSlice: Slice<SettingsSlice> = {
       } catch (e) {
         fail(e, "Could not load settings");
       }
+    },
+
+    applySettings(settings) {
+      set({ settings });
     },
 
     async saveSettings(settings, opts) {

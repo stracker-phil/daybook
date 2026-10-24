@@ -1,9 +1,10 @@
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
 use crate::autostart;
 use crate::error::{AppError, AppResult};
+use crate::events::SETTINGS_CHANGED_EVENT;
 use crate::launch::LaunchEvent;
 use crate::menu;
 use crate::state::AppState;
@@ -74,6 +75,9 @@ pub(crate) async fn save_settings(
 
 fn settings_saved(app: &AppHandle, previous: &Settings, saved: &Settings) {
     apply_settings(app, Some(previous), saved);
+    if let Err(e) = app.emit(SETTINGS_CHANGED_EVENT, saved) {
+        log::warn!("Couldn't announce the saved settings: {e}");
+    }
     log::info!("Settings updated");
 }
 

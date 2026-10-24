@@ -70,7 +70,7 @@ keep typing in the terminal. They are macOS-only (zsh, Swift, `screencapture`, a
 | Script | Does |
 |---|---|
 | `bun run build:app` | builds the debug `.app` bundle (`src-tauri/target/debug/bundle/macos/Daybook (Debug).app`, named apart by `tauri.debug.conf.json`) |
-| `scripts/dev/launch.sh [cli args]` | signs the debug bundle, stops a running `daybook` and starts the debug build next to the terminal window, without focus. The log goes to `$TMPDIR/daybook-dev.log`. The terminal app is set by `DAYBOOK_DEV_TERMINAL` (default `Terminal`) |
+| `scripts/dev/launch.sh [cli args]` | refuses a bundle older than the sources (a failed build leaves the old one behind), signs the debug bundle, restarts only the debug app (the release app keeps running: each build has its own data and socket, ADR 0014) next to the terminal window, without focus. The log goes to `$TMPDIR/daybook-dev.log`. The terminal app is set by `DAYBOOK_DEV_TERMINAL` (default `Terminal`) |
 | `scripts/dev/js.sh '<js>'` | runs JavaScript in the running debug app over the IPC socket (`IpcMessage::Eval`, debug builds only). Fire-and-forget: no return value, and top-level `const` declarations collide across calls, so wrap them in an IIFE. A first line `@<label>` targets another window |
 | `scripts/dev/screenshot.sh out.png` | captures the largest Daybook window, also while it is in the background |
 | `scripts/dev/screenshot-looks.sh <dir>` | captures the window in each scheme of the current macOS mode as `<scheme>-<mode>.png`, then restores the settings; switch the system appearance and run it again for the other mode ([ux.md](ux.md#scheme-audit)) |

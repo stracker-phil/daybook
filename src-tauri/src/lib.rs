@@ -28,11 +28,15 @@ use std::path::PathBuf;
 use crate::cli::{CliError, CliOutcome};
 use crate::ipc::IpcMessage;
 use crate::state::AppState;
+use crate::store::import;
 use crate::store::json_file::create_private_dir;
 
-/// The config folder's name; also the release bundle's identifier. The debug bundle has its own identifier
-/// (`tauri.debug.conf.json`), so macOS grants it apart, but shares this folder.
-const IDENTIFIER: &str = "com.philippstracker.daybook";
+/// The bundle identifier and config folder name; the debug build's own keeps its data apart (ADR 0014).
+const IDENTIFIER: &str = if cfg!(debug_assertions) {
+    "com.philippstracker.daybook.debug"
+} else {
+    "com.philippstracker.daybook"
+};
 /// Debug builds go by their own name in the menu bar and the tray.
 pub const APP_NAME: &str = if cfg!(debug_assertions) {
     "Daybook (Debug)"
@@ -100,6 +104,8 @@ pub fn run() {
     };
 
     let _instance_lock = instance::forward_or_lock(&config_dir, &socket, &message, exit_code);
+    let prototype_import =
+        import::prototype_dir().and_then(|prototype| import::run(&prototype, &config_dir));
 
     app::start(
         AppState::open(&config_dir),
@@ -107,6 +113,7 @@ pub fn run() {
         message,
         log_level.unwrap_or_default(),
         hidden,
+        prototype_import,
     );
 }
 
@@ -116,8 +123,28 @@ mod tests {
 
     #[test]
     fn identifier_matches_the_tauri_config() {
-        let conf: serde_json::Value =
+        let release: serde_json::Value =
             serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
-        assert_eq!(conf["identifier"], serde_json::json!(IDENTIFIER));
+        let debug: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.debug.conf.json")).unwrap();
+        let expected = if cfg!(debug_assertions) {
+            &debug
+        } else {
+            &release
+        };
+        assert_eq!(expected["identifier"], serde_json::json!(IDENTIFIER));
+    }
+
+    #[test]
+    fn the_debug_identifier_differs_from_the_release_one() {
+        let release: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        let debug: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.debug.conf.json")).unwrap();
+        assert_ne!(debug["identifier"], release["identifier"]);
+        assert_eq!(
+            debug["identifier"],
+            serde_json::json!(format!("{}.debug", release["identifier"].as_str().unwrap()))
+        );
     }
 }

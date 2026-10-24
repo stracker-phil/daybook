@@ -4,7 +4,7 @@ use super::Settings;
 use crate::error::AppResult;
 use crate::store::json_store::JsonStore;
 
-const FILE_NAME: &str = "settings.json";
+pub const FILE_NAME: &str = "settings.json";
 
 pub struct SettingsStore {
     store: JsonStore<Settings>,

@@ -33,5 +33,6 @@ export function createApiMock(): typeof realApi {
     onWindowOpened: vi.fn(noUnlisten),
     onCommand: vi.fn(noUnlisten),
     onRemote: vi.fn(noUnlisten),
+    onSettingsChanged: vi.fn(noUnlisten),
   };
 }

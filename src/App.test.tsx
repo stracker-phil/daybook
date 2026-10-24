@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -7,6 +7,7 @@ vi.mock("./api", async (orig) => ({ ...(await orig<object>()), api: (await impor
 import App from "./App";
 import { api } from "./api";
 import { resetStore, useStore } from "./state/store";
+import { settings } from "./test/settings";
 
 const mocked = vi.mocked(api, true);
 
@@ -109,6 +110,16 @@ describe("App", () => {
       await screen.findByRole("dialog");
       await userEvent.keyboard("{Escape}");
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("backend settings", () => {
+    it("uses the settings the backend announces as saved", async () => {
+      await renderApp();
+      await vi.waitFor(() => expect(mocked.onSettingsChanged).toHaveBeenCalled());
+      const announce = mocked.onSettingsChanged.mock.calls[0][0];
+      act(() => announce(settings({ accent: "blue", textSize: "large" })));
+      expect(useStore.getState().settings).toMatchObject({ accent: "blue", textSize: "large" });
     });
   });
 

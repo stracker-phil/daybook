@@ -48,7 +48,8 @@ Daybook restarts on it. Debug builds are never installed; call them by path.
 | `bun run release` | `Daybook.app` and a `.dmg` in `src-tauri/target/release/bundle/` |
 
 Try the app: `scripts/dev/launch.sh` starts the debug build next to the terminal without taking focus. Its
-settings live in `~/Library/Application Support/com.philippstracker.daybook/`, shared with the release build.
+settings live in `~/Library/Application Support/com.philippstracker.daybook.debug/`, apart from the release
+build's `com.philippstracker.daybook/`, so the release app keeps running and its data stays untouched.
 [docs/testing.md](docs/testing.md) covers the suites and the scripts that drive the running app.
 
 ## Adapt

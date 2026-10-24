@@ -21,3 +21,5 @@ it stands in Daybook. The numbers in this table are Daybook's.
 | [0010](0010-a-scheme-per-system-mode.md) | Appearance follows macOS, with one scheme per mode | Accepted (2026-10-24), implemented |
 | [0011](0011-native-macos-look.md) | The app looks native | Accepted (2026-10-24), implemented |
 | [0012](0012-vault-and-json-no-database.md) | Data is the vault plus small JSON files; no database to start | Accepted (2026-10-24), implemented |
+| [0013](0013-one-settings-model-imported-once.md) | Settings are one JSON model; the prototype is imported once | Accepted (2026-10-24), implemented |
+| [0014](0014-debug-build-has-its-own-data.md) | The debug build has its own data folder and socket | Accepted (2026-10-24), implemented |

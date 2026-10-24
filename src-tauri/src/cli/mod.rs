@@ -95,8 +95,8 @@ pub enum CliOutcome {
 #[derive(Debug, PartialEq)]
 pub struct CliError {
     pub message: String,
-    /// A plain launch with bad arguments also reports them in the app, which may have been opened
-    /// from Finder; a subcommand's error is for the terminal only.
+    /// A plain launch with bad flags also reports them in the app, which may have been opened from
+    /// Finder; an error with a subcommand, known or mistyped, is for the terminal only.
     pub in_app: bool,
 }
 
@@ -107,7 +107,7 @@ where
     S: Into<OsString> + Clone,
 {
     let args: Vec<OsString> = args.into_iter().map(Into::into).collect();
-    let in_app = !names_subcommand(&args);
+    let in_app = !names_command(&args);
     let cli = match Cli::try_parse_from(&args) {
         Ok(cli) => cli,
         Err(e) => {
@@ -138,12 +138,24 @@ where
     })
 }
 
-fn names_subcommand(args: &[OsString]) -> bool {
+/// Whether an argument is a word rather than a flag or a flag's value: a subcommand, known or mistyped.
+fn names_command(args: &[OsString]) -> bool {
     let cli = Cli::command();
-    let names: Vec<&str> = cli.get_subcommands().map(|c| c.get_name()).collect();
-    args.iter()
-        .skip(1)
-        .any(|arg| arg.to_str().is_some_and(|arg| names.contains(&arg)))
+    let takes_value = |arg: &str| {
+        cli.get_arguments().any(|a| {
+            a.get_action().takes_values()
+                && a.get_long().is_some_and(|long| arg == format!("--{long}"))
+        })
+    };
+    let mut args = args.iter().skip(1).filter_map(|arg| arg.to_str());
+    while let Some(arg) = args.next() {
+        if takes_value(arg) {
+            args.next();
+        } else if !arg.starts_with('-') {
+            return true;
+        }
+    }
+    false
 }
 
 fn message(command: Command) -> IpcMessage {
@@ -264,6 +276,20 @@ mod tests {
         for args in [&["status", "--nope"][..], &["show", "today"]] {
             let err = run(args).unwrap_err();
             assert!(!err.in_app, "{args:?}");
+        }
+    }
+
+    #[test]
+    fn a_mistyped_subcommand_is_reported_in_the_terminal_only() {
+        for args in [
+            &["stauts"][..],
+            &["foo", "--json"],
+            &["--json", "stauts"],
+            &["--log-level", "debug", "stauts"],
+        ] {
+            let err = run(args).unwrap_err();
+            assert!(!err.in_app, "{args:?}");
+            assert!(!err.message.is_empty(), "{args:?}");
         }
     }
 

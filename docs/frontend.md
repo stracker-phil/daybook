@@ -55,7 +55,7 @@ the `AppError`. The store re-exports it with `flushUiState` and the `Dialog` and
 
 | Slice | Holds |
 |---|---|
-| `settings` | `settings` (`null` until loaded), `keybindings`, `loadSettings` (settings and keybindings in parallel; keybindings fall back to `{}`), `saveSettings(settings, { quiet? })` (stores what `api.updateSettings` returns, toasts "Settings saved" unless `quiet`), `saveKeybindings(bindings)` (stores Rust's answer and calls `setOverrides`), `setLaunchAtLogin(enabled)` (`api.autostartSet`, then patches `settings.launchAtLogin` so a later save keeps it; resolves whether it is on now, `null` on a toasted failure) |
+| `settings` | `settings` (`null` until loaded), `keybindings`, `loadSettings` (settings and keybindings in parallel; keybindings fall back to `{}`), `applySettings(settings)` (settings Rust saved elsewhere, from `settings_changed`), `saveSettings(settings, { quiet? })` (stores what `api.updateSettings` returns, toasts "Settings saved" unless `quiet`), `saveKeybindings(bindings)` (stores Rust's answer and calls `setOverrides`), `setLaunchAtLogin(enabled)` (`api.autostartSet`, then patches `settings.launchAtLogin` so a later save keeps it; resolves whether it is on now, `null` on a toasted failure) |
 | `ui` | `toasts`, `toast(kind, message, action?)`, `dismissToast(id)`, `dialog` (a `Dialog` or `null`), `openDialog`, `closeDialog`, `paletteOpen`, `paletteSeed`, `setPaletteOpen(open, seed?)` |
 | `viewState` | `uiState` (`UiState` from Rust: `sidebarHidden`, `sidebarWidth`, `paneSizes`; `EMPTY_UI_STATE` until it loads), `loadUiState`, `setPaneSize(pane, px)`, `toggleSidebar` |
 
@@ -74,14 +74,14 @@ module's is `src/<module>/api.ts` ([ADR 0002](adr/0002-ipc-in-api-files.md)); `t
 it. `src/api/index.ts` exports `api`, a flat object of thin `invoke` wrappers for the commands in
 [backend.md](backend.md#tauri-commands):
 
-- settings and layout: `getSettings`, `updateSettings` (returns the settings as Rust saved them, clamped by
-  `Settings::sanitized`), `getKeybindings`, `setKeybindings`, `getUiState`, `setUiState`;
+- settings and layout: `getSettings`, `updateSettings` (returns the settings as Rust saved them, repaired by
+  `Settings::from_json`), `getKeybindings`, `setKeybindings`, `getUiState`, `setUiState`;
 - launch at login: `autostartSet`, `autostartStatus` (whether the LaunchAgent is installed, the truth that
   `settings.launchAtLogin` mirrors);
 - the app: `menuSync`, `takeLaunchEvents`, `remoteReply(id, result, error)`, `hideWindow`, `hideToMenuBar`,
   `quitApp`, `openLogFolder`, `openReadme`, `openUrl` (http(s) only), `chooseFolder` (`null` on cancel),
   `revealPath`, `logError`;
-- the subscriptions `onLaunch`, `onWindowOpened`, `onCommand` and `onRemote`, each resolving to its unlisten
+- the subscriptions `onLaunch`, `onWindowOpened`, `onCommand`, `onRemote` and `onSettingsChanged` (the saved settings, from any window; `App` hands them to `applySettings`), each resolving to its unlisten
   function.
 
 `toAppError(e)` normalizes a rejection: a value with a known `kind` and a `message` is an `AppError`; anything
@@ -303,7 +303,7 @@ with `:focus-visible`. `isEditable` (`lib/nativeMenu.ts`) decides what counts as
   `createApiMock()` (`src/test/apiMock.ts`) returns every `api` member as a `vi.fn()` with a harmless default
   (subscriptions resolve to a no-op unlisten); a new `api` member needs a default there, or the type check
   fails. It imports from `../api/types` only, never the store or `../api`.
-- **Fixtures.** `src/test/settings.ts`: `settings(patch)`, Rust's `Settings::default()` with the orange accent.
+- **Fixtures.** `src/test/settings.ts`: `settings(patch)`, Rust's `Settings::default()` (`src/test/default-settings.json`, kept exact by a Rust drift test; `UPDATE_FIXTURES=1` rewrites it) with the orange accent.
 - **Store and commands.** Reset with `resetStore(patch)` and `vi.clearAllMocks()` in `beforeEach`; a test of
   keys or the palette calls `installCommands()` and attaches `handleKeydown` itself.
 - **Scans.** `test/boundary.test.ts` (Tauri imports only in `src/api/index.ts` and `src/<module>/api.ts`),

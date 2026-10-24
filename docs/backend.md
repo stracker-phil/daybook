@@ -9,9 +9,10 @@ the binary `daybook`. There is no database: the data is small JSON files in the 
 
 1. **Config dir.** `config_dir()` resolves `~/Library/Application Support/<IDENTIFIER>`
    (`com.philippstracker.daybook`; no home dir: exit 2) and `create_private_dir` (`store/json_file.rs`) makes
-   it mode 0700. This happens before Tauri starts, because the CLI and the socket need the path first. The
-   debug bundle has its own identifier (`com.philippstracker.daybook.debug` in `tauri.debug.conf.json`, so
-   macOS grants it apart) but shares this folder. `APP_NAME` is `Daybook`, or `Daybook (Debug)` in debug
+   it mode 0700. This happens before Tauri starts, because the CLI and the socket need the path first. Debug
+   builds use `com.philippstracker.daybook.debug` (as `tauri.debug.conf.json`), so the debug app has its own
+   folder, socket, lock, settings and logs and never touches the release app's
+   ([ADR 0014](adr/0014-debug-build-has-its-own-data.md)). `APP_NAME` is `Daybook`, or `Daybook (Debug)` in debug
    builds; the app menu and the tray tooltip use it.
 2. **CLI.** `cli::parse(std::env::args_os())` returns:
    - `Exit { message }`: `--help` or `--version`; printed, exit 0.
@@ -38,10 +39,11 @@ the binary `daybook`. There is no database: the data is small JSON files in the 
    - `on_window_event`: `CloseRequested` on `main` prevents the close and hides the window.
 
    Then `setup` runs: it logs the version, sets the native menu (`menu::build`), queues the initial launch
-   message (`LaunchQueue::push`), calls `commands::apply_settings(app, None, &settings)`, installs the tray
+   message (`LaunchQueue::push`), reports the prototype import (`report_import`: the log and a launch notice,
+   see [Prototype import](#prototype-import)), calls `commands::apply_settings(app, None, &settings)`, installs the tray
    (`tray::install`), applies `DAYBOOK_WINDOW_FRAME` in debug builds (`apply_dev_frame`), binds and serves the
    socket (`start_ipc`; a bind error is logged and the app runs without handoff), registers
-   `deep_link::listen`, and shows the window (`window::show_main_in_background`) unless started with
+   `deep_link::listen`, and shows the window in front (`window::show_main`) unless started with
    `--hidden`, which hides the Dock icon instead (`window::hide_to_menu_bar`). The window is declared
    `"visible": false`, so a hidden start never flashes it.
 
@@ -114,7 +116,7 @@ its module.
 | Command | Args | Returns | Errors |
 |---|---|---|---|
 | `get_settings` | – | `Settings` | – |
-| `update_settings` | `settings: Settings`; `launchAtLogin` is kept as stored (only `autostart_set` changes it) | `Settings` (sanitized) | `io` |
+| `update_settings` | `settings: Settings`; `launchAtLogin` is kept as stored (only `autostart_set` changes it) | `Settings` (repaired by `from_json`); emits `settings_changed` | `io` |
 | `get_keybindings` / `set_keybindings` | – / `bindings: Keybindings` | `Keybindings` (sanitized; the menu is rebuilt) | `io` |
 | `get_ui_state` / `set_ui_state` | – / `ui: UiState` | `UiState` | `io` |
 | `autostart_set` (`autostart.rs`) | `enabled: bool` | `bool`: whether the LaunchAgent is installed now; also saves `settings.launchAtLogin` | `io` |
@@ -147,6 +149,7 @@ its module.
 | `COMMAND_EVENT` | `command` | a command id (menu) |
 | `REMOTE_EVENT` | `remote` | `RemoteEvent { id, request }`, answered with `remote_reply` |
 | `WINDOW_OPENED_EVENT` | `window_opened` | none; `window::show_main_in_background` showed the hidden window |
+| `SETTINGS_CHANGED_EVENT` | `settings_changed` | the saved `Settings`, after every `update_settings` and `autostart_set` |
 
 ## Launch queue
 
@@ -181,9 +184,10 @@ run), `--json` (global: replies as JSON), `--help` (with examples, `EXAMPLES`), 
 | `status` | `status` | two lines, below |
 
 `parse(args) -> Result<CliOutcome, CliError>` is pure: `CliOutcome` is `Run { hidden, log_level }`,
-`Exit { message }` (help, version) or `Remote { message, json, starts_app }`. `CliError.in_app` is true when
-the arguments name no subcommand (`names_subcommand`): a plain launch with bad arguments also shows the error
-in the app, which may have been opened from Finder; a subcommand's error only prints.
+`Exit { message }` (help, version) or `Remote { message, json, starts_app }`. `CliError.in_app` is true only
+when every argument is a flag or a flag's value (`names_command`): a plain launch with bad flags also shows the
+error in the app, which may have been opened from Finder. An error with a word in it, a subcommand known or
+mistyped (`daybook stauts`), only prints and exits 2 without starting the app.
 
 `cli/reply.rs`: `render(message, result)` is the human text, `None` for subcommands that print nothing; a
 reply of the wrong shape is `The running Daybook sent an unexpected reply: …`. `status` prints one fact per
@@ -290,7 +294,8 @@ The item ids carry a `tray.` prefix, because menu events also reach `menu::forwa
 
 ## Persistence
 
-Everything lives in the config dir, `~/Library/Application Support/com.philippstracker.daybook/`. JSON
+Everything lives in the config dir, `~/Library/Application Support/com.philippstracker.daybook/` (debug
+builds: `….daybook.debug/`). JSON
 stores wrap a `JsonStore<T>` (`store/json_store.rs`): the parsed value behind an `RwLock`, with
 `read(|t| ..)`, `update` and `update_async(|t| ..) -> AppResult<R>`. `update_async` runs on a blocking
 thread: under a write gate it applies the closure to a clone, saves the clone and only then swaps it in, so a
@@ -310,40 +315,77 @@ failed save leaves memory unchanged. `JsonStore::open_with` normalizes the loade
 | `keybindings.json` | `{ "commandId": "Mod+Shift+X" \| null }` overrides; `null` unbinds ([Key bindings](#key-bindings)) |
 | `ui_state.json` | `UiState` (`store/ui_state.rs`): `sidebarHidden`, `sidebarWidth` (px, default 200), `paneSizes` (splitter positions in px by pane id); missing keys take the defaults, unknown keys are ignored |
 | `daybook.sock`, `daybook.lock` | single instance |
+| `context.json`, `status-memory.json`, `jira-tickets.json`, `routines.json`, `day-message.json`, `slack-shown.json`, `pending-entries.json` | written only by the [prototype import](#prototype-import) so far; their steps add the stores that read them |
 
 ### Settings
 
-`store/settings/`: `mod.rs` (`Settings`, `sanitized`), `types.rs` (`Scheme`, `TextSize`, `ACCENTS`,
-`SYSTEM_ACCENT`, `is_accent`, `is_app_accent`), `store.rs` (`SettingsStore`),
-`serde_helpers.rs` (`lenient`).
+`store/settings/` holds Daybook's whole configuration as one model
+([ADR 0013](adr/0013-one-settings-model-imported-once.md)): `mod.rs` (`Settings`, `from_json`, `sanitized`),
+`store.rs` (`SettingsStore`, `SETTINGS_FILE`), `read.rs` (readers for untrusted JSON, the port of the
+prototype's `config/primitives.ts`), `defaults.rs` (the starting contexts, projects, journal groups,
+routines and reminders) and one module per group:
 
-| Key | Type | Default |
+| Key | Module, type | What |
 |---|---|---|
-| `lightScheme` | `Scheme`: `default` (a dark sidebar beside light content), `light`, `dark` | `default` |
-| `darkScheme` | `Scheme` | `dark` |
-| `accent` | `system` (`SYSTEM_ACCENT`, the macOS accent color) or one of `ACCENTS` | `system` |
-| `textSize` | `TextSize`: `small`, `medium`, `large`; the pixel sizes per step are the frontend's `TEXT_SIZES` | `medium` |
-| `launchAtLogin` | `bool`, mirrors the LaunchAgent | `false` |
+| `lightScheme`, `darkScheme`, `accent`, `textSize`, `launchAtLogin` | `types.rs` | appearance and launch at login (below) |
+| `vault` | `vault.rs`, `Vault` | `path`, `name` (for the Obsidian CLI), `obsidianCliPath` |
+| `dailyNote` | `vault.rs`, `DailyNote` | fallback folder and format, the notes heading, the journal, focus and plan sections (`SectionPlacement`), their `order` |
+| `search` | `vault.rs`, `Search` | named `scopes` and `exclude`d folders |
+| `statusMessages`, `slack`, `endOfDay`, `focus`, `statusRules` | `slack.rs` | channel messages per status, the Slack status per status (`StatusMap<SlackStatus>`) and `manualWorkflows`, the end-of-day check, the focus list, absence heads-ups |
+| `meetings`, `joining` | `calls.rs` | call `detection` and its app `rules` (built in: Zoom, Teams, Meet), what joining starts and opens |
+| `projects`, `contexts` | `contexts.rs` | `Project` (Slack emoji, active, contexts, meeting keywords, `launcherProjects`), `Context` (features, colour, work hours, auto-switch, calendars, check-in minutes, `ContextMusic`) |
+| `music` | `music.rs`, `MusicEntry` | what the Music tool plays |
+| `journal`, `routines`, `reminders` | `workflows.rs` | journal groups, routines (both with `Timing`), reminder rules |
+| `links`, `jira` | `links.rs` | quick links with their rules, the Jira base URL and prefix |
+| `rail` | `rail.rs`, `Rail` | the rail's edges, look, delays and tooltips |
+| `tools`, `hotkeys`, `api`, `timeline` | `shell.rs` | tool placement and order, global shortcuts (`ctrl+alt+cmd+a`; `""` is none), the HTTP API (off by default), the day timeline's hours |
 
-Appearance is one scheme per macOS mode ([ADR 0009](adr/0009-three-schemes-four-palettes.md), [ADR 0010](adr/0010-a-scheme-per-system-mode.md)). `Settings` is camelCase with
-`#[serde(default)]`, so a partial file fills the missing fields. Every field uses
-`deserialize_with = "lenient"`: an unknown or wrongly typed value falls back to that field's default (logged) instead of
-quarantining the whole file; `darkScheme` uses `lenient_dark_scheme`, whose fallback is `dark`. Unknown keys
-are ignored on load and dropped on the next save. `sanitized()` runs on load and on every update and resets
-an unknown accent (`is_app_accent`) to `system`. `SettingsStore::update` returns `(previous, saved)` from one
-lock.
+Everything is camelCase. `Settings` derives `Serialize` and `TS` only; its `Deserialize` hands any JSON to
+`Settings::from_json`, which ports the prototype's `config-normalize.ts`, `app-settings.ts` and
+`rail-settings.ts` rule by rule: a part of the wrong type gets its default, a list keeps its valid items
+(an empty list stays empty), text is trimmed, numbers are clamped or replaced, ids are made unique (`work`,
+`work-2`), a context without a colour takes the next one of the palette, a context's start music must exist,
+every routine and journal group has exactly one reminder rule, and a section or tool added later is placed
+after the one it follows by default. Loading a file and every `update_settings` from the page take this one
+path, so nothing the page or a hand edit sends can break the app, and only invalid JSON quarantines the file.
+`sanitized()` repairs a value built in Rust the same way (a round trip through `from_json`). Unknown keys are
+dropped on the next save. `SettingsStore::update` returns `(previous, saved)` from one lock; every save emits
+`settings_changed` with the saved settings.
 
-`src/api/types.ts` mirrors the constants the page needs (`ACCENTS`, `SYSTEM_ACCENT`, `TEXT_SIZES`); a Rust
-test (`accents_match_the_frontend_list`) compares `ACCENTS` with it.
+Appearance is one scheme per macOS mode ([ADR 0009](adr/0009-three-schemes-four-palettes.md),
+[ADR 0010](adr/0010-a-scheme-per-system-mode.md)): `lightScheme`/`darkScheme` are `Scheme` (`default`, a dark
+sidebar beside light content; `light`; `dark`; defaults `default` and `dark`), `accent` is `system` or one of
+`ACCENTS` (else `system`), `textSize` is `small`, `medium` (default) or `large` (pixel sizes in the frontend's
+`TEXT_SIZES`), `launchAtLogin` mirrors the LaunchAgent. `src/api/types.ts` mirrors the constants the page needs
+(`ACCENTS`, `SYSTEM_ACCENT`, `TEXT_SIZES`); a Rust test (`accents_match_the_frontend_list`) compares `ACCENTS`
+with it.
 
 **Adding a setting:**
-1. Add the field to `Settings` in `store/settings/mod.rs` (enums in `types.rs`), with a default in
-   `Settings::default`.
-2. Clamp or reset it in `sanitized`; give an enum field `#[serde(deserialize_with = "lenient")]`.
-3. If it changes something outside the store, add it to `SettingsEffects` and apply it in `apply_settings`.
-4. Regenerate `src/api/types.gen.ts` (`bun run types`), mirror any constant the page needs in
-   `src/api/types.ts`, and add the default to `src/test/settings.ts`.
-5. Render it on its page in `src/components/settings/pages.tsx`.
+1. Add the field to its group's struct (or a new group module) with its default, and read it in the group's
+   `read` with the helpers in `read.rs`; keep the prototype's rule when it has one.
+2. If it changes something outside the store, add it to `SettingsEffects` and apply it in `apply_settings`.
+3. Regenerate `src/api/types.gen.ts` (`bun run types`) and refresh `src/test/default-settings.json`
+   (`UPDATE_FIXTURES=1` on the drift test); mirror any constant the page needs in `src/api/types.ts`.
+4. Render it on its settings page.
+
+### Prototype import
+
+`store/import/` runs once, from `lib.rs` after the single-instance handoff and before the stores open:
+`import::run(prototype_dir(), config_dir)` acts only while Daybook has no `settings.json` and the Glaze
+prototype's data folder (`~/Library/Application Support/app.glaze.macos.2mykv1oc-local/`) has one, and it only
+reads that folder. `settings.rs` maps the prototype's file into Daybook's shape (clients → `projects`, modes
+→ `contexts`, the feature `tracking` → `status`, `modes`/`clients` in links, routines and projects →
+`contexts`/`projects`, the activity format's status notes → `statusMessages`) and leaves every time-tracking
+key behind (`DROPPED`: the activity section, the activity line formats, `statusLogLines`, project colours);
+`Settings::from_json` then repairs the result. `state.rs` (`STATE_FILES`) copies the state files Daybook
+doesn't have yet in Daybook's shapes: `mode.json` → `context.json` (`{ id, setAt }`), `status-memory.json`
+(`{ date: "YYYY-MM-DD", status, since, workedToday }`), `jira-tickets.json` (day → keys), `routines.json`
+(`{ date, fired }`), `day-message.json` (`{ date: "YYYY-MM-DD", channel, ts, greeting, eodSent }`),
+`slack-shown.json` (`{ emoji, text, presence, expiresAt }`) and `pending-entries.json` without the note ops
+that only wrote the activity log (`activity`, `status`, `meeting`). Settings are written last, so an import
+that fails part-way runs again on the next launch. `Import::Imported(ImportReport)` is logged in full
+(`log_text`) and shown once as a launch notice (`notice`: the counts, and that the Slack token must be entered
+again, since the prototype's `slack-token.bin` is encrypted for it alone); `Import::Failed` is logged.
 
 ### Key bindings
 

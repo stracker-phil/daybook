@@ -6,6 +6,10 @@ ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 APP="$ROOT/src-tauri/target/debug/bundle/macos/Daybook (Debug).app"
 BIN="$APP/Contents/MacOS/daybook"
 [[ -x "$BIN" ]] || { echo "Build first: bun run build:app"; exit 1; }
+# A failed build leaves the previous bundle behind; never start one older than the code it should run.
+STALE=$(find "$ROOT/src" "$ROOT/src-tauri/src" "$ROOT/src-tauri/Cargo.toml" "$ROOT/src-tauri/tauri.conf.json" \
+  "$ROOT/src-tauri/tauri.debug.conf.json" -type f -not -name '*.test.*' -not -name '*.gen.ts' -not -path '*/test/*' -not -path '*/test_support/*' -not -path '*/fixtures/*' -newer "$BIN" -print -quit)
+[[ -z "$STALE" ]] || { echo "The debug build is older than ${STALE#$ROOT/}; run bun run build:app first"; exit 1; }
 
 "$ROOT/scripts/sign-app.sh" "$APP" com.philippstracker.daybook.debug
 
@@ -35,8 +39,8 @@ let w = min(free.width - 16, 1600), h = min(free.height - 16, 1200)
 print("\(Int(free.minX + 8)),\(Int(free.minY + 8)),\(Int(w)),\(Int(h))")
 SWIFT
 )
-# One instance runs at a time (shared data and socket), so the installed release app stops too; while the
-# debug app runs, `daybook` on the PATH talks to it. `bun run release` brings the release app back.
+# The debug app has its own data folder and socket, so the release app keeps running beside it; `daybook`
+# on the PATH talks to the release app, this build's binary (`$BIN`) to the debug app.
 "$ROOT/scripts/stop-app.sh" "$BIN"
 LOG="${TMPDIR:-/tmp}/daybook-dev.log"
 DAYBOOK_WINDOW_FRAME="$FRAME" DAYBOOK_BACKGROUND=1 nohup "$BIN" "$@" >"$LOG" 2>&1 &

@@ -10,6 +10,7 @@ use crate::cli::LogLevel;
 use crate::handlers::handlers;
 use crate::ipc::IpcMessage;
 use crate::state::AppState;
+use crate::store::import::Import;
 use crate::{commands, deep_link, ipc, menu, remote, tray, window};
 
 const MAX_LOG_BYTES: u128 = 5 * 1024 * 1024;
@@ -20,6 +21,7 @@ pub fn start(
     initial: IpcMessage,
     log_level: LogLevel,
     hidden: bool,
+    import: Option<Import>,
 ) {
     tauri::Builder::default()
         .manage(state)
@@ -48,6 +50,7 @@ pub fn start(
             let state = app.state::<AppState>();
             app.set_menu(menu::build(app, &state.keybindings)?)?;
             state.launches.push(initial);
+            report_import(&state, import);
             commands::apply_settings(app.handle(), None, &state.settings.get());
             tray::install(app.handle())?;
             #[cfg(debug_assertions)]
@@ -58,7 +61,7 @@ pub fn start(
             if hidden {
                 window::hide_to_menu_bar(app.handle());
             } else {
-                window::show_main_in_background(app.handle());
+                window::show_main(app.handle());
             }
             Ok(())
         })
@@ -72,6 +75,18 @@ pub fn start(
             RunEvent::Reopen { .. } => window::show_main(app),
             _ => {}
         });
+}
+
+/// Logs the prototype import and tells the page what came over.
+fn report_import(state: &AppState, import: Option<Import>) {
+    match import {
+        Some(Import::Imported(report)) => {
+            log::info!("{}", report.log_text());
+            state.launches.notice(report.notice());
+        }
+        Some(Import::Failed(e)) => log::warn!("Importing the prototype's settings failed: {e}"),
+        None => {}
+    }
 }
 
 fn log_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {

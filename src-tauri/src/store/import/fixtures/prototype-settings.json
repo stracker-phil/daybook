@@ -1,0 +1,390 @@
+{
+  "vaultPath": "/Users/example/Vault",
+  "hotkeys": {
+    "switchActivity": "cmd+f2",
+    "toggleStatus": "cmd+f1",
+    "jiraOpen": "ctrl+alt+cmd+j",
+    "journal": "ctrl+alt+cmd+n",
+    "search": "ctrl+alt+cmd+f",
+    "toggleRail": "f10",
+    "hub": "alt+cmd+enter",
+    "links": "ctrl+alt+cmd+l",
+    "quickNotes": "cmd+f3",
+    "switchContext": "alt+cmd+f1",
+    "focus": "alt+cmd+f2",
+    "music": "ctrl+cmd+m",
+    "palette": "ctrl+cmd+k"
+  },
+  "obsidianCliPath": "",
+  "jira": { "baseUrl": "https://example.atlassian.net/browse/", "defaultPrefix": "QRS" },
+  "rail": {
+    "enabled": true,
+    "edges": "both",
+    "showDuringMeetings": true,
+    "callEdge": "right",
+    "callPosition": "center",
+    "triggerWidth": 6,
+    "triggerSpan": "full",
+    "showDelay": 200,
+    "hideDelay": 700,
+    "shape": "docked",
+    "size": "regular",
+    "theme": "dark",
+    "highlight": "filled",
+    "captions": false,
+    "position": "pointer",
+    "fadeWhenIdle": false,
+    "tooltipDelay": 150,
+    "hoverMenus": true
+  },
+  "dailyNote": {
+    "activity": { "level": "##", "text": "Activity" },
+    "journal": { "level": "##", "text": "Journal" },
+    "focus": { "level": "##", "text": "Focus" },
+    "plan": { "level": "##", "text": "Plan for Today" },
+    "order": ["journal", "focus", "plan", "activity", "notes"]
+  },
+  "api": { "enabled": true, "port": 27180, "token": "fake-api-token-0123456789abcdef", "presentations": true },
+  "meetingDetection": true,
+  "slackChannel": "#team-updates",
+  "config": {
+    "vaultName": "Example Vault",
+    "dailyNote": {
+      "fallbackFolder": "1-Journal",
+      "fallbackFormat": "YYYY-MM-DD",
+      "sections": { "notes": "## Notes" }
+    },
+    "activityFormat": {
+      "working": "_working_",
+      "afk": "_afk_ {note}",
+      "offNote": "off for today :wave:",
+      "workingNote": "re",
+      "firstWorkingNote": "good morning :wave:",
+      "breakNote": "afk",
+      "activity": "**{client}** ({activity})"
+    },
+    "timeline": { "firstHour": 0, "lastHour": 24 },
+    "slack": {
+      "working": { "keepStatus": false, "emoji": ":white_check_mark:", "text": "9:00 - 18:00", "presence": "auto" },
+      "break": { "keepStatus": false, "emoji": ":negative_squared_cross_mark:", "text": "AFK", "presence": "away" },
+      "off": { "keepStatus": false, "emoji": ":offline:", "text": "Day's done", "presence": "away" }
+    },
+    "manualWorkflows": { "working": true, "break": false, "off": true },
+    "statusLogLines": { "working": true, "break": true, "off": true },
+    "endOfDay": {
+      "enabled": true,
+      "reminder": "",
+      "question": "Is today fully tracked?",
+      "url": "https://example.com/timesheets",
+      "done": "Tracked: Done | _{message}_",
+      "incomplete": "Tracked: Incomplete | _{message}_"
+    },
+    "focus": { "enabled": true, "endOfDayTitle": "EOD" },
+    "statusRules": {
+      "rules": [
+        {
+          "hours": 8,
+          "enabled": true,
+          "slack": { "keepStatus": false, "emoji": ":warning:", "text": "Away later {when}", "presence": "keep" }
+        },
+        {
+          "hours": 24,
+          "enabled": true,
+          "slack": { "keepStatus": false, "emoji": ":information_source:", "text": "Away {when}", "presence": "keep" }
+        }
+      ],
+      "absenceTitles": ["Out of office"],
+      "minBusyHours": 8,
+      "tzLabel": ""
+    },
+    "meetings": [
+      {
+        "enabled": true,
+        "app": "Zoom",
+        "bundleId": "us.zoom.xos",
+        "windowTitle": "Zoom Meeting",
+        "slack": { "keepStatus": false, "emoji": ":spiral_calendar_pad:", "text": "In a Zoom Call", "presence": "auto" }
+      },
+      {
+        "enabled": true,
+        "app": "Meet",
+        "bundleId": "com.google.Chrome.app.example",
+        "windowTitle": null,
+        "slack": { "keepStatus": false, "emoji": ":spiral_calendar_pad:", "text": "In a Google Meeting", "presence": "auto" }
+      },
+      {
+        "enabled": true,
+        "app": "Teams",
+        "bundleId": "com.microsoft.teams2",
+        "windowTitle": null,
+        "slack": { "keepStatus": false, "emoji": ":spiral_calendar_pad:", "text": "In a Teams call", "presence": "auto" }
+      }
+    ],
+    "joining": {
+      "startFirst": [{ "app": "Camo", "bundleId": "com.reincubate.macos.cam" }],
+      "openWith": {
+        "Zoom": { "app": "zoom.us", "bundleId": "us.zoom.xos" },
+        "Teams": { "app": "Microsoft Teams", "bundleId": "com.microsoft.teams2" },
+        "Meet": { "app": "Google Meet", "bundleId": "com.google.Chrome.app.example" }
+      }
+    },
+    "clients": [
+      {
+        "name": "Internal",
+        "slackEmoji": ":corp:",
+        "color": "green",
+        "active": true,
+        "modes": ["work"],
+        "keywords": ["Team"],
+        "projects": []
+      },
+      {
+        "name": "Acme",
+        "slackEmoji": ":corp:",
+        "color": "green",
+        "active": true,
+        "modes": ["work"],
+        "keywords": ["ACM"],
+        "projects": [
+          { "id": "proj-0001", "name": "Warehouse" },
+          { "id": "proj-0002", "name": "Clean Code Standards" }
+        ]
+      },
+      {
+        "name": "Globex",
+        "slackEmoji": ":globex:",
+        "color": "blue",
+        "active": true,
+        "modes": ["work"],
+        "keywords": ["GLX", "Globex"],
+        "projects": [
+          { "id": "proj-0003", "name": "Globex Payments" },
+          { "id": "proj-0004", "name": "Globex Companion Plugin" },
+          { "id": "proj-0005", "name": "Feature-Flag Switcher" },
+          { "id": "proj-0006", "name": "Test Site" }
+        ]
+      },
+      {
+        "name": "Hobby",
+        "slackEmoji": "",
+        "color": "yellow",
+        "active": true,
+        "modes": ["private"],
+        "keywords": [],
+        "projects": [
+          { "id": "proj-0007", "name": "Meetup" },
+          { "id": "proj-0008", "name": "Side Project" },
+          { "id": "proj-0009", "name": "Personal Website" }
+        ]
+      }
+    ],
+    "modes": [
+      {
+        "id": "private",
+        "name": "Personal",
+        "label": "🐈",
+        "features": ["routines"],
+        "searchScope": "private",
+        "color": "red",
+        "workHours": { "days": [], "from": "08:00", "to": "23:00" },
+        "autoSwitch": false,
+        "calendars": ["Family", "Private"],
+        "checkInMinutes": 15,
+        "music": { "onCall": "lower", "callVolume": 2, "pauseWhenAway": true, "resume": true, "startWith": "" }
+      },
+      {
+        "id": "work",
+        "name": "Job",
+        "label": "🌱",
+        "features": ["tracking", "slack", "jira", "routines"],
+        "searchScope": "work",
+        "color": "green",
+        "workHours": { "days": [1, 2, 3, 4, 5], "from": "09:30", "to": "18:30" },
+        "autoSwitch": true,
+        "calendars": ["Job - Personal"],
+        "checkInMinutes": 15,
+        "music": { "onCall": "lower", "callVolume": 2, "pauseWhenAway": true, "resume": true, "startWith": "" }
+      }
+    ],
+    "links": [
+      {
+        "title": "Team: Weekly Planning",
+        "target": "https://example.com/board/weekly-planning",
+        "modes": ["work"],
+        "clients": null,
+        "days": null,
+        "time": null,
+        "event": "weekly planning",
+        "eventWindow": "until_end",
+        "leadMinutes": 15,
+        "pinned": false
+      },
+      {
+        "title": "Team: Fri-Daily",
+        "target": "https://example.com/board/fri-daily",
+        "modes": ["work"],
+        "clients": null,
+        "days": null,
+        "time": null,
+        "event": "Weekly team chat",
+        "eventWindow": "until_end",
+        "leadMinutes": 15,
+        "pinned": false
+      },
+      {
+        "title": "Feedback 1:1",
+        "target": "https://example.com/meetings/one-on-one",
+        "modes": ["work"],
+        "clients": null,
+        "days": null,
+        "time": null,
+        "event": "1:1",
+        "eventWindow": "until_end",
+        "leadMinutes": 15,
+        "pinned": false
+      },
+      {
+        "title": "Acme 02 Plan",
+        "target": "https://example.com/document/acme-plan",
+        "modes": ["work"],
+        "clients": null,
+        "days": null,
+        "time": null,
+        "event": "Acme",
+        "eventWindow": "until_end",
+        "leadMinutes": 15,
+        "pinned": false
+      },
+      {
+        "title": "Globex Sprint Retro",
+        "target": "https://example.com/whiteboard/globex-retro",
+        "modes": ["work"],
+        "clients": ["Globex"],
+        "days": null,
+        "time": null,
+        "event": null,
+        "eventWindow": "until_end",
+        "leadMinutes": 15,
+        "pinned": true
+      }
+    ],
+    "music": [
+      {
+        "id": "new-playlist",
+        "name": "Home Office",
+        "kind": "playlist",
+        "source": "Home Office",
+        "artistId": "",
+        "storefront": "",
+        "shuffle": true
+      },
+      {
+        "id": "new-playlist-2",
+        "name": "Focus Chill",
+        "kind": "playlist",
+        "source": "Chillout - Focus",
+        "artistId": "",
+        "storefront": "",
+        "shuffle": true
+      },
+      {
+        "id": "example-artist",
+        "name": "Example Artist",
+        "kind": "artist",
+        "source": "Example Artist",
+        "artistId": "100000001",
+        "storefront": "at",
+        "shuffle": true
+      }
+    ],
+    "searchScopes": [
+      { "name": "journal", "entries": ["1-Journal/"] },
+      { "name": "private", "entries": ["1-Journal/", "3-Personal/", "5-Knowledge/"] },
+      { "name": "work", "entries": ["1-Journal/", "2-Job/", "5-Knowledge/"] },
+      { "name": "hobby", "entries": ["6-World/", "4-Quests/"] },
+      { "name": "inbox", "entries": ["0-Inbox/"] },
+      { "name": "all", "entries": ["/"] }
+    ],
+    "exclude": ["_/", ".obsidian/", ".trash/"],
+    "journal": [
+      {
+        "title": "Dawn",
+        "callout": "NOTE",
+        "folded": false,
+        "questions": [
+          { "question": "What am I grateful for?", "hint": "Small things count too", "kind": "list" },
+          { "question": "My current goal", "hint": "Where do I want to be in a year?", "kind": "text" },
+          { "question": "The \"One Thing\"", "hint": "What would I do today even without pay?", "kind": "task" }
+        ],
+        "timing": { "due": { "from": "10:00", "to": "13:00" }, "openWhenDue": true, "openOn": [] }
+      },
+      {
+        "title": "Dusk",
+        "callout": "NOTE",
+        "folded": false,
+        "questions": [
+          { "question": "Three things I'm proud of", "hint": "What went well?", "kind": "list" },
+          { "question": "What did I learn today?", "hint": "Track growth", "kind": "text" }
+        ],
+        "timing": { "due": { "from": "17:30", "to": "" }, "openWhenDue": true, "openOn": [] }
+      },
+      {
+        "title": "Health",
+        "callout": "HEART",
+        "folded": true,
+        "questions": [],
+        "timing": { "due": null, "openWhenDue": false, "openOn": [] }
+      }
+    ],
+    "routines": [
+      {
+        "id": "morning",
+        "name": "Morning Routine",
+        "modes": ["work"],
+        "steps": [
+          { "title": "Plan day (Slack)", "link": "", "days": [1, 2, 3, 4, 5] },
+          { "title": "Book meeting rooms", "link": "https://example.com/rooms", "days": [1, 2, 3, 4, 5] },
+          { "title": "Review Jira tasks assigned to me", "link": "https://example.com/jira/for-you", "days": [1, 2, 3, 4, 5] },
+          { "title": "Review Handbook Changelog", "link": "https://example.com/wiki/changelog", "days": [5] }
+        ],
+        "timing": { "due": { "from": "09:45", "to": "13:00" }, "openWhenDue": true, "openOn": ["start"] }
+      },
+      {
+        "id": "evening",
+        "name": "Evening Routine",
+        "modes": ["work"],
+        "steps": [
+          { "title": "Provide one feedback or ask for one?", "link": "https://example.com/feedback", "days": [1, 2, 3, 4, 5] },
+          { "title": "Brag doc: anything worth logging today?", "link": "3-Personal/Work-Log.md", "days": [1, 2, 3, 4, 5] }
+        ],
+        "timing": { "due": { "from": "18:00", "to": "" }, "openWhenDue": true, "openOn": ["off"] }
+      }
+    ],
+    "reminders": [
+      { "enabled": true, "kind": "meeting", "minutesBefore": 45 },
+      { "enabled": true, "kind": "routine", "routine": "morning" },
+      { "enabled": true, "kind": "routine", "routine": "evening" },
+      { "enabled": true, "kind": "journal", "group": "Dawn" },
+      { "enabled": true, "kind": "journal", "group": "Dusk" },
+      { "enabled": true, "kind": "journal", "group": "Health" },
+      { "enabled": true, "from": "08:00", "to": "", "kind": "todos", "span": "today" },
+      { "enabled": true, "from": "08:00", "to": "", "kind": "todos", "span": "week" }
+    ]
+  },
+  "tools": [
+    { "id": "context", "rail": true, "window": true },
+    { "id": "status", "rail": true, "window": true },
+    { "id": "call", "rail": true, "window": true },
+    { "id": "separator1", "rail": true, "window": true },
+    { "id": "hub", "rail": true, "window": false },
+    { "id": "activity", "rail": true, "window": true },
+    { "id": "quickNotes", "rail": true, "window": true },
+    { "id": "journal", "rail": true, "window": false },
+    { "id": "separator2", "rail": true, "window": true },
+    { "id": "search", "rail": false, "window": true },
+    { "id": "projects", "rail": true, "window": true },
+    { "id": "links", "rail": true, "window": true },
+    { "id": "jira", "rail": true, "window": false },
+    { "id": "music", "rail": true, "window": true }
+  ]
+}

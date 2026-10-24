@@ -7,7 +7,7 @@ export * from "./types";
 /** The only place that talks to Rust. Tests mock this module. */
 export const api = {
   getSettings: () => invoke<Settings>("get_settings"),
-  /** Returns the settings as Rust saved them (clamped by `Settings::sanitized`). */
+  /** Returns the settings as Rust saved them (repaired by `Settings::from_json`). */
   updateSettings: (settings: Settings) => invoke<Settings>("update_settings", { settings }),
   getKeybindings: () => invoke<Keybindings>("get_keybindings"),
   setKeybindings: (bindings: Keybindings) => invoke<Keybindings>("set_keybindings", { bindings }),
@@ -43,6 +43,8 @@ export const api = {
   onWindowOpened: (handler: () => void): Promise<UnlistenFn> => listen("window_opened", handler),
   /** Native menu and tray items emit the id of the command they run. */
   onCommand: (handler: (id: string) => void): Promise<UnlistenFn> => listen<string>("command", (e) => handler(e.payload)),
+  /** Settings were saved, from any window. */
+  onSettingsChanged: (handler: (settings: Settings) => void): Promise<UnlistenFn> => listen<Settings>("settings_changed", (e) => handler(e.payload)),
   /** Requests from other processes; answer each with `remoteReply`. */
   onRemote: (handler: (event: RemoteEvent) => void): Promise<UnlistenFn> => listen<RemoteEvent>("remote", (e) => handler(e.payload)),
 };

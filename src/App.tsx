@@ -22,13 +22,18 @@ function handleLaunchEvents(events: LaunchEvent[]) {
 
 function useBackendEvents() {
   useEffect(() => {
-    const { loadSettings, loadUiState, toast } = useStore.getState();
+    const { loadSettings, loadUiState, applySettings, toast } = useStore.getState();
     const drainLaunches = () => api.takeLaunchEvents().then(handleLaunchEvents, (e) => toast("error", `Launch request failed: ${toAppError(e).message}`));
 
     // Re-installing applies the user's keybinding overrides, which arrive with the settings.
     void loadSettings().then(() => (installCommands(), drainLaunches()));
     void loadUiState();
-    const unlisten = [api.onLaunch(() => void drainLaunches()), api.onCommand(runMenuCommand), api.onRemote((e) => void answerRemote(e))];
+    const unlisten = [
+      api.onLaunch(() => void drainLaunches()),
+      api.onCommand(runMenuCommand),
+      api.onRemote((e) => void answerRemote(e)),
+      api.onSettingsChanged(applySettings),
+    ];
 
     const onError = (e: ErrorEvent) => toast("error", `Unexpected error: ${e.message}`);
     const onRejection = (e: PromiseRejectionEvent) => toast("error", `Unexpected error: ${toAppError(e.reason).message}`);

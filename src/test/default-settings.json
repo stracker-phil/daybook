@@ -1,0 +1,581 @@
+{
+  "lightScheme": "default",
+  "darkScheme": "dark",
+  "accent": "system",
+  "textSize": "medium",
+  "launchAtLogin": false,
+  "vault": {
+    "path": null,
+    "name": "Vault",
+    "obsidianCliPath": ""
+  },
+  "dailyNote": {
+    "fallbackFolder": "1-Journal",
+    "fallbackFormat": "YYYY-MM-DD",
+    "notes": "## Notes",
+    "journal": {
+      "level": "##",
+      "text": "Journal"
+    },
+    "focus": {
+      "level": "##",
+      "text": "Focus"
+    },
+    "plan": {
+      "level": "##",
+      "text": "Plan for Today"
+    },
+    "order": [
+      "journal",
+      "focus",
+      "plan",
+      "notes"
+    ]
+  },
+  "statusMessages": {
+    "working": "re",
+    "firstWorking": "",
+    "break": "afk",
+    "off": "off for today :wave:"
+  },
+  "slack": {
+    "channel": "",
+    "statuses": {
+      "working": {
+        "keepStatus": false,
+        "emoji": ":white_check_mark:",
+        "text": "9:00 - 18:00",
+        "presence": "auto"
+      },
+      "break": {
+        "keepStatus": false,
+        "emoji": ":negative_squared_cross_mark:",
+        "text": "AFK",
+        "presence": "away"
+      },
+      "off": {
+        "keepStatus": false,
+        "emoji": ":offline:",
+        "text": "Day's done",
+        "presence": "away"
+      }
+    },
+    "manualWorkflows": {
+      "working": true,
+      "break": true,
+      "off": true
+    }
+  },
+  "endOfDay": {
+    "enabled": true,
+    "reminder": "",
+    "question": "Is today fully tracked?",
+    "url": "https://example.com/timesheets",
+    "done": "Tracked: Done | _{message}_",
+    "incomplete": "Tracked: Incomplete | _{message}_"
+  },
+  "focus": {
+    "enabled": true,
+    "endOfDayTitle": "EOD"
+  },
+  "statusRules": {
+    "rules": [
+      {
+        "hours": 8,
+        "enabled": true,
+        "slack": {
+          "keepStatus": false,
+          "emoji": ":information_source:",
+          "text": "Away later {when}",
+          "presence": "keep"
+        }
+      },
+      {
+        "hours": 168,
+        "enabled": true,
+        "slack": {
+          "keepStatus": false,
+          "emoji": ":warning:",
+          "text": "Upcoming absence {when}",
+          "presence": "keep"
+        }
+      }
+    ],
+    "absenceTitles": [
+      "Out of office"
+    ],
+    "minBusyHours": 8.0,
+    "tzLabel": ""
+  },
+  "timeline": {
+    "firstHour": 0,
+    "lastHour": 24
+  },
+  "meetings": {
+    "detection": true,
+    "rules": [
+      {
+        "enabled": true,
+        "app": "Zoom",
+        "bundleId": "us.zoom.xos",
+        "windowTitle": null,
+        "slack": {
+          "keepStatus": false,
+          "emoji": ":spiral_calendar_pad:",
+          "text": "In a Zoom call",
+          "presence": "auto"
+        }
+      },
+      {
+        "enabled": true,
+        "app": "Teams",
+        "bundleId": "com.microsoft.teams2",
+        "windowTitle": null,
+        "slack": {
+          "keepStatus": false,
+          "emoji": ":spiral_calendar_pad:",
+          "text": "In a Teams call",
+          "presence": "auto"
+        }
+      },
+      {
+        "enabled": true,
+        "app": "Meet",
+        "bundleId": "com.google.Chrome.app.kjgfgldnnfoeklkmfkjfagphfepbbdan",
+        "windowTitle": null,
+        "slack": {
+          "keepStatus": false,
+          "emoji": ":spiral_calendar_pad:",
+          "text": "In a Google Meet call",
+          "presence": "auto"
+        }
+      }
+    ]
+  },
+  "joining": {
+    "startFirst": [
+      {
+        "app": "Camo",
+        "bundleId": "com.reincubate.macos.cam"
+      }
+    ],
+    "openWith": {
+      "Zoom": null,
+      "Teams": null,
+      "Meet": {
+        "app": "Google Meet",
+        "bundleId": "com.google.Chrome.app.kjgfgldnnfoeklkmfkjfagphfepbbdan"
+      }
+    }
+  },
+  "projects": [
+    {
+      "name": "Internal",
+      "slackEmoji": "",
+      "active": true,
+      "contexts": [],
+      "keywords": [],
+      "launcherProjects": []
+    },
+    {
+      "name": "Oscorp",
+      "slackEmoji": "",
+      "active": true,
+      "contexts": [],
+      "keywords": [],
+      "launcherProjects": []
+    }
+  ],
+  "contexts": [
+    {
+      "id": "work",
+      "label": "[W]",
+      "name": "Work",
+      "features": [
+        "status",
+        "slack",
+        "jira",
+        "routines"
+      ],
+      "searchScope": "work",
+      "color": "blue",
+      "workHours": {
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "from": "09:00",
+        "to": "18:00"
+      },
+      "autoSwitch": true,
+      "calendars": [],
+      "checkInMinutes": 15,
+      "music": {
+        "onCall": "lower",
+        "callVolume": 2,
+        "pauseWhenAway": true,
+        "resume": true,
+        "startWith": ""
+      }
+    },
+    {
+      "id": "private",
+      "label": "[P]",
+      "name": "Private",
+      "features": [],
+      "searchScope": "private",
+      "color": "green",
+      "workHours": null,
+      "autoSwitch": false,
+      "calendars": [],
+      "checkInMinutes": 15,
+      "music": {
+        "onCall": "lower",
+        "callVolume": 2,
+        "pauseWhenAway": true,
+        "resume": true,
+        "startWith": ""
+      }
+    }
+  ],
+  "links": [],
+  "music": [],
+  "search": {
+    "scopes": [
+      {
+        "name": "journal",
+        "entries": [
+          "1-Journal/"
+        ]
+      },
+      {
+        "name": "work",
+        "entries": [
+          "2-Work/",
+          "journal"
+        ]
+      },
+      {
+        "name": "private",
+        "entries": [
+          "3-Personal/",
+          "journal"
+        ]
+      },
+      {
+        "name": "all",
+        "entries": [
+          "/"
+        ]
+      }
+    ],
+    "exclude": [
+      "_/",
+      ".obsidian/",
+      ".trash/"
+    ]
+  },
+  "journal": [
+    {
+      "title": "Dawn",
+      "callout": "NOTE",
+      "folded": false,
+      "questions": [
+        {
+          "question": "What am I grateful for?",
+          "hint": "Small things count too",
+          "kind": "list"
+        },
+        {
+          "question": "My current goal",
+          "hint": "Where do I want to be in a year?",
+          "kind": "text"
+        },
+        {
+          "question": "The \"One Thing\"",
+          "hint": "What would I do today even without pay?",
+          "kind": "task"
+        }
+      ],
+      "timing": {
+        "due": {
+          "from": "10:00",
+          "to": "13:00"
+        },
+        "openWhenDue": true,
+        "openOn": []
+      }
+    },
+    {
+      "title": "Dusk",
+      "callout": "NOTE",
+      "folded": false,
+      "questions": [
+        {
+          "question": "Three things I'm proud of",
+          "hint": "What went well? What did I add?",
+          "kind": "list"
+        },
+        {
+          "question": "Which task should I have done or dropped today?",
+          "hint": "How could the day have gone better?",
+          "kind": "text"
+        },
+        {
+          "question": "What did I learn today?",
+          "hint": "Track personal and professional growth",
+          "kind": "text"
+        }
+      ],
+      "timing": {
+        "due": {
+          "from": "17:30",
+          "to": ""
+        },
+        "openWhenDue": true,
+        "openOn": []
+      }
+    },
+    {
+      "title": "Health",
+      "callout": "HEART",
+      "folded": true,
+      "questions": [],
+      "timing": {
+        "due": null,
+        "openWhenDue": false,
+        "openOn": []
+      }
+    }
+  ],
+  "routines": [
+    {
+      "id": "morning",
+      "name": "Morning",
+      "contexts": [
+        "work"
+      ],
+      "steps": [
+        {
+          "title": "Plan day (Slack)",
+          "link": "",
+          "days": []
+        },
+        {
+          "title": "Book meeting rooms",
+          "link": "",
+          "days": []
+        },
+        {
+          "title": "Review Jira tasks assigned to me",
+          "link": "",
+          "days": []
+        },
+        {
+          "title": "Give one piece of feedback today",
+          "link": "",
+          "days": []
+        }
+      ],
+      "timing": {
+        "due": {
+          "from": "09:45",
+          "to": "13:00"
+        },
+        "openWhenDue": true,
+        "openOn": [
+          "start"
+        ]
+      }
+    },
+    {
+      "id": "evening",
+      "name": "Evening",
+      "contexts": [
+        "work"
+      ],
+      "steps": [
+        {
+          "title": "Time recording",
+          "link": "https://time.example.com",
+          "days": []
+        },
+        {
+          "title": "Brag doc: anything worth logging today?",
+          "link": "3-Personal/Work-Log.md",
+          "days": []
+        }
+      ],
+      "timing": {
+        "due": {
+          "from": "18:00",
+          "to": ""
+        },
+        "openWhenDue": true,
+        "openOn": [
+          "off"
+        ]
+      }
+    }
+  ],
+  "reminders": [
+    {
+      "kind": "meeting",
+      "enabled": true,
+      "minutesBefore": 60
+    },
+    {
+      "kind": "routine",
+      "enabled": true,
+      "routine": "morning"
+    },
+    {
+      "kind": "routine",
+      "enabled": true,
+      "routine": "evening"
+    },
+    {
+      "kind": "journal",
+      "enabled": true,
+      "group": "Dawn"
+    },
+    {
+      "kind": "journal",
+      "enabled": true,
+      "group": "Dusk"
+    },
+    {
+      "kind": "journal",
+      "enabled": true,
+      "group": "Health"
+    },
+    {
+      "kind": "todos",
+      "enabled": false,
+      "span": "today",
+      "from": "16:00",
+      "to": ""
+    }
+  ],
+  "rail": {
+    "enabled": true,
+    "edges": "right",
+    "showDuringMeetings": true,
+    "callEdge": "right",
+    "callPosition": "center",
+    "triggerWidth": 2,
+    "triggerSpan": "full",
+    "showDelay": 200,
+    "hideDelay": 700,
+    "shape": "pill",
+    "size": "regular",
+    "theme": "system",
+    "highlight": "tinted",
+    "captions": true,
+    "position": "center",
+    "fadeWhenIdle": false,
+    "tooltipDelay": 300,
+    "hoverMenus": true
+  },
+  "tools": [
+    {
+      "id": "context",
+      "rail": true,
+      "window": true
+    },
+    {
+      "id": "status",
+      "rail": true,
+      "window": true
+    },
+    {
+      "id": "activity",
+      "rail": true,
+      "window": true
+    },
+    {
+      "id": "call",
+      "rail": true,
+      "window": true
+    },
+    {
+      "id": "separator1",
+      "rail": true,
+      "window": true
+    },
+    {
+      "id": "journal",
+      "rail": true,
+      "window": true
+    },
+    {
+      "id": "hub",
+      "rail": true,
+      "window": false
+    },
+    {
+      "id": "search",
+      "rail": true,
+      "window": true
+    },
+    {
+      "id": "jira",
+      "rail": true,
+      "window": true
+    },
+    {
+      "id": "quickNotes",
+      "rail": true,
+      "window": true
+    },
+    {
+      "id": "separator2",
+      "rail": true,
+      "window": true
+    },
+    {
+      "id": "links",
+      "rail": true,
+      "window": true
+    },
+    {
+      "id": "projects",
+      "rail": true,
+      "window": true
+    },
+    {
+      "id": "music",
+      "rail": true,
+      "window": true
+    }
+  ],
+  "hotkeys": {
+    "switchActivity": "cmd+f2",
+    "toggleStatus": "cmd+f1",
+    "jiraOpen": "ctrl+alt+cmd+j",
+    "journal": "ctrl+alt+cmd+n",
+    "search": "ctrl+alt+cmd+f",
+    "toggleRail": "ctrl+alt+cmd+r",
+    "hub": "",
+    "links": "ctrl+alt+cmd+l",
+    "quickNotes": "ctrl+alt+cmd+m",
+    "switchContext": "",
+    "focus": "",
+    "music": "",
+    "palette": "",
+    "projects": ""
+  },
+  "api": {
+    "enabled": false,
+    "port": 27180,
+    "token": "",
+    "presentations": true
+  },
+  "jira": {
+    "baseUrl": "",
+    "defaultPrefix": ""
+  }
+}
