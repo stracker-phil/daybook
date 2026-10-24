@@ -152,6 +152,7 @@ src-tauri/
   src/store/                 JsonFile, JsonStore, settings/, keybindings.rs, ui_state.rs
   src/commands.rs            settings, keybindings, ui state, window, links, folders, logs
   src/bus/                   the command bus and the app's commands (commands.md)
+  src/contexts/ projects/    the current context and switching it; the projects gate
   src/tools/                 the tools and their choices, which tools a surface shows
   src/palette/               palette entries, ranking, running a pick
   src/shortcuts/             global shortcuts, accelerator names

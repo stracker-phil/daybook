@@ -7,6 +7,7 @@ import { Toasts } from "./components/Toasts";
 import { handleKeydown, installCommands } from "./commands";
 import { answerRemote } from "./commands/remote";
 import { applyAppearance, useSystemDark } from "./lib/theme";
+import { useContextColor } from "./lib/useContextColor";
 import { flushUiState, useStore } from "./state/store";
 import "./styles";
 
@@ -66,6 +67,7 @@ export default function App() {
   const settings = useStore((s) => s.settings);
   const systemDark = useSystemDark();
   useBackendEvents();
+  useContextColor();
 
   useEffect(() => {
     if (settings) applyAppearance(settings, systemDark);

@@ -94,7 +94,8 @@ select.input:focus { box-shadow: var(--control-shadow), var(--focus-ring); }
 .link-btn { margin: 0; padding: 0; border: none; border-radius: 0.308rem; background: none; color: var(--accent-text); font-size: inherit; }
 .accent-swatches { display: flex; gap: var(--space-2); }
 .accent-swatches button { width: 1.231rem; height: 1.231rem; padding: 0; border-radius: 50%; border: none; box-shadow: inset 0 0 0 0.5px var(--fill-strong); }
-.accent-swatches button[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--bg), 0 0 0 0.308rem var(--o3); }
+.accent-swatches button[data-context] { background: var(--context); }
+.accent-swatches button:is([aria-pressed="true"], [aria-checked="true"]) { box-shadow: 0 0 0 2px var(--bg), 0 0 0 0.308rem var(--o3); }
 /* The System swatch: the accent hues around a circle, as macOS shows its multicolor choice. */
 .accent-swatches .accent-system {
   background: conic-gradient(var(--a-red), var(--a-orange), var(--a-gold), var(--a-teal), var(--a-blue), var(--a-indigo), var(--a-purple), var(--a-magenta), var(--a-red));

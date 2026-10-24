@@ -174,6 +174,16 @@ async fn remember_front_app(app: &AppHandle) {
     panel(app).state.lock_unpoisoned().remember(target, active);
 }
 
+/// The open overlay's view.
+pub fn view(app: &AppHandle) -> Option<String> {
+    let panel = panel(app);
+    let state = panel.state.lock_unpoisoned();
+    state
+        .is_open()
+        .then(|| state.session().map(|s| s.view.clone()))
+        .flatten()
+}
+
 /// The open overlay's session.
 pub fn session_id(app: &AppHandle) -> Option<u32> {
     let panel = panel(app);

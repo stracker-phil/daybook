@@ -279,6 +279,24 @@ Context menus use the UI font, 22px items with a 6px radius; the hovered or focu
 Daybook's own overlay panel (a non-activating window over other apps), the rail and the quick notes editor are
 separate windows; they come with steps 04, 16 and 20 and get their sections here then.
 
+## Contexts
+
+Each context has a colour (Settings → Contexts). `styles/context.css` turns `data-context="<colour>"` on any
+element into `--context` (the palette's hue for that colour: `--a-blue`, `--a-magenta` for pink, `--a-gold` for
+yellow, `--style-green` for green, …) and `--context-tint` (16 % of it). Both windows put the current context's
+colour on the root (`useContextColor`), so pills, selection tints and progress dots use `var(--context)`; there
+is no colour literal outside the palettes.
+
+**The switcher** (⌥⌘F1 with the prototype's keys, `context:switch`, the menu-bar menu's Context submenu): an
+overlay listing the contexts, numbered ⌘1…⌘9, the current one marked by a "Current" pill in its colour. ↑↓
+move, ↵ or ⌘n switches, Esc closes; choosing the current one only closes. The menu bar shows the current
+context's emoji.
+
+**Settings → Contexts and Projects** (group Setup) have one card per item, with Move Up, Move Down and
+Remove, and Add below the cards. A context: name, emoji, features, colour swatches, search scope, work hours
+(weekday toggles and times) and switching automatically when they start. A project: name, active, contexts
+(an inline list with ✕ and a type-to-add field that keeps the focus), meeting words and Slack emoji.
+
 ## Palette
 
 ⌘K, the palette tool and its global shortcut open it as an overlay over any app (`PaletteView`); ⌘K again

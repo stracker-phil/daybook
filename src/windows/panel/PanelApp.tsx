@@ -2,7 +2,9 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api, type PanelSession } from "../../api";
 import { useTabTrap } from "../../lib/useTabTrap";
 import { applyAppearance, systemIsDark } from "../../lib/theme";
+import { useContextColor } from "../../lib/useContextColor";
 import { handlePanelKeydown, installPanelCommands } from "./commands";
+import { ContextView } from "./ContextView";
 import { PaletteView } from "./PaletteView";
 import { SampleView } from "./SampleView";
 
@@ -10,6 +12,8 @@ installPanelCommands();
 
 function View({ session }: { session: PanelSession }) {
   switch (session.view) {
+    case "context":
+      return <ContextView />;
     case "palette":
       return <PaletteView />;
     case "sample":
@@ -25,6 +29,7 @@ export function PanelApp() {
   const [session, setSession] = useState<PanelSession | null>(null);
   const root = useRef<HTMLDivElement>(null);
   useTabTrap(root);
+  useContextColor();
 
   useEffect(() => {
     // A session sent before this page listened is asked for once.

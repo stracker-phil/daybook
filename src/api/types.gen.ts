@@ -57,9 +57,23 @@ calendars: Array<string>,
 checkInMinutes: number, music: ContextMusic, };
 
 /**
+ * The payload of `context_changed`.
+ */
+export type ContextChanged = { id: string, };
+
+/**
  * Each context's hue: the current item in overlays, progress, the timeline's work hours.
  */
 export type ContextColor = "blue" | "purple" | "pink" | "red" | "orange" | "yellow" | "green" | "teal" | "graphite";
+
+/**
+ * A context as the switcher shows it.
+ */
+export type ContextItem = { id: string, 
+/**
+ * `🐈 Personal`
+ */
+title: string, color: ContextColor, };
 
 /**
  * What Daybook does with the music by itself while a context is active.
@@ -81,6 +95,8 @@ resume: boolean,
  * Id of the entry started with the day's first Working; empty: none.
  */
 startWith: string, };
+
+export type ContextState = { contexts: Array<ContextItem>, current: string | null, };
 
 export type DailyNote = { 
 /**

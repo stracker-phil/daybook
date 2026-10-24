@@ -10,6 +10,8 @@ pub const WINDOW_OPENED_EVENT: &str = "window_opened";
 pub const NOTE_CHANGED_EVENT: &str = "note_changed";
 /// To the overlay window. Payload: the `PanelSession` to render, `null` once it closed.
 pub const PANEL_SESSION_EVENT: &str = "panel_session";
+/// Payload: a `ContextChanged`; another context became current.
+pub const CONTEXT_CHANGED_EVENT: &str = "context_changed";
 /// Payload: the saved `Settings`.
 pub const SETTINGS_CHANGED_EVENT: &str = "settings_changed";
 /// To the Daybook window. Payload: the Settings page to open, `null` for the first.

@@ -1293,3 +1293,45 @@ mod journal {
         assert_eq!(settings.routines[0].steps[0].days, [1, 5]);
     }
 }
+
+mod routine_days {
+    use super::*;
+
+    fn routine() -> Routine {
+        let routines = Routine::read_all(&[json!({
+            "name": "Morning",
+            "steps": [
+                { "title": "Plan day" },
+                { "title": "Weekly report", "days": [5] },
+                { "title": "Book rooms", "days": [1, 3] }
+            ]
+        })]);
+        routines.into_iter().next().unwrap()
+    }
+
+    fn titles(routine: &Routine, weekday: u8) -> Vec<(usize, &str)> {
+        routine
+            .steps_on(weekday)
+            .into_iter()
+            .map(|(index, step)| (index, step.title.as_str()))
+            .collect()
+    }
+
+    #[test]
+    fn daily_items_and_the_ones_due_that_weekday_are_kept_with_their_position() {
+        assert_eq!(titles(&routine(), 3), [(0, "Plan day"), (2, "Book rooms")]);
+    }
+
+    #[test]
+    fn the_friday_item_is_due_on_fridays() {
+        assert_eq!(
+            titles(&routine(), 5),
+            [(0, "Plan day"), (1, "Weekly report")]
+        );
+    }
+
+    #[test]
+    fn only_daily_items_are_due_on_a_day_no_item_names() {
+        assert_eq!(titles(&routine(), 0), [(0, "Plan day")]);
+    }
+}

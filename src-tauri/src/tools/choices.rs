@@ -2,8 +2,8 @@
 
 use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, percent_decode_str, utf8_percent_encode};
 
-use super::context_title;
 use super::state::{LinkItem, Progress, Status, ToolState};
+use crate::contexts::context_title;
 use crate::store::settings::{Feature, ToolId};
 
 #[derive(Clone, Debug, PartialEq)]

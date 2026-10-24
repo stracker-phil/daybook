@@ -74,3 +74,16 @@
 .shortcut-field.recording { box-shadow: inset 0 0 0 1px var(--field-line), var(--focus-ring); color: var(--o3); }
 .shortcut-field.unbound { color: var(--o3); font-style: italic; }
 .shortcut-conflicts { padding: var(--space-2) var(--space-2); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--style-yellow) 14%, transparent); color: var(--style-yellow); font-size: var(--fs-meta); }
+
+/* Card-per-item pages (Contexts, Projects) */
+.check-row { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); }
+.work-hours { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.time-range { display: flex; align-items: center; gap: var(--space-2); }
+.input.time { width: 6.923rem; }
+.item-actions { display: flex; justify-content: flex-end; gap: var(--space-2); width: 100%; }
+.choice-list { display: flex; flex-direction: column; gap: var(--space-2); width: 100%; }
+.choice-list ul { list-style: none; margin: 0; padding: 0; }
+.choice-list > ul:first-child li { display: flex; align-items: center; gap: var(--space-2); padding: 0.154rem 0; }
+.choice-matches { border-radius: var(--radius-sm); box-shadow: inset 0 0 0 1px var(--line); padding: var(--space-1); }
+.choice-matches li { padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); }
+.choice-matches li.active { background: var(--fill); }

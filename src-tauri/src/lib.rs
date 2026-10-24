@@ -4,6 +4,7 @@ pub mod bus;
 pub mod cli;
 pub mod clock;
 pub mod commands;
+pub mod contexts;
 pub mod deep_link;
 #[cfg(debug_assertions)]
 mod dev;
@@ -20,6 +21,7 @@ pub mod notify;
 pub mod palette;
 pub mod pending;
 pub mod process;
+pub mod projects;
 pub mod remote;
 pub mod shortcuts;
 pub mod state;

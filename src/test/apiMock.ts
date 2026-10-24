@@ -19,6 +19,7 @@ export function createApiMock(): typeof realApi {
     autostartStatus: vi.fn().mockResolvedValue(false),
     openLogFolder: vi.fn().mockResolvedValue(undefined),
     runCommand: vi.fn().mockResolvedValue(undefined),
+    contextState: vi.fn().mockResolvedValue({ contexts: [], current: null }),
     paletteQuery: vi.fn().mockResolvedValue({ prefix: null, prefixes: [], groups: [] }),
     paletteRun: vi.fn().mockResolvedValue(undefined),
     shortcutsPause: vi.fn().mockResolvedValue(undefined),
@@ -43,6 +44,7 @@ export function createApiMock(): typeof realApi {
     onOpenSettings: vi.fn(noUnlisten),
     onRemote: vi.fn(noUnlisten),
     onSettingsChanged: vi.fn(noUnlisten),
+    onContextChanged: vi.fn(noUnlisten),
     onNoteChanged: vi.fn(noUnlisten),
   };
 }

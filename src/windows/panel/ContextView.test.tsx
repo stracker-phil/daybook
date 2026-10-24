@@ -1,0 +1,95 @@
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../../api", async (orig) => ({ ...(await orig<object>()), api: (await import("../../test/apiMock")).createApiMock() }));
+
+import { api, type ContextState } from "../../api";
+import { ContextView } from "./ContextView";
+
+const mocked = vi.mocked(api, true);
+
+const STATE: ContextState = {
+  contexts: [
+    { id: "work", title: "[W] Work", color: "blue" },
+    { id: "private", title: "[P] Private", color: "green" },
+    { id: "side", title: "Side", color: "pink" },
+  ],
+  current: "work",
+};
+
+const selected = () => screen.getAllByRole("option").find((o) => o.getAttribute("aria-selected") === "true")?.textContent;
+
+async function renderView(state: ContextState = STATE) {
+  mocked.contextState.mockResolvedValue(state);
+  render(<ContextView />);
+  await screen.findByRole("listbox", { name: "Contexts" });
+  await screen.findByRole("option", { name: /Private/ });
+}
+
+describe("ContextView", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("lists the contexts with their numbers and marks the current one", async () => {
+    await renderView();
+    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["⌘1[W] WorkCurrent", "⌘2[P] Private", "⌘3Side"]);
+  });
+
+  it("starts on the current context", async () => {
+    await renderView({ ...STATE, current: "private" });
+    expect(selected()).toBe("⌘2[P] PrivateCurrent");
+  });
+
+  it("switches to the second context with ⌘2", async () => {
+    await renderView();
+    await userEvent.keyboard("{Meta>}2{/Meta}");
+    expect(mocked.runCommand).toHaveBeenCalledWith("mode:private");
+  });
+
+  it("ignores a number without ⌘", async () => {
+    await renderView();
+    await userEvent.keyboard("2");
+    expect(mocked.runCommand).not.toHaveBeenCalled();
+  });
+
+  it("ignores a number beyond the last context", async () => {
+    await renderView();
+    await userEvent.keyboard("{Meta>}9{/Meta}");
+    expect(mocked.runCommand).not.toHaveBeenCalled();
+  });
+
+  it("moves with the arrow keys, wraps, and switches the active context on Enter", async () => {
+    await renderView();
+    await userEvent.keyboard("{ArrowDown}{ArrowDown}");
+    expect(selected()).toBe("⌘3Side");
+    await userEvent.keyboard("{ArrowDown}");
+    expect(selected()).toBe("⌘1[W] WorkCurrent");
+    await userEvent.keyboard("{ArrowUp}{Enter}");
+    expect(mocked.runCommand).toHaveBeenCalledWith("mode:side");
+  });
+
+  it("switches to the clicked context", async () => {
+    await renderView();
+    await userEvent.click(screen.getByRole("option", { name: /Side/ }));
+    expect(mocked.runCommand).toHaveBeenCalledWith("mode:side");
+  });
+
+  it("runs the switch command also for the current context, so Rust closes the overlay", async () => {
+    await renderView();
+    await userEvent.keyboard("{Enter}");
+    expect(mocked.runCommand).toHaveBeenCalledWith("mode:work");
+  });
+
+  it("shows the message of a rejected switch", async () => {
+    mocked.runCommand.mockRejectedValueOnce({ kind: "io", message: "Could not switch", code: null });
+    await renderView();
+    await userEvent.keyboard("{Meta>}2{/Meta}");
+    expect(await screen.findByText("Could not switch")).toBeInTheDocument();
+  });
+
+  it("shows the message of a failed load", async () => {
+    mocked.contextState.mockRejectedValue({ kind: "io", message: "Settings unreadable", code: null });
+    render(<ContextView />);
+    expect(await screen.findByText("Settings unreadable")).toBeInTheDocument();
+  });
+});

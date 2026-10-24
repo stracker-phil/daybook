@@ -2,7 +2,7 @@
 
 use tauri::ipc::Invoke;
 
-use crate::{autostart, bus, commands, palette, remote, shortcuts, vault, window};
+use crate::{autostart, bus, commands, contexts, palette, remote, shortcuts, vault, window};
 
 pub fn handlers() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
     tauri::generate_handler![
@@ -21,6 +21,7 @@ pub fn handlers() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         commands::choose_folder,
         commands::reveal_path,
         bus::app::run_command,
+        contexts::context_state,
         palette::palette_query,
         palette::palette_run,
         shortcuts::shortcuts_pause,

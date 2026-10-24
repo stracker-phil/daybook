@@ -10,3 +10,8 @@
 .palette-prefix { display: inline-flex; align-items: center; gap: var(--space-1); padding: 0; border: none; background: none; color: inherit; font: inherit; cursor: default; }
 .palette-prefix:hover, .palette-prefix.on { color: var(--text); }
 .palette-error { color: var(--style-red); }
+.panel-heading { padding: var(--space-3) var(--space-4) var(--space-2); font-size: var(--fs-meta); font-weight: 600; }
+.context-view .palette-list { border-top: 1px solid var(--line); outline: none; }
+.context-number { flex: none; width: 1.846rem; font-size: var(--fs-meta); }
+/* The active row is accent-filled, so the pill reads on it in white. */
+.palette-list li.active .context-pill { background: color-mix(in srgb, var(--on-accent) 22%, transparent); color: inherit; }

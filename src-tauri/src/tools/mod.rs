@@ -11,12 +11,3 @@ pub use choices::{Choice, Step, choice_commands, link_command, link_target, tool
 pub use snapshot::snapshot;
 pub use state::*;
 pub use visibility::{Surface, visible_tools};
-
-/// "🐈 Personal": the context's label (an emoji) before its name.
-pub fn context_title(label: &str, name: &str) -> String {
-    [label.trim(), name]
-        .into_iter()
-        .filter(|part| !part.is_empty())
-        .collect::<Vec<_>>()
-        .join(" ")
-}

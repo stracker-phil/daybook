@@ -31,7 +31,7 @@ notification (`notify.rs`). The managed `bus::Commands` holds the app's bus, fil
 
 ### The commands so far
 
-`bus/commands.rs` registers the app's own commands; each feature adds its own with its step.
+`bus/commands.rs` registers the app's own commands; each feature adds its own with its step (`contexts::register`).
 
 | Id | Title | Notes |
 |---|---|---|
@@ -45,6 +45,8 @@ notification (`notify.rs`). The managed `bus::Commands` holds the app's bus, fil
 | `palette:open` | Command Palette… | the palette overlay; again closes it |
 | `daily:open` | Open Today's Note | needs a vault; creates the note when missing |
 | `daily:create` | Create Today's Note | needs a vault; disabled while Obsidian creates it |
+| `context:switch` | Switch Context… | needs a vault; the switcher overlay (`contexts/`) |
+| `mode:<context>` | Switch to a context | family; needs a vault; choices: the contexts |
 | `sample:open`, `sample:sticky` | Sample Overlay (Sticky) | debug builds only |
 
 ## Tools and their choices
@@ -53,7 +55,8 @@ notification (`notify.rs`). The managed `bus::Commands` holds the app's bus, fil
 today's note, the contexts and the current one with its features, the status, journal and routine progress,
 links (matching now and the rest), projects, the call, music, search scopes, today's topics and tickets.
 `tools::snapshot(app)` builds it from the running app; each feature fills its part with its step (for now
-the vault, today's note and the contexts).
+the vault, today's note, the contexts with the current one and its features, and the current projects' Launcher
+projects).
 
 - `tool_choices(ToolId, &ToolState)` lists what a tool lets you pick: `Choice::Item` (label, command,
   detail, `checked` for a pick among several), `Heading`, `Separator` and `Steps` (a scale such as the

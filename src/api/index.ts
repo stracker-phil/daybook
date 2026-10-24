@@ -2,6 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   AppError,
+  ContextChanged,
+  ContextState,
   DailyNoteState,
   ErrorKind,
   Keybindings,
@@ -32,6 +34,8 @@ export const api = {
   openLogFolder: () => invoke<void>("open_log_folder"),
   /** Runs a command of the Rust command bus by id (`app:settings`, `hub:open`, …); rejects when it is unknown, disabled or fails. */
   runCommand: (id: string) => invoke<void>("run_command", { id }),
+  /** The contexts as the switcher shows them, and the current one. */
+  contextState: () => invoke<ContextState>("context_state"),
   /** The palette's results for what was typed, grouped by kind. */
   paletteQuery: (query: string) => invoke<PaletteResults>("palette_query", { query }),
   /** Runs a palette pick; the palette closes or another overlay replaces it. */
@@ -70,6 +74,8 @@ export const api = {
   onWindowOpened: (handler: () => void): Promise<UnlistenFn> => listen("window_opened", handler),
   /** To the Daybook window: open Settings at this page (`null`: the first). */
   onOpenSettings: (handler: (page: string | null) => void): Promise<UnlistenFn> => listen<string | null>("open_settings", (e) => handler(e.payload)),
+  /** Another context became current. */
+  onContextChanged: (handler: (change: ContextChanged) => void): Promise<UnlistenFn> => listen<ContextChanged>("context_changed", (e) => handler(e.payload)),
   /** Settings were saved, from any window. */
   onSettingsChanged: (handler: (settings: Settings) => void): Promise<UnlistenFn> => listen<Settings>("settings_changed", (e) => handler(e.payload)),
   /** A daily note, or the changes waiting for today's note, changed. */

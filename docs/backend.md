@@ -106,6 +106,7 @@ itself. Panics unwind ([ADR 0005](adr/0005-panic-unwind.md)), so code takes `std
 | `ui_state` | `UiStateStore` | `ui_state.json` |
 | `launches` | `LaunchQueue` | launch events the page has not taken yet |
 | `notes` | `Arc<DailyNotes>` | the vault service: `pending-entries.json`, the writer, the watcher ([vault.md](vault.md)) |
+| `contexts` | `Contexts` | `context.json`, the current context, the work-hours check |
 
 Managed beside it: `remote::Bridge` (requests waiting for the page), `window::panel::Panel` (the overlay),
 `bus::Commands` (the command bus), `shortcuts::Pause` and `tray::Shown` (what the menu-bar item shows).
@@ -130,6 +131,7 @@ its module.
 | `take_launch_events` | – | `LaunchEvent[]` (`error`, `notice`, `activate`) | – |
 | `choose_folder` | – | `string \| null` (the folder panel, which can create a folder; `null` when cancelled) | `io` |
 | `reveal_path` | `path: String` | – (Finder shows the enclosing folder with `path` selected) | `io` |
+| `context_state` (`contexts/mod.rs`) | – | `ContextState` | – |
 | `run_command` (`bus/app.rs`) | `id: String` | – (runs a bus command, [commands.md](commands.md)) | `not_found` (unknown), `invalid_input` (disabled), the command's error |
 | `palette_query`, `palette_run` (`palette/mod.rs`) | `query` / `command` | `PaletteResults` / – ([commands.md](commands.md#palette)) | `palette_run`: `not_found` |
 | `shortcuts_pause` (`shortcuts/mod.rs`) | `paused: bool` | – (global shortcuts and the app menu's keys step aside) | – |
@@ -154,6 +156,7 @@ its module.
 | `WINDOW_OPENED_EVENT` | `window_opened` | none; `window::show_main_in_background` showed the hidden window |
 | `PANEL_SESSION_EVENT` | `panel_session` | to the overlay window: the `PanelSession` to render, `null` once it closed ([windows.md](windows.md#the-overlay)) |
 | `NOTE_CHANGED_EVENT` | `note_changed` | `NoteChanged { day }`: today's note, the waiting changes or another daily note changed ([vault.md](vault.md#watcher)) |
+| `CONTEXT_CHANGED_EVENT` | `context_changed` | `ContextChanged { id }`: another context became current |
 | `OPEN_SETTINGS_EVENT` | `open_settings` | to the Daybook window: the Settings page to open, `null` for the first (`window::open_settings`) |
 | `SETTINGS_CHANGED_EVENT` | `settings_changed` | the saved `Settings`, after every `update_settings` and `autostart_set` |
 
@@ -286,6 +289,30 @@ unknown id is logged at debug. `RemoteRequest` (tagged by `type`) has no variant
 Every link goes through `launch::queue`, so a link that starts the app waits for the page. A link that does
 not parse or names nothing becomes `IpcMessage::Error` (`A daybook:// link failed: Daybook has no such
 link`): the window shows a toast.
+
+## Contexts and projects
+
+**Contexts** (`contexts/`). The contexts themselves are in the settings; `context.json` (`Active { id, setAt }`,
+imported from the prototype's `mode.json`) says which is current. `contexts::current` is the stored one, else the
+first; `Contexts` (in `AppState`) reads and sets it and gives the current context's features.
+
+- **Switching.** `mode:<id>` (a family, needs a vault) switches by hand and closes the switcher if it made the
+  switch; `context:switch` opens the switcher overlay (`context` view). A switch saves `context.json`, logs,
+  emits `context_changed` (`ContextChanged { id }`) and refreshes the menu-bar item, whose title is the
+  current context's emoji.
+- **Work hours.** `contexts::start` checks every 30 s. `AutoSwitch::check` (`contexts/schedule.rs`, pure)
+  switches to the first context with auto-switch whose work hours contain now, when they start; a switch by
+  hand holds until the next start, and nothing happens when they end. On the first check after launch, hours
+  that started after the last switch still win. Hours whose end is before their start run past midnight. An
+  automatic switch shows a notification ("Switched to Nexo", "Was Personal.").
+- `context_state` returns the switcher's `ContextState { contexts: [{ id, title, color }], current }`;
+  `context_title` is "🐈 Personal".
+
+**Projects** (`projects/`, pure). `current_projects(projects, context)`: the active projects with no contexts or
+with the current one. It is the only source for offering, picking or matching a project. `meeting_project(title,
+projects)`: the first whose name or meeting word is in the title, ignoring case. `project_groups` lists their
+Launcher projects (the Projects tool), the current project first. `follow_projects` runs in `update_settings`:
+links bound to a project follow its rename in place, and a removed project is dropped from them.
 
 ## Tray
 

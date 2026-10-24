@@ -1,0 +1,19 @@
+/* A context's colour as `--context` (text, dots, pills) and `--context-tint` (selection, highlights), on any element
+   with `data-context`; the root carries the current context's. Built from the palettes' hues, so each scheme keeps
+   its contrast (docs/ux.md, Context colours). */
+[data-context="blue"] { --context: var(--a-blue); }
+[data-context="purple"] { --context: var(--a-purple); }
+[data-context="pink"] { --context: var(--a-magenta); }
+[data-context="red"] { --context: var(--a-red); }
+[data-context="orange"] { --context: var(--a-orange); }
+[data-context="yellow"] { --context: var(--a-gold); }
+[data-context="green"] { --context: var(--style-green); }
+[data-context="teal"] { --context: var(--a-teal); }
+[data-context="graphite"] { --context: var(--a-graphite); }
+[data-context] { --context-tint: color-mix(in srgb, var(--context) 16%, transparent); }
+
+/* The current item in a list, e.g. the current context in the switcher. */
+.context-pill {
+  flex: none; padding: 0.077rem var(--space-2); border-radius: 999px; font-size: var(--fs-meta); font-weight: 600;
+  background: var(--context-tint); color: var(--context);
+}

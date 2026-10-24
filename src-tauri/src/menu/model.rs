@@ -3,10 +3,9 @@
 pub use super::prune::prune;
 use super::prune::tidy;
 pub use crate::bus::CommandStatus;
+use crate::contexts::context_title;
 use crate::store::settings::{Feature, Hotkeys, ToolId, ToolPlacement};
-use crate::tools::{
-    Choice, Link, LinkItem, Status, Step, ToolState, context_title, link_command, tool_choices,
-};
+use crate::tools::{Choice, Link, LinkItem, Status, Step, ToolState, link_command, tool_choices};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum MenuEntry {

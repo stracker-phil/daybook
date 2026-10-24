@@ -219,6 +219,15 @@ pub struct Routine {
 }
 
 impl Routine {
+    /// The items due on `weekday` (0 = Sunday), with their position in the routine.
+    pub fn steps_on(&self, weekday: u8) -> Vec<(usize, &RoutineStep)> {
+        self.steps
+            .iter()
+            .enumerate()
+            .filter(|(_, step)| step.days.is_empty() || step.days.contains(&weekday))
+            .collect()
+    }
+
     /// Routines need a name; ids are unique.
     pub fn read_all(raw: &[Value]) -> Vec<Self> {
         let mut seen = HashSet::new();

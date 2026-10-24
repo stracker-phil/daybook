@@ -41,12 +41,12 @@ describe("SettingsDialog", () => {
 
     it("lists the pages in order", () => {
       renderDialog();
-      expect(within(nav()).getAllByRole("button").map((b) => b.textContent?.trim())).toEqual(["General", "Appearance", "Shortcuts"]);
+      expect(within(nav()).getAllByRole("button").map((b) => b.textContent?.trim())).toEqual(["General", "Appearance", "Shortcuts", "Contexts", "Projects"]);
     });
 
-    it("groups them under App", () => {
+    it("groups them under App and Setup", () => {
       renderDialog();
-      expect(nav().textContent).toMatch(/^\s*App\s*General\s*Appearance\s*Shortcuts\s*$/);
+      expect(nav().textContent).toMatch(/^\s*App\s*General\s*Appearance\s*Shortcuts\s*Setup\s*Contexts\s*Projects\s*$/);
     });
 
     it("has no Logging page", () => {

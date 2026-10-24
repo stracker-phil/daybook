@@ -10,7 +10,7 @@ use crate::state::AppState;
 use crate::store::keybindings::Keybindings;
 use crate::store::settings::Settings;
 use crate::store::ui_state::UiState;
-use crate::{shortcuts, tray};
+use crate::{projects, shortcuts, tray};
 
 #[tauri::command]
 pub fn get_settings(state: State<'_, AppState>) -> Settings {
@@ -57,8 +57,10 @@ pub async fn update_settings(
     state: State<'_, AppState>,
     mut settings: Settings,
 ) -> AppResult<Settings> {
+    let previous = state.settings.get();
     // Only `autostart::set` changes launch at login; the page's copy may predate its last toggle.
-    settings.launch_at_login = state.settings.get().launch_at_login;
+    settings.launch_at_login = previous.launch_at_login;
+    projects::follow_projects(&previous.projects, &settings.projects, &mut settings.links);
     save_settings(&app, &state, settings).await
 }
 
