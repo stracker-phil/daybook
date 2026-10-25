@@ -110,6 +110,18 @@ describe("CallsPage", () => {
       expect(slack.getByLabelText("Window title")).toHaveValue("Huddle");
     });
 
+    it("saves the Slack status shown during a call on that rule only", async () => {
+      const { s, set } = await renderPage();
+      const teams = group("Teams");
+      await userEvent.click(teams.getByRole("button", { name: "Edit Slack status" }));
+      const text = teams.getByLabelText("Text");
+      await userEvent.clear(text);
+      await userEvent.type(text, "Calling{Enter}");
+      expect(set).toHaveBeenLastCalledWith({
+        meetings: { ...s.meetings, rules: s.meetings.rules.map((r) => (r.app === "Teams" ? { ...r, slack: { ...r.slack, text: "Calling" } } : r)) },
+      });
+    });
+
     it("saves the flipped enabled state from Recognize calls", async () => {
       const { s, set } = await renderPage();
       await userEvent.click(group("Teams").getByRole("switch", { name: "Recognize calls" }));

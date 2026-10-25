@@ -9,8 +9,8 @@ its window is closed. The layer pages go into detail: [backend](backend.md), [fr
 [design language](ux.md).
 
 The app is a shell so far: a tray icon, the Daybook window (the dark sidebar with the day and the tools, the
-board under a greeting, the inspector column), the Settings window (Vault, Calendar, Contexts, Projects, Daily Note,
-Workflows, Reminders, Calls, General, Tools, Shortcuts, Appearance), the status (Working, Break, Off), the day's calendar events with a timeline and the reminder line, presence and call detection with joining, the overlays (palette,
+board under a greeting, the inspector column), the Settings window (Vault, Calendar, Slack, Contexts, Projects, Daily Note,
+Workflows, Reminders, Calls, General, Tools, Shortcuts, Appearance), the status (Working, Break, Off), the day's calendar events with a timeline and the reminder line, presence and call detection with joining, Slack (status, presence, channel messages, absence heads-ups), the overlays (palette,
 context switcher, status, offer-off), the shortcuts dialog,
 toasts, the native menu and the CLI. The features arrive step by step
 (`docs/plan/README.md`, gitignored).
@@ -28,7 +28,8 @@ no database. The JSON files live in the config dir, `~/Library/Application Suppo
 | `pending-entries.json` | note changes waiting for their daily note | `vault::pending::Pending` |
 | `context.json` | the current context | `contexts::Contexts` |
 | `status-memory.json` | today's status: date, status, since, whether you worked today ([status.md](status.md)) | `status::Statuses` |
-| `jira-tickets.json`, `routines.json`, `day-message.json`, `slack-shown.json` | state imported from the prototype (step 02), read by later steps | – |
+| `slack-shown.json`, `day-message.json` | what Slack shows as Daybook set it; the day's first Working message ([slack.md](slack.md)) | `slack::SlackFiles` |
+| `jira-tickets.json`, `routines.json` | state imported from the prototype (step 02), read by later steps | – |
 
 Each store wraps a `JsonStore` (`store/json_store.rs`) over a `JsonFile` (`store/json_file.rs`): files are
 0600 in a 0700 folder and written atomically; a missing file loads as defaults, unknown keys are ignored and
@@ -51,7 +52,7 @@ These rules hold everywhere in the code. Keep them when you change things.
    (`src/test/boundary.test.ts`) enforces it.
 3. **Errors are data** ([ADR 0003](adr/0003-errors-as-kinds.md)). Every command returns
    `Result<T, AppError>`, serialized as `{ kind, message, field? }` (`ErrorJson` in `error.rs`) with the kinds
-   `io`, `invalid_input`, `not_found` and `cancelled`. The UI branches on `kind` only.
+   `io`, `invalid_input`, `not_found`, `network` and `cancelled`. The UI branches on `kind` only.
 4. **Types are generated** ([ADR 0004](adr/0004-generated-ipc-types.md)). Every type crossing IPC derives
    `ts_rs::TS` and exports to `src/api/types.gen.ts` (camelCase). `bun run types` regenerates it;
    `bun run lint` fails on drift. Never edit the generated file.

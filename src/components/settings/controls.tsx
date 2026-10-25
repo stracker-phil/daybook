@@ -60,9 +60,9 @@ export function Switch({ label, description, checked, onChange, nested }: { labe
   );
 }
 
-export function Segmented<T extends string>({ label, description, ...buttons }: SegmentedControlProps<T> & { description?: ReactNode }) {
+export function Segmented<T extends string>({ label, description, nested, ...buttons }: SegmentedControlProps<T> & { description?: ReactNode; nested?: boolean }) {
   return (
-    <Row label={label} description={description}>
+    <Row label={label} description={description} nested={nested}>
       <SegmentedControl label={label} {...buttons} />
     </Row>
   );

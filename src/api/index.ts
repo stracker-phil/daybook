@@ -21,6 +21,8 @@ import type {
   RemoteEvent,
   Settings,
   ShortcutOverview,
+  SlackIdentity,
+  SlackInfo,
   Status,
   StatusChanged,
   UiState,
@@ -69,6 +71,14 @@ export const api = {
   callsRequestAccess: (permission: Missing) => invoke<boolean>("calls_request_access", { permission }),
   /** An app chosen in the file panel, with its bundle id; null when cancelled. */
   callsPickApp: () => invoke<AppRef | null>("calls_pick_app"),
+  /** Whether a Slack token is stored, and whose it is once checked. The token never comes back. */
+  slackInfo: () => invoke<SlackInfo>("slack_info"),
+  /** Checks the token with Slack, then stores it in the Keychain. */
+  slackConnect: (token: string) => invoke<SlackIdentity>("slack_connect", { token }),
+  /** Checks the stored token with Slack. */
+  slackTest: () => invoke<SlackIdentity>("slack_test"),
+  /** Removes the token from the Keychain. */
+  slackDisconnect: () => invoke<void>("slack_disconnect"),
   /** Where the daily notes are and whether today's note and the Obsidian CLI were found. */
   vaultInfo: () => invoke<VaultInfo>("vault_info"),
   /** While Settings records a shortcut, global shortcuts and the menu's key equivalents step aside. */
@@ -117,6 +127,8 @@ export const api = {
   onCalendarChanged: (handler: () => void): Promise<UnlistenFn> => listen("calendar_changed", handler),
   /** A call started, changed or ended. */
   onCallChanged: (handler: () => void): Promise<UnlistenFn> => listen("call_changed", handler),
+  /** What Slack shows, or the Slack connection, changed. */
+  onSlackChanged: (handler: () => void): Promise<UnlistenFn> => listen("slack_changed", handler),
   /** Settings were saved, from any window. */
   onSettingsChanged: (handler: (settings: Settings) => void): Promise<UnlistenFn> => listen<Settings>("settings_changed", (e) => handler(e.payload)),
   /** Shortcut overrides were saved, from any window. */
@@ -135,6 +147,7 @@ const ERROR_KINDS: Record<ErrorKind, true> = {
   io: true,
   invalid_input: true,
   not_found: true,
+  network: true,
   cancelled: true,
 };
 

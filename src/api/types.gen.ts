@@ -242,7 +242,7 @@ export type EndOfDayCheck = { reminder: string, question: string,
  */
 url: string, };
 
-export type ErrorKind = "io" | "invalid_input" | "not_found" | "cancelled";
+export type ErrorKind = "io" | "invalid_input" | "not_found" | "network" | "cancelled";
 
 export type EventRow = { key: string, 
 /**
@@ -323,7 +323,11 @@ reminder: ReminderLine | null,
 /**
  * The day's events in the current context's calendars.
  */
-events: DayEvents, };
+events: DayEvents, 
+/**
+ * What Slack shows, in contexts with Slack once it is connected.
+ */
+slack: ShownStatus | null, };
 
 /**
  * "Open Jira Issue" opens `base_url` + the key; a bare number gets `default_prefix`.
@@ -718,6 +722,20 @@ export type ShortcutOverview = {
  */
 registered: boolean, global: Array<GlobalShortcut>, menu: Array<MenuShortcut>, };
 
+export type ShownStatus = { 
+/**
+ * A shortcode, `:coffee:`.
+ */
+emoji: string, text: string, 
+/**
+ * Active or away; `None` until Daybook set it.
+ */
+presence: Presence | null, 
+/**
+ * Unix milliseconds when Slack clears emoji and text.
+ */
+expiresAt: number | null, };
+
 export type Slack = { 
 /**
  * The channel (e.g. `#team-status`) that gets the status message on every status change; empty
@@ -728,6 +746,17 @@ channel: string, statuses: StatusMap<SlackStatus>,
  * Off: picking that status leaves Slack alone (no status, no channel message).
  */
 manualWorkflows: StatusMap<boolean>, };
+
+/**
+ * The workspace and the user a token belongs to.
+ */
+export type SlackIdentity = { team: string, user: string, };
+
+export type SlackInfo = { connected: boolean, 
+/**
+ * Who the token belongs to, once checked since the start.
+ */
+identity: SlackIdentity | null, };
 
 /**
  * A Slack status to set.

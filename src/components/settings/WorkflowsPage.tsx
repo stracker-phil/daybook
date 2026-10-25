@@ -1,7 +1,9 @@
 import { Fragment } from "react";
 import type { EndOfDay, Status } from "../../api";
 import type { SettingsPageProps } from "../../registry/settingsPages";
+import { AbsenceWorkflows } from "./AbsenceWorkflows";
 import { Group, Switch, TextField } from "./controls";
+import { SlackStatusField } from "./SlackStatusField";
 
 const STATUSES: { status: Status; label: string }[] = [
   { status: "working", label: "Working and present" },
@@ -26,16 +28,19 @@ const CHECK_FIELDS: CheckField[] = [
 ];
 
 function StatusWorkflows({ s, set }: SettingsPageProps) {
-  const workflows = s.slack.manualWorkflows;
+  const slack = s.slack;
+  const workflows = slack.manualWorkflows;
   const messages = s.statusMessages;
   return (
     <Group
       title="When you pick a status"
-      description="The channel message is a suggestion prefilled in the status overlay: what you confirm there is posted to the availability channel, nothing if you clear it. Picking the status you already have does nothing. A status switched off only sets the status."
+      description="The Slack status is what your profile shows ({note} in its text is your channel message). The channel message is a suggestion prefilled in the status overlay: what you confirm there is posted to the channel, nothing if you clear it, never twice in a row. Picking the status you already have does nothing. A status switched off only sets the status."
     >
+      <TextField label="Channel" description="Status changes post their message here. Empty: no messages." placeholder="#team-status" value={slack.channel} onCommit={(channel) => set({ slack: { ...slack, channel: channel.trim() } })} />
       {STATUSES.map(({ status, label }) => (
         <Fragment key={status}>
-          <Switch label={label} checked={workflows[status]} onChange={(on) => set({ slack: { ...s.slack, manualWorkflows: { ...workflows, [status]: on } } })} />
+          <Switch label={label} checked={workflows[status]} onChange={(on) => set({ slack: { ...slack, manualWorkflows: { ...workflows, [status]: on } } })} />
+          <SlackStatusField nested value={slack.statuses[status]} onChange={(next) => set({ slack: { ...slack, statuses: { ...slack.statuses, [status]: next } } })} />
           <TextField nested label="Channel message" value={messages[status]} placeholder="No message" onCommit={(text) => set({ statusMessages: { ...messages, [status]: text } })} />
           {status === "working" && (
             <TextField
@@ -86,6 +91,7 @@ export function WorkflowsPage(props: SettingsPageProps) {
     <>
       <StatusWorkflows {...props} />
       <EndOfDayCheck {...props} />
+      <AbsenceWorkflows {...props} />
     </>
   );
 }

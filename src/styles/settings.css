@@ -98,3 +98,14 @@
 .choice-matches li { padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); }
 .choice-matches li.active { background: var(--fill); }
 .button-row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+/* A Slack status as Slack shows it: emoji, text, presence. */
+.slack-status { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; max-width: 18rem; }
+.slack-status-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.slack-status-text.empty { color: var(--o2); font-style: italic; }
+.slack-emoji { flex: none; line-height: 1; }
+.slack-emoji.custom { max-width: 6rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--o2); font-size: var(--fs-meta); }
+.slack-presence { display: inline-flex; flex: none; align-items: center; gap: var(--space-1); padding-left: var(--space-2); border-left: 1px solid var(--line); color: var(--o2); font-size: var(--fs-meta); }
+.presence-dot { flex: none; width: 0.615rem; height: 0.615rem; border-radius: 50%; box-sizing: border-box; }
+.presence-dot[data-presence="auto"] { background: var(--style-green); }
+.presence-dot[data-presence="away"] { border: 1.5px solid var(--o2); }

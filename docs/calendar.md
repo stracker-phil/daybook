@@ -33,8 +33,12 @@ reads the current context's calendars on a blocking thread and returns the day's
 (`timed_events`): all-day events, canceled events and invitations the owner declined are left out; the rest is
 sorted by start, in local time. Without calendars or without full access the list is empty.
 
+`events_ahead(app, from, days)` returns every event of the current context's calendars from the start of
+`from` through `days` more days, all-day, canceled and declined ones included (`CalendarEvent`, with `busy`
+from the event's availability), for the absence heads-ups ([slack.md](slack.md#absence-heads-ups)).
+
 `Calendar` (managed state) holds one `EKEventStore` behind a mutex and caches the events of a day per
-calendar list for five minutes: today, plus the last other day the window looked at. `EKEventStoreChangedNotification`
+calendar list for five minutes: today, plus the last other day the window looked at, and the last `events_ahead` range. `EKEventStoreChangedNotification`
 (any event, calendar or access change) drops the cache and emits `calendar_changed`; the Daybook window
 reloads its view and the Settings pages read `calendar_info` again. The window also reloads every minute, so a
 cache older than five minutes is read again within a minute.

@@ -22,6 +22,8 @@ The app's name and ids live in a few places. Change them together.
 | LaunchAgent | `~/Library/LaunchAgents/Daybook.plist`, written by `tauri-plugin-autostart` and named after `productName` | `app.rs` (`MacosLauncher::LaunchAgent`, `--hidden`), `autostart.rs` |
 | Config dir | `~/Library/Application Support/com.philippstracker.daybook/` (debug builds: `….daybook.debug/`) | `lib.rs` `config_dir()` |
 | Prototype import | reads `~/Library/Application Support/app.glaze.macos.2mykv1oc-local/` once (ADR 0013) | `store/import/` (`PROTOTYPE_DIR`); owner-specific: delete the module and its calls in `lib.rs` and `app.rs` (`report_import`) to drop it |
+| Keychain | generic password, service = the bundle identifier, account `slack-token` | `secrets.rs`, `slack/token.rs` |
+| Network hosts | `slack.com` | `net.rs` `HOSTS` ([ADR 0020](adr/0020-network-only-to-listed-hosts.md)) |
 | Logs dir | `~/Library/Logs/com.philippstracker.daybook/` (debug builds: `….daybook.debug/`) | Tauri's `app_log_dir`, from the identifier |
 | Env vars | `DAYBOOK_WINDOW_FRAME`, `DAYBOOK_BACKGROUND` (debug builds), `DAYBOOK_DEV_TERMINAL`, `DAYBOOK_SIGN_IDENTITY` | `dev.rs`, `window.rs`, `scripts/dev/launch.sh`, `scripts/sign-app.sh` |
 | Store on `window` | `window.daybook` | `src/main.tsx`, `src/vite-env.d.ts`, the dev scripts |
@@ -37,6 +39,8 @@ The app's name and ids live in a few places. Change them together.
 | **Calendar**: EventKit through `objc2-event-kit`, the usage strings in `src-tauri/Info.plist` | `calendar/eventkit.rs` | No EventKit: read CalDAV or `.ics` instead behind the same `Store` | No EventKit: the Windows calendar APIs |
 | **Presence**: NSWorkspace sleep/wake, the distributed lock/unlock notifications, `ioreg` for the lock state | `presence/native.rs` | logind / D-Bus session signals | `WTSRegisterSessionNotification` |
 | **Call detection**: `lsappinfo`, `pgrep`, `pmset -g assertions`, `ps`, `CGWindowListCopyWindowInfo`, `osascript` (Chrome tabs), Accessibility window titles; bundle ids in `store/settings/calls.rs` | `calls/probe.rs`, `calls/access.rs`, `calls/checks.rs` | Process names and PulseAudio/PipeWire sources behind the same `Probe` | Process list and the audio session API behind the same `Probe` |
+| **Secrets**: the login Keychain through `security-framework` | `secrets.rs` | Secret Service (`libsecret`) behind `SecretStore` | Credential Manager behind `SecretStore` |
+| **Time zone label**: `localtime_r`'s `tm_zone` | `status_rules/mod.rs` `zone_of` | Works | No `tm_zone`: format the zone from the Windows API |
 | **Joining**: `open -b`, a Chrome web app through `--app-id` | `calls/join.rs` | `xdg-open`; Chrome's `--app-id` works the same | `start`; same for Chrome |
 | **Launch at login**: `MacosLauncher::LaunchAgent` with `--hidden` | `app.rs` (autostart plugin), `autostart.rs` | The plugin writes an XDG autostart entry | The plugin writes a registry key |
 | **Shortcuts**: `Mod` is ⌘, labels use ⌘⌥⇧ glyphs | `src/commands/registry.ts`, `store/keybindings.rs` `key_label`, `menu/mod.rs` | Map `Mod` to Ctrl | Same |

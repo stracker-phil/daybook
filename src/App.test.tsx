@@ -21,6 +21,7 @@ const hub = (patch: Partial<HubView> = {}): HubView => ({
   nextDay: null,
   tools: [],
   status: null,
+  slack: null,
   reminder: null,
   events: { timeline: { hours: [], workHours: null, fullDay: [], blocks: [], now: null }, rows: [] },
   ...patch,
@@ -108,6 +109,7 @@ describe("App", () => {
       ["onNoteChanged", mocked.onNoteChanged],
       ["onCalendarChanged", mocked.onCalendarChanged],
       ["onCallChanged", mocked.onCallChanged],
+      ["onSlackChanged", mocked.onSlackChanged],
       ["onWindowOpened", mocked.onWindowOpened],
     ])("reloads the hub on %s", async (_name, listen) => {
       await renderApp();

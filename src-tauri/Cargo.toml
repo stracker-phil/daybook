@@ -48,6 +48,10 @@ tao = { version = "=0.37.1", default-features = false }
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-notification = "2"
 percent-encoding = "2"
+# The only network client (ADR 0020): Slack now, Apple's catalog later.
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "form"] }
+security-framework = "3"
+zeroize = "1"
 
 [features]
 # Exposes test helpers to integration tests in tests/.

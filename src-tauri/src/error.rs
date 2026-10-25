@@ -16,6 +16,9 @@ pub enum AppError {
     InvalidField { field: String, message: String },
     #[error("{0}")]
     NotFound(String),
+    /// A remote service failed or couldn't be reached (Slack).
+    #[error("{0}")]
+    Network(String),
     #[error("Cancelled")]
     Cancelled,
 }
@@ -26,6 +29,7 @@ impl AppError {
             AppError::Io(_) => ErrorKind::Io,
             AppError::InvalidInput(_) | AppError::InvalidField { .. } => ErrorKind::InvalidInput,
             AppError::NotFound(_) => ErrorKind::NotFound,
+            AppError::Network(_) => ErrorKind::Network,
             AppError::Cancelled => ErrorKind::Cancelled,
         }
     }
@@ -79,6 +83,7 @@ pub enum ErrorKind {
     Io,
     InvalidInput,
     NotFound,
+    Network,
     Cancelled,
 }
 
@@ -147,11 +152,20 @@ mod tests {
                 ErrorKind::InvalidInput,
             ),
             (AppError::NotFound(String::new()), ErrorKind::NotFound),
+            (AppError::Network(String::new()), ErrorKind::Network),
             (AppError::Cancelled, ErrorKind::Cancelled),
         ];
         for (err, kind) in cases {
             assert_eq!(err.kind(), kind, "{err:?}");
         }
+    }
+
+    #[test]
+    fn network_errors_serialize_with_the_network_kind() {
+        assert_eq!(
+            serde_json::to_value(AppError::Network("Slack is down".into())).unwrap(),
+            json!({ "kind": "network", "message": "Slack is down" })
+        );
     }
 
     #[test]

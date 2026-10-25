@@ -43,6 +43,7 @@ function useBackendEvents() {
       api.onNoteChanged(reloadHub),
       api.onCalendarChanged(reloadHub),
       api.onCallChanged(reloadHub),
+      api.onSlackChanged(reloadHub),
       api.onWindowOpened(reloadHub),
     ];
 

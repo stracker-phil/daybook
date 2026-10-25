@@ -13,7 +13,7 @@ use tauri_plugin_opener::OpenerExt;
 use ts_rs::TS;
 
 pub use eventkit::CalendarAccess;
-pub use events::{Event, MeetingLink};
+pub use events::{CalendarEvent, Event, MeetingLink};
 
 use crate::error::{AppError, AppResult};
 use crate::events::CALENDAR_CHANGED_EVENT;
@@ -33,16 +33,31 @@ struct Cached {
     events: Vec<Event>,
 }
 
+/// The events from a day on, for the absence heads-ups.
+struct CachedAhead {
+    from: NaiveDate,
+    days: u64,
+    calendars: Vec<String>,
+    at: Instant,
+    events: Vec<CalendarEvent>,
+}
+
 #[derive(Default)]
 struct Inner {
     store: Option<Store>,
     /// Today and the other day the Daybook window looked at last.
     cached: Vec<Cached>,
+    ahead: Option<CachedAhead>,
 }
 
 impl Inner {
     fn store(&mut self) -> &mut Store {
         self.store.get_or_insert_with(Store::new)
+    }
+
+    fn clear_caches(&mut self) {
+        self.cached.clear();
+        self.ahead = None;
     }
 }
 
@@ -80,14 +95,44 @@ impl Calendar {
         events
     }
 
+    /// Every event from `from` through `days` more days, all-day ones too; canceled and declined ones
+    /// included.
+    fn ahead(&self, from: NaiveDate, days: u64, calendars: &[String]) -> Vec<CalendarEvent> {
+        if calendars.is_empty() || !has_access() {
+            return Vec::new();
+        }
+        let mut inner = self.0.lock_unpoisoned();
+        let fresh = inner.ahead.as_ref().filter(|cached| {
+            cached.from == from
+                && cached.days == days
+                && cached.calendars == calendars
+                && cached.at.elapsed() < CACHE_FOR
+        });
+        if let Some(cached) = fresh {
+            return cached.events.clone();
+        }
+        let start = from.and_time(NaiveTime::MIN);
+        let events = inner
+            .store()
+            .events(calendars, start, start + Days::new(days + 1));
+        inner.ahead = Some(CachedAhead {
+            from,
+            days,
+            calendars: calendars.to_vec(),
+            at: Instant::now(),
+            events: events.clone(),
+        });
+        events
+    }
+
     fn clear_cache(&self) {
-        self.0.lock_unpoisoned().cached.clear();
+        self.0.lock_unpoisoned().clear_caches();
     }
 
     /// A store made before access was granted shows no calendars.
     fn drop_store(&self) {
         let mut inner = self.0.lock_unpoisoned();
-        inner.cached.clear();
+        inner.clear_caches();
         inner.store = None;
     }
 
@@ -103,23 +148,45 @@ impl Calendar {
     }
 }
 
-/// The timed events of `day` in the current context's calendars.
-pub async fn events_on(app: &AppHandle, day: NaiveDate, today: NaiveDate) -> Vec<Event> {
+fn current_calendars(app: &AppHandle) -> Vec<String> {
     let state = app.state::<AppState>();
     let settings = state.settings.get();
-    let calendars = state
+    state
         .contexts
         .current(&settings)
         .map(|context| context.calendars.clone())
-        .unwrap_or_default();
+        .unwrap_or_default()
+}
+
+/// Reads the current context's calendars on a blocking thread; nothing when that fails.
+async fn read_current<T: Send + 'static>(
+    app: &AppHandle,
+    read: impl FnOnce(&Calendar, &[String]) -> Vec<T> + Send + 'static,
+) -> Vec<T> {
+    let calendars = current_calendars(app);
     let app = app.clone();
-    let read = move || app.state::<Calendar>().events(day, &calendars, today);
-    tauri::async_runtime::spawn_blocking(read)
+    tauri::async_runtime::spawn_blocking(move || read(app.state::<Calendar>().inner(), &calendars))
         .await
         .unwrap_or_else(|e| {
-            log::warn!("Reading the events of {day} failed: {e}");
+            log::warn!("Reading the calendar failed: {e}");
             Vec::new()
         })
+}
+
+/// The timed events of `day` in the current context's calendars.
+pub async fn events_on(app: &AppHandle, day: NaiveDate, today: NaiveDate) -> Vec<Event> {
+    read_current(app, move |calendar, calendars| {
+        calendar.events(day, calendars, today)
+    })
+    .await
+}
+
+/// Every event in the current context's calendars from the start of `from` through `days` more days.
+pub async fn events_ahead(app: &AppHandle, from: NaiveDate, days: u64) -> Vec<CalendarEvent> {
+    read_current(app, move |calendar, calendars| {
+        calendar.ahead(from, days, calendars)
+    })
+    .await
 }
 
 /// Settings → Calendar and the contexts' calendar lists.

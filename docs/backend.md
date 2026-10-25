@@ -110,9 +110,10 @@ itself. Panics unwind ([ADR 0005](adr/0005-panic-unwind.md)), so code takes `std
 | `notes` | `Arc<DailyNotes>` | the vault service: `pending-entries.json`, the writer, the watcher ([vault.md](vault.md)) |
 | `contexts` | `Contexts` | `context.json`, the current context, the work-hours check |
 | `statuses` | `Statuses` | `status-memory.json`, today's status ([status.md](status.md)) |
+| `slack` | `SlackFiles` | `slack-shown.json`, `day-message.json` ([slack.md](slack.md)) |
 
 Managed beside it: `remote::Bridge` (requests waiting for the page), `window::panel::Panel` (the overlay),
-`bus::Commands` (the command bus), `shortcuts::Pause` and `tray::Shown` (what the menu-bar item shows).
+`bus::Commands` (the command bus), `calls::Calls`, `presence::Presence`, `slack::Slack` (the Slack client, token and live state), `shortcuts::Pause` and `tray::Shown` (what the menu-bar item shows).
 
 ## Tauri commands
 
@@ -137,6 +138,7 @@ its module.
 | `context_state` (`contexts/mod.rs`) | – | `ContextState` | – |
 | `hub_view` (`hub/mod.rs`) | `day: string \| null` (`YYYY-MM-DD`, today when null) | `HubView`: the day, its weekday and date, the board's title (a greeting today), the closest days with a note (null until their step), the sidebar's tool rows, today's status, the reminder (today only) and the day's events ([calendar.md](calendar.md#the-day-model)) | `invalid_input` for a malformed day |
 | `calendar_info`, `calendar_request_access`, `calendar_join` (`calendar/mod.rs`) | – / – / `url` | `CalendarInfo` / `CalendarAccess` / – ([calendar.md](calendar.md)); `calendar_join` joins through `calls::join` ([presence-and-calls.md](presence-and-calls.md#joining)) | `calendar_request_access`: `io` when the privacy settings don't open; `calendar_join`: `invalid_input` unless a join link |
+| `slack_info`, `slack_connect`, `slack_test`, `slack_disconnect` (`slack/commands.rs`) | – / `token` / – / – | `SlackInfo` / `SlackIdentity` / `SlackIdentity` / – ([slack.md](slack.md#commands)) | `slack_connect`: `invalid_input`, `network`, `io`; `slack_test`: `not_found`, `network` |
 | `calls_info`, `calls_request_access`, `calls_pick_app` (`calls/mod.rs`) | – / `permission` / – | `CallsInfo` / whether Accessibility is allowed / `AppRef \| null` ([presence-and-calls.md](presence-and-calls.md#commands)) | `calls_request_access`: `io`; `calls_pick_app`: `invalid_input` for anything but an app |
 | `shortcut_overview` (`shortcuts/overview.rs`) | – | `ShortcutOverview`: whether this build registers global shortcuts, the global shortcuts of the commands that exist (action, command, title, help), the app menu's keys | – |
 | `run_command` (`bus/app.rs`) | `id: String` | – (runs a bus command, [commands.md](commands.md)) | `not_found` (unknown), `invalid_input` (disabled), the command's error |
@@ -166,6 +168,7 @@ its module.
 | `NOTE_CHANGED_EVENT` | `note_changed` | `NoteChanged { day }`: today's note, the waiting changes or another daily note changed ([vault.md](vault.md#watcher)) |
 | `CONTEXT_CHANGED_EVENT` | `context_changed` | `ContextChanged { id }`: another context became current |
 | `CALENDAR_CHANGED_EVENT` | `calendar_changed` | none; an event, a calendar or the calendar access changed ([calendar.md](calendar.md#reading-events)) |
+| `SLACK_CHANGED_EVENT` | `slack_changed` | none; what Slack shows or the connection changed ([slack.md](slack.md)) |
 | `CALL_CHANGED_EVENT` | `call_changed` | none; a call started, changed or ended ([presence-and-calls.md](presence-and-calls.md#calls)) |
 | `STATUS_CHANGED_EVENT` | `status_changed` | `StatusChanged`: today's status changed; Rust features listen too ([status.md](status.md#status_changed)) |
 | `OPEN_SETTINGS_EVENT` | `open_settings` | to the Settings window: the id of the page to show (a window built for a page reads it from `?page=` instead) |
@@ -512,6 +515,8 @@ dev-dependency on itself turns on for integration tests ([ADR 0006](adr/0006-tes
 | `tauri-plugin-autostart` | launch at login (LaunchAgent) |
 | `tauri-plugin-global-shortcut` | global shortcuts ([commands.md](commands.md#global-shortcuts)) |
 | `tauri-plugin-notification` | notifications (`notify.rs`): failed commands nobody waits for |
+| `reqwest` (rustls, form) | the only HTTP client, in `net.rs` ([ADR 0020](adr/0020-network-only-to-listed-hosts.md)) |
+| `security-framework`, `zeroize` | the Keychain and wiped secrets (`secrets.rs`) |
 | `percent-encoding` | a link's target in its command id (`tools::link_command`) |
 | `tokio` | runtime, IPC socket, timeouts |
 | `serde`, `serde_json` (`preserve_order`) | IPC, stores |
@@ -525,7 +530,7 @@ dev-dependency on itself turns on for integration tests ([ADR 0006](adr/0006-tes
 | `regex` | note edits ([vault.md](vault.md#sections)) |
 | `tempfile` (dev, and optional behind `test-util`) | store, socket and README tests |
 
-No database and no HTTP client yet. The library builds as `rlib`. The release profile uses LTO,
+No database. The only network access is `net.rs`. The library builds as `rlib`. The release profile uses LTO,
 `codegen-units = 1`, `opt-level = 3` and strip, and keeps `panic = "unwind"` ([ADR 0005](adr/0005-panic-unwind.md)). The toolchain is
 pinned to stable in `rust-toolchain.toml`; edition 2024.
 
@@ -536,7 +541,7 @@ pinned to stable in `rust-toolchain.toml`; edition 2024.
 - `default-src 'self'`: scripts, fonts and frames come from the bundle only;
 - `img-src 'self' data:`: no view loads a remote image;
 - `style-src 'self' 'unsafe-inline'`: React `style` attributes;
-- `connect-src ipc: http://ipc.localhost`: Tauri IPC only.
+- `connect-src ipc: http://ipc.localhost`: Tauri IPC only; Slack is called from Rust ([ADR 0020](adr/0020-network-only-to-listed-hosts.md)).
 
 `app.security.devCsp` applies under `tauri dev` and adds inline scripts and Vite's HMR websocket on
 `localhost:1420`/`1421`.

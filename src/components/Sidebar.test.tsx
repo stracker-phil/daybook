@@ -33,6 +33,7 @@ const hubView = (patch: Partial<HubView> = {}): HubView => ({
   nextDay: null,
   tools: [],
   status: null,
+  slack: null,
   reminder: null,
   events: { timeline: { hours: [], workHours: null, fullDay: [], blocks: [], now: null }, rows: [] },
   ...patch,
@@ -146,6 +147,37 @@ describe("Sidebar", () => {
       renderSidebar({ tools: [tool({ id: "search", title: "Search vault" })] });
       await userEvent.click(row("Search vault"));
       await vi.waitFor(() => expect(useStore.getState().toasts.map((t) => t.message).join()).toContain("Not available"));
+    });
+  });
+
+  describe("Slack badge", () => {
+    const shown = (patch: Partial<NonNullable<HubView["slack"]>> = {}) => ({ emoji: ":white_check_mark:", text: "9:00 - 18:00", presence: null, expiresAt: null, ...patch });
+
+    it.each([
+      ["auto", "Slack status: 9:00 - 18:00 · Active"],
+      ["away", "Slack status: 9:00 - 18:00 · Away"],
+      ["keep", "Slack status: 9:00 - 18:00"],
+      [null, "Slack status: 9:00 - 18:00"],
+    ] as const)("labels what Slack shows for presence %s", (presence, label) => {
+      renderSidebar({ slack: shown({ presence }) });
+      expect(screen.getByRole("status", { name: label })).toBeInTheDocument();
+    });
+
+    it("shows the emoji glyph and the text", () => {
+      renderSidebar({ slack: shown() });
+      const badge = screen.getByRole("status");
+      expect(badge).toHaveTextContent("✅");
+      expect(badge).toHaveTextContent("9:00 - 18:00");
+    });
+
+    it("says No status for an empty text", () => {
+      renderSidebar({ slack: shown({ text: "", emoji: "" }) });
+      expect(screen.getByRole("status", { name: "Slack status: No status" })).toBeInTheDocument();
+    });
+
+    it("shows no badge without a Slack status", () => {
+      renderSidebar({ slack: null });
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
     });
   });
 

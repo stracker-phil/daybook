@@ -4,6 +4,7 @@ import { api, type HubTool, type HubView, type Status, type ToolRow } from "../a
 import { fail } from "../state/requests";
 import { useStore } from "../state/store";
 import { ShortcutCap } from "./Field";
+import { SlackBadge } from "./SlackStatus";
 import { TOOL_INFO } from "./settings/toolInfo";
 
 function run(command: string) {
@@ -71,7 +72,7 @@ export function Sidebar() {
         </nav>
       </div>
       <footer className="sidebar-footer">
-        <span className="spacer" />
+        {hub?.slack ? <SlackBadge shown={hub.slack} /> : <span className="spacer" />}
         <button type="button" className="icon-btn" aria-label="Settings" title="Settings (⌘,)" onClick={() => run("app:settings")}>
           <Settings size="1.077rem" aria-hidden="true" />
         </button>

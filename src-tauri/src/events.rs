@@ -18,6 +18,8 @@ pub const STATUS_CHANGED_EVENT: &str = "status_changed";
 pub const CALENDAR_CHANGED_EVENT: &str = "calendar_changed";
 /// No payload; a call started, changed or ended (docs/presence-and-calls.md).
 pub const CALL_CHANGED_EVENT: &str = "call_changed";
+/// No payload; what Slack shows or the Slack connection changed (docs/slack.md).
+pub const SLACK_CHANGED_EVENT: &str = "slack_changed";
 /// Payload: the saved `Settings`.
 pub const SETTINGS_CHANGED_EVENT: &str = "settings_changed";
 /// Payload: the saved `Keybindings`.

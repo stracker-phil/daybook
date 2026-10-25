@@ -13,7 +13,7 @@ use crate::state::AppState;
 use crate::store::import::Import;
 use crate::{
     bus, calendar, calls, commands, contexts, deep_link, ipc, menu, notify, presence, remote,
-    shortcuts, status, tray, vault, window,
+    shortcuts, slack, status, status_rules, tray, vault, window,
 };
 
 const MAX_LOG_BYTES: u128 = 5 * 1024 * 1024;
@@ -32,6 +32,7 @@ pub fn start(
         .manage(window::panel::Panel::default())
         .manage(calls::Calls::default())
         .manage(presence::Presence::default())
+        .manage(slack::Slack::default())
         .manage(commands_bus())
         .manage(shortcuts::Pause::default())
         .manage(tray::Shown::default())
@@ -69,6 +70,8 @@ pub fn start(
             contexts::start(app.handle());
             status::start(app.handle());
             calls::start(app.handle());
+            slack::install(app.handle());
+            status_rules::start(app.handle());
             notify::install(app.handle());
             window::panel::build(app.handle())?;
             #[cfg(debug_assertions)]

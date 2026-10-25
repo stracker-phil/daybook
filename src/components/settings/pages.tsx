@@ -1,5 +1,5 @@
 /** The core settings pages. Modules register their own pages from their install function. */
-import { BellRing, CalendarDays, FolderKanban, FolderOpen, Keyboard, Layers, LayoutList, NotebookPen, Palette, Power, Video, Workflow } from "lucide-react";
+import { BellRing, CalendarDays, FolderKanban, FolderOpen, Keyboard, Layers, LayoutList, MessageSquare, NotebookPen, Palette, Power, Video, Workflow } from "lucide-react";
 import { TEXT_SIZES, type Scheme } from "../../api";
 import { schemeLook } from "../../lib/theme";
 import { registerSettingsPage, type SettingsPageProps } from "../../registry/settingsPages";
@@ -13,6 +13,7 @@ import { DailyNotePage } from "./DailyNotePage";
 import { ProjectsPage } from "./ProjectsPage";
 import { RemindersPage } from "./RemindersPage";
 import { ShortcutsPage } from "./ShortcutsPage";
+import { SlackPage } from "./SlackPage";
 import { ToolsPage } from "./ToolsPage";
 import { VaultPage } from "./VaultPage";
 import { WorkflowsPage } from "./WorkflowsPage";
@@ -109,6 +110,7 @@ function GeneralPage() {
 export function registerCoreSettingsPages() {
   registerSettingsPage({ id: "vault", group: "Setup", label: "Vault", icon: FolderOpen, order: 0, intro: "Your Obsidian vault: Daybook reads it and writes into today's note.", Body: VaultPage });
   registerSettingsPage({ id: "calendar", group: "Setup", label: "Calendar", icon: CalendarDays, order: 5, intro: "Daybook reads your calendars to show the day's events and remind you of meetings. It never changes them.", Body: CalendarPage });
+  registerSettingsPage({ id: "slack", group: "Setup", label: "Slack", icon: MessageSquare, order: 7, intro: "Daybook sets your Slack status and presence and posts your status messages. It talks to Slack and nothing else.", Body: SlackPage });
   registerSettingsPage({ id: "contexts", group: "Setup", label: "Contexts", icon: Layers, order: 10, intro: "Each context turns features on and off, has its colour and work hours, and can become current by itself when they start.", Body: ContextsPage });
   registerSettingsPage({ id: "projects", group: "Setup", label: "Projects", icon: FolderKanban, order: 20, intro: "What you work on: offered for meetings and the Projects tool in the contexts you pick.", Body: ProjectsPage });
   registerSettingsPage({ id: "daily-note", group: "Obsidian", label: "Daily Note", icon: NotebookPen, order: 0, intro: "Where Daybook writes into today's note. Sections are created in this order when Daybook first writes to them; your template only needs the title and the notes heading.", Body: DailyNotePage });

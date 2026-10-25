@@ -9,8 +9,8 @@ use chrono::{DateTime, Local, NaiveDateTime, TimeZone};
 use objc2::rc::Retained;
 use objc2::runtime::Bool;
 use objc2_event_kit::{
-    EKAuthorizationStatus, EKCalendar, EKEntityType, EKEvent, EKEventStatus, EKEventStore,
-    EKEventStoreChangedNotification, EKParticipantStatus,
+    EKAuthorizationStatus, EKCalendar, EKEntityType, EKEvent, EKEventAvailability, EKEventStatus,
+    EKEventStore, EKEventStoreChangedNotification, EKParticipantStatus,
 };
 use objc2_foundation::{NSArray, NSDate, NSError, NSNotification, NSNotificationCenter};
 use serde::Serialize;
@@ -139,6 +139,7 @@ fn calendar_event(event: &EKEvent) -> CalendarEvent {
             all_day: event.isAllDay(),
             canceled: event.status() == EKEventStatus::Canceled,
             declined: declined_by_owner(event),
+            busy: event.availability() == EKEventAvailability::Busy,
         }
     }
 }

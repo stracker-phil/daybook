@@ -4,6 +4,7 @@ import { fail } from "../../state/requests";
 import type { SettingsPageProps } from "../../registry/settingsPages";
 import { Group, Row, Switch, TextField } from "./controls";
 import { ItemActions, moveItem, replaceItem } from "./fields";
+import { SlackStatusField } from "./SlackStatusField";
 import { useCallsInfo } from "./useCallsInfo";
 
 const SERVICES: { service: keyof OpenWith; label: string }[] = [
@@ -98,6 +99,7 @@ function AppTrigger({ rule, check, onChange }: { rule: MeetingRule; check: strin
           />
         </>
       )}
+      <SlackStatusField description="Shown while the call runs, in contexts with Slack." value={rule.slack} onChange={(slack) => onChange({ slack })} />
     </>
   );
 }

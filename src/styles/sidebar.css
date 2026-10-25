@@ -60,3 +60,6 @@
 .status-dot[data-status="break"] { background: var(--a-orange); }
 .status-dot[data-status="off"] { background: var(--sidebar-muted); }
 .status-dot[data-status="none"] { border: 1.5px solid var(--sidebar-muted); }
+
+/* What Slack shows, at the bottom left. */
+.sidebar-footer .slack-status.badge { flex: 1; max-width: none; padding: 0 var(--space-2); color: var(--sidebar-text); font-size: var(--fs-meta); }

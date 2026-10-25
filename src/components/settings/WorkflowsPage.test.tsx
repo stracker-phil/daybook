@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -51,6 +51,48 @@ describe("WorkflowsPage", () => {
       renderPage();
       await userEvent.click(screen.getByRole("switch", { name: "Taking a break" }));
       expect(lastSaved().slack.statuses).toEqual(settings().slack.statuses);
+    });
+  });
+
+  describe("Slack channel", () => {
+    it("saves the trimmed channel as slack.channel", async () => {
+      renderPage();
+      await replace(field("Channel"), "  #team-status ");
+      await userEvent.keyboard("{Enter}");
+      expect(lastSaved().slack).toEqual({ ...settings().slack, channel: "#team-status" });
+    });
+
+    it("saves a cleared channel as empty, so nothing is posted", async () => {
+      const base = settings();
+      renderPage({ slack: { ...base.slack, channel: "#team-status" } });
+      expect(field("Channel")).toHaveValue("#team-status");
+      await replace(field("Channel"), "");
+      await userEvent.tab();
+      expect(lastSaved().slack.channel).toBe("");
+    });
+  });
+
+  describe("Slack status of a workflow", () => {
+    const statusFields = () => screen.getAllByRole("button", { name: "Edit Slack status" });
+
+    it.each([
+      [0, "working"],
+      [1, "break"],
+      [2, "off"],
+    ] as const)("saves the edited text of status field %i as slack.statuses.%s only", async (index, key) => {
+      renderPage();
+      await userEvent.click(statusFields()[index]);
+      await replace(screen.getByLabelText("Text"), "Heads down");
+      await userEvent.keyboard("{Enter}");
+      const base = settings().slack;
+      expect(lastSaved().slack).toEqual({ ...base, statuses: { ...base.statuses, [key]: { ...base.statuses[key], text: "Heads down" } } });
+    });
+
+    it("saves a changed presence of the Break status", async () => {
+      renderPage();
+      await userEvent.click(statusFields()[1]);
+      await userEvent.click(within(screen.getByRole("group", { name: "Presence" })).getByRole("button", { name: "No change" }));
+      expect(lastSaved().slack.statuses.break.presence).toBe("keep");
     });
   });
 
@@ -168,6 +210,82 @@ describe("WorkflowsPage", () => {
       await replace(field(label), "");
       await userEvent.tab();
       expect(lastSaved().endOfDay[key]).toBe("");
+    });
+  });
+
+  describe("before an absence", () => {
+    const rules = () => settings().statusRules;
+    const card = (title: string) => within(screen.getByRole("heading", { name: title }).closest("section")!);
+
+    it("shows the saved absence settings", () => {
+      renderPage();
+      expect(field("Absence titles")).toHaveValue("Out of office");
+      expect(screen.getByRole("spinbutton", { name: "Busy blocks from" })).toHaveValue(8);
+      expect(field("Time zone label")).toHaveValue("");
+    });
+
+    it("saves the comma list of absence titles", async () => {
+      renderPage();
+      await replace(field("Absence titles"), "Out of office, Vacation ,, Sick");
+      await userEvent.keyboard("{Enter}");
+      expect(lastSaved().statusRules).toEqual({ ...rules(), absenceTitles: ["Out of office", "Vacation", "Sick"] });
+    });
+
+    it("saves the minimum busy hours", async () => {
+      renderPage();
+      await replace(screen.getByRole("spinbutton", { name: "Busy blocks from" }), "6");
+      await userEvent.keyboard("{Enter}");
+      expect(lastSaved().statusRules.minBusyHours).toBe(6);
+    });
+
+    it("saves the trimmed time zone label", async () => {
+      renderPage();
+      await replace(field("Time zone label"), "  CEST ");
+      await userEvent.keyboard("{Enter}");
+      expect(lastSaved().statusRules.tzLabel).toBe("CEST");
+    });
+
+    it("shows one card per rule titled by its hours", () => {
+      renderPage();
+      expect(screen.getByRole("heading", { name: "Absence starts within 8 hours" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Absence starts within 168 hours" })).toBeInTheDocument();
+    });
+
+    it("saves a rule switched off", async () => {
+      renderPage();
+      await userEvent.click(card("Absence starts within 168 hours").getByRole("switch", { name: "Workflow on" }));
+      expect(lastSaved().statusRules.rules).toEqual([rules().rules[0], { ...rules().rules[1], enabled: false }]);
+    });
+
+    it("saves the hours of a rule", async () => {
+      renderPage();
+      await replace(card("Absence starts within 8 hours").getByRole("spinbutton", { name: "Hours before" }), "12");
+      await userEvent.keyboard("{Enter}");
+      expect(lastSaved().statusRules.rules).toEqual([{ ...rules().rules[0], hours: 12 }, rules().rules[1]]);
+    });
+
+    it("saves the Slack status of a rule", async () => {
+      renderPage();
+      const rule = card("Absence starts within 8 hours");
+      await userEvent.click(rule.getByRole("button", { name: "Edit Slack status" }));
+      await replace(rule.getByLabelText("Text"), "Out soon");
+      await userEvent.keyboard("{Enter}");
+      expect(lastSaved().statusRules.rules).toEqual([{ ...rules().rules[0], slack: { ...rules().rules[0].slack, text: "Out soon" } }, rules().rules[1]]);
+    });
+
+    it("removes only the rule whose Remove Rule is clicked", async () => {
+      renderPage();
+      await userEvent.click(card("Absence starts within 8 hours").getByRole("button", { name: "Remove Rule" }));
+      expect(lastSaved().statusRules.rules).toEqual([rules().rules[1]]);
+    });
+
+    it("appends a 24 hour rule with a default status from Add Rule", async () => {
+      renderPage();
+      await userEvent.click(screen.getByRole("button", { name: "Add Rule" }));
+      expect(lastSaved().statusRules.rules).toEqual([
+        ...rules().rules,
+        { hours: 24, enabled: true, slack: { keepStatus: false, emoji: ":information_source:", text: "Away {when}", presence: "keep" } },
+      ]);
     });
   });
 });

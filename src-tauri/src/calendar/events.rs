@@ -28,13 +28,22 @@ pub struct CalendarEvent {
     pub canceled: bool,
     /// Declined by the owner.
     pub declined: bool,
+    /// Shows the owner as busy.
+    pub busy: bool,
+}
+
+impl CalendarEvent {
+    /// Neither canceled nor declined.
+    pub fn takes_place(&self) -> bool {
+        !self.canceled && !self.declined
+    }
 }
 
 /// The events that count: timed, not canceled, not declined; by start.
 pub fn timed_events(events: Vec<CalendarEvent>) -> Vec<Event> {
     let mut timed: Vec<Event> = events
         .into_iter()
-        .filter(|e| !e.all_day && !e.canceled && !e.declined)
+        .filter(|e| !e.all_day && e.takes_place())
         .map(|e| e.event)
         .collect();
     timed.sort_by_key(|event| event.start);
@@ -185,6 +194,24 @@ mod tests {
             all_day: false,
             canceled: false,
             declined: false,
+            busy: false,
+        }
+    }
+
+    #[test]
+    fn an_event_takes_place_unless_it_is_canceled_or_declined() {
+        for (canceled, declined, expected) in [
+            (false, false, true),
+            (true, false, false),
+            (false, true, false),
+            (true, true, false),
+        ] {
+            let event = CalendarEvent {
+                canceled,
+                declined,
+                ..calendar_event("Standup", at(9, 0))
+            };
+            assert_eq!(event.takes_place(), expected, "{canceled} {declined}");
         }
     }
 

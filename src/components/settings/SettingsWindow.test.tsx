@@ -74,6 +74,7 @@ describe("SettingsWindow", () => {
       expect(within(nav()).getAllByRole("button").map((b) => b.textContent?.trim())).toEqual([
         "Vault",
         "Calendar",
+        "Slack",
         "Contexts",
         "Projects",
         "Daily Note",
@@ -91,7 +92,7 @@ describe("SettingsWindow", () => {
     it("groups them under Setup, Obsidian, Workflows and System, in that order", () => {
       renderWindow();
       const text = nav().textContent.replace(/\s+/g, "");
-      expect(text).toBe("SetupVaultCalendarContextsProjectsObsidianDailyNoteWorkflowsWorkflowsRemindersCallsDemoflowSystemGeneralToolsShortcutsAppearance");
+      expect(text).toBe("SetupVaultCalendarSlackContextsProjectsObsidianDailyNoteWorkflowsWorkflowsRemindersCallsDemoflowSystemGeneralToolsShortcutsAppearance");
     });
   });
 

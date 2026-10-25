@@ -18,6 +18,7 @@ use crate::bus;
 use crate::calendar;
 use crate::error::{AppError, AppResult};
 use crate::reminders::{ReminderInput, pick_reminder};
+use crate::slack::{self, ShownStatus};
 use crate::state::AppState;
 use crate::store::settings::Status;
 use crate::{shortcuts, tools as tool_state};
@@ -46,6 +47,8 @@ pub struct HubView {
     pub reminder: Option<ReminderLine>,
     /// The day's events in the current context's calendars.
     pub events: DayEvents,
+    /// What Slack shows, in contexts with Slack once it is connected.
+    pub slack: Option<ShownStatus>,
 }
 
 fn greeting(hour: u32) -> &'static str {
@@ -82,6 +85,7 @@ pub fn hub_view_at(
         status,
         reminder: None,
         events: DayEvents::default(),
+        slack: None,
     }
 }
 
@@ -112,6 +116,7 @@ pub async fn hub_view(app: AppHandle, day: Option<String>) -> AppResult<HubView>
         commands: &commands.available(&app),
     });
     let mut view = hub_view_at(day, now, tools, state.status);
+    view.slack = slack::shown_now(&app).await;
     let context = app_state.contexts.current(&settings);
     view.events = day_events(&DayInput {
         day: shown,
