@@ -4,6 +4,7 @@ use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, percent_decode_str, utf8_perc
 
 use super::state::{LinkItem, Progress, Status, ToolState};
 use crate::contexts::context_title;
+use crate::launcher::open_command;
 use crate::store::settings::{Feature, ToolId};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -106,7 +107,12 @@ const LINK_PREFIX: &str = "link:";
 
 /// The command id carries the target, so a list built earlier still opens the right link.
 pub fn link_command(target: &str) -> String {
-    format!("{LINK_PREFIX}{}", utf8_percent_encode(target, COMPONENT))
+    format!("{LINK_PREFIX}{}", link_argument(target))
+}
+
+/// The `link:` family's argument for `target`: the target percent-encoded.
+pub fn link_argument(target: &str) -> String {
+    utf8_percent_encode(target, COMPONENT).to_string()
 }
 
 /// The target behind a `link:` argument; an argument that isn't encoded is the target itself.
@@ -151,7 +157,7 @@ fn link_choices(state: &ToolState) -> Vec<Choice> {
 
 /// Each project's Launcher projects; headings only when there are several projects.
 fn project_choices(state: &ToolState) -> Vec<Choice> {
-    let open = |id: &str, name: &str| item(name, format!("projects:open:{id}"));
+    let open = |id: &str, name: &str| item(name, open_command(id));
     if let [group] = state.projects.as_slice() {
         return group
             .projects

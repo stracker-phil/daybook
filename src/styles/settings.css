@@ -46,6 +46,7 @@
 .settings-row-control select.input { width: 9rem; }
 .settings-input { display: flex; align-items: center; gap: var(--space-2); }
 .settings-input .input { width: 12rem; }
+.settings-input .input.wide { width: 20rem; }
 .range-value { min-width: 4rem; text-align: right; }
 .app-controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); font-size: var(--fs-meta); }
 .inline-switch { display: flex; align-items: center; gap: var(--space-2); }
@@ -125,3 +126,17 @@
 .search-scope-row .item-actions { flex: none; width: auto; }
 .input.search-scope-name { width: 7.385rem; flex: none; }
 .input.search-exclude { width: 14.769rem; }
+
+/* Links: a collapsed card is its title, when it shows and the actions on one line. */
+.link-head { gap: var(--space-2); }
+.input.link-title { flex: none; width: 12rem; }
+.input.link-title.grow { flex: 1; min-width: 0; }
+.link-summary { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.link-head .item-actions { flex: none; width: auto; }
+.input.link-input { width: 20rem; }
+
+/* Launcher projects on a project card. */
+.choice-matches li.launcher-match { display: flex; align-items: center; gap: var(--space-2); }
+.launcher-note { flex: none; font-size: var(--fs-meta); }
+.launcher-problem { display: flex; align-items: center; gap: var(--space-3); }
+.launcher-problem > span { flex: 1; min-width: 0; font-size: var(--fs-meta); line-height: 1.35; }

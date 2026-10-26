@@ -1,5 +1,5 @@
 /** The core settings pages. Modules register their own pages from their install function. */
-import { BellRing, BookOpen, CalendarDays, FolderKanban, FolderOpen, Keyboard, Layers, LayoutList, ListChecks, MessageSquare, NotebookPen, Palette, Power, Search, Video, Workflow } from "lucide-react";
+import { BellRing, BookOpen, CalendarDays, FolderKanban, FolderOpen, Keyboard, Layers, LayoutList, Link2, ListChecks, MessageSquare, NotebookPen, Palette, Power, Search, Ticket, Video, Workflow } from "lucide-react";
 import { TEXT_SIZES, type Scheme } from "../../api";
 import { schemeLook } from "../../lib/theme";
 import { registerSettingsPage, type SettingsPageProps } from "../../registry/settingsPages";
@@ -10,7 +10,9 @@ import { AccessibilityRow, CallsPage } from "./CallsPage";
 import { CalendarPage } from "./CalendarPage";
 import { ContextsPage } from "./ContextsPage";
 import { DailyNotePage } from "./DailyNotePage";
+import { JiraPage } from "./JiraPage";
 import { JournalPage } from "./JournalPage";
+import { LinksPage } from "./LinksPage";
 import { ProjectsPage } from "./ProjectsPage";
 import { RemindersPage } from "./RemindersPage";
 import { RoutinesPage } from "./RoutinesPage";
@@ -114,6 +116,15 @@ export function registerCoreSettingsPages() {
   registerSettingsPage({ id: "vault", group: "Setup", label: "Vault", icon: FolderOpen, order: 0, intro: "Your Obsidian vault: Daybook reads it and writes into today's note.", Body: VaultPage });
   registerSettingsPage({ id: "calendar", group: "Setup", label: "Calendar", icon: CalendarDays, order: 5, intro: "Daybook reads your calendars to show the day's events and remind you of meetings. It never changes them.", Body: CalendarPage });
   registerSettingsPage({ id: "slack", group: "Setup", label: "Slack", icon: MessageSquare, order: 7, intro: "Daybook sets your Slack status and presence and posts your status messages. It talks to Slack and nothing else.", Body: SlackPage });
+  registerSettingsPage({
+    id: "jira",
+    group: "Setup",
+    label: "Jira",
+    icon: Ticket,
+    order: 8,
+    intro: "Open Jira Issue (from the menu or its shortcut) opens an issue by number, key or link. In contexts with the Jira feature, it is also remembered for the suggestions.",
+    Body: JiraPage,
+  });
   registerSettingsPage({ id: "contexts", group: "Setup", label: "Contexts", icon: Layers, order: 10, intro: "Each context turns features on and off, has its colour and work hours, and can become current by itself when they start.", Body: ContextsPage });
   registerSettingsPage({ id: "projects", group: "Setup", label: "Projects", icon: FolderKanban, order: 20, intro: "What you work on: offered for meetings and the Projects tool in the contexts you pick.", Body: ProjectsPage });
   registerSettingsPage({ id: "daily-note", group: "Obsidian", label: "Daily Note", icon: NotebookPen, order: 0, intro: "Where Daybook writes into today's note. Sections are created in this order when Daybook first writes to them; your template only needs the title and the notes heading.", Body: DailyNotePage });
@@ -135,6 +146,20 @@ export function registerCoreSettingsPages() {
   registerSettingsPage({ id: "workflows", group: "Workflows", label: "Workflows", icon: Workflow, order: 0, intro: "What Daybook does when something happens: each workflow is a trigger and what follows from it.", Body: WorkflowsPage });
   registerSettingsPage({ id: "reminders", group: "Workflows", label: "Reminders", icon: BellRing, order: 10, intro: "The top of the Daybook window shows one reminder: the first rule in this list that applies now. Every routine and journal group has a rule here.", Body: RemindersPage });
   registerSettingsPage({ id: "calls", group: "Workflows", label: "Calls", icon: Video, order: 20, intro: "How Daybook recognizes that you're in a call, and what Join does.", Body: CallsPage });
+  registerSettingsPage({
+    id: "links",
+    group: "Workflows",
+    label: "Links",
+    icon: Link2,
+    order: 30,
+    intro: (
+      <>
+        A link is a vault path (opens in <strong>Obsidian</strong>) or a URL. It can show always, only in some contexts, on some days and times, or around{" "}
+        <strong>calendar events</strong> with a matching title.
+      </>
+    ),
+    Body: LinksPage,
+  });
   registerSettingsPage({ id: "general", group: "System", label: "General", icon: Power, order: 0, intro: "How Daybook starts.", Body: GeneralPage });
   registerSettingsPage({ id: "tools", group: "System", label: "Tools", icon: LayoutList, order: 10, Body: ToolsPage });
   registerSettingsPage({ id: "shortcuts", group: "System", label: "Shortcuts", icon: Keyboard, order: 20, Body: ShortcutsPage });

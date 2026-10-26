@@ -2,10 +2,13 @@ import type { Project } from "../../api";
 import type { SettingsPageProps } from "../../registry/settingsPages";
 import { Group, Row, Switch, TextField } from "./controls";
 import { ChoiceList, ItemActions, joinList, moveItem, parseList, replaceItem } from "./fields";
+import { LauncherProjectsField, useLauncherProjects, type Launcher } from "./LauncherProjectsField";
 
-function ProjectCard({ project, contexts, index, count, onChange, onMove, onRemove }: {
+function ProjectCard({ project, projects, contexts, launcher, index, count, onChange, onMove, onRemove }: {
   project: Project;
+  projects: Project[];
   contexts: { id: string; title: string }[];
+  launcher: Launcher;
   index: number;
   count: number;
   onChange: (patch: Partial<Project>) => void;
@@ -28,6 +31,9 @@ function ProjectCard({ project, contexts, index, count, onChange, onMove, onRemo
         value={joinList(project.keywords)}
         onCommit={(text) => onChange({ keywords: parseList(text) })}
       />
+      <Row label="Launcher projects" description="Opened from the Projects tool (Daybook window, menu bar, ⌘K) in Project Launcher." stacked>
+        <LauncherProjectsField project={project} projects={projects} launcher={launcher} onChange={(launcherProjects) => onChange({ launcherProjects })} />
+      </Row>
       <TextField label="Slack emoji" description="Starts the project's lines in the focus list, e.g. :oscorp:." placeholder=":emoji:" value={project.slackEmoji} onCommit={(slackEmoji) => onChange({ slackEmoji: slackEmoji.trim() })} />
       <Row label="">
         <ItemActions index={index} count={count} onMove={onMove} onRemove={onRemove} removeLabel="Remove Project" />
@@ -43,13 +49,16 @@ export function ProjectsPage({ s, set }: SettingsPageProps) {
   const projects = s.projects;
   const contexts = s.contexts.map((context) => ({ id: context.id, title: [context.label.trim(), context.name].filter(Boolean).join(" ") }));
   const save = (next: Project[]) => set({ projects: next });
+  const launcher = useLauncherProjects();
   return (
     <>
       {projects.map((project, i) => (
         <ProjectCard
           key={i}
           project={project}
+          projects={projects}
           contexts={contexts}
+          launcher={launcher}
           index={i}
           count={projects.length}
           onChange={(patch) => save(replaceItem(projects, i, patch))}

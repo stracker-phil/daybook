@@ -252,5 +252,6 @@ pub fn install(app: &AppHandle) {
     eventkit::on_change(move || {
         handle.state::<Calendar>().clear_cache();
         changed(&handle);
+        crate::links::refresh_soon(&handle);
     });
 }

@@ -30,7 +30,7 @@ no database. The JSON files live in the config dir, `~/Library/Application Suppo
 | `status-memory.json` | today's status: date, status, since, whether you worked today ([status.md](status.md)) | `status::Statuses` |
 | `slack-shown.json`, `day-message.json` | what Slack shows as Daybook set it; the day's first Working message ([slack.md](slack.md)) | `slack::SlackFiles` |
 | `routines.json` | the once-a-day wizard triggers that fired today ([routines.md](routines.md#the-wizard)) | `routines::Fired` |
-| `jira-tickets.json` | state imported from the prototype (step 02), read by a later step | – |
+| `jira-tickets.json` | the Jira keys opened per day (`jira/tickets.rs`); also imported from the prototype | – |
 
 Each store wraps a `JsonStore` (`store/json_store.rs`) over a `JsonFile` (`store/json_file.rs`): files are
 0600 in a 0700 folder and written atomically; a missing file loads as defaults, unknown keys are ignored and

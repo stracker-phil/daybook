@@ -3,10 +3,10 @@
 use tauri::{AppHandle, Manager};
 
 use super::state::{
-    ContextItem, GroupProgress, Progress, RoutineProgress, TodayNote, ToolState, Topic,
+    ContextItem, GroupProgress, LinkItem, Progress, RoutineProgress, TodayNote, ToolState, Topic,
 };
 use crate::state::AppState;
-use crate::{calls, journal, projects, quick_notes, routines, search, status};
+use crate::{calls, jira, journal, links, projects, quick_notes, routines, search, status};
 
 pub fn snapshot(app: &AppHandle) -> ToolState {
     let state = app.state::<AppState>();
@@ -24,6 +24,8 @@ pub fn snapshot(app: &AppHandle) -> ToolState {
         log::warn!("Couldn't list today's note topics: {e}");
         Vec::new()
     });
+    let quick_access = links::current(app);
+    let link_items = |items: Vec<_>| items.into_iter().map(LinkItem::Link).collect();
     ToolState {
         has_vault: settings.vault.path.is_some(),
         today: TodayNote {
@@ -85,6 +87,9 @@ pub fn snapshot(app: &AppHandle) -> ToolState {
                 level: topic.level,
             })
             .collect(),
+        links_now: link_items(quick_access.now),
+        links_more: link_items(quick_access.more),
+        tickets: jira::today_tickets(app),
         ..ToolState::default()
     }
 }

@@ -8,7 +8,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Manager};
 
 use crate::state::AppState;
-use crate::{contexts, wizard};
+use crate::{contexts, links, wizard};
 
 const TICK: Duration = Duration::from_secs(15);
 
@@ -23,6 +23,7 @@ async fn tick(app: &AppHandle) {
         log::warn!("Writing the waiting changes failed: {e}");
     }
     wizard::tick(app).await;
+    links::refresh(app).await;
 }
 
 pub fn tick_soon(app: &AppHandle) {

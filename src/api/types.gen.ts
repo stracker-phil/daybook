@@ -460,6 +460,26 @@ export type JournalTask = { text: string, done: boolean, };
 export type LaunchEvent = { "type": "error", message: string, } | { "type": "notice", message: string, } | { "type": "activate" };
 
 /**
+ * A project Project Launcher lists.
+ */
+export type LauncherProject = { id: string, name: string, archived: boolean, };
+
+/**
+ * What `plaunch list` answered: `found` is false without the tool; `error` when it failed.
+ */
+export type LauncherProjects = { found: boolean, projects: Array<LauncherProject>, error: string | null, };
+
+/**
+ * A Launcher project of the overlay; `command` shows it.
+ */
+export type LauncherRow = { id: string, name: string, command: string, };
+
+/**
+ * A link of the overlay; `command` opens it.
+ */
+export type LinkItem = { title: string, target: string, command: string, };
+
+/**
  * A Project Launcher project: its id opens it, the name is the one it had when linked.
  */
 export type LinkedProject = { id: string, name: string, };
@@ -641,6 +661,16 @@ keywords: Array<string>,
  * Opened from the Projects tool.
  */
 launcherProjects: Array<LinkedProject>, };
+
+/**
+ * A project and its Launcher projects, for the `projects` overlay.
+ */
+export type ProjectGroup = { project: string, projects: Array<LauncherRow>, };
+
+/**
+ * The `links` overlay's lists.
+ */
+export type QuickAccess = { now: Array<LinkItem>, more: Array<LinkItem>, };
 
 /**
  * A quick access link; every rule that is set must match.

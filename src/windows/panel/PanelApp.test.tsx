@@ -124,6 +124,33 @@ describe("PanelApp", () => {
       expect(mocked.panelReady).toHaveBeenCalledWith(1, expect.any(Number));
     });
 
+    it("renders the link picker for the links view", async () => {
+      mocked.linksView.mockResolvedValue({ now: [{ title: "Board", target: "https://example.com", command: "link:board" }], more: [] });
+      mocked.panelSession.mockResolvedValue(session("links"));
+      render(<PanelApp />);
+      expect(await screen.findByRole("option", { name: /Board/ })).toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: "Link" })).toHaveFocus();
+      expect(mocked.panelReady).toHaveBeenCalledWith(1, expect.any(Number));
+    });
+
+    it("renders the project picker for the projects view", async () => {
+      mocked.projectsView.mockResolvedValue([{ project: "Atlas", projects: [{ id: "a", name: "api", command: "launcher:a" }] }]);
+      mocked.panelSession.mockResolvedValue(session("projects"));
+      render(<PanelApp />);
+      expect(await screen.findByRole("option", { name: /api/ })).toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: "Project" })).toHaveFocus();
+      expect(mocked.panelReady).toHaveBeenCalledWith(1, expect.any(Number));
+    });
+
+    it("renders the Jira field with its recent keys for the jira view", async () => {
+      mocked.jiraSuggestions.mockResolvedValue(["QRS-1"]);
+      mocked.panelSession.mockResolvedValue(session("jira"));
+      render(<PanelApp />);
+      expect(await screen.findByRole("option", { name: "QRS-1" })).toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: "Open Jira issue" })).toHaveFocus();
+      expect(mocked.panelReady).toHaveBeenCalledWith(1, expect.any(Number));
+    });
+
     it("renders the offer to set Off for the offer-off view", async () => {
       mocked.panelSession.mockResolvedValue({ session: 1, view: "offer-off", args: { to: "🐈 Personal" } });
       render(<PanelApp />);

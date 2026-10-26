@@ -6,9 +6,12 @@ import { useContextColor } from "../../lib/useContextColor";
 import { handlePanelKeydown, installPanelCommands } from "./commands";
 import { ContextView } from "./ContextView";
 import { FocusView } from "./FocusView";
+import { JiraView } from "./JiraView";
 import { JournalView } from "./JournalView";
+import { LinksView } from "./LinksView";
 import { OfferOffView } from "./OfferOffView";
 import { PaletteView } from "./PaletteView";
+import { ProjectsView } from "./ProjectsView";
 import { QuickNotesView } from "./QuickNotesView";
 import { SampleView } from "./SampleView";
 import { SearchView } from "./search/SearchView";
@@ -29,6 +32,12 @@ function View({ session }: { session: PanelSession }) {
       return <FocusView />;
     case "journal":
       return <JournalView group={(session.args as { group?: string } | null)?.group ?? null} />;
+    case "links":
+      return <LinksView />;
+    case "jira":
+      return <JiraView />;
+    case "projects":
+      return <ProjectsView />;
     case "quicknotes":
       return <QuickNotesView />;
     case "search":

@@ -2,7 +2,10 @@ use std::path::Path;
 use std::sync::Arc;
 
 use crate::contexts::Contexts;
+use crate::jira::tickets::JiraTickets;
 use crate::launch::LaunchQueue;
+use crate::launcher::Launcher;
+use crate::links::Links;
 use crate::quick_notes::QuickNotes;
 use crate::routines::Fired;
 use crate::search::Search;
@@ -27,6 +30,9 @@ pub struct AppState {
     pub todos: NotesIndex,
     pub quick_notes: QuickNotes,
     pub search: Search,
+    pub links: Links,
+    pub jira: JiraTickets,
+    pub launcher: Launcher,
 }
 
 impl AppState {
@@ -44,6 +50,9 @@ impl AppState {
             todos: NotesIndex::default(),
             quick_notes: QuickNotes::open(config_dir),
             search: Search::default(),
+            links: Links::default(),
+            jira: JiraTickets::open(config_dir),
+            launcher: Launcher::default(),
         }
     }
 }

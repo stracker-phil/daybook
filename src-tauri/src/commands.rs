@@ -10,7 +10,7 @@ use crate::state::AppState;
 use crate::store::keybindings::Keybindings;
 use crate::store::settings::Settings;
 use crate::store::ui_state::UiState;
-use crate::{journal, projects, shortcuts, tray};
+use crate::{jira, journal, projects, shortcuts, tray};
 
 #[tauri::command]
 pub fn get_settings(state: State<'_, AppState>) -> Settings {
@@ -60,6 +60,7 @@ pub async fn update_settings(
     let previous = state.settings.get();
     // Only `autostart::set` changes launch at login; the page's copy may predate its last toggle.
     settings.launch_at_login = previous.launch_at_login;
+    settings.jira = jira::checked_settings(settings.jira)?;
     projects::follow_projects(&previous.projects, &settings.projects, &mut settings.links);
     journal::follow_renamed_groups(
         &previous.journal,

@@ -16,6 +16,9 @@ import type {
   JournalGroupAnswers,
   JournalInfo,
   Keybindings,
+  ProjectGroup,
+  LauncherProjects,
+  QuickAccess,
   LaunchEvent,
   Missing,
   NoteChanged,
@@ -153,6 +156,16 @@ export const api = {
   searchLink: (path: string) => invoke<string>("search_link", { path }),
   /** Opens a preview link: http(s), mailto and obsidian only. */
   searchOpenUrl: (url: string) => invoke<void>("search_open_url", { url }),
+  /** The links that show now and every other link, in Settings order. */
+  linksView: () => invoke<QuickAccess>("links_view"),
+  /** The current projects with their linked Project Launcher projects. */
+  projectsView: () => invoke<ProjectGroup[]>("projects_view"),
+  /** Closes the overlay and opens the issue for a number, key or link; resolves its key, rejects when it can't. */
+  jiraOpen: (input: string) => invoke<string>("jira_open", { input }),
+  /** Issue keys opened in the last 7 days, newest first. */
+  jiraSuggestions: () => invoke<string[]>("jira_suggestions"),
+  /** Project Launcher's projects (cached for a minute unless `fresh`); asking may start it. */
+  launcherProjects: (fresh: boolean) => invoke<LauncherProjects>("launcher_projects", { fresh }),
   /** Opens `view` in the overlay; the same view again closes it. */
   panelOpen: (view: string, args?: unknown) => invoke<void>("panel_open", { view, args: args ?? null }),
   panelClose: () => invoke<void>("panel_close"),

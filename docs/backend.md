@@ -332,6 +332,45 @@ projects)`: the first whose name or meeting word is in the title, ignoring case.
 Launcher projects (the Projects tool), the current project first. `follow_projects` runs in `update_settings`:
 links bound to a project follow its rename in place, and a removed project is dropped from them.
 
+## Links, Jira and Project Launcher
+
+The three quick-access tools; each has a module, an overlay and a Settings page.
+
+**Links** (`links/`). `rules::quick_access(now, links, context, events, project)` (pure) splits
+`settings.links` into Now and More. A link is in Now when every rule it sets holds: its contexts include the
+current one, one of its projects is the current project (ignoring case; there is none until the TimeTracker
+timer is known, so project rules match nothing yet), its weekdays (0 = Sunday) include today, `from <= now < to`
+for its time. A link with a meeting (`event`) also needs its window open over today's events whose title contains
+the text: `until_end` until the last of them ends, `during` while one runs, `before` from `leadMinutes` before a
+start until its end. Event links come first in Now. A link without any rule is in Now only when it is `pinned`.
+Everything else is in More, in Settings order. `link_title` names a link without a title: the URL's host,
+"Obsidian link", or the note's name. `Links` keeps today's events (refreshed on the scheduler's tick, a calendar
+change and `links_view`) so the split is computed on demand: `ToolState.links_now`/`links_more` (menus, palette)
+and `links_view` (the overlay). `link:<target>` (the target percent-encoded, `tools::link_command`) opens only a
+target that some link has, after closing the overlay with focus handed on (`vault::commands::open_target`).
+
+**Jira** (`jira/`). `key::parse_issue_key(input, prefix)` (pure) reads `6805` (with the default prefix),
+`qrs-6805` or a link (`…/browse/QRS-6805?focus=1`) as `QRS-6805`; `issue_link` adds the key to `jira.baseUrl`.
+`checked_settings` validates `jira` when settings are saved (an `https://` URL, a prefix like `QRS`).
+`jira_open(input)` opens the issue in the browser (the overlay closes first, only once the link is valid); in a
+context with the Jira feature the key is remembered in `JiraTickets` (`jira-tickets.json`: day → keys, the last
+15 days kept). Today's keys, newest first, are `ToolState.tickets`; `jira_suggestions` gives the last 7 days for
+the overlay.
+
+**Project Launcher** (`launcher/`). Each Daybook project lists Launcher projects (`launcherProjects`).
+`Launcher` runs the `plaunch` command line tool, found in `~/.local/bin`, `/usr/local/bin` or
+`/opt/homebrew/bin` (an app doesn't get the login PATH): `list --json` (parsed by `parse::parse_projects`,
+cached for 60 s, only for Settings because it may start Project Launcher) and `open <id>`. Without the tool,
+`launcher_projects` answers `found: false` and Settings shows how to install it.
+
+| Command | Args | Returns |
+|---|---|---|
+| `links_view` | – | `QuickAccess { now, more }`: `LinkItem { title, target, command }` |
+| `projects_view` | – | `ProjectGroup[]`: a Daybook project and its `LauncherRow { id, name, command }` |
+| `jira_open` | `input` | the key; `invalid_input` for an unreadable input or a missing Jira URL |
+| `jira_suggestions` | – | the keys of the last 7 days, today's first, newest first |
+| `launcher_projects` | `fresh` | `LauncherProjects { found, projects: LauncherProject { id, name, archived }[], error }` |
+
 ## Tray
 
 `tray.rs`: `tray::install(app)` builds the menu bar item `main` from `icons/tray/tray.png` (36 px, the menu bar's
@@ -365,7 +404,7 @@ failed save leaves memory unchanged. `JsonStore::open_with` normalizes the loade
 | `context.json` | `Active { id, setAt }`, the current context (`contexts::Contexts`) |
 | `status-memory.json` | `StatusMemory { date, status, since, workedToday }`, today's status (`status::Statuses`, [status.md](status.md)) |
 | `routines.json` | `{ date, fired }`, the once-a-day wizard triggers that fired today (`routines::Fired`, [routines.md](routines.md#the-wizard)) |
-| `jira-tickets.json` | written only by the [prototype import](#prototype-import) so far; its step adds the store that reads it |
+| `jira-tickets.json` | `jira::tickets::JiraTickets`: the Jira keys opened per day, the last 15 days ([Links, Jira and Project Launcher](#links-jira-and-project-launcher)) |
 
 ### Settings
 

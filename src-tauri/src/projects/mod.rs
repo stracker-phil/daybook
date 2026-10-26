@@ -1,6 +1,7 @@
-//! Projects: which count right now (the one gate), the meeting a title is for, their Launcher projects,
-//! and links following a renamed or removed project. Pure.
+//! Projects: which count right now (the one gate), the meeting a title is for, their Launcher projects
+//! (and their names following Project Launcher), and links following a renamed or removed project. Pure.
 
+use crate::launcher::parse::ListedProject;
 use crate::store::settings::{Project, QuickLink};
 use crate::tools::{LauncherProject, ProjectGroup};
 
@@ -48,6 +49,23 @@ pub fn project_groups(projects: &[&Project], current: Option<&str>) -> Vec<Proje
         .collect();
     groups.sort_by_key(|group| Some(group.project.as_str()) != current);
     groups
+}
+
+/// Linked Launcher projects take the name `listed` has for their id; whether any changed.
+pub fn follow_launcher_names(projects: &mut [Project], listed: &[ListedProject]) -> bool {
+    let mut changed = false;
+    for linked in projects
+        .iter_mut()
+        .flat_map(|p| p.launcher_projects.iter_mut())
+    {
+        if let Some(found) = listed.iter().find(|found| found.id == linked.id)
+            && found.name != linked.name
+        {
+            linked.name = found.name.clone();
+            changed = true;
+        }
+    }
+    changed
 }
 
 /// Projects renamed in place: same position, the old name gone and the new one new.
@@ -282,5 +300,73 @@ mod tests {
         let before = links.clone();
         follow_projects(&previous, &next, &mut links);
         assert_eq!(links, before);
+    }
+
+    fn listed(id: &str, name: &str) -> ListedProject {
+        ListedProject {
+            id: id.into(),
+            name: name.into(),
+            archived: false,
+        }
+    }
+
+    fn linked_names(projects: &[Project]) -> Vec<Vec<(String, String)>> {
+        projects
+            .iter()
+            .map(|p| {
+                p.launcher_projects
+                    .iter()
+                    .map(|l| (l.id.clone(), l.name.clone()))
+                    .collect()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_linked_project_listed_under_another_name_takes_that_name() {
+        let mut all = projects();
+        let changed = follow_launcher_names(&mut all, &[listed("c1", "Customer Portal")]);
+        assert!(changed);
+        assert_eq!(
+            all[2].launcher_projects,
+            vec![linked("c1", "Customer Portal")]
+        );
+        assert_eq!(all[1].launcher_projects, vec![linked("p1", "QRS")]);
+    }
+
+    #[test]
+    fn linked_projects_that_are_not_listed_keep_their_names() {
+        let mut all = projects();
+        let before = linked_names(&all);
+        let changed = follow_launcher_names(&mut all, &[listed("zzz", "Other")]);
+        assert!(!changed);
+        assert_eq!(linked_names(&all), before);
+    }
+
+    #[test]
+    fn identical_names_change_nothing() {
+        let mut all = projects();
+        let before = linked_names(&all);
+        let changed =
+            follow_launcher_names(&mut all, &[listed("p1", "QRS"), listed("c1", "Portal")]);
+        assert!(!changed);
+        assert_eq!(linked_names(&all), before);
+    }
+
+    #[test]
+    fn every_project_linking_the_same_id_is_renamed() {
+        let mut all = vec![
+            project("A", |p| p.launcher_projects = vec![linked("x", "Old")]),
+            project("B", |p| {
+                p.launcher_projects = vec![linked("y", "Keep"), linked("x", "Older")]
+            }),
+        ];
+        let changed = follow_launcher_names(&mut all, &[listed("x", "New")]);
+        assert!(changed);
+        assert_eq!(all[0].launcher_projects, vec![linked("x", "New")]);
+        assert_eq!(
+            all[1].launcher_projects,
+            vec![linked("y", "Keep"), linked("x", "New")]
+        );
     }
 }

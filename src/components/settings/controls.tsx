@@ -70,7 +70,7 @@ export function Segmented<T extends string>({ label, description, nested, ...but
 
 /** Text input that commits on blur or Enter, so half-typed values never reach the backend.
  *  Number spinner steps (input without typing) also commit, debounced, so they preview right away. */
-export function TextField({ label, description, value, onCommit, type = "text", min, max, suffix, placeholder, nested, required }: {
+export function TextField({ label, description, value, onCommit, type = "text", min, max, suffix, placeholder, nested, required, wide }: {
   label: string;
   description?: ReactNode;
   value: string;
@@ -83,6 +83,8 @@ export function TextField({ label, description, value, onCommit, type = "text", 
   nested?: boolean;
   /** An empty value isn't saved; the field shows the saved one again. */
   required?: boolean;
+  /** Room for a URL. */
+  wide?: boolean;
 }) {
   const id = useId();
   const [text, setText] = useState(value);
@@ -108,7 +110,7 @@ export function TextField({ label, description, value, onCommit, type = "text", 
       <div className="settings-input">
         <input
           id={id}
-          className={`input${type === "number" ? " number" : ""}`}
+          className={["input", type === "number" && "number", wide && "wide"].filter(Boolean).join(" ")}
           type={type}
           min={min}
           max={max}
@@ -140,6 +142,7 @@ export function NumberField({ value, onCommit, ...rest }: {
   min: number;
   max: number;
   suffix?: string;
+  nested?: boolean;
 }) {
   return (
     <TextField

@@ -360,6 +360,12 @@ note links follow in place, missing ones in `--o3`). The pointer never moves the
 second one opens. The footer has the status (`Copied [[Plan]]`, `Indexing… N notes so far`, an error) and the
 keys (`↵ open · ⌘↵ open preview · ⌘C copy link`, `⌘[ back` and `⌘] forward` when there is history, `esc close`).
 
+**Links, Projects and Jira** (`links:open`, `projects:open`, `jira:open`): Links lists Now, then More links;
+Projects lists each project's Launcher projects under its name. Both share `ShortcutListView`: the first nine
+rows show ⌘1…⌘9 and open directly, typing filters by every word, a click selects and a second click opens. The
+Jira overlay is an address bar: you type a number, key or link, ↓ and ↑ put the last 7 days' keys into the field
+(fuzzy-filtered, at most 8), ↵ opens what the field shows.
+
 **The quick notes editor** (`src/windows/quicknotes/`): a small floating window that keeps its size and place.
 The title strip beside the window buttons has the heading's `#`s (`--o3`, mono) and the topic's title, editable
 (a new title renames the heading; ↵ goes to the text). Below it CodeMirror 6 with Markdown in `--font-mono`: the

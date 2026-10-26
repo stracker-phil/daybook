@@ -75,3 +75,15 @@
 /* Quick notes: today's topics, deeper levels indented. 50vh would be of the overlay's own height. */
 .quick-topics { max-height: 26.154rem; }
 .quick-topic-level { flex: none; box-sizing: content-box; }
+
+/* Links and Projects: twelve rows before the list scrolls. 50vh would be of the overlay's own height. */
+.shortcut-list { max-height: 36.308rem; }
+
+/* Jira: the typed key, the suggestions below it; the error takes the footer's free space. */
+.jira-prompt { flex: none; color: var(--text); font-weight: 600; }
+.jira-suggestions { max-height: 24.615rem; }
+.palette-list li.active.jira-suggestion { background: var(--context-tint, var(--sel)); color: var(--text); }
+.palette-list li.active.jira-suggestion .o3 { color: var(--o3); opacity: 1; }
+.jira-foot { flex-wrap: nowrap; }
+.jira-foot .palette-error { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jira-foot > span:not(.palette-error) { flex: none; margin-left: auto; }
