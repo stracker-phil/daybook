@@ -91,6 +91,20 @@ pub fn read_note_section(
     Some(text.trim_start_matches('\n').to_string())
 }
 
+pub const SECTION_CHANGED: &str = "The topic changed in the note meanwhile.";
+
+/// Whether the section's text is `expected`, a missing section's text being empty. Blank lines around
+/// the text don't count, as writing drops them.
+pub fn section_holds(
+    lines: &[String],
+    notes_heading: &str,
+    section: &NoteSectionRef,
+    expected: &str,
+) -> bool {
+    let current = read_note_section(lines, notes_heading, section).unwrap_or_default();
+    body_lines(&current) == body_lines(expected)
+}
+
 /// The body without leading blank lines and trailing whitespace; the first line keeps its indent.
 fn body_lines(body: &str) -> Vec<String> {
     let indent = body.len() - body.trim_start().len();
@@ -264,6 +278,64 @@ mod tests {
             write(tight, "Standup", "Standup", "- one\n- two"),
             "## Notes\n\n### Standup\n\n- one\n- two\n\n### Review\nnotes\n"
         );
+    }
+
+    #[test]
+    fn a_section_holds_its_text_ignoring_blank_lines_around_it() {
+        let lines = Note::parse(NOTE).lines;
+        let review = section("Review", 3);
+        for expected in ["notes", "notes\n", "\n\nnotes\n\n", "notes  \n"] {
+            assert!(
+                section_holds(&lines, "## Notes", &review, expected),
+                "{expected:?}"
+            );
+        }
+        for expected in ["", "other", "notes\nmore"] {
+            assert!(
+                !section_holds(&lines, "## Notes", &review, expected),
+                "{expected:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_missing_section_or_notes_heading_holds_empty_text() {
+        let lines = Note::parse(NOTE).lines;
+        assert!(section_holds(
+            &lines,
+            "## Notes",
+            &section("Missing", 3),
+            "\n"
+        ));
+        assert!(!section_holds(
+            &lines,
+            "## Notes",
+            &section("Missing", 3),
+            "x"
+        ));
+        assert!(section_holds(
+            &lines,
+            "## Elsewhere",
+            &section("Review", 3),
+            ""
+        ));
+    }
+
+    #[test]
+    fn a_section_holds_its_subsections_text_too() {
+        let lines = Note::parse(NOTE).lines;
+        assert!(section_holds(
+            &lines,
+            "## Notes",
+            &section("Standup", 3),
+            "- one\n- two\n\n#### Details\ntext"
+        ));
+        assert!(!section_holds(
+            &lines,
+            "## Notes",
+            &section("Standup", 3),
+            "- one\n- two"
+        ));
     }
 
     #[test]

@@ -519,7 +519,11 @@ export type NoteChanged = {
  */
 day: string | null, };
 
-export type NoteOp = { "kind": "journalGroup", group: string, answers: JournalGroupAnswers, } | { "kind": "planStep", title: string, done: boolean, } | { "kind": "planList", titles: Array<string>, } | { "kind": "focus", body: string, } | { "kind": "noteSection", title: string, level: number, newTitle: string, body: string, };
+export type NoteOp = { "kind": "journalGroup", group: string, answers: JournalGroupAnswers, } | { "kind": "planStep", title: string, done: boolean, } | { "kind": "planList", titles: Array<string>, } | { "kind": "focus", body: string, } | { "kind": "noteSection", title: string, level: number, newTitle: string, body: string, 
+/**
+ * The section's text the editor started from; the op fails when the note holds another.
+ */
+expected?: string, };
 
 export type NoteSectionRef = { title: string, 
 /**
@@ -648,6 +652,23 @@ days: Array<number> | null, time: MinuteRange | null,
  * Shown around calendar events whose title contains this.
  */
 event: string | null, eventWindow: EventWindow, leadMinutes: number, pinned: boolean, };
+
+/**
+ * A topic and its text in today's note; empty when the topic or the note doesn't exist yet.
+ */
+export type QuickNote = { title: string, level: number, body: string, };
+
+export type QuickNoteSaved = { "kind": "saved", topic: NoteSectionRef, } | { "kind": "changed", note: QuickNote, };
+
+export type QuickNoteTopics = { rows: Array<TopicRow>, 
+/**
+ * Whether today's note has any topic.
+ */
+hasTopics: boolean, 
+/**
+ * Where the topics live, e.g. `## Notes`.
+ */
+notesHeading: string, };
 
 export type Rail = { 
 /**
@@ -1074,6 +1095,12 @@ detail: string | null,
  * Shown in the context's colour.
  */
 accent: boolean, enabled: boolean, };
+
+export type TopicRow = { topic: NoteSectionRef, 
+/**
+ * Not in the note yet; opening it adds it.
+ */
+create: boolean, };
 
 export type UiState = { sidebarHidden: boolean, 
 /**

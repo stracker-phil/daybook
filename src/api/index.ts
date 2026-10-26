@@ -20,7 +20,11 @@ import type {
   Missing,
   NoteChanged,
   PaletteResults,
+  NoteSectionRef,
   PanelSession,
+  QuickNote,
+  QuickNoteSaved,
+  QuickNoteTopics,
   RemoteEvent,
   RoutineView,
   Settings,
@@ -122,6 +126,16 @@ export const api = {
   todoOpen: (file: string) => invoke<void>("todo_open", { file }),
   /** Creates today's note through the Obsidian CLI; resolves whether it exists now. */
   dailyNoteCreate: () => invoke<boolean>("daily_note_create"),
+  /** The quick-notes picker's rows for `query` (today's matching topics, then a new one) and the notes heading. */
+  quickNotesList: (query: string) => invoke<QuickNoteTopics>("quick_notes_list", { query }),
+  /** Closes the picker and opens the editor on `topic`; `create` adds it to today's note first. */
+  quickNotesOpen: (topic: NoteSectionRef, create: boolean) => invoke<void>("quick_notes_open", { topic, create }),
+  /** The editor's topic and its text, `null` before one was chosen. */
+  quickNoteGet: () => invoke<QuickNote | null>("quick_note_get"),
+  /** Writes the topic's text and title unless the note no longer holds `base`, the text the editor started from. */
+  quickNoteSave: (topic: NoteSectionRef, newTitle: string, body: string, base: string) =>
+    invoke<QuickNoteSaved>("quick_note_save", { topic, newTitle, body, base }),
+  quickNotesClose: () => invoke<void>("quick_notes_close"),
   /** Opens `view` in the overlay; the same view again closes it. */
   panelOpen: (view: string, args?: unknown) => invoke<void>("panel_open", { view, args: args ?? null }),
   panelClose: () => invoke<void>("panel_close"),
@@ -161,6 +175,8 @@ export const api = {
   /** To the overlay page: the session to render, `null` once the overlay closed. */
   onPanelSession: (handler: (session: PanelSession | null) => void): Promise<UnlistenFn> =>
     listen<PanelSession | null>("panel_session", (e) => handler(e.payload)),
+  /** To the quick-notes editor: another topic was chosen. */
+  onQuickNoteTarget: (handler: () => void): Promise<UnlistenFn> => listen("quick_note_target", handler),
   /** Requests from other processes; answer each with `remoteReply`. */
   onRemote: (handler: (event: RemoteEvent) => void): Promise<UnlistenFn> => listen<RemoteEvent>("remote", (e) => handler(e.payload)),
 };

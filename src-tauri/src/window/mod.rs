@@ -1,10 +1,12 @@
-//! The app's windows: the Daybook window here, Settings in `settings`, the overlay panel in `panel`, and
-//! the native window behaviour they share (`display`, `front_app`, `native`).
+//! The app's windows: the Daybook window here, Settings in `settings`, the overlay panel in `panel`, the
+//! quick-notes editor in `quick_notes`, and the native window behaviour they share (`display`,
+//! `front_app`, `native`).
 
 pub mod display;
 pub mod front_app;
 mod native;
 pub mod panel;
+pub mod quick_notes;
 pub mod settings;
 
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
@@ -71,9 +73,10 @@ fn set_dock_icon(app: &AppHandle, shown: bool) {
     }
 }
 
-/// Hides a regular window (the Daybook window or Settings), as closing it does; the app keeps running
-/// in the menu bar. The Dock icon goes with the last one; an active Daybook then hides too, so macOS
-/// picks what comes forward on this Space instead of Daybook bringing back an app.
+/// Hides a window as closing it does; the app keeps running in the menu bar. The Dock icon goes with
+/// the last regular window (the Daybook window, Settings); with no window left, not even the quick-notes
+/// editor, an active Daybook hides too, so macOS picks what comes forward on this Space instead of
+/// Daybook bringing back an app.
 fn hide_regular(app: &AppHandle, label: &str) {
     if let Some(window) = app.get_webview_window(label) {
         let _ = window.hide();
@@ -82,6 +85,9 @@ fn hide_regular(app: &AppHandle, label: &str) {
         return;
     }
     set_dock_icon(app, false);
+    if quick_notes::visible(app) {
+        return;
+    }
     let hidden = app.run_on_main_thread(|| {
         if native::app_active() {
             native::hide_app();
@@ -96,9 +102,13 @@ pub fn hide_main(app: &AppHandle) {
     hide_regular(app, MAIN);
 }
 
-/// Hides the Daybook or Settings window on close and returns true; for other windows it returns false, so
-/// their close proceeds.
+/// Hides the Daybook window, Settings or the quick-notes editor on close and returns true; for other
+/// windows it returns false, so their close proceeds.
 pub fn close_requested(app: &AppHandle, label: &str) -> bool {
+    if label == quick_notes::LABEL {
+        quick_notes::hide(app);
+        return true;
+    }
     let regular = label == MAIN || label == settings::LABEL;
     if regular {
         hide_regular(app, label);
@@ -129,6 +139,8 @@ pub fn close_focused(app: &AppHandle) {
         hide_main(app);
     } else if focused(app, settings::LABEL) {
         settings::hide(app);
+    } else if focused(app, quick_notes::LABEL) {
+        quick_notes::hide(app);
     }
 }
 

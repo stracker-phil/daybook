@@ -109,6 +109,20 @@ fn shared_application() -> Retained<AnyObject> {
     unsafe { msg_send![class!(NSApplication), sharedApplication] }
 }
 
+/// Shown on the Space the owner looks at (also over a full-screen app) instead of switching to its own.
+///
+/// # Safety
+/// `ns_window` is a live `NSWindow`, on the main thread.
+pub unsafe fn move_to_active_space(ns_window: *mut c_void) {
+    const MOVE_TO_ACTIVE_SPACE: usize = 1 << 1;
+    const FULL_SCREEN_AUXILIARY: usize = 1 << 8;
+    // SAFETY: plain NSWindow setter.
+    unsafe {
+        let behavior = MOVE_TO_ACTIVE_SPACE | FULL_SCREEN_AUXILIARY;
+        let _: () = msg_send![window(ns_window), setCollectionBehavior: behavior];
+    }
+}
+
 /// Daybook is the active app.
 pub fn app_active() -> bool {
     // SAFETY: plain NSApplication getter.

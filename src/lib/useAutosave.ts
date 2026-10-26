@@ -6,6 +6,8 @@ interface Autosave<T> {
   change: (value: T) => void;
   /** Saves a dirty draft now; resolves once the save is through. */
   flush: () => Promise<void>;
+  /** Drops an unsaved draft, e.g. when another document loads. */
+  reset: () => void;
   isDirty: () => boolean;
 }
 
@@ -49,7 +51,13 @@ export function useAutosave<T>({ delayMs, save, onError }: { delayMs: number; sa
     [delayMs, flush],
   );
 
+  const reset = useCallback(() => {
+    window.clearTimeout(timer.current);
+    latest.current = null;
+    dirty.current = false;
+  }, []);
+
   const isDirty = useCallback(() => dirty.current, []);
 
-  return { change, flush, isDirty };
+  return { change, flush, reset, isDirty };
 }

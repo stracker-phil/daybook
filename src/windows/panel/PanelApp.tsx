@@ -9,6 +9,7 @@ import { FocusView } from "./FocusView";
 import { JournalView } from "./JournalView";
 import { OfferOffView } from "./OfferOffView";
 import { PaletteView } from "./PaletteView";
+import { QuickNotesView } from "./QuickNotesView";
 import { SampleView } from "./SampleView";
 import { StatusView } from "./StatusView";
 import { WizardView } from "./WizardView";
@@ -27,6 +28,8 @@ function View({ session }: { session: PanelSession }) {
       return <FocusView />;
     case "journal":
       return <JournalView group={(session.args as { group?: string } | null)?.group ?? null} />;
+    case "quicknotes":
+      return <QuickNotesView />;
     case "wizard":
       return <WizardView routine={(session.args as { routine?: string } | null)?.routine ?? ""} />;
     case "offer-off":

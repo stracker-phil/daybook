@@ -1,0 +1,26 @@
+/* The quick-notes editor: a title strip beside the window buttons, the editor, a status line. */
+.quick-notes { display: flex; flex-direction: column; height: 100vh; background: var(--bg); }
+.quick-notes-head {
+  flex: none; display: flex; align-items: center; gap: var(--space-2); height: 2.769rem;
+  padding: 0 var(--space-3) 0 var(--traffic-lights); border-bottom: 1px solid var(--line);
+}
+.quick-notes-head input {
+  flex: 1; min-width: 0; padding: 0; border: none; outline: none; background: none;
+  color: var(--text-strong); font: inherit; font-weight: 600;
+}
+.quick-notes-head input::placeholder { color: var(--o3); }
+.quick-notes-empty { flex: 1; display: flex; align-items: center; justify-content: center; padding: 0 var(--space-6); text-align: center; }
+.quick-notes-foot {
+  flex: none; display: flex; align-items: center; gap: var(--space-2); min-height: 1.846rem; padding: 0 var(--space-3);
+  border-top: 1px solid var(--line); font-size: var(--fs-meta);
+}
+.quick-notes-foot .grow-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quick-notes-foot .link-btn { flex: none; }
+.quick-note-editor { flex: 1; min-height: 0; }
+.quick-note-editor .cm-editor { height: 100%; color: var(--text); background: transparent; }
+.quick-note-editor .cm-editor.cm-focused { outline: none; }
+.quick-note-editor .cm-scroller { font-family: var(--font-mono); font-size: var(--data-font-size); line-height: 1.6; }
+.quick-note-editor .cm-content { padding: var(--space-2) 0; caret-color: var(--text); }
+.quick-note-editor .cm-line { padding: 0 var(--space-3); }
+.quick-note-editor .cm-placeholder { color: var(--o3); }
+.quick-note-editor .cm-quote-line { background: var(--fill); box-shadow: inset 3px 0 0 var(--o3); }

@@ -1,7 +1,7 @@
 import { vi } from "vitest";
 import type { api as realApi } from "../api";
 // Must not import the store or "../api": they would load the real api module while it is being mocked.
-import { EMPTY_UI_STATE, type Keybindings, type Settings, type UiState } from "../api/types";
+import { EMPTY_UI_STATE, type Keybindings, type NoteSectionRef, type QuickNoteSaved, type Settings, type UiState } from "../api/types";
 import { settings } from "./settings";
 
 const noUnlisten = () => Promise.resolve(() => {});
@@ -81,6 +81,11 @@ export function createApiMock(): typeof realApi {
     routineOpenLink: vi.fn().mockResolvedValue(undefined),
     panelKeepOpen: vi.fn().mockResolvedValue(undefined),
     vaultInfo: vi.fn().mockResolvedValue({ dailyNotes: null, todayNote: null, todayNoteExists: false, obsidianCli: null }),
+    quickNotesList: vi.fn().mockResolvedValue({ rows: [], hasTopics: false, notesHeading: "## Notes" }),
+    quickNotesOpen: vi.fn().mockResolvedValue(undefined),
+    quickNoteGet: vi.fn().mockResolvedValue(null),
+    quickNoteSave: vi.fn(async (topic: NoteSectionRef, newTitle: string): Promise<QuickNoteSaved> => ({ kind: "saved", topic: { ...topic, title: newTitle } })),
+    quickNotesClose: vi.fn().mockResolvedValue(undefined),
     panelOpen: vi.fn().mockResolvedValue(undefined),
     panelClose: vi.fn().mockResolvedValue(undefined),
     panelSession: vi.fn().mockResolvedValue(null),
@@ -95,6 +100,7 @@ export function createApiMock(): typeof realApi {
     onSettingsChanged: vi.fn(noUnlisten),
     onContextChanged: vi.fn(noUnlisten),
     onNoteChanged: vi.fn(noUnlisten),
+    onQuickNoteTarget: vi.fn(noUnlisten),
     onStatusChanged: vi.fn(noUnlisten),
     onCalendarChanged: vi.fn(noUnlisten),
     onCallChanged: vi.fn(noUnlisten),

@@ -320,7 +320,7 @@ Context menus use the UI font, 22px items with a 6px radius; the hovered or focu
 (`lib/nativeMenu.ts`).
 
 Daybook's own overlay panel (a non-activating window over other apps), the rail and the quick notes editor are
-separate windows; they come with steps 04, 16 and 20 and get their sections here then.
+separate windows; the rail comes with step 20 and gets its section here then.
 
 **The focus overlay** (`focus` view, ⌘F11 by default): "Today's focus" with where the list goes on the right
 (`--o3`: "Updates your morning message in #team", "Today's note only"); a plain monospace editor (`--font-mono`,
@@ -347,11 +347,30 @@ right. ↑↓ cycle through all items, Space or ↵ ticks, ⌘O opens the link. 
 by itself 0.7 s after the last one is ticked; there is no skip. The footer has the keys (⌘O only for an item with
 a link) or the error of a failed tick.
 
+**Quick notes** (⌘F3 by default, "Write a note…" on the board): the picker overlay lists today's topics under
+the notes heading (`###` and deeper, their `#`s in `--o3` and indented by level) and filters them as you type;
+a title that isn't a topic yet adds a "New topic “…”" row (`###`). ↑↓ and ↵ (or a click) open the topic in the
+editor window; a new one is added to today's note at once, so it shows in Obsidian too. ⌘F3 while the editor is
+open brings it forward instead.
+
+**The quick notes editor** (`src/windows/quicknotes/`): a small floating window that keeps its size and place.
+The title strip beside the window buttons has the heading's `#`s (`--o3`, mono) and the topic's title, editable
+(a new title renames the heading; ↵ goes to the text). Below it CodeMirror 6 with Markdown in `--font-mono`: the
+syntax stays visible and dimmed, headings in `--style-yellow`, bold `--style-purple`, italic teal, links
+`--accent`, quotes with a bar. ↵ continues a list or quote, Tab and ⇧Tab indent, ⌘L makes a line a task or ticks
+it, ⌘B and ⌘I wrap the selection, ⌘Z undoes within the topic. Text saves exactly as typed 0.8 s after typing
+stops and when the window loses focus; the status line says "Saving…", "Saved to today's note" or the error.
+While nothing is unsaved, a change made in Obsidian shows at once; with unsaved text the save is refused
+instead ("Changed in the note meanwhile: your text isn't saved.") and the text stays, until "Load the note"
+copies it to the clipboard and shows the note's text. Neither side is overwritten. Esc saves and closes; it
+stays open when another app takes focus.
+
 **Other days.** ‹ › (or P, N) show the closest day with a daily note, O and "Back to Today" return; today always
 counts. Another day is read-only: its title is the day's name, there is no reminder, the focus list and the
 chips don't open overlays, and the date and note topics open that day's note. Commands, keys and overlays always
 work on today; the open todos are the same on every day. The board's last section lists the note's topics
-("Today's notes", or "Notes"), one row each that opens the note at it, with "Open in Obsidian" in its header.
+("Today's notes", or "Notes") with "Open in Obsidian" in its header: today a row opens its topic in the quick
+notes editor ("Write a note…" while there is none), another day's opens the note at it.
 
 ## Contexts
 

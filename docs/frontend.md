@@ -46,6 +46,13 @@ The Settings window is a page of its own, `src/windows/settings/` (a Vite input 
 settings, follows `settings_changed` and `keybindings_changed`, shows the page from `?page=` and then from
 `open_settings`, and renders `SettingsWindow`, `Dialogs` and `Toasts`.
 
+The quick-notes editor is one too, `src/windows/quicknotes/`: `QuickNotesApp` (title strip, editor, status
+line; Esc saves and closes) over `useQuickNote` (loads the topic on `quick_note_target`, autosaves through
+`lib/useAutosave.ts` with the loaded text as `base`, reloads on `note_changed` and focus only while nothing is
+unsaved, and keeps a refused draft until "Load the note"), `MarkdownEditor` (CodeMirror 6: `lang-markdown`, the
+format keymap, a fresh editor per loaded text) and `markdown.ts` (pure ⌘B, ⌘I, ⌘L edits). It has no store and
+no toasts; errors go to the log.
+
 `main` keeps its place in the tree when the sidebar or the inspector hides, so the board keeps its state.
 
 ## The Daybook window

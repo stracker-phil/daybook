@@ -39,6 +39,10 @@ pub enum NoteOp {
         level: u8,
         new_title: String,
         body: String,
+        /// The section's text the editor started from; the op fails when the note holds another.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        expected: Option<String>,
     },
 }
 
@@ -130,17 +134,19 @@ impl NoteOp {
                 level,
                 new_title,
                 body,
-            } => notes::write_note_section(
-                note,
-                &layout.notes,
-                order,
-                &NoteSectionRef {
+                expected,
+            } => {
+                let section = NoteSectionRef {
                     title: title.clone(),
                     level: *level,
-                },
-                new_title,
-                body,
-            ),
+                };
+                if let Some(expected) = expected
+                    && !notes::section_holds(&note.lines, &layout.notes, &section, expected)
+                {
+                    return Err(notes::SECTION_CHANGED.into());
+                }
+                notes::write_note_section(note, &layout.notes, order, &section, new_title, body);
+            }
         }
         Ok(())
     }
@@ -178,7 +184,77 @@ mod tests {
             level,
             new_title: new_title.into(),
             body: body.into(),
+            expected: None,
         }
+    }
+
+    fn expecting(title: &str, body: &str, expected: &str) -> NoteOp {
+        NoteOp::NoteSection {
+            title: title.into(),
+            level: 3,
+            new_title: title.into(),
+            body: body.into(),
+            expected: Some(expected.into()),
+        }
+    }
+
+    const HELD: &str = "## Notes\n\n### A\n\n- one\n- two\n";
+
+    #[test]
+    fn a_note_section_op_writes_when_the_note_holds_the_expected_text() {
+        assert_eq!(
+            expecting("A", "- three", "- one\n- two").apply(HELD, &layout()),
+            Ok(Some("## Notes\n\n### A\n\n- three\n".into()))
+        );
+    }
+
+    #[test]
+    fn a_note_section_op_fails_when_the_note_holds_other_text() {
+        assert_eq!(
+            expecting("A", "- three", "- other").apply(HELD, &layout()),
+            Err(notes::SECTION_CHANGED.to_string())
+        );
+    }
+
+    #[test]
+    fn an_empty_expectation_adds_a_missing_topic_and_fails_on_a_topic_with_text() {
+        assert_eq!(
+            expecting("A", "", "").apply("# Day\n", &layout()),
+            Ok(Some("# Day\n\n## Notes\n\n### A\n".into()))
+        );
+        assert_eq!(
+            expecting("A", "", "").apply(HELD, &layout()),
+            Err(notes::SECTION_CHANGED.to_string())
+        );
+    }
+
+    #[test]
+    fn blank_lines_and_trailing_newlines_do_not_count_as_a_change() {
+        for expected in ["- one\n- two\n", "\n\n- one\n- two\n\n", "- one\n- two  \n"] {
+            assert_eq!(
+                expecting("A", "- three", expected).apply(HELD, &layout()),
+                Ok(Some("## Notes\n\n### A\n\n- three\n".into())),
+                "{expected:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_note_section_op_with_an_expectation_round_trips() {
+        let shape = json!({"kind": "noteSection", "title": "A", "level": 3, "newTitle": "B",
+            "body": "x", "expected": "y"});
+        let op: NoteOp = serde_json::from_value(shape.clone()).unwrap();
+        assert_eq!(
+            op,
+            NoteOp::NoteSection {
+                title: "A".into(),
+                level: 3,
+                new_title: "B".into(),
+                body: "x".into(),
+                expected: Some("y".into()),
+            }
+        );
+        assert_eq!(serde_json::to_value(&op).unwrap(), shape);
     }
 
     #[test]

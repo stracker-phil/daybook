@@ -71,3 +71,7 @@
 .wizard-list li.active[data-done="true"] .wizard-title { color: inherit; opacity: 0.75; }
 .wizard-list li.active .wizard-check { border-color: currentColor; }
 .wizard-list .icon-btn { color: inherit; }
+
+/* Quick notes: today's topics, deeper levels indented. 50vh would be of the overlay's own height. */
+.quick-topics { max-height: 26.154rem; }
+.quick-topic-level { flex: none; box-sizing: content-box; }

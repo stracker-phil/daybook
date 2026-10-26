@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use crate::contexts::Contexts;
 use crate::launch::LaunchQueue;
+use crate::quick_notes::QuickNotes;
 use crate::routines::Fired;
 use crate::slack::SlackFiles;
 use crate::status::Statuses;
@@ -23,6 +24,7 @@ pub struct AppState {
     pub slack: SlackFiles,
     pub fired: Fired,
     pub todos: NotesIndex,
+    pub quick_notes: QuickNotes,
 }
 
 impl AppState {
@@ -38,6 +40,7 @@ impl AppState {
             slack: SlackFiles::open(config_dir),
             fired: Fired::open(config_dir),
             todos: NotesIndex::default(),
+            quick_notes: QuickNotes::open(config_dir),
         }
     }
 }

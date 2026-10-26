@@ -69,7 +69,7 @@ when the op can never apply. `describe()` is one line for the action log.
 | `planStep { title, done }` | ticks or unticks a routine item in the plan section, adding it if needed ([routines.md](routines.md)) | `ops/plan.rs` |
 | `planList { titles }` | adds a starting routine's missing items unticked | `ops/plan.rs` |
 | `focus { body }` | replaces the focus section's body | `ops/focus.rs` |
-| `noteSection { title, level, newTitle, body }` | rewrites (or adds, at the end of the notes section) one `###` section below the notes heading, maybe renaming it | `ops/notes.rs` |
+| `noteSection { title, level, newTitle, body, expected? }` | rewrites (or adds, at the end of the notes section) one `###` section below the notes heading, maybe renaming it; with `expected`, fails unless the section still holds that text (`section_holds`) | `ops/notes.rs` |
 
 The modules also read what they write (`read_plan_tasks`, `read_focus`, `parse_journal_groups` and
 `group_answers`, `list_note_sections` and `read_note_section`) for the features that show it.
@@ -194,6 +194,26 @@ walked again. A changed vault, format or focus heading starts over.
 
 Daybook never ticks a todo; a click opens its note in Obsidian (`todo_open`).
 
+## Quick notes
+
+`quick_notes/` writes one topic of today's note at a time: the `###` (and deeper) headings inside the notes
+section (Settings → Daily Note → Notes, `## Notes` by default), outside code blocks. A topic's text is
+everything up to the next heading of its level or higher, its own subheadings included, without the blank lines
+around it.
+
+- **Topics.** `QuickNotes` holds the topic the editor shows and the editor's frame (`quick_notes.json`).
+  `topic.rs` (pure) checks a topic (a one-line title of at most 200 characters, 2 to 6 `#`), reads
+  `notes:topic:`'s argument `<level>:<title>`, and builds the picker's rows (`rows_for`): the topics whose
+  title contains the query, ignoring case, then a new `###` topic named after it unless one has that title.
+- **New topics** are written as an empty section at once (`quick_notes_open` with `create`), at the end of the
+  notes section; the notes section itself is placed by the configured order when missing. A topic that already
+  has text keeps it.
+- **Saving** (`quick_note_save`) writes the body verbatim (only blank lines around it are dropped) and renames
+  the heading to the new title. It sends `base`, the text the editor started from, as the op's `expected`: when
+  the note holds another text for the topic (edited in Obsidian meanwhile), nothing is written and the answer
+  is `changed` with the note's text, so neither side is lost. Without today's note the save waits like every
+  other write.
+
 ## Commands
 
 | Command | Args | Returns | Errors |
@@ -202,6 +222,11 @@ Daybook never ticks a todo; a click opens its note in Obsidian (`todo_open`).
 | `daily_note_open` | `day: string \| null` (`YYYY-MM-DD`, default today), `heading: string \| null` | – (opens the note in Obsidian through `obsidian://open`, at `heading` when given; today's missing note is created instead) | `invalid_input` (no vault, not a day), `not_found` (no note that day), `io` |
 | `todo_open` | `file` (vault-relative) | – (opens the todo's note in Obsidian) | `invalid_input` (no vault, outside the vault), `io` |
 | `daily_note_create` | – | `bool`: whether today's note exists afterwards | `invalid_input`, `io` |
+| `quick_notes_list` | `query` | `QuickNoteTopics`: the picker's rows, whether today has any topic, the notes heading | `invalid_input` (no vault), `io` |
+| `quick_notes_open` | `topic: NoteSectionRef`, `create: bool` | – (closes the picker, writes a new topic, opens the editor on it) | `invalid_input` (bad topic) |
+| `quick_note_get` | – | `QuickNote \| null`: the editor's topic and its text | `invalid_input`, `io` |
+| `quick_note_save` | `topic`, `newTitle` (empty keeps it), `body`, `base` | `QuickNoteSaved`: `saved { topic }` (its heading now) or `changed { note }` | `invalid_input` (bad topic or title, over 200 000 characters, no vault), `io` |
+| `quick_notes_close` | – | – (hides the editor, keeping its frame) | – |
 | `vault_info` | – | `VaultInfo` (`DailyNotes::info`, for Settings → Vault): the `DailyNoteFormat` in use (`null` without a vault), today's note path and whether it exists, the Obsidian CLI's path | – |
 | `dev_edit_today_note` (debug builds, `dev.rs`) | `op: NoteOp` | `WriteOutcome` | as `edit_today` |
 

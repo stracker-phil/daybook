@@ -107,6 +107,15 @@ describe("PanelApp", () => {
       expect(mocked.panelReady).toHaveBeenCalledWith(1, expect.any(Number));
     });
 
+    it("renders the topic picker for the quicknotes view", async () => {
+      mocked.quickNotesList.mockResolvedValue({ rows: [{ topic: { title: "Planning", level: 3 }, create: false }], hasTopics: true, notesHeading: "## Notes" });
+      mocked.panelSession.mockResolvedValue(session("quicknotes"));
+      render(<PanelApp />);
+      expect(await screen.findByRole("option", { name: /Planning/ })).toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: "Topic" })).toHaveFocus();
+      expect(mocked.panelReady).toHaveBeenCalledWith(1, expect.any(Number));
+    });
+
     it("renders the offer to set Off for the offer-off view", async () => {
       mocked.panelSession.mockResolvedValue({ session: 1, view: "offer-off", args: { to: "🐈 Personal" } });
       render(<PanelApp />);

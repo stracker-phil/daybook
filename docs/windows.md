@@ -1,18 +1,20 @@
 # Windows
 
 `src-tauri/src/window/`. Daybook lives in the menu bar; its windows come and go over whatever the owner works
-in. Three windows exist so far; the rail, its tooltip and the quick notes editor come with their steps.
+in. Four windows exist so far; the rail and its tooltip come with their step.
 
 | Window | Label | Kind | Level | Focus |
 |---|---|---|---|---|
 | Daybook window | `main` | regular window (`tauri.conf.json`) | normal | takes focus and activates Daybook; brings the Dock icon |
 | Settings | `settings` | regular window (`window/settings.rs`), built on first use | normal | takes focus and activates Daybook; brings the Dock icon |
 | Overlay | `panel` | non-activating `NSPanel` (`window/panel/`) | pop-up menu (101), sticky views floating (3) | takes the keyboard without activating Daybook |
+| Quick notes editor | `quicknotes` | regular window (`window/quick_notes.rs`), built on first use | floating | takes focus and activates Daybook; no Dock icon; stays open on blur |
 
 | File | Holds |
 |---|---|
 | `mod.rs` | the Daybook window: show (on the pointer's screen), hide, the Dock icon; closing a regular window |
 | `settings.rs` | the Settings window and its page ids (`PAGES`) |
+| `quick_notes.rs` | the quick-notes editor window: open on a topic, focus, hide with its frame kept |
 | `display.rs` | pure geometry: `Rect`, `Screen`, `frame_on_display`, `screen_at`, `top_center` |
 | `front_app.rs` | `FrontApp` and the pure close decision `hand_back` |
 | `native.rs` | AppKit: screens, the pointer, window frames, the frontmost app, activating and hiding apps |
@@ -125,6 +127,18 @@ Closing hides the window, so it keeps its page and scroll. `PAGES` lists every p
 the page list's order; `settings:<page>` refuses an id that isn't there (`not_found`), and the palette lists
 one "Settings: <Title>" entry per page.
 
+## Quick notes editor
+
+`window::quick_notes::open(app)` (a topic chosen in the picker, `notes:topic:<level>:<title>`) builds the
+window the first time: `Quick Notes`, 420 × 380 (at least 300 × 180), always on top, no Dock icon, an overlay
+title bar with the traffic lights at 14/18, loading `src/windows/quicknotes/index.html` at the frame it had
+when it last closed (`quick_notes.json`). Each show moves it to the Space the owner looks at
+(`native::move_to_active_space`) and gives it the keyboard; `open` also sends `quick_note_target`, so the page
+saves the old topic and loads the new one, while `focus` (⌘F3 while it is open) only brings it forward.
+Closing (Esc in the page, ⌘W, the close button) keeps the frame and hides it; with no other Daybook window left,
+Daybook hides, so the app it came from comes back. Unlike the overlay, it stays open when it loses focus, and
+hiding the Daybook window doesn't hide Daybook while the editor is on screen.
+
 ## Page side
 
 `src/windows/panel/` is its own page (`index.html`, a Vite input): `PanelApp` renders the session's view,
@@ -134,7 +148,8 @@ window's keys through the registry. `useTabTrap` (`src/lib/`) keeps Tab and ⇧T
 web content would move focus out of the window, and the overlay would close. Views: `context` (`ContextView`, the switcher), `palette` (`PaletteView`,
 [commands.md](commands.md#palette)), `status` (`StatusView` with `EndOfDayListStep` and `EndOfDayStep`), `focus` (`FocusView` with `FocusEditor`, [slack.md](slack.md#the-days-message)), `journal` (`JournalView`, `JournalForm`
 with `JournalAnswers`, autosaved through `lib/useAutosave.ts`; [vault.md](vault.md#journal)), `wizard` (`WizardView`, a
-routine's checklist; [routines.md](routines.md#the-overlay)) and `offer-off`
+routine's checklist; [routines.md](routines.md#the-overlay)) `quicknotes` (`QuickNotesView`, the
+quick-notes topic picker; [vault.md](vault.md#quick-notes)) and `offer-off`
 (`OfferOffView`) ([status.md](status.md#the-overlay)), and the sample view (`sample`, `sample-sticky`: a text field, a list and a
 button; opened in debug builds by `sample:open` and `sample:sticky`).
 
@@ -154,3 +169,4 @@ switch to another app or Space first.
 | `panel_keep_open` | `keep: bool` | – (the open session stays while focus is elsewhere) |
 
 `panel_session` (event, to the `panel` window only): the `PanelSession` to render, `null` once it closed.
+`quick_note_target` (event, to the `quicknotes` window only, no payload): another topic was chosen.

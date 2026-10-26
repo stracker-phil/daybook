@@ -29,6 +29,7 @@ pub mod pending;
 pub mod presence;
 pub mod process;
 pub mod projects;
+pub mod quick_notes;
 pub mod reminders;
 pub mod remote;
 pub mod routines;

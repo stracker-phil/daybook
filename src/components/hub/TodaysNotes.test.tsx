@@ -32,10 +32,43 @@ describe("TodaysNotes", () => {
     expect(screen.getByRole("button", { name: "Ideas" })).toBeInTheDocument();
   });
 
-  it("opens the note of the shown day at the clicked topic", async () => {
+  it("opens today's clicked topic in the quick-notes editor", async () => {
+    await renderNotes({ isToday: true, notes: [{ title: "Planning", level: 2 }] });
+    await userEvent.click(screen.getByRole("button", { name: "Planning" }));
+    expect(mocked.quickNotesOpen).toHaveBeenCalledWith({ title: "Planning", level: 2 }, false);
+    expect(mocked.dailyNoteOpen).not.toHaveBeenCalled();
+  });
+
+  it("toasts when today's topic cannot be opened in quick notes", async () => {
+    mocked.quickNotesOpen.mockRejectedValueOnce({ kind: "io", message: "No editor", code: null });
+    await renderNotes({ isToday: true, notes: [{ title: "Planning", level: 2 }] });
+    await userEvent.click(screen.getByRole("button", { name: "Planning" }));
+    await vi.waitFor(() => expect(useStore.getState().toasts.map((t) => t.message).join()).toContain("Couldn't open quick notes"));
+  });
+
+  it("opens another day's note in Obsidian at the clicked topic", async () => {
     await renderNotes({ day: "2026-10-20", isToday: false, notes: [{ title: "Planning", level: 2 }] });
     await userEvent.click(screen.getByRole("button", { name: "Planning" }));
     expect(mocked.dailyNoteOpen).toHaveBeenCalledWith("2026-10-20", "Planning");
+    expect(mocked.quickNotesOpen).not.toHaveBeenCalled();
+  });
+
+  it("offers to write a note today when there are no topics", async () => {
+    await renderNotes({ isToday: true, notes: [] });
+    await userEvent.click(screen.getByRole("button", { name: "Write a note…" }));
+    expect(mocked.runCommand).toHaveBeenCalledWith("notes:quick");
+  });
+
+  it("offers no note to write on another day", async () => {
+    await renderNotes({ isToday: false, notes: [] });
+    expect(screen.queryByRole("button", { name: "Write a note…" })).not.toBeInTheDocument();
+  });
+
+  it("toasts when quick notes cannot be opened", async () => {
+    mocked.runCommand.mockRejectedValueOnce({ kind: "io", message: "No editor", code: null });
+    await renderNotes({ isToday: true, notes: [] });
+    await userEvent.click(screen.getByRole("button", { name: "Write a note…" }));
+    await vi.waitFor(() => expect(useStore.getState().toasts.map((t) => t.message).join()).toContain("No editor"));
   });
 
   it("opens the whole note from Open in Obsidian", async () => {
@@ -44,17 +77,14 @@ describe("TodaysNotes", () => {
     expect(mocked.dailyNoteOpen).toHaveBeenCalledWith("2026-10-24", undefined);
   });
 
-  it.each([
-    [true, "No notes yet today."],
-    [false, "No notes."],
-  ])("says so when the note has no topics (isToday %s)", async (isToday, text) => {
-    await renderNotes({ isToday, notes: [] });
-    expect(screen.getByText(text)).toBeInTheDocument();
+  it("says so when another day's note has no topics", async () => {
+    await renderNotes({ isToday: false, notes: [] });
+    expect(screen.getByText("No notes.")).toBeInTheDocument();
   });
 
   it("shows no empty text when there are topics", async () => {
-    await renderNotes({ notes: [{ title: "Planning", level: 2 }] });
-    expect(screen.queryByText("No notes yet today.")).not.toBeInTheDocument();
+    await renderNotes({ isToday: false, notes: [{ title: "Planning", level: 2 }] });
+    expect(screen.queryByText("No notes.")).not.toBeInTheDocument();
   });
 
   it("toasts when the note cannot be opened", async () => {

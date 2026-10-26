@@ -131,6 +131,9 @@ Changing the accent, the main write path today:
   use and hidden on close; `settings:<page>` opens a page ([windows.md](windows.md#settings)).
 - **Overlay.** A non-activating panel (`window/panel/`) with its own page (`src/windows/panel/`) renders one view
   at a time over any app, on the pointer's screen ([windows.md](windows.md)).
+- **Quick notes editor.** A small floating window (`window/quick_notes.rs`, page `src/windows/quicknotes/`) that
+  writes one topic of today's note with CodeMirror and stays open on blur
+  ([windows.md](windows.md#quick-notes-editor), [vault.md](vault.md#quick-notes)).
 - **Tray.** A template-image menu bar item (`tray.rs`): the context's label and the status as its title, the
   menu from `menu/model.rs`.
 - **Calendar.** EventKit through objc2 (`calendar/`): the current context's calendars, cached for five minutes and
@@ -194,6 +197,7 @@ src/
   components/                Sidebar, hub/ (Board, TodayCard, Events, DayTimeline, Inspector), Toolbar, Modal, Dialogs, Toasts, settings/, …
   windows/panel/             the overlay page: PanelApp, PaletteView, ContextView, StatusView, OfferOffView, SampleView
   windows/settings/          the Settings window's page: SettingsApp
+  windows/quicknotes/        the quick-notes editor's page: QuickNotesApp, useQuickNote, MarkdownEditor, markdown
   registry/settingsPages.ts
   lib/ styles/ test/
 docs/                        this folder; adr/ holds the decision records
