@@ -97,7 +97,12 @@ A column of at most 64rem with the content margins; sections 20px apart, their t
 - **Today card** (`.today-card`): a light card (`--fill` at half strength, `--radius-lg`) holding the reminder as one
   line (`.reminder`): the label (`Now`, `Next`, `Routine`, …) in `--fs-meta` `--o3`, the text, and the action's name in
   the accent at the end. With an action the whole line is the button (hover and focus `--fill`, focus ring) and it
-  takes the focus whenever the window comes up, so ↵ runs it. The focus list joins it in step 12.
+  takes the focus whenever the window comes up, so ↵ runs it. Under a hairline the focus list ("Focus" in
+  `--fs-meta` `--o3`): one button over all its lines that opens the focus overlay (today only; another day's list
+  is read-only). A task is a 14px rounded checkbox (`--line` border; done: filled `--context` with a check;
+  in progress: a `--context` dot; cancelled: a minus and the text struck through in `--o3`), its project as a
+  `--fill` tag, then the text; other lines are sub-items, indented and `--fs-meta` `--o2`. Empty today it offers
+  "Set today's focus…" in the accent.
 - **Events** (`.board-section`): "Today's events" (or "Events" on another day), an eye toggle (today, with events)
   that hides past events from the list, never from the timeline, with "N past events hidden" under it.
 - **Day timeline** (`.timeline`): hour labels (`--fs-caption`, `--o3`, tabular) over ticks, then one rounded bar on
@@ -312,6 +317,14 @@ Context menus use the UI font, 22px items with a 6px radius; the hovered or focu
 
 Daybook's own overlay panel (a non-activating window over other apps), the rail and the quick notes editor are
 separate windows; they come with steps 04, 16 and 20 and get their sections here then.
+
+**The focus overlay** (`focus` view, ⌘F11 by default): "Today's focus" with where the list goes on the right
+(`--o3`: "Updates your morning message in #team", "Today's note only"); a plain monospace editor (`--font-mono`,
+`--fs-meta`, 4 to 14 rows) that saves exactly what was typed; the projects ⌘1…9 insert under it; the keys in the
+footer, replaced by "Sent to Slack" or an error. ⌘L cycles the line's checkbox (open, in progress, done,
+cancelled), ⌘1…9 sets the line's project emoji (the same key again makes it a plain sub-item), ↵ continues the
+list and ends it on an empty item, Tab and ⇧Tab indent, ⌘↵ saves and closes, ⌘S sends to Slack and stays open.
+It stays open while focus is elsewhere. The end-of-day list step uses the same editor.
 
 ## Contexts
 

@@ -22,19 +22,24 @@ fn end_of_day_message(template: &str, message: &str) -> String {
     }
 }
 
-/// What a status change posts to the channel; `None`: nothing.
-pub fn status_message(change: &StatusChanged, settings: &Settings) -> Option<String> {
-    if !*settings.slack.manual_workflows.get(change.next) {
-        return None;
-    }
-    let message = change.message.trim();
-    let text = match change.end_of_day {
+/// The confirmed message, wrapped by the end-of-day answer when there is one.
+pub fn message_text(settings: &Settings, message: &str, answer: Option<EndOfDayAnswer>) -> String {
+    let message = message.trim();
+    match answer {
         Some(EndOfDayAnswer::Done) => end_of_day_message(&settings.end_of_day.done, message),
         Some(EndOfDayAnswer::Incomplete) => {
             end_of_day_message(&settings.end_of_day.incomplete, message)
         }
         None => message.to_string(),
-    };
+    }
+}
+
+/// What a status change posts to the channel; `None`: nothing, also when the end-of-day reply took it.
+pub fn status_message(change: &StatusChanged, settings: &Settings) -> Option<String> {
+    if change.message_sent || !*settings.slack.manual_workflows.get(change.next) {
+        return None;
+    }
+    let text = message_text(settings, &change.message, change.end_of_day);
     (!text.is_empty()).then_some(text)
 }
 
@@ -65,6 +70,41 @@ mod tests {
             since: "17:30".into(),
             message: message.into(),
             end_of_day,
+            message_sent: false,
+        }
+    }
+
+    #[test]
+    fn a_message_that_already_went_out_with_the_end_of_day_reply_is_not_posted_again() {
+        let settings = Settings::default();
+        let mut sent = change(Status::Off, "all shipped", Some(EndOfDayAnswer::Done));
+        sent.message_sent = true;
+        assert_eq!(status_message(&sent, &settings), None);
+    }
+
+    #[test]
+    fn the_message_text_is_trimmed_without_an_answer() {
+        assert_eq!(
+            message_text(&Settings::default(), "  Morning!  ", None),
+            "Morning!"
+        );
+    }
+
+    #[test]
+    fn the_message_text_is_wrapped_in_the_answers_template() {
+        let settings = Settings::default();
+        for (answer, expected) in [
+            (EndOfDayAnswer::Done, "Tracked: Done | _off for today_"),
+            (
+                EndOfDayAnswer::Incomplete,
+                "Tracked: Incomplete | _off for today_",
+            ),
+        ] {
+            assert_eq!(
+                message_text(&settings, "  off for today ", Some(answer)),
+                expected,
+                "{answer:?}"
+            );
         }
     }
 

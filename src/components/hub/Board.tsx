@@ -23,7 +23,7 @@ export function Board() {
       <div className="board">
         {hub && (
           <div className="board-content">
-            <TodayCard reminder={hub.reminder} />
+            <TodayCard reminder={hub.reminder} focus={hub.focus} isToday={hub.isToday} />
             <Events hub={hub} />
           </div>
         )}

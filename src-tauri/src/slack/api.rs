@@ -25,6 +25,16 @@ pub enum SlackError {
     Net { method: String, reason: String },
 }
 
+impl SlackError {
+    /// Slack's error code; `None` when Slack wasn't reached.
+    pub fn code(&self) -> Option<&str> {
+        match self {
+            Self::Api { code, .. } => Some(code),
+            Self::Net { .. } => None,
+        }
+    }
+}
+
 /// The workspace and the user a token belongs to.
 #[derive(Serialize, Clone, Debug, PartialEq, TS)]
 #[ts(export, export_to = "src/api/types.gen.ts")]
@@ -134,6 +144,36 @@ impl SlackApi {
             channel: data["channel"].as_str().unwrap_or(channel).into(),
             ts: data["ts"].as_str().unwrap_or_default().into(),
         })
+    }
+
+    /// Replies in the message's thread, also sent to the channel.
+    pub async fn post_reply(
+        &self,
+        token: &Secret,
+        channel: &str,
+        thread: &str,
+        text: &str,
+    ) -> Result<(), SlackError> {
+        let params = [
+            ("channel", channel),
+            ("thread_ts", thread),
+            ("reply_broadcast", "true"),
+            ("text", text),
+        ];
+        self.call("chat.postMessage", token, &params).await?;
+        Ok(())
+    }
+
+    pub async fn update_message(
+        &self,
+        token: &Secret,
+        channel: &str,
+        ts: &str,
+        text: &str,
+    ) -> Result<(), SlackError> {
+        let params = [("channel", channel), ("ts", ts), ("text", text)];
+        self.call("chat.update", token, &params).await?;
+        Ok(())
     }
 
     /// Sets the profile status (unless kept) and presence (unless kept). A token without users:write
@@ -344,6 +384,101 @@ mod tests {
         assert_eq!(requests[0].path, "/api/chat.postMessage");
         assert_eq!(requests[0].field("channel"), Some("#general"));
         assert_eq!(requests[0].field("text"), Some("Hello & welcome"));
+    }
+
+    #[tokio::test]
+    async fn post_reply_answers_in_the_thread_and_sends_it_to_the_channel() {
+        let server = FakeSlack::start(vec![(200, OK)]).await;
+
+        server
+            .api
+            .post_reply(&token(), "C0123", "1700000000.000100", "Done & dusted")
+            .await
+            .unwrap();
+
+        let requests = server.requests();
+        assert_eq!(server.paths(), vec!["/api/chat.postMessage"]);
+        assert_eq!(
+            requests[0].form,
+            vec![
+                ("channel".to_string(), "C0123".to_string()),
+                ("thread_ts".to_string(), "1700000000.000100".to_string()),
+                ("reply_broadcast".to_string(), "true".to_string()),
+                ("text".to_string(), "Done & dusted".to_string()),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn update_message_edits_the_message_by_channel_and_timestamp() {
+        let server = FakeSlack::start(vec![(200, OK)]).await;
+
+        server
+            .api
+            .update_message(&token(), "C0123", "1700000000.000100", "new text")
+            .await
+            .unwrap();
+
+        let requests = server.requests();
+        assert_eq!(server.paths(), vec!["/api/chat.update"]);
+        assert_eq!(
+            requests[0].form,
+            vec![
+                ("channel".to_string(), "C0123".to_string()),
+                ("ts".to_string(), "1700000000.000100".to_string()),
+                ("text".to_string(), "new text".to_string()),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_refused_reply_or_edit_surfaces_slacks_error_code() {
+        let server = FakeSlack::start(vec![
+            (200, r#"{"ok":false,"error":"thread_not_found"}"#),
+            (200, r#"{"ok":false,"error":"message_not_found"}"#),
+        ])
+        .await;
+
+        let reply = server
+            .api
+            .post_reply(&token(), "C0123", "1.1", "x")
+            .await
+            .unwrap_err();
+        let update = server
+            .api
+            .update_message(&token(), "C0123", "1.1", "x")
+            .await
+            .unwrap_err();
+
+        assert_eq!(
+            reply,
+            SlackError::Api {
+                method: "chat.postMessage".into(),
+                code: "thread_not_found".into()
+            }
+        );
+        assert_eq!(reply.code(), Some("thread_not_found"));
+        assert_eq!(
+            update,
+            SlackError::Api {
+                method: "chat.update".into(),
+                code: "message_not_found".into()
+            }
+        );
+        assert_eq!(update.code(), Some("message_not_found"));
+    }
+
+    #[tokio::test]
+    async fn a_failure_before_slack_answered_has_no_error_code() {
+        let server = FakeSlack::start(vec![(500, "oops")]).await;
+
+        let err = server
+            .api
+            .update_message(&token(), "C0123", "1.1", "x")
+            .await
+            .unwrap_err();
+
+        assert_eq!(err.code(), None);
     }
 
     #[tokio::test]

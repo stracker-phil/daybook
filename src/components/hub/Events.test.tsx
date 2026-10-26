@@ -45,6 +45,7 @@ function renderEvents(dayEvents: DayEvents, patch: Partial<HubView> = {}) {
     status: null,
     slack: null,
     reminder: null,
+    focus: null,
     events: dayEvents,
     ...patch,
   };

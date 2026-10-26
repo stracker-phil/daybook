@@ -12,7 +12,7 @@ const mocked = vi.mocked(api, true);
 const CHECK: EndOfDayCheck = { reminder: "", question: "Is today fully tracked?", url: "" };
 
 function request(patch: Partial<StatusRequest> = {}): StatusRequest {
-  return { status: "working", current: null, messages: { working: "re", break: "afk", off: "bye" }, endOfDay: null, ...patch };
+  return { status: "working", current: null, messages: { working: "re", break: "afk", off: "bye" }, endOfDay: null, endOfDayList: false, ...patch };
 }
 
 const message = () => screen.getByRole("textbox", { name: "Message" });
@@ -106,7 +106,7 @@ describe("StatusView", () => {
     it("sets the preselected status with its suggested message on Enter", async () => {
       render(<StatusView request={request()} />);
       await userEvent.keyboard("{Enter}");
-      expect(mocked.statusSet).toHaveBeenCalledWith("working", "re", undefined);
+      expect(mocked.statusSet).toHaveBeenCalledWith("working", "re", undefined, undefined);
     });
 
     it("sets the picked status with the typed message", async () => {
@@ -114,19 +114,19 @@ describe("StatusView", () => {
       await userEvent.keyboard("{ArrowDown}");
       await userEvent.clear(message());
       await userEvent.type(message(), "lunch{Enter}");
-      expect(mocked.statusSet).toHaveBeenCalledWith("break", "lunch", undefined);
+      expect(mocked.statusSet).toHaveBeenCalledWith("break", "lunch", undefined, undefined);
     });
 
     it("sets the clicked status with its suggested message", async () => {
       render(<StatusView request={request()} />);
       await userEvent.click(option(/Taking a break/));
-      expect(mocked.statusSet).toHaveBeenCalledWith("break", "afk", undefined);
+      expect(mocked.statusSet).toHaveBeenCalledWith("break", "afk", undefined, undefined);
     });
 
     it("sets Off directly when there is no end-of-day check", async () => {
       render(<StatusView request={request()} />);
       await userEvent.keyboard("{Meta>}3{/Meta}{Enter}");
-      expect(mocked.statusSet).toHaveBeenCalledWith("off", "bye", undefined);
+      expect(mocked.statusSet).toHaveBeenCalledWith("off", "bye", undefined, undefined);
     });
 
     it("shows the message of a rejected set", async () => {
@@ -160,14 +160,14 @@ describe("StatusView", () => {
       render(<StatusView request={request({ endOfDay: CHECK })} />);
       await userEvent.keyboard("{Meta>}3{/Meta}{Enter}");
       await userEvent.keyboard("y");
-      expect(mocked.statusSet).toHaveBeenCalledWith("off", "bye", "done");
+      expect(mocked.statusSet).toHaveBeenCalledWith("off", "bye", "done", undefined);
     });
 
     it("sets Off as incomplete when answered with the Not yet button", async () => {
       render(<StatusView request={request({ endOfDay: CHECK })} />);
       await userEvent.click(option(/Done for today/));
       await userEvent.click(screen.getByRole("button", { name: /Not yet/ }));
-      expect(mocked.statusSet).toHaveBeenCalledWith("off", "bye", "incomplete");
+      expect(mocked.statusSet).toHaveBeenCalledWith("off", "bye", "incomplete", undefined);
     });
 
     it("carries a typed message into the check and the answer", async () => {
@@ -177,13 +177,13 @@ describe("StatusView", () => {
       await userEvent.type(message(), "see you{Enter}");
       expect(screen.getByText("Done for today · see you")).toBeInTheDocument();
       await userEvent.keyboard("n");
-      expect(mocked.statusSet).toHaveBeenCalledWith("off", "see you", "incomplete");
+      expect(mocked.statusSet).toHaveBeenCalledWith("off", "see you", "incomplete", undefined);
     });
 
     it("does not ask for the other statuses", async () => {
       render(<StatusView request={request({ endOfDay: CHECK })} />);
       await userEvent.keyboard("{Enter}");
-      expect(mocked.statusSet).toHaveBeenCalledWith("working", "re", undefined);
+      expect(mocked.statusSet).toHaveBeenCalledWith("working", "re", undefined, undefined);
       expect(screen.queryByText("Is today fully tracked?")).not.toBeInTheDocument();
     });
 
@@ -194,6 +194,92 @@ describe("StatusView", () => {
       await userEvent.keyboard("y");
       expect(await screen.findByText("Slack is unreachable")).toBeInTheDocument();
       expect(screen.getByText("Is today fully tracked?")).toBeInTheDocument();
+    });
+  });
+
+  describe("going Off with an end-of-day list", () => {
+    const BODY = "- `[x]` Plan";
+    const list = () => screen.findByRole("textbox", { name: "Focus list" });
+
+    async function pickOff(patch: Partial<StatusRequest> = {}) {
+      render(<StatusView request={request({ endOfDayList: true, ...patch })} />);
+      await userEvent.keyboard("{Meta>}3{/Meta}{Enter}");
+      return list();
+    }
+
+    beforeEach(() => {
+      mocked.focusInfo.mockResolvedValue({ body: BODY, projects: [], slack: "none", channel: "" });
+    });
+
+    it("asks for the list with the focus body before setting Off", async () => {
+      expect(await pickOff()).toHaveValue(BODY);
+      expect(screen.getByText("Done for today · end-of-day list")).toBeInTheDocument();
+      expect(screen.queryByRole("textbox", { name: "Message" })).not.toBeInTheDocument();
+      expect(mocked.statusSet).not.toHaveBeenCalled();
+    });
+
+    it("does not ask for the other statuses", async () => {
+      render(<StatusView request={request({ endOfDayList: true })} />);
+      await userEvent.keyboard("{Enter}");
+      expect(mocked.statusSet).toHaveBeenCalledWith("working", "re", undefined, undefined);
+      expect(screen.queryByText("Done for today · end-of-day list")).not.toBeInTheDocument();
+    });
+
+    it("continues to the check on ⌘↵ and sends the list with the answer", async () => {
+      await pickOff({ endOfDay: CHECK });
+      await userEvent.keyboard("{Meta>}{Enter}{/Meta}");
+      expect(screen.getByText("Is today fully tracked?")).toBeInTheDocument();
+      expect(mocked.statusSet).not.toHaveBeenCalled();
+      await userEvent.keyboard("y");
+      expect(mocked.statusSet).toHaveBeenCalledWith("off", "bye", "done", BODY);
+    });
+
+    it("sends the list as edited", async () => {
+      await pickOff({ endOfDay: CHECK });
+      await userEvent.type(await list(), " now");
+      await userEvent.keyboard("{Meta>}{Enter}{/Meta}");
+      await userEvent.keyboard("n");
+      expect(mocked.statusSet).toHaveBeenCalledWith("off", "bye", "incomplete", `${BODY} now`);
+    });
+
+    it("continues to the check without the list on ⇧⌘↵", async () => {
+      await pickOff({ endOfDay: CHECK });
+      await userEvent.keyboard("{Shift>}{Meta>}{Enter}{/Meta}{/Shift}");
+      await userEvent.keyboard("y");
+      expect(mocked.statusSet).toHaveBeenCalledWith("off", "bye", "done", undefined);
+    });
+
+    it("sets Off right away with the list when there is no check", async () => {
+      await pickOff();
+      await userEvent.keyboard("{Meta>}{Enter}{/Meta}");
+      expect(mocked.statusSet).toHaveBeenCalledWith("off", "bye", undefined, BODY);
+    });
+
+    it("sets Off right away without the list on ⇧⌘↵ when there is no check", async () => {
+      await pickOff();
+      await userEvent.keyboard("{Shift>}{Meta>}{Enter}{/Meta}{/Shift}");
+      expect(mocked.statusSet).toHaveBeenCalledWith("off", "bye", undefined, undefined);
+    });
+
+    it("continues as no list when the list is empty", async () => {
+      mocked.focusInfo.mockResolvedValue({ body: "", projects: [], slack: "none", channel: "" });
+      await pickOff();
+      await userEvent.keyboard("{Meta>}{Enter}{/Meta}");
+      expect(mocked.statusSet).toHaveBeenCalledWith("off", "bye", undefined, undefined);
+    });
+
+    it("shows the message of a rejected set in the list step", async () => {
+      mocked.statusSet.mockRejectedValue({ kind: "io", message: "Slack is unreachable", code: null });
+      await pickOff();
+      await userEvent.keyboard("{Meta>}{Enter}{/Meta}");
+      expect(await screen.findByText("Slack is unreachable")).toBeInTheDocument();
+    });
+
+    it("goes straight to the check when the list is not asked for", async () => {
+      render(<StatusView request={request({ endOfDay: CHECK })} />);
+      await userEvent.keyboard("{Meta>}3{/Meta}{Enter}");
+      expect(screen.getByText("Is today fully tracked?")).toBeInTheDocument();
+      expect(screen.queryByRole("textbox", { name: "Focus list" })).not.toBeInTheDocument();
     });
   });
 });

@@ -2,8 +2,49 @@
 //! and the end-of-day list replies to it. A new day starts without one.
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 pub const FILE_NAME: &str = "day-message.json";
+
+/// Where the focus list goes in Slack.
+#[derive(Serialize, Clone, Copy, Debug, PartialEq, Eq, TS)]
+#[ts(export, export_to = "src/api/types.gen.ts")]
+#[serde(rename_all = "kebab-case")]
+pub enum FocusTarget {
+    /// Not shared in Slack here.
+    None,
+    /// No message today yet: the list becomes the day's message.
+    Post,
+    /// Into the day's message.
+    Edit,
+    /// The end-of-day list went out; the list stays in the note.
+    Sent,
+}
+
+/// Slack's answers when a remembered message can't be used any more: deleted, in another workspace,
+/// too old to edit, or its channel is gone.
+const MESSAGE_GONE: &[&str] = &[
+    "message_not_found",
+    "thread_not_found",
+    "channel_not_found",
+    "cant_update_message",
+    "edit_window_closed",
+    "is_archived",
+];
+
+pub fn message_gone(code: &str) -> bool {
+    MESSAGE_GONE.contains(&code)
+}
+
+/// The parts that aren't empty, a blank line apart.
+pub fn paragraphs(parts: &[&str]) -> String {
+    parts
+        .iter()
+        .filter(|part| !part.trim().is_empty())
+        .copied()
+        .collect::<Vec<_>>()
+        .join("\n\n")
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
@@ -28,6 +69,21 @@ impl DayMessage {
                 date: today.into(),
                 ..Self::default()
             }
+        }
+    }
+
+    /// The message's channel id and timestamp, once it was posted.
+    pub fn anchor(&self) -> Option<(&str, &str)> {
+        Some((self.channel.as_deref()?, self.ts.as_deref()?))
+    }
+
+    /// Where the list goes when it `shares` in Slack.
+    pub fn target(&self, shares: bool) -> FocusTarget {
+        match (shares, self.eod_sent, &self.ts) {
+            (false, _, _) => FocusTarget::None,
+            (true, true, _) => FocusTarget::Sent,
+            (true, false, Some(_)) => FocusTarget::Edit,
+            (true, false, None) => FocusTarget::Post,
         }
     }
 
@@ -125,6 +181,69 @@ mod tests {
             posted(TODAY).remember(TODAY, "C0456", "1700000500.000200", "later"),
             None
         );
+    }
+
+    #[test]
+    fn the_list_goes_where_the_days_message_and_sharing_say() {
+        let sent = DayMessage {
+            eod_sent: true,
+            ..posted(TODAY)
+        };
+        let unposted = DayMessage {
+            date: TODAY.into(),
+            ..DayMessage::default()
+        };
+        for (name, message, shares, expected) in [
+            ("not shared", posted(TODAY), false, FocusTarget::None),
+            ("not shared, sent", sent.clone(), false, FocusTarget::None),
+            ("sent", sent, true, FocusTarget::Sent),
+            ("posted", posted(TODAY), true, FocusTarget::Edit),
+            ("no message yet", unposted, true, FocusTarget::Post),
+        ] {
+            assert_eq!(message.target(shares), expected, "{name}");
+        }
+    }
+
+    #[test]
+    fn a_target_serializes_in_kebab_case() {
+        for (target, expected) in [
+            (FocusTarget::None, "none"),
+            (FocusTarget::Post, "post"),
+            (FocusTarget::Edit, "edit"),
+            (FocusTarget::Sent, "sent"),
+        ] {
+            assert_eq!(
+                serde_json::to_value(target).unwrap(),
+                serde_json::json!(expected)
+            );
+        }
+    }
+
+    #[test]
+    fn slack_codes_for_an_unusable_message_mean_it_is_gone() {
+        for code in [
+            "message_not_found",
+            "thread_not_found",
+            "channel_not_found",
+            "cant_update_message",
+            "edit_window_closed",
+            "is_archived",
+        ] {
+            assert!(message_gone(code), "{code}");
+        }
+        for code in ["ratelimited", "invalid_auth", "missing_scope", ""] {
+            assert!(!message_gone(code), "{code}");
+        }
+    }
+
+    #[test]
+    fn paragraphs_join_the_parts_that_are_not_blank_with_a_blank_line() {
+        assert_eq!(
+            paragraphs(&["good morning", "", "  \n", "- one\n- two"]),
+            "good morning\n\n- one\n- two"
+        );
+        assert_eq!(paragraphs(&["", " "]), "");
+        assert_eq!(paragraphs(&[]), "");
     }
 
     #[test]

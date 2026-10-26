@@ -5,6 +5,7 @@
 pub mod api;
 pub mod channel;
 pub mod commands;
+pub mod day;
 pub mod day_message;
 pub mod decide;
 #[cfg(test)]

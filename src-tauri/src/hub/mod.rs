@@ -17,10 +17,12 @@ pub use tools::{HubInput, HubTool, ToolRow, hub_tools};
 use crate::bus;
 use crate::calendar;
 use crate::error::{AppError, AppResult};
+use crate::focus::{self, FocusLine, focus_lines};
 use crate::reminders::{ReminderInput, pick_reminder};
 use crate::slack::{self, ShownStatus};
 use crate::state::AppState;
 use crate::store::settings::Status;
+use crate::vault::commands::blocking;
 use crate::{shortcuts, tools as tool_state};
 
 #[derive(Serialize, Clone, Debug, PartialEq, TS)]
@@ -49,6 +51,8 @@ pub struct HubView {
     pub events: DayEvents,
     /// What Slack shows, in contexts with Slack once it is connected.
     pub slack: Option<ShownStatus>,
+    /// The day's focus list; `None` while the focus workflow is off.
+    pub focus: Option<Vec<FocusLine>>,
 }
 
 fn greeting(hour: u32) -> &'static str {
@@ -86,6 +90,7 @@ pub fn hub_view_at(
         reminder: None,
         events: DayEvents::default(),
         slack: None,
+        focus: None,
     }
 }
 
@@ -117,6 +122,17 @@ pub async fn hub_view(app: AppHandle, day: Option<String>) -> AppResult<HubView>
     });
     let mut view = hub_view_at(day, now, tools, state.status);
     view.slack = slack::shown_now(&app).await;
+    if settings.focus.enabled {
+        let handle = app.clone();
+        let reading = settings.clone();
+        let body = blocking(move || focus::read_day(&handle, &reading, shown))
+            .await
+            .unwrap_or_else(|e| {
+                log::warn!("Couldn't read the focus list of {shown}: {e}");
+                String::new()
+            });
+        view.focus = Some(focus_lines(&body, &settings.projects));
+    }
     let context = app_state.contexts.current(&settings);
     view.events = day_events(&DayInput {
         day: shown,

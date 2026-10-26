@@ -1,7 +1,8 @@
 import { useState, type KeyboardEvent } from "react";
 import { CircleCheck, Coffee, Moon, type LucideIcon } from "lucide-react";
-import { api, toAppError, type EndOfDayAnswer, type EndOfDayCheck, type Status, type StatusMap, type StatusRequest } from "../../api";
+import { api, toAppError, type EndOfDayAnswer, type Status, type StatusMap, type StatusRequest } from "../../api";
 import { EndOfDayStep } from "./EndOfDayStep";
+import { EndOfDayListStep } from "./EndOfDayListStep";
 
 const OPTIONS: { status: Status; icon: LucideIcon; label: string; placeholder: string }[] = [
   { status: "working", icon: CircleCheck, label: "Working and present", placeholder: "Message, e.g. good morning" },
@@ -27,23 +28,38 @@ function useStatusMessage(suggested: StatusMap<string>, initial: Status) {
 
 /**
  * "What is your status?": the message field keeps the keyboard, ↑↓ or ⌘1–3 pick, ↵ or a click sets.
- * Going Off asks the end-of-day check first. Rust closes the overlay once the status is set.
+ * Going Off asks for the end-of-day list, then the check; both go out with the final answer.
  */
 export function StatusView({ request }: { request: StatusRequest }) {
   const { picked, pick, message, setMessage, messageFor } = useStatusMessage(request.messages, request.status);
-  const [endOfDay, setEndOfDay] = useState<EndOfDayCheck | null>(null);
+  const [step, setStep] = useState<"pick" | "list" | "check">("pick");
+  const [list, setList] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const send = (status: Status, answer?: EndOfDayAnswer) => {
-    api.statusSet(status, messageFor(status), answer).catch((e) => setError(toAppError(e).message));
+  const send = (status: Status, answer?: EndOfDayAnswer, endOfDayList?: string) => {
+    api.statusSet(status, messageFor(status), answer, endOfDayList).catch((e) => setError(toAppError(e).message));
   };
   const submit = (status: Status) => {
-    if (status === "off" && request.endOfDay) setEndOfDay(request.endOfDay);
+    if (status !== "off") send(status);
+    else if (request.endOfDayList) setStep("list");
+    else if (request.endOfDay) setStep("check");
     else send(status);
   };
 
-  if (endOfDay) {
-    return <EndOfDayStep check={endOfDay} message={messageFor("off")} error={error} onAnswer={(answer) => send("off", answer)} />;
+  if (step === "list") {
+    return (
+      <EndOfDayListStep
+        error={error}
+        onContinue={(written) => {
+          setList(written);
+          if (request.endOfDay) setStep("check");
+          else send("off", undefined, written ?? undefined);
+        }}
+      />
+    );
+  }
+  if (step === "check" && request.endOfDay) {
+    return <EndOfDayStep check={request.endOfDay} message={messageFor("off")} error={error} onAnswer={(answer) => send("off", answer, list ?? undefined)} />;
   }
 
   const current = OPTIONS.findIndex((option) => option.status === picked);

@@ -12,6 +12,28 @@ button.reminder:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .reminder-label { flex: none; font-size: var(--fs-meta); }
 .reminder-action { flex: none; font-size: var(--fs-meta); color: var(--accent); }
 
+/* The focus list: a checkbox per task in the context's colour, the project as a tag, sub-items indented. */
+.today-separator { height: 1px; margin: var(--space-1) var(--space-3) var(--space-2); background: var(--line); }
+.focus-section { display: flex; flex-direction: column; gap: var(--space-1); }
+.focus-title { padding: var(--space-1) var(--space-3) 0; font-size: var(--fs-meta); font-weight: 600; }
+.focus-list {
+  display: flex; flex-direction: column; gap: var(--space-2); width: 100%; padding: var(--space-2) var(--space-3);
+  border: 0; border-radius: var(--radius); background: none; font: inherit; color: var(--text); text-align: left;
+}
+.focus-list:enabled:hover { background: var(--fill); }
+.focus-list:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.focus-add { display: flex; align-items: center; gap: var(--space-2); color: var(--accent); }
+.focus-item { display: flex; align-items: baseline; gap: var(--space-2); }
+.focus-item.sub { padding-left: 1.846rem; font-size: var(--fs-meta); }
+.focus-item[data-mark="cancelled"] .focus-text { color: var(--o3); text-decoration: line-through; }
+.focus-box {
+  display: inline-flex; flex: none; align-items: center; justify-content: center; align-self: center;
+  width: 1.077rem; height: 1.077rem; border: 1px solid var(--line); border-radius: 0.385rem; color: var(--o3); box-sizing: border-box;
+}
+.focus-box[data-mark="done"] { border-color: transparent; background: var(--context); color: var(--on-accent); }
+.focus-box[data-mark="in-progress"]::after { content: ""; width: 0.462rem; height: 0.462rem; border-radius: 50%; background: var(--context); }
+.focus-tag { flex: none; padding: 0 var(--space-2); border-radius: var(--radius-sm); background: var(--fill); font-size: var(--fs-meta); }
+
 .board-section { display: flex; flex-direction: column; gap: var(--space-2); }
 .board-section-head { display: flex; align-items: center; gap: var(--space-2); min-height: var(--control-h); }
 .board-section-title { flex: 1; margin: 0; font-size: var(--fs-meta); font-weight: 600; color: var(--o2); }

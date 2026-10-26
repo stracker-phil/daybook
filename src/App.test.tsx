@@ -23,6 +23,7 @@ const hub = (patch: Partial<HubView> = {}): HubView => ({
   status: null,
   slack: null,
   reminder: null,
+  focus: null,
   events: { timeline: { hours: [], workHours: null, fullDay: [], blocks: [], now: null }, rows: [] },
   ...patch,
 });

@@ -213,6 +213,35 @@ describe("WorkflowsPage", () => {
     });
   });
 
+  describe("daily focus", () => {
+    it("shows the saved focus settings", () => {
+      renderPage({ focus: { enabled: false, endOfDayTitle: "Wrap-up" } });
+      expect(screen.getByRole("switch", { name: "Daily focus" })).not.toBeChecked();
+      expect(field("End-of-day title")).toHaveValue("Wrap-up");
+    });
+
+    it("saves the switch as focus.enabled only", async () => {
+      renderPage();
+      expect(screen.getByRole("switch", { name: "Daily focus" })).toBeChecked();
+      await userEvent.click(screen.getByRole("switch", { name: "Daily focus" }));
+      expect(lastSaved().focus).toEqual({ ...settings().focus, enabled: false });
+    });
+
+    it("saves the trimmed end-of-day title", async () => {
+      renderPage();
+      await replace(field("End-of-day title"), "  Wrap-up ");
+      await userEvent.keyboard("{Enter}");
+      expect(lastSaved().focus).toEqual({ ...settings().focus, endOfDayTitle: "Wrap-up" });
+    });
+
+    it("saves a cleared title as empty, so the reply is just the list", async () => {
+      renderPage();
+      await replace(field("End-of-day title"), "");
+      await userEvent.tab();
+      expect(lastSaved().focus.endOfDayTitle).toBe("");
+    });
+  });
+
   describe("before an absence", () => {
     const rules = () => settings().statusRules;
     const card = (title: string) => within(screen.getByRole("heading", { name: title }).closest("section")!);

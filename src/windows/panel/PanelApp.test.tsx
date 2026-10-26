@@ -67,11 +67,19 @@ describe("PanelApp", () => {
       mocked.panelSession.mockResolvedValue({
         session: 1,
         view: "status",
-        args: { status: "break", current: "working", messages: { working: "re", break: "afk", off: "bye" }, endOfDay: null },
+        args: { status: "break", current: "working", messages: { working: "re", break: "afk", off: "bye" }, endOfDay: null, endOfDayList: false },
       });
       render(<PanelApp />);
       expect(await screen.findByText("What is your status?")).toBeInTheDocument();
       expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue("afk");
+      expect(mocked.panelReady).toHaveBeenCalledWith(1, expect.any(Number));
+    });
+
+    it("renders today's focus list for the focus view", async () => {
+      mocked.focusInfo.mockResolvedValue({ body: "- `[ ]` One", projects: [], slack: "none", channel: "" });
+      mocked.panelSession.mockResolvedValue(session("focus"));
+      render(<PanelApp />);
+      expect(await screen.findByRole("textbox", { name: "Focus list" })).toHaveValue("- `[ ]` One");
       expect(mocked.panelReady).toHaveBeenCalledWith(1, expect.any(Number));
     });
 

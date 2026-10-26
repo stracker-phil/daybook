@@ -12,8 +12,8 @@ use crate::ipc::IpcMessage;
 use crate::state::AppState;
 use crate::store::import::Import;
 use crate::{
-    bus, calendar, calls, commands, contexts, deep_link, ipc, menu, notify, presence, remote,
-    shortcuts, slack, status, status_rules, tray, vault, window,
+    bus, calendar, calls, commands, contexts, deep_link, focus, ipc, menu, notify, presence,
+    remote, shortcuts, slack, status, status_rules, tray, vault, window,
 };
 
 const MAX_LOG_BYTES: u128 = 5 * 1024 * 1024;
@@ -104,6 +104,7 @@ fn commands_bus() -> bus::Commands {
     contexts::register(&mut commands);
     status::register(&mut commands);
     calls::register(&mut commands);
+    focus::register(&mut commands);
     bus::Commands(commands)
 }
 

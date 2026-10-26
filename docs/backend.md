@@ -146,7 +146,8 @@ its module.
 | `shortcuts_pause` (`shortcuts/mod.rs`) | `paused: bool` | – (global shortcuts and the app menu's keys step aside) | – |
 | `remote_reply` (`remote.rs`) | `id, result, error` | – | – |
 | `daily_note_state`, `daily_note_open`, `daily_note_create`, `vault_info` (`vault/commands.rs`) | see [vault.md](vault.md#commands) | | |
-| `status_set` (`status/mod.rs`) | `status, message, endOfDay: "done" \| "incomplete" \| null` | – (sets today's status, closes the status overlay) | `io` |
+| `status_set` (`status/mod.rs`) | `status, message, endOfDay: "done" \| "incomplete" \| null, endOfDayList: string \| null` | – (posts the end-of-day list going Off, sets today's status, closes the status overlay) | `io`, `network` |
+| `focus_info`, `focus_save`, `focus_send` (`focus/mod.rs`) | – / `body` / `body` | `FocusInfo` / – / – ([slack.md](slack.md#the-days-message)) | `invalid_input` (over 8000 characters; `focus_send` when not shared or already sent), `not_found` (Slack not connected), `network`, `io` |
 | `panel_open`, `panel_close`, `panel_session`, `panel_ready`, `panel_painted`, `panel_set_height`, `panel_keep_open` (`window/panel/commands.rs`) | see [windows.md](windows.md#commands-and-events) | | |
 | `dev_edit_today_note` (`dev.rs`, debug builds only) | `op: NoteOp` | `WriteOutcome` | as `edit_today` |
 

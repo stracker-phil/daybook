@@ -132,7 +132,7 @@ reports ready and painted, observes its height, and loads the appearance from Se
 `commands.ts` registers the `panel` scope with `panel.close` (Escape, also inside text fields) and routes the
 window's keys through the registry. `useTabTrap` (`src/lib/`) keeps Tab and ⇧Tab inside the page: leaving the
 web content would move focus out of the window, and the overlay would close. Views: `context` (`ContextView`, the switcher), `palette` (`PaletteView`,
-[commands.md](commands.md#palette)), `status` (`StatusView` with `EndOfDayStep`) and `offer-off`
+[commands.md](commands.md#palette)), `status` (`StatusView` with `EndOfDayListStep` and `EndOfDayStep`), `focus` (`FocusView` with `FocusEditor`, [slack.md](slack.md#the-days-message)) and `offer-off`
 (`OfferOffView`) ([status.md](status.md#the-overlay)), and the sample view (`sample`, `sample-sticky`: a text field, a list and a
 button; opened in debug builds by `sample:open` and `sample:sticky`).
 

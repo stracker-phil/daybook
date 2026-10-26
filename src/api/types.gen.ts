@@ -272,6 +272,46 @@ export type Focus = { enabled: boolean,
  */
 endOfDayTitle: string, };
 
+export type FocusInfo = { 
+/**
+ * The list as today's note holds it.
+ */
+body: string, 
+/**
+ * The current projects, in Settings order.
+ */
+projects: Array<FocusProject>, slack: FocusTarget, 
+/**
+ * Where the list goes in Slack; empty when it doesn't.
+ */
+channel: string, };
+
+export type FocusLine = { 
+/**
+ * `None`: a plain line, shown as a sub-item.
+ */
+mark: FocusMark | null, 
+/**
+ * The project of the line's emoji; the shortcode itself when no project has it.
+ */
+tag: string | null, text: string, };
+
+export type FocusMark = "open" | "in-progress" | "done" | "cancelled";
+
+/**
+ * A project the overlay's ⌘1…9 insert.
+ */
+export type FocusProject = { name: string, 
+/**
+ * A shortcode, `:nexo:`; empty when the project has none.
+ */
+emoji: string, };
+
+/**
+ * Where the focus list goes in Slack.
+ */
+export type FocusTarget = "none" | "post" | "edit" | "sent";
+
 export type GlobalShortcut = { 
 /**
  * Its key in `Settings.hotkeys`.
@@ -327,7 +367,11 @@ events: DayEvents,
 /**
  * What Slack shows, in contexts with Slack once it is connected.
  */
-slack: ShownStatus | null, };
+slack: ShownStatus | null, 
+/**
+ * The day's focus list; `None` while the focus workflow is off.
+ */
+focus: Array<FocusLine> | null, };
 
 /**
  * "Open Jira Issue" opens `base_url` + the key; a bare number gets `default_prefix`.
@@ -797,7 +841,11 @@ message: string,
 /**
  * Going Off through the end-of-day check.
  */
-endOfDay: EndOfDayAnswer | null, };
+endOfDay: EndOfDayAnswer | null, 
+/**
+ * The message already went out as the end of the end-of-day reply.
+ */
+messageSent: boolean, };
 
 /**
  * One value per status.
@@ -837,7 +885,11 @@ messages: StatusMap<string>,
 /**
  * `None` when going Off asks nothing first.
  */
-endOfDay: EndOfDayCheck | null, };
+endOfDay: EndOfDayCheck | null, 
+/**
+ * Going Off asks for the end-of-day list first (the focus list goes to Slack, once a day).
+ */
+endOfDayList: boolean, };
 
 /**
  * "An absence starts within `hours`": the enabled rule with the fewest hours that reaches it wins.

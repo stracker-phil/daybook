@@ -5,6 +5,7 @@ import { applyAppearance, systemIsDark } from "../../lib/theme";
 import { useContextColor } from "../../lib/useContextColor";
 import { handlePanelKeydown, installPanelCommands } from "./commands";
 import { ContextView } from "./ContextView";
+import { FocusView } from "./FocusView";
 import { OfferOffView } from "./OfferOffView";
 import { PaletteView } from "./PaletteView";
 import { SampleView } from "./SampleView";
@@ -20,6 +21,8 @@ function View({ session }: { session: PanelSession }) {
       return <PaletteView />;
     case "status":
       return <StatusView request={session.args as StatusRequest} />;
+    case "focus":
+      return <FocusView />;
     case "offer-off":
       return <OfferOffView offer={session.args as OfferOff} />;
     case "sample":

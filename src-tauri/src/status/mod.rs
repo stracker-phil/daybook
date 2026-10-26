@@ -20,8 +20,8 @@ use crate::bus::{Command, CommandBus};
 use crate::error::AppResult;
 use crate::events::STATUS_CHANGED_EVENT;
 use crate::state::AppState;
-use crate::store::settings::Status;
-use crate::{tray, window};
+use crate::store::settings::{Settings, Status};
+use crate::{focus, slack, tray, window};
 
 const OVERLAY: &str = "status";
 /// The menu-bar title's break minutes move with the clock, and a new day starts without a status.
@@ -52,6 +52,8 @@ pub struct StatusChanged {
     pub message: String,
     /// Going Off through the end-of-day check.
     pub end_of_day: Option<EndOfDayAnswer>,
+    /// The message already went out as the end of the end-of-day reply.
+    pub message_sent: bool,
 }
 
 pub fn status_label(status: Option<Status>) -> &'static str {
@@ -73,6 +75,7 @@ pub fn set_status(
     status: Status,
     message: &str,
     end_of_day: Option<EndOfDayAnswer>,
+    message_sent: bool,
 ) -> AppResult<()> {
     let state = app.state::<AppState>();
     let Some(change) = state.statuses.set(status, Local::now().naive_local())? else {
@@ -90,6 +93,7 @@ pub fn set_status(
         since: change.since,
         message: single_line(message),
         end_of_day: end_of_day.filter(|_| status == Status::Off),
+        message_sent,
     };
     if let Err(e) = app.emit(STATUS_CHANGED_EVENT, changed) {
         log::warn!("Couldn't announce the status change: {e}");
@@ -104,23 +108,56 @@ pub fn today(app: &AppHandle) -> StatusMemory {
         .today(Local::now().naive_local())
 }
 
+/// Going Off asks for the end-of-day list while the Off workflow is on and the list goes to Slack.
+fn asks_for_end_of_day_list(app: &AppHandle, settings: &Settings) -> bool {
+    settings.slack.manual_workflows.off && slack::day::asks_for_end_of_day_list(app)
+}
+
+/// Writes and posts the end-of-day list with the message as its last paragraph; `true`: the message went
+/// out with it. Nothing when Off is today's status already or its workflow is off.
+async fn send_end_of_day_list(
+    app: &AppHandle,
+    list: &str,
+    message: &str,
+    end_of_day: Option<EndOfDayAnswer>,
+) -> AppResult<bool> {
+    let settings = app.state::<AppState>().settings.get();
+    if !settings.slack.manual_workflows.off
+        || !memory::is_status_change(today(app).status, Status::Off)
+    {
+        return Ok(false);
+    }
+    let closing = slack::channel::message_text(&settings, message, end_of_day);
+    focus::send_end_of_day_list(app, list, &closing).await
+}
+
 /// Opens the status overlay with `status` picked; the same request again closes it.
 async fn open(app: &AppHandle, status: Status) -> AppResult<()> {
     let settings = app.state::<AppState>().settings.get();
-    let request = status_request(&settings, &today(app), status);
+    let mut request = status_request(&settings, &today(app), status);
+    request.end_of_day_list = asks_for_end_of_day_list(app, &settings);
     window::panel::open(app, OVERLAY, serde_json::to_value(request)?).await;
     Ok(())
 }
 
-/// The overlay's pick: sets the status and closes the overlay, also when nothing changed.
+/// The overlay's pick: sets the status and closes the overlay, also when nothing changed. Going Off
+/// with the end-of-day list writes it to the note and posts it, with the message, as one reply first;
+/// when that fails the status stays.
 #[tauri::command]
-pub fn status_set(
+pub async fn status_set(
     app: AppHandle,
     status: Status,
     message: String,
     end_of_day: Option<EndOfDayAnswer>,
+    end_of_day_list: Option<String>,
 ) -> AppResult<()> {
-    set_status(&app, status, &message, end_of_day)?;
+    let message_sent = match end_of_day_list.filter(|list| !list.trim().is_empty()) {
+        Some(list) if status == Status::Off => {
+            send_end_of_day_list(&app, &list, &message, end_of_day).await?
+        }
+        _ => false,
+    };
+    set_status(&app, status, &message, end_of_day, message_sent)?;
     if window::panel::view(&app).as_deref() == Some(OVERLAY) {
         window::panel::close(&app, false);
     }
@@ -201,6 +238,7 @@ mod tests {
             since: "17:30".into(),
             message: "off for today".into(),
             end_of_day,
+            message_sent: false,
         }
     }
 
@@ -215,7 +253,8 @@ mod tests {
                 "first": false,
                 "since": "17:30",
                 "message": "off for today",
-                "endOfDay": "done"
+                "endOfDay": "done",
+                "messageSent": false
             })
         );
     }

@@ -30,6 +30,8 @@ pub struct StatusRequest {
     pub messages: StatusMap<String>,
     /// `None` when going Off asks nothing first.
     pub end_of_day: Option<EndOfDayCheck>,
+    /// Going Off asks for the end-of-day list first (the focus list goes to Slack, once a day).
+    pub end_of_day_list: bool,
 }
 
 pub fn status_request(settings: &Settings, today: &StatusMemory, status: Status) -> StatusRequest {
@@ -53,6 +55,7 @@ pub fn status_request(settings: &Settings, today: &StatusMemory, status: Status)
             question: check.question.clone(),
             url: check.url.clone(),
         }),
+        end_of_day_list: false,
     }
 }
 
@@ -121,6 +124,12 @@ mod tests {
         let before_any = status_request(&settings(), &memory(None, false), Status::Break);
         assert_eq!(before_any.status, Status::Break);
         assert_eq!(before_any.current, None);
+    }
+
+    #[test]
+    fn the_request_leaves_the_end_of_day_list_to_the_caller() {
+        let request = status_request(&settings(), &memory(None, false), Status::Off);
+        assert!(!request.end_of_day_list);
     }
 
     #[test]
@@ -206,7 +215,8 @@ mod tests {
                     "reminder": "Post the EOD",
                     "question": "Tracked?",
                     "url": "https://example.com/time"
-                }
+                },
+                "endOfDayList": false
             })
         );
     }

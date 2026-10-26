@@ -17,6 +17,10 @@ a manual one.
 | `slack/shown.rs` | `ShownStatus` (`slack-shown.json`): what Slack shows, as Daybook last set it |
 | `slack/channel.rs` | pure: `status_message`, `end_of_day_message`, `LastMessage` |
 | `slack/day_message.rs` | `DayMessage` (`day-message.json`): the day's first Working message |
+| `slack/day.rs` | the day's message: `update_day_message`, `post_day_reply`, `focus_target` |
+| `focus/mod.rs` | the focus list: `focus_info`, `focus_save`, `focus_send`, `send_end_of_day_list`, `focus:open` |
+| `focus/board.rs` | pure: `focus_lines`, the list as the board shows it |
+| `vault/ops/focus.rs` | pure: reading and writing the Focus section, `focus_to_slack` |
 | `slack/commands.rs` | Settings → Slack: `slack_info`, `slack_connect`, `slack_test`, `slack_disconnect` |
 | `slack/mod.rs` | `Slack` (managed state), `SlackFiles` (in `AppState`), the listeners, `shown_now` |
 | `status_rules/rules.rs` | pure: `is_absence`, `describe_when`, `pick_heads_up` |
@@ -57,7 +61,31 @@ case-insensitive) isn't posted. It goes to `settings.slack.channel` (empty: none
 A failure notifies ("Slack message not sent").
 
 The day's first Working message is remembered in `day-message.json` (channel id, timestamp, its text) for
-the focus list and the end-of-day reply of step 12.
+the focus list and the end-of-day reply.
+
+## The day's message
+
+The focus list is a bullet list in today's note (the Focus section, Settings → Daily Note), saved as typed; its
+tasks carry their checkbox as inline code (``- `[/]` :nexo: Task``), so Obsidian doesn't count them as todos and
+Open todos leaves them out. The focus overlay (`focus:open`) edits it; ⌘↵ writes the note (`focus_save`, a
+`NoteOp::Focus` through the note writer). It goes to Slack only while `focus.enabled` is on, in a context with
+Slack and with a channel (`focus_channel`); `focus_target` says where:
+
+| Target | When | ⌘S (`focus_send`) |
+|---|---|---|
+| `none` | not shared | – |
+| `post` | no message today | posts the list; it becomes the day's message |
+| `edit` | the day's message exists | edits it: its text, a blank line, the list |
+| `sent` | the end-of-day reply went out | – |
+
+Slack gets the list without the tasks' bullets (`focus_to_slack`: `` `[x]` :nexo: Task ``, sub-items one level
+out). A remembered message that can't be edited any more (deleted, too old, another workspace) fails with a
+hint and is never replaced by a new one.
+
+Going Off asks for the end-of-day list first, once a day (`asks_for_end_of_day_list`). `send_end_of_day_list`
+writes it to the note, then posts one reply in the day's message's thread, also sent to the channel:
+`focus.endOfDayTitle`, the list, the Off message (wrapped by the end-of-day answer). Without a day's message, or
+when it is gone, it goes out as a plain channel message, so going Off is never held up. Then `eodSent` is set.
 
 ## Absence heads-ups
 
@@ -96,4 +124,4 @@ without emoji and text after their expiry. The sidebar's footer shows it (emoji,
 | `slack_test` | – | `SlackIdentity`; `not_found` without a token, `network` |
 | `slack_disconnect` | – | –; `io` when the Keychain fails |
 
-Not yet: the action log (step 28), `daybook slack …` (step 21), the focus list in the day's message (step 12).
+Not yet: the action log (step 28), `daybook slack …` (step 21).

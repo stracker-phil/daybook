@@ -11,6 +11,7 @@ import type {
   DailyNoteState,
   EndOfDayAnswer,
   ErrorKind,
+  FocusInfo,
   HubView,
   Keybindings,
   LaunchEvent,
@@ -49,8 +50,15 @@ export const api = {
   runCommand: (id: string) => invoke<void>("run_command", { id }),
   /** The contexts as the switcher shows them, and the current one. */
   contextState: () => invoke<ContextState>("context_state"),
-  /** Sets today's status and closes the status overlay; `endOfDay` is the end-of-day check's answer when going Off. */
-  statusSet: (status: Status, message: string, endOfDay?: EndOfDayAnswer) => invoke<void>("status_set", { status, message, endOfDay: endOfDay ?? null }),
+  /** Sets today's status and closes the status overlay; `endOfDay` is the end-of-day check's answer and `endOfDayList` the end-of-day list when going Off. */
+  statusSet: (status: Status, message: string, endOfDay?: EndOfDayAnswer, endOfDayList?: string) =>
+    invoke<void>("status_set", { status, message, endOfDay: endOfDay ?? null, endOfDayList: endOfDayList ?? null }),
+  /** Today's focus list, the current projects and where the list goes in Slack. */
+  focusInfo: () => invoke<FocusInfo>("focus_info"),
+  /** Writes the list to today's note as typed and closes the focus overlay. */
+  focusSave: (body: string) => invoke<void>("focus_save", { body }),
+  /** Puts the list as typed into the day's message in Slack, without writing the note. */
+  focusSend: (body: string) => invoke<void>("focus_send", { body }),
   /** The palette's results for what was typed, grouped by kind. */
   paletteQuery: (query: string) => invoke<PaletteResults>("palette_query", { query }),
   /** Runs a palette pick; the palette closes or another overlay replaces it. */

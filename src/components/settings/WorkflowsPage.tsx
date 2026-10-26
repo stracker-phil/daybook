@@ -86,11 +86,30 @@ function EndOfDayCheck({ s, set }: SettingsPageProps) {
   );
 }
 
+function DailyFocus({ s, set }: SettingsPageProps) {
+  const focus = s.focus;
+  return (
+    <Group
+      title="Daily focus"
+      description="Your focus list lives in today's note (Daily Note → Focus). Tasks are bullets with an inline-code checkbox, e.g. - `[x]` :nexo: Task, so they don't count as open todos; each project's emoji is set in Projects."
+    >
+      <Switch
+        label="Daily focus"
+        description="The list on the board. In Slack, ⌘S in the focus overlay adds it to the day's first Working message, and Done for today first asks for the end-of-day list and posts it as a reply to that message, also sent to the channel."
+        checked={focus.enabled}
+        onChange={(enabled) => set({ focus: { ...focus, enabled } })}
+      />
+      <TextField nested label="End-of-day title" description="The first line of the reply; empty: just the list." value={focus.endOfDayTitle} onCommit={(endOfDayTitle) => set({ focus: { ...focus, endOfDayTitle: endOfDayTitle.trim() } })} />
+    </Group>
+  );
+}
+
 export function WorkflowsPage(props: SettingsPageProps) {
   return (
     <>
       <StatusWorkflows {...props} />
       <EndOfDayCheck {...props} />
+      <DailyFocus {...props} />
       <AbsenceWorkflows {...props} />
     </>
   );
