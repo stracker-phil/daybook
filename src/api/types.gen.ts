@@ -525,6 +525,16 @@ export type NoteOp = { "kind": "journalGroup", group: string, answers: JournalGr
  */
 expected?: string, };
 
+export type NotePreview = { path: string, name: string, 
+/**
+ * `""` at the vault root.
+ */
+folder: string, 
+/**
+ * The body without frontmatter, with links rewritten (`preview_markdown`).
+ */
+markdown: string, };
+
 export type NoteSectionRef = { title: string, 
 /**
  * 3 for `###`, 4 for `####`, …
@@ -817,10 +827,44 @@ export type Search = { scopes: Array<SearchScope>,
  */
 exclude: Array<string>, };
 
+export type SearchResponse = { 
+/**
+ * Best first, at most 50; none without terms.
+ */
+results: Array<SearchResult>, terms: Array<string>, 
+/**
+ * The chips' scopes, then the typed `@scope`s, once each; unknown names included.
+ */
+scopes: Array<string>, indexing: boolean, notes: number, };
+
+export type SearchResult = { path: string, name: string, 
+/**
+ * `""` at the vault root.
+ */
+folder: string, 
+/**
+ * The name, split at the terms.
+ */
+nameParts: Array<TextPart>, 
+/**
+ * The snippet, split at the terms; empty when the note has no text line.
+ */
+lineParts: Array<TextPart>, };
+
 /**
  * A named folder set for search. An entry ending in `/` is a folder, anything else another scope.
  */
 export type SearchScope = { name: string, entries: Array<string>, };
+
+export type SearchScopes = { 
+/**
+ * Settings order, then `all`.
+ */
+names: Array<string>, 
+/**
+ * Unknown scopes and cycles in Settings → Search.
+ */
+problems: Array<string>, };
 
 /**
  * A section the app writes to, found by level and text (case-insensitive).
@@ -1006,6 +1050,11 @@ minBusyHours: number,
  * After times, e.g. CEST; empty: the Mac's time zone abbreviation.
  */
 tzLabel: string, };
+
+/**
+ * A piece of a shown text; `hit` pieces are highlighted.
+ */
+export type TextPart = { text: string, hit: boolean, };
 
 /**
  * The size of all text. The frontend maps each step to its pixel sizes (`TEXT_SIZES` in `src/api/types.ts`).

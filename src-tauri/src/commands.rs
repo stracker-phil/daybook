@@ -82,6 +82,7 @@ pub(crate) async fn save_settings(
 fn settings_saved(app: &AppHandle, previous: &Settings, saved: &Settings) {
     apply_settings(app, Some(previous), saved);
     app.state::<AppState>().notes.watch_daily_notes(saved);
+    crate::search::start(app);
     if previous.hotkeys != saved.hotkeys {
         shortcuts::apply(app);
     }

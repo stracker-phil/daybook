@@ -97,7 +97,7 @@ fn local_today() -> NaiveDate {
     chrono::Local::now().date_naive()
 }
 
-fn vault(settings: &Settings) -> AppResult<PathBuf> {
+pub(crate) fn vault(settings: &Settings) -> AppResult<PathBuf> {
     settings
         .vault
         .path
@@ -308,7 +308,7 @@ impl DailyNotes {
             return;
         };
         let this = Arc::downgrade(self);
-        let started = FolderWatch::start(&folder, true, move |paths| {
+        let started = FolderWatch::start(&folder, true, watch::is_note, move |paths| {
             if let Some(this) = this.upgrade() {
                 this.notify(NoteEvent::Changed(paths));
             }

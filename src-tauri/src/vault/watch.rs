@@ -1,4 +1,4 @@
-//! Watches a vault folder for changed notes and reports them in batches, once the folder has been
+//! Watches a vault folder for changed files and reports them in batches, once the folder has been
 //! quiet for a moment.
 
 use std::collections::BTreeSet;
@@ -18,16 +18,18 @@ pub struct FolderWatch {
     _watcher: RecommendedWatcher,
 }
 
-fn is_note(path: &Path) -> bool {
+/// A Markdown file: the daily notes' filter.
+pub fn is_note(path: &Path) -> bool {
     path.extension().is_some_and(|ext| ext == "md")
 }
 
 impl FolderWatch {
-    /// Calls `on_change` with the Markdown files that changed in `folder` (and below it, with
+    /// Calls `on_change` with the paths `accept`s that changed in `folder` (and below it, with
     /// `recursive`).
     pub fn start(
         folder: &Path,
         recursive: bool,
+        accept: impl Fn(&Path) -> bool + Send + 'static,
         on_change: impl Fn(Vec<PathBuf>) + Send + 'static,
     ) -> notify::Result<Self> {
         let (tx, rx) = mpsc::channel::<PathBuf>();
@@ -36,7 +38,7 @@ impl FolderWatch {
                 Ok(event) => event
                     .paths
                     .into_iter()
-                    .filter(|path| is_note(path))
+                    .filter(|path| accept(path))
                     .for_each(|path| {
                         let _ = tx.send(path);
                     }),

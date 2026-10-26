@@ -21,12 +21,15 @@ import type {
   NoteChanged,
   PaletteResults,
   NoteSectionRef,
+  NotePreview,
   PanelSession,
   QuickNote,
   QuickNoteSaved,
   QuickNoteTopics,
   RemoteEvent,
   RoutineView,
+  SearchResponse,
+  SearchScopes,
   Settings,
   ShortcutOverview,
   SlackIdentity,
@@ -136,6 +139,20 @@ export const api = {
   quickNoteSave: (topic: NoteSectionRef, newTitle: string, body: string, base: string) =>
     invoke<QuickNoteSaved>("quick_note_save", { topic, newTitle, body, base }),
   quickNotesClose: () => invoke<void>("quick_notes_close"),
+  /** Search results for `text` (words, "phrases", `@scope`) within the chosen scopes; empty without words. */
+  searchQuery: (text: string, scopes: string[]) => invoke<SearchResponse>("search_query", { text, scopes }),
+  /** The scope names search knows (settings order, then `all`) and what is wrong with the settings' scopes. */
+  searchScopes: () => invoke<SearchScopes>("search_scopes"),
+  /** A note (relative to the vault) as Markdown for the preview, its links rewritten to `#note=`, `#missing=`, `#asset=`. */
+  searchNote: (path: string) => invoke<NotePreview>("search_note", { path }),
+  /** A vault image as a data URL. */
+  searchAsset: (path: string) => invoke<string>("search_asset", { path }),
+  /** Closes the overlay and opens the note in Obsidian. */
+  searchOpen: (path: string) => invoke<void>("search_open", { path }),
+  /** The note's wikilink, e.g. `[[Plan]]`; the path when the name is not unique. */
+  searchLink: (path: string) => invoke<string>("search_link", { path }),
+  /** Opens a preview link: http(s), mailto and obsidian only. */
+  searchOpenUrl: (url: string) => invoke<void>("search_open_url", { url }),
   /** Opens `view` in the overlay; the same view again closes it. */
   panelOpen: (view: string, args?: unknown) => invoke<void>("panel_open", { view, args: args ?? null }),
   panelClose: () => invoke<void>("panel_close"),

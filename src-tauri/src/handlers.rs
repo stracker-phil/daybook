@@ -4,7 +4,7 @@ use tauri::ipc::Invoke;
 
 use crate::{
     autostart, bus, calendar, calls, commands, contexts, focus, hub, journal, palette, quick_notes,
-    remote, routines, shortcuts, slack, status, todos, vault, window,
+    remote, routines, search, shortcuts, slack, status, todos, vault, window,
 };
 
 pub fn handlers() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
@@ -47,6 +47,13 @@ pub fn handlers() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         routines::routine_step,
         routines::routine_open_link,
         todos::todo_open,
+        search::commands::search_query,
+        search::commands::search_scopes,
+        search::commands::search_note,
+        search::commands::search_asset,
+        search::commands::search_open,
+        search::commands::search_link,
+        search::commands::search_open_url,
         slack::commands::slack_info,
         slack::commands::slack_connect,
         slack::commands::slack_test,

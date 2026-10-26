@@ -34,6 +34,7 @@ pub mod reminders;
 pub mod remote;
 pub mod routines;
 pub mod scheduler;
+pub mod search;
 pub mod secrets;
 pub mod shortcuts;
 pub mod slack;

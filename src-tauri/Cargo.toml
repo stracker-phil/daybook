@@ -33,6 +33,7 @@ ts-rs = { version = "12", features = ["serde-compat", "serde-json-impl", "no-ser
 libc = "0.2"
 tempfile = { version = "3", optional = true }
 notify = "8"
+base64 = "0.23"
 objc2 = "0.6"
 block2 = "0.6"
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "block2", "NSArray", "NSDate", "NSDistributedNotificationCenter", "NSError", "NSGeometry", "NSNotification", "NSOperation", "NSPredicate", "NSString", "NSURL"] }

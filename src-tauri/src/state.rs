@@ -5,6 +5,7 @@ use crate::contexts::Contexts;
 use crate::launch::LaunchQueue;
 use crate::quick_notes::QuickNotes;
 use crate::routines::Fired;
+use crate::search::Search;
 use crate::slack::SlackFiles;
 use crate::status::Statuses;
 use crate::store::keybindings::KeybindingsStore;
@@ -25,6 +26,7 @@ pub struct AppState {
     pub fired: Fired,
     pub todos: NotesIndex,
     pub quick_notes: QuickNotes,
+    pub search: Search,
 }
 
 impl AppState {
@@ -41,6 +43,7 @@ impl AppState {
             fired: Fired::open(config_dir),
             todos: NotesIndex::default(),
             quick_notes: QuickNotes::open(config_dir),
+            search: Search::default(),
         }
     }
 }

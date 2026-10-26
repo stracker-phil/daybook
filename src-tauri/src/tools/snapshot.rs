@@ -2,9 +2,11 @@
 
 use tauri::{AppHandle, Manager};
 
-use super::state::{ContextItem, GroupProgress, Progress, RoutineProgress, TodayNote, ToolState};
+use super::state::{
+    ContextItem, GroupProgress, Progress, RoutineProgress, TodayNote, ToolState, Topic,
+};
 use crate::state::AppState;
-use crate::{calls, journal, projects, routines, status};
+use crate::{calls, journal, projects, quick_notes, routines, search, status};
 
 pub fn snapshot(app: &AppHandle) -> ToolState {
     let state = app.state::<AppState>();
@@ -18,6 +20,10 @@ pub fn snapshot(app: &AppHandle) -> ToolState {
     let journal_groups = journal::progress_of(app, &settings, state.notes.today());
     let (answered, total) = journal::overall(&journal_groups);
     let routines = routines::progress_of(app, &settings, state.notes.today());
+    let note_topics = quick_notes::today_topics(app, &settings).unwrap_or_else(|e| {
+        log::warn!("Couldn't list today's note topics: {e}");
+        Vec::new()
+    });
     ToolState {
         has_vault: settings.vault.path.is_some(),
         today: TodayNote {
@@ -69,6 +75,14 @@ pub fn snapshot(app: &AppHandle) -> ToolState {
                     done: routine.done,
                     total: routine.total,
                 },
+            })
+            .collect(),
+        search_scopes: search::scopes::resolve(&settings.search.scopes).names(),
+        note_topics: note_topics
+            .into_iter()
+            .map(|topic| Topic {
+                title: topic.title,
+                level: topic.level,
             })
             .collect(),
         ..ToolState::default()

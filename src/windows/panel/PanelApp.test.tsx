@@ -116,6 +116,14 @@ describe("PanelApp", () => {
       expect(mocked.panelReady).toHaveBeenCalledWith(1, expect.any(Number));
     });
 
+    it("renders the search field with the session's scope for the search view", async () => {
+      mocked.panelSession.mockResolvedValue({ session: 1, view: "search", args: { scope: "work" } });
+      render(<PanelApp />);
+      expect(await screen.findByRole("textbox", { name: "Search" })).toHaveFocus();
+      expect(screen.getByRole("button", { name: "Scope work. Press Delete to remove it." })).toBeInTheDocument();
+      expect(mocked.panelReady).toHaveBeenCalledWith(1, expect.any(Number));
+    });
+
     it("renders the offer to set Off for the offer-off view", async () => {
       mocked.panelSession.mockResolvedValue({ session: 1, view: "offer-off", args: { to: "🐈 Personal" } });
       render(<PanelApp />);

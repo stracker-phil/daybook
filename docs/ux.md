@@ -353,6 +353,13 @@ a title that isn't a topic yet adds a "New topic “…”" row (`###`). ↑↓ 
 editor window; a new one is added to today's note at once, so it shows in Obsidian too. ⌘F3 while the editor is
 open brings it forward instead.
 
+**Search** (⌘F in the app; `search:open`): the widest overlay. The field with the scope chips (accent-tinted
+pills, `@work`) on top, the results on the left (name, folder in `--o3`, a two-line snippet; hits marked with an
+accent tint; the highlighted row in the context tint) and the preview on the right (the note rendered with GFM;
+note links follow in place, missing ones in `--o3`). The pointer never moves the highlight: a click highlights, a
+second one opens. The footer has the status (`Copied [[Plan]]`, `Indexing… N notes so far`, an error) and the
+keys (`↵ open · ⌘↵ open preview · ⌘C copy link`, `⌘[ back` and `⌘] forward` when there is history, `esc close`).
+
 **The quick notes editor** (`src/windows/quicknotes/`): a small floating window that keeps its size and place.
 The title strip beside the window buttons has the heading's `#`s (`--o3`, mono) and the topic's title, editable
 (a new title renames the heading; ↵ goes to the text). Below it CodeMirror 6 with Markdown in `--font-mono`: the

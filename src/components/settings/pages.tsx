@@ -1,5 +1,5 @@
 /** The core settings pages. Modules register their own pages from their install function. */
-import { BellRing, BookOpen, CalendarDays, FolderKanban, FolderOpen, Keyboard, Layers, LayoutList, ListChecks, MessageSquare, NotebookPen, Palette, Power, Video, Workflow } from "lucide-react";
+import { BellRing, BookOpen, CalendarDays, FolderKanban, FolderOpen, Keyboard, Layers, LayoutList, ListChecks, MessageSquare, NotebookPen, Palette, Power, Search, Video, Workflow } from "lucide-react";
 import { TEXT_SIZES, type Scheme } from "../../api";
 import { schemeLook } from "../../lib/theme";
 import { registerSettingsPage, type SettingsPageProps } from "../../registry/settingsPages";
@@ -14,6 +14,7 @@ import { JournalPage } from "./JournalPage";
 import { ProjectsPage } from "./ProjectsPage";
 import { RemindersPage } from "./RemindersPage";
 import { RoutinesPage } from "./RoutinesPage";
+import { SearchPage } from "./SearchPage";
 import { ShortcutsPage } from "./ShortcutsPage";
 import { SlackPage } from "./SlackPage";
 import { ToolsPage } from "./ToolsPage";
@@ -118,6 +119,19 @@ export function registerCoreSettingsPages() {
   registerSettingsPage({ id: "daily-note", group: "Obsidian", label: "Daily Note", icon: NotebookPen, order: 0, intro: "Where Daybook writes into today's note. Sections are created in this order when Daybook first writes to them; your template only needs the title and the notes heading.", Body: DailyNotePage });
   registerSettingsPage({ id: "routines", group: "Obsidian", label: "Routines", icon: ListChecks, order: 5, intro: "Checklists you come back to during the day. Opening one adds its items to today's note's plan section; ticking one writes [x].", Body: RoutinesPage });
   registerSettingsPage({ id: "journal", group: "Obsidian", label: "Journal", icon: BookOpen, order: 10, intro: "The journal's question groups. Each group is a callout in today's note's Journal section; only answered questions are written.", Body: JournalPage });
+  registerSettingsPage({
+    id: "search",
+    group: "Obsidian",
+    label: "Search",
+    icon: Search,
+    order: 15,
+    intro: (
+      <>
+        Search finds notes in your <strong>Obsidian vault</strong> and previews them; Enter opens the note in Obsidian.
+      </>
+    ),
+    Body: SearchPage,
+  });
   registerSettingsPage({ id: "workflows", group: "Workflows", label: "Workflows", icon: Workflow, order: 0, intro: "What Daybook does when something happens: each workflow is a trigger and what follows from it.", Body: WorkflowsPage });
   registerSettingsPage({ id: "reminders", group: "Workflows", label: "Reminders", icon: BellRing, order: 10, intro: "The top of the Daybook window shows one reminder: the first rule in this list that applies now. Every routine and journal group has a rule here.", Body: RemindersPage });
   registerSettingsPage({ id: "calls", group: "Workflows", label: "Calls", icon: Video, order: 20, intro: "How Daybook recognizes that you're in a call, and what Join does.", Body: CallsPage });

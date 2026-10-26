@@ -118,3 +118,10 @@
 .routine-step-fields { display: flex; flex-direction: column; gap: var(--space-2); width: 100%; }
 .routine-step-line { display: flex; align-items: center; gap: var(--space-2); }
 .routine-step-line .item-actions { flex: 1; }
+
+/* Search scopes: a name, its folders and scopes, the actions on one line. */
+.search-scope-row { align-items: center; gap: var(--space-2); }
+.search-scope-row .grow { flex: 1; min-width: 0; }
+.search-scope-row .item-actions { flex: none; width: auto; }
+.input.search-scope-name { width: 7.385rem; flex: none; }
+.input.search-exclude { width: 14.769rem; }

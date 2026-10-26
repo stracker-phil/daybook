@@ -29,6 +29,7 @@ use crate::lock::MutexExt;
 pub const LABEL: &str = "panel";
 const URL: &str = "src/windows/panel/index.html";
 const WIDTH: f64 = 580.0;
+const SEARCH_WIDTH: f64 = 980.0;
 /// Past these the overlay opens anyway: shown before the page reported its height, faded in before
 /// it painted.
 const READY_TIMEOUT: Duration = Duration::from_millis(400);
@@ -101,6 +102,14 @@ fn send_session(app: &AppHandle) {
     }
 }
 
+fn view_width(view: &str) -> f64 {
+    if view == crate::search::VIEW {
+        SEARCH_WIDTH
+    } else {
+        WIDTH
+    }
+}
+
 /// Opens `view` in a new session; the same view again closes it.
 pub async fn open(app: &AppHandle, view: &str, args: Value) {
     let panel = panel(app);
@@ -138,15 +147,16 @@ pub async fn open(app: &AppHandle, view: &str, args: Value) {
         (showing, panel_state.is_sticky())
     };
     let was_open = showing.was_open;
+    let width = view_width(view);
     on_main(app, move |ns_window| {
         // SAFETY: on the main thread with the live overlay window.
         unsafe {
             native::set_sticky(ns_window, sticky);
             if was_open {
-                resize_from_top(ns_window, showing.height);
+                resize_from_top(ns_window, width, showing.height);
             } else {
                 native::set_alpha(ns_window, 0.0);
-                place(ns_window, showing.height);
+                place(ns_window, width, showing.height);
             }
             native::show(ns_window);
         }
@@ -229,27 +239,26 @@ pub async fn refocus(app: &AppHandle) {
 ///
 /// # Safety
 /// On the main thread with the live overlay window.
-unsafe fn place(ns_window: *mut c_void, height: f64) {
+unsafe fn place(ns_window: *mut c_void, width: f64, height: f64) {
     let Some(screen) = appkit::pointer_screen() else {
         return;
     };
     // SAFETY: as the caller promises.
-    unsafe { appkit::set_frame(ns_window, top_center(screen.visible, WIDTH, height)) };
+    unsafe { appkit::set_frame(ns_window, top_center(screen.visible, width, height)) };
 }
 
-/// The overlay grows and shrinks downwards from a fixed top edge.
+/// The overlay grows and shrinks downwards from a fixed top edge, and stays centred on its middle when
+/// another view is wider.
 ///
 /// # Safety
 /// On the main thread with the live overlay window.
-unsafe fn resize_from_top(ns_window: *mut c_void, height: f64) {
+unsafe fn resize_from_top(ns_window: *mut c_void, width: f64, height: f64) {
     // SAFETY: as the caller promises.
     unsafe {
         let frame = appkit::frame(ns_window);
         let top = frame.y + frame.height;
-        appkit::set_frame(
-            ns_window,
-            Rect::new(frame.x, top - height, frame.width, height),
-        );
+        let x = (frame.x + (frame.width - width) / 2.0).round();
+        appkit::set_frame(ns_window, Rect::new(x, top - height, width, height));
     }
 }
 
@@ -371,10 +380,24 @@ pub async fn keep_open(app: &AppHandle, keep: bool) {
 pub async fn set_height(app: &AppHandle, height: f64) {
     let changed = panel(app).state.lock_unpoisoned().set_height(height);
     if let Some(height) = changed {
+        let width = view(app).as_deref().map_or(WIDTH, view_width);
         // SAFETY: on the main thread with the live overlay window.
         on_main(app, move |ns_window| unsafe {
-            resize_from_top(ns_window, height)
+            resize_from_top(ns_window, width, height)
         })
         .await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_search_view_is_wider_than_every_other_view() {
+        assert_eq!(view_width(crate::search::VIEW), 980.0);
+        for view in ["journal", "routines", ""] {
+            assert_eq!(view_width(view), 580.0, "{view}");
+        }
     }
 }

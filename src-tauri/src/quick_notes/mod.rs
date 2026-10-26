@@ -122,7 +122,8 @@ fn today_lines(app: &AppHandle, settings: &Settings) -> AppResult<Option<Vec<Str
     Ok(text.map(|text| Note::parse(&text).lines))
 }
 
-fn list(app: &AppHandle, settings: &Settings) -> AppResult<Vec<NoteSectionRef>> {
+/// The topics below the notes heading of today's note; none before it exists.
+pub fn today_topics(app: &AppHandle, settings: &Settings) -> AppResult<Vec<NoteSectionRef>> {
     let heading = notes_heading(settings);
     Ok(today_lines(app, settings)?
         .map(|lines| list_note_sections(&lines, &heading))
@@ -194,7 +195,7 @@ async fn changed_since(
 pub async fn quick_notes_list(app: AppHandle, query: String) -> AppResult<QuickNoteTopics> {
     blocking(move || {
         let settings = current_settings(&app);
-        let topics = list(&app, &settings)?;
+        let topics = today_topics(&app, &settings)?;
         Ok(QuickNoteTopics {
             rows: topic::rows_for(&topics, &query),
             has_topics: !topics.is_empty(),
@@ -273,7 +274,7 @@ pub fn quick_notes_close(app: AppHandle) {
 }
 
 fn topic_choices(app: &AppHandle) -> Vec<ArgChoice> {
-    let topics = list(app, &current_settings(app)).unwrap_or_else(|e| {
+    let topics = today_topics(app, &current_settings(app)).unwrap_or_else(|e| {
         log::warn!("Couldn't list today's note topics: {e}");
         Vec::new()
     });

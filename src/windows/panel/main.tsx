@@ -5,6 +5,7 @@ import { api, toAppError } from "../../api";
 import { applyInitialLook } from "../../lib/theme";
 import "../../styles";
 import "./panel.css";
+import "./search/search.css";
 import { PanelApp } from "./PanelApp";
 
 applyInitialLook();

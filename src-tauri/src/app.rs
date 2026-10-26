@@ -13,8 +13,8 @@ use crate::state::AppState;
 use crate::store::import::Import;
 use crate::{
     bus, calendar, calls, commands, contexts, deep_link, focus, ipc, journal, menu, notify,
-    presence, quick_notes, remote, routines, scheduler, shortcuts, slack, status, status_rules,
-    tray, vault, window, wizard,
+    presence, quick_notes, remote, routines, scheduler, search, shortcuts, slack, status,
+    status_rules, tray, vault, window, wizard,
 };
 
 const MAX_LOG_BYTES: u128 = 5 * 1024 * 1024;
@@ -65,6 +65,7 @@ pub fn start(
             report_import(&state, import);
             commands::apply_settings(app.handle(), None, &state.settings.get());
             vault::commands::install(app.handle());
+            search::start(app.handle());
             tray::install(app.handle())?;
             shortcuts::apply(app.handle());
             calendar::install(app.handle());
@@ -111,6 +112,7 @@ fn commands_bus() -> bus::Commands {
     journal::register(&mut commands);
     quick_notes::register(&mut commands);
     routines::register(&mut commands);
+    search::register(&mut commands);
     bus::Commands(commands)
 }
 
