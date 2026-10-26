@@ -1,5 +1,5 @@
 /** The core settings pages. Modules register their own pages from their install function. */
-import { BellRing, BookOpen, CalendarDays, FolderKanban, FolderOpen, Keyboard, Layers, LayoutList, MessageSquare, NotebookPen, Palette, Power, Video, Workflow } from "lucide-react";
+import { BellRing, BookOpen, CalendarDays, FolderKanban, FolderOpen, Keyboard, Layers, LayoutList, ListChecks, MessageSquare, NotebookPen, Palette, Power, Video, Workflow } from "lucide-react";
 import { TEXT_SIZES, type Scheme } from "../../api";
 import { schemeLook } from "../../lib/theme";
 import { registerSettingsPage, type SettingsPageProps } from "../../registry/settingsPages";
@@ -13,6 +13,7 @@ import { DailyNotePage } from "./DailyNotePage";
 import { JournalPage } from "./JournalPage";
 import { ProjectsPage } from "./ProjectsPage";
 import { RemindersPage } from "./RemindersPage";
+import { RoutinesPage } from "./RoutinesPage";
 import { ShortcutsPage } from "./ShortcutsPage";
 import { SlackPage } from "./SlackPage";
 import { ToolsPage } from "./ToolsPage";
@@ -115,6 +116,7 @@ export function registerCoreSettingsPages() {
   registerSettingsPage({ id: "contexts", group: "Setup", label: "Contexts", icon: Layers, order: 10, intro: "Each context turns features on and off, has its colour and work hours, and can become current by itself when they start.", Body: ContextsPage });
   registerSettingsPage({ id: "projects", group: "Setup", label: "Projects", icon: FolderKanban, order: 20, intro: "What you work on: offered for meetings and the Projects tool in the contexts you pick.", Body: ProjectsPage });
   registerSettingsPage({ id: "daily-note", group: "Obsidian", label: "Daily Note", icon: NotebookPen, order: 0, intro: "Where Daybook writes into today's note. Sections are created in this order when Daybook first writes to them; your template only needs the title and the notes heading.", Body: DailyNotePage });
+  registerSettingsPage({ id: "routines", group: "Obsidian", label: "Routines", icon: ListChecks, order: 5, intro: "Checklists you come back to during the day. Opening one adds its items to today's note's plan section; ticking one writes [x].", Body: RoutinesPage });
   registerSettingsPage({ id: "journal", group: "Obsidian", label: "Journal", icon: BookOpen, order: 10, intro: "The journal's question groups. Each group is a callout in today's note's Journal section; only answered questions are written.", Body: JournalPage });
   registerSettingsPage({ id: "workflows", group: "Workflows", label: "Workflows", icon: Workflow, order: 0, intro: "What Daybook does when something happens: each workflow is a trigger and what follows from it.", Body: WorkflowsPage });
   registerSettingsPage({ id: "reminders", group: "Workflows", label: "Reminders", icon: BellRing, order: 10, intro: "The top of the Daybook window shows one reminder: the first rule in this list that applies now. Every routine and journal group has a rule here.", Body: RemindersPage });

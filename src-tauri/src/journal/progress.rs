@@ -107,6 +107,11 @@ impl JournalGroupView {
             has_note: self.questions.is_empty() && !is_blank(&self.note),
         }
     }
+
+    /// Nothing answered and nothing written yet.
+    pub fn is_unwritten(&self) -> bool {
+        self.answered == 0 && is_blank(&self.note)
+    }
 }
 
 /// `(answered, total)` over all groups.

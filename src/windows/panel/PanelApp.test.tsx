@@ -98,6 +98,15 @@ describe("PanelApp", () => {
       expect(mocked.panelReady).toHaveBeenCalledWith(1, expect.any(Number));
     });
 
+    it("renders the asked routine's checklist for the wizard view", async () => {
+      mocked.routineViewToday.mockResolvedValue({ id: "morning", name: "Morning", steps: [{ index: 0, title: "Plan day", link: "", done: false }] });
+      mocked.panelSession.mockResolvedValue({ session: 1, view: "wizard", args: { routine: "morning" } });
+      render(<PanelApp />);
+      expect(await screen.findByRole("option", { name: "Plan day" })).toBeInTheDocument();
+      expect(mocked.routineViewToday).toHaveBeenCalledWith("morning");
+      expect(mocked.panelReady).toHaveBeenCalledWith(1, expect.any(Number));
+    });
+
     it("renders the offer to set Off for the offer-off view", async () => {
       mocked.panelSession.mockResolvedValue({ session: 1, view: "offer-off", args: { to: "🐈 Personal" } });
       render(<PanelApp />);

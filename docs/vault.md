@@ -66,7 +66,7 @@ when the op can never apply. `describe()` is one line for the action log.
 | Kind | Writes | Module |
 |---|---|---|
 | `journalGroup { group, answers }` | rewrites one journal group's callout (only answered questions; unknown questions kept; the group and an empty section removed when nothing is answered) | `ops/journal/` |
-| `planStep { title, done }` | ticks or unticks a routine item in the plan section, adding it if needed | `ops/plan.rs` |
+| `planStep { title, done }` | ticks or unticks a routine item in the plan section, adding it if needed ([routines.md](routines.md)) | `ops/plan.rs` |
 | `planList { titles }` | adds a starting routine's missing items unticked | `ops/plan.rs` |
 | `focus { body }` | replaces the focus section's body | `ops/focus.rs` |
 | `noteSection { title, level, newTitle, body }` | rewrites (or adds, at the end of the notes section) one `###` section below the notes heading, maybe renaming it | `ops/notes.rs` |

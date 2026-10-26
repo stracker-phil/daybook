@@ -11,6 +11,7 @@ import { OfferOffView } from "./OfferOffView";
 import { PaletteView } from "./PaletteView";
 import { SampleView } from "./SampleView";
 import { StatusView } from "./StatusView";
+import { WizardView } from "./WizardView";
 
 installPanelCommands();
 
@@ -26,6 +27,8 @@ function View({ session }: { session: PanelSession }) {
       return <FocusView />;
     case "journal":
       return <JournalView group={(session.args as { group?: string } | null)?.group ?? null} />;
+    case "wizard":
+      return <WizardView routine={(session.args as { routine?: string } | null)?.routine ?? ""} />;
     case "offer-off":
       return <OfferOffView offer={session.args as OfferOff} />;
     case "sample":

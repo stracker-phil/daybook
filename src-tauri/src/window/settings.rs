@@ -11,13 +11,14 @@ pub const LABEL: &str = "settings";
 
 /// Every Settings page, in the page list's order: the ids `settings:<page>` opens and the palette lists.
 /// The page registers its body under the same id (`src/components/settings/pages.tsx`).
-pub const PAGES: [(&str, &str); 14] = [
+pub const PAGES: [(&str, &str); 15] = [
     ("vault", "Vault"),
     ("calendar", "Calendar"),
     ("slack", "Slack"),
     ("contexts", "Contexts"),
     ("projects", "Projects"),
     ("daily-note", "Daily Note"),
+    ("routines", "Routines"),
     ("journal", "Journal"),
     ("workflows", "Workflows"),
     ("reminders", "Reminders"),
@@ -119,6 +120,7 @@ mod tests {
             assert_eq!(page_title(id), Some(title), "{id}");
         }
         assert_eq!(page_title("daily-note"), Some("Daily Note"));
+        assert_eq!(page_title("routines"), Some("Routines"));
         assert_eq!(page_title("journal"), Some("Journal"));
         assert_eq!(page_title("workflows"), Some("Workflows"));
         assert_eq!(page_title("calls"), Some("Calls"));

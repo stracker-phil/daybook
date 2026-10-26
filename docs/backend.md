@@ -318,7 +318,7 @@ first; `Contexts` (in `AppState`) reads and sets it and gives the current contex
   emits `context_changed` (`ContextChanged { id }`) and refreshes the menu-bar item, whose title starts with
   the current context's emoji. Leaving the status behind while Working offers Off instead of closing the
   switcher ([status.md](status.md#offer-off)).
-- **Work hours.** `contexts::start` checks every 30 s. `AutoSwitch::check` (`contexts/schedule.rs`, pure)
+- **Work hours.** `contexts::apply_schedule` runs on the scheduler's tick ([routines.md](routines.md#the-scheduler)). `AutoSwitch::check` (`contexts/schedule.rs`, pure)
   switches to the first context with auto-switch whose work hours contain now, when they start; a switch by
   hand holds until the next start, and nothing happens when they end. On the first check after launch, hours
   that started after the last switch still win. Hours whose end is before their start run past midnight. An
@@ -364,7 +364,8 @@ failed save leaves memory unchanged. `JsonStore::open_with` normalizes the loade
 | `daybook.sock`, `daybook.lock` | single instance |
 | `context.json` | `Active { id, setAt }`, the current context (`contexts::Contexts`) |
 | `status-memory.json` | `StatusMemory { date, status, since, workedToday }`, today's status (`status::Statuses`, [status.md](status.md)) |
-| `jira-tickets.json`, `routines.json`, `day-message.json`, `slack-shown.json` | written only by the [prototype import](#prototype-import) so far; their steps add the stores that read them |
+| `routines.json` | `{ date, fired }`, the once-a-day wizard triggers that fired today (`routines::Fired`, [routines.md](routines.md#the-wizard)) |
+| `jira-tickets.json` | written only by the [prototype import](#prototype-import) so far; its step adds the store that reads it |
 
 ### Settings
 

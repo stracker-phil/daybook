@@ -2,9 +2,9 @@
 
 use tauri::{AppHandle, Manager};
 
-use super::state::{ContextItem, GroupProgress, Progress, TodayNote, ToolState};
+use super::state::{ContextItem, GroupProgress, Progress, RoutineProgress, TodayNote, ToolState};
 use crate::state::AppState;
-use crate::{calls, journal, projects, status};
+use crate::{calls, journal, projects, routines, status};
 
 pub fn snapshot(app: &AppHandle) -> ToolState {
     let state = app.state::<AppState>();
@@ -17,6 +17,7 @@ pub fn snapshot(app: &AppHandle) -> ToolState {
     let call = calls::active(app);
     let journal_groups = journal::progress_of(app, &settings, state.notes.today());
     let (answered, total) = journal::overall(&journal_groups);
+    let routines = routines::progress_of(app, &settings, state.notes.today());
     ToolState {
         has_vault: settings.vault.path.is_some(),
         today: TodayNote {
@@ -56,6 +57,17 @@ pub fn snapshot(app: &AppHandle) -> ToolState {
                 progress: Progress {
                     done: group.answered,
                     total: group.total,
+                },
+            })
+            .collect(),
+        routines: routines
+            .into_iter()
+            .map(|routine| RoutineProgress {
+                id: routine.id,
+                name: routine.name,
+                progress: Progress {
+                    done: routine.done,
+                    total: routine.total,
                 },
             })
             .collect(),

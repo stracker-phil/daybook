@@ -115,3 +115,6 @@
 .journal-question-line .grow { flex: 1; min-width: 0; }
 .journal-group-actions { display: flex; align-items: center; gap: var(--space-2); width: 100%; }
 .journal-group-actions .item-actions { flex: 1; }
+.routine-step-fields { display: flex; flex-direction: column; gap: var(--space-2); width: 100%; }
+.routine-step-line { display: flex; align-items: center; gap: var(--space-2); }
+.routine-step-line .item-actions { flex: 1; }

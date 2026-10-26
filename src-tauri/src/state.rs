@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use crate::contexts::Contexts;
 use crate::launch::LaunchQueue;
+use crate::routines::Fired;
 use crate::slack::SlackFiles;
 use crate::status::Statuses;
 use crate::store::keybindings::KeybindingsStore;
@@ -19,6 +20,7 @@ pub struct AppState {
     pub contexts: Contexts,
     pub statuses: Statuses,
     pub slack: SlackFiles,
+    pub fired: Fired,
 }
 
 impl AppState {
@@ -32,6 +34,7 @@ impl AppState {
             contexts: Contexts::open(config_dir),
             statuses: Statuses::open(config_dir),
             slack: SlackFiles::open(config_dir),
+            fired: Fired::open(config_dir),
         }
     }
 }

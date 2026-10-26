@@ -38,7 +38,8 @@ Listeners:
 |---|---|
 | the Daybook window | reloads `hub_view` (the sidebar's status row) |
 | `slack::install` (`app.listen(STATUS_CHANGED_EVENT, …)`) | the Slack status and the channel message ([slack.md](slack.md)) |
-| later steps, in Rust (the same way) | focus list (12), the day wizard (14), music (19), the timer (26) |
+| `wizard::install` | opens what the first Working or Done for today opens ([routines.md](routines.md#the-wizard)) |
+| later steps, in Rust (the same way) | music (19), the timer (26) |
 
 ## The overlay
 

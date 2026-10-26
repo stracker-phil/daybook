@@ -78,6 +78,7 @@ describe("SettingsWindow", () => {
         "Contexts",
         "Projects",
         "Daily Note",
+        "Routines",
         "Journal",
         "Workflows",
         "Reminders",
@@ -93,7 +94,7 @@ describe("SettingsWindow", () => {
     it("groups them under Setup, Obsidian, Workflows and System, in that order", () => {
       renderWindow();
       const text = nav().textContent.replace(/\s+/g, "");
-      expect(text).toBe("SetupVaultCalendarSlackContextsProjectsObsidianDailyNoteJournalWorkflowsWorkflowsRemindersCallsDemoflowSystemGeneralToolsShortcutsAppearance");
+      expect(text).toBe("SetupVaultCalendarSlackContextsProjectsObsidianDailyNoteRoutinesJournalWorkflowsWorkflowsRemindersCallsDemoflowSystemGeneralToolsShortcutsAppearance");
     });
   });
 

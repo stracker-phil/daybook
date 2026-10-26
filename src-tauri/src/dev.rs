@@ -1,15 +1,16 @@
-//! Debug-build conveniences for driving the app from scripts/dev without disturbing the
-//! user: window placement, background launches and a check of the vault write path. Only compiled into debug builds
-//! (`#[cfg(debug_assertions)]` on the module and its call sites).
+//! Debug-build conveniences for driving the app from scripts/dev without disturbing the user: window
+//! placement, background launches, a check of the vault write path and firing the wizard. Only compiled
+//! into debug builds (`#[cfg(debug_assertions)]` on the module and its call sites).
 
 use std::sync::Arc;
 
 use tauri::{Manager, State};
 
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 use crate::vault::ops::NoteOp;
 use crate::vault::{WriteOutcome, commands::blocking};
+use crate::wizard::prompts::Reason;
 
 /// `DAYBOOK_WINDOW_FRAME="x,y,width,height"` (logical points) places the main window.
 pub fn window_frame() -> Option<(f64, f64, f64, f64)> {
@@ -45,6 +46,27 @@ pub async fn dev_edit_today_note(
     let notes = Arc::clone(&state.notes);
     let settings = state.settings.get();
     blocking(move || notes.edit_today(&settings, op)).await
+}
+
+/// Gives the wizard a chance as if `reason` (`due` or an `OpenEvent` such as `off`) happened today at
+/// `at` (`HH:MM`, default now), also while away. Once-a-day triggers stay once a day (`routines.json`).
+#[tauri::command]
+pub async fn dev_wizard_fire(
+    app: tauri::AppHandle,
+    reason: String,
+    at: Option<String>,
+) -> AppResult<()> {
+    let reason = Reason::from_name(&reason)
+        .ok_or_else(|| AppError::InvalidInput(format!("Not a reason: {reason}")))?;
+    let now = chrono::Local::now().naive_local();
+    let when = match at.as_deref() {
+        Some(at) => chrono::NaiveTime::parse_from_str(at, "%H:%M")
+            .map(|time| now.date().and_time(time))
+            .map_err(|_| AppError::InvalidInput(format!("Not a time: {at}")))?,
+        None => now,
+    };
+    crate::wizard::fire(&app, reason, when).await;
+    Ok(())
 }
 
 fn parse_frame(raw: &str) -> Option<(f64, f64, f64, f64)> {

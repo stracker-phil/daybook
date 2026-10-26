@@ -55,3 +55,19 @@
 .journal-text { display: block; width: 100%; resize: none; box-sizing: border-box; }
 .journal-row input::placeholder, .journal-text::placeholder { color: var(--o3); }
 .journal-waiting { flex: 1; text-align: right; }
+
+/* A routine's checklist: a round check per item, ticked items struck through. */
+.wizard-heading { display: flex; align-items: baseline; gap: var(--space-3); }
+.wizard-heading > .o2 { flex: 1; }
+.wizard-count { font-weight: 400; font-variant-numeric: tabular-nums; }
+/* The overlay grows with the list, so 50vh of its own height would cut the list off. */
+.wizard-list { max-height: none; border-top: 1px solid var(--line); outline: none; }
+.wizard-check {
+  flex: none; display: flex; align-items: center; justify-content: center; width: 1.385rem; height: 1.385rem;
+  border: 1px solid var(--line); border-radius: 50%; box-sizing: border-box;
+}
+.wizard-list li[data-done="true"] .wizard-check { border-color: transparent; background: var(--context); color: var(--on-accent); }
+.wizard-list li[data-done="true"] .wizard-title { color: var(--o3); text-decoration: line-through; }
+.wizard-list li.active[data-done="true"] .wizard-title { color: inherit; opacity: 0.75; }
+.wizard-list li.active .wizard-check { border-color: currentColor; }
+.wizard-list .icon-btn { color: inherit; }

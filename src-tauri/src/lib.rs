@@ -31,6 +31,8 @@ pub mod process;
 pub mod projects;
 pub mod reminders;
 pub mod remote;
+pub mod routines;
+pub mod scheduler;
 pub mod secrets;
 pub mod shortcuts;
 pub mod slack;
@@ -44,6 +46,7 @@ pub mod tools;
 pub mod tray;
 pub mod vault;
 pub mod window;
+pub mod wizard;
 
 use std::path::PathBuf;
 

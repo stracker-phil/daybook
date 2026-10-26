@@ -15,7 +15,7 @@ use checks::{Away, after_wake, has_been_asleep_long_enough, is_coming_back};
 use native::SystemEvent;
 
 use crate::lock::MutexExt;
-use crate::{calls, tray, window};
+use crate::{calls, scheduler, tray, window};
 
 const LOCK_POLL: Duration = Duration::from_secs(2);
 /// Lets macOS finish leaving the lock screen before the overlay takes the focus.
@@ -156,9 +156,11 @@ fn poll_while_locked(app: &AppHandle) {
     });
 }
 
-/// Back at the screen: look for a call, refresh the menu bar and give a waiting overlay the focus.
+/// Back at the screen: look for a call, run what fell due meanwhile, refresh the menu bar and give a
+/// waiting overlay the focus.
 fn came_back(app: &AppHandle) {
     calls::check_soon(app);
+    scheduler::tick_soon(app);
     tray::refresh(app);
     let app = app.clone();
     tauri::async_runtime::spawn(async move {

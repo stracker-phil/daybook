@@ -336,6 +336,13 @@ removes it. Answers save 0.8 s after typing stops and when the group or the over
 note replaces the answers only when its trimmed content differs, so the note echoing a save never moves the
 caret. The footer has the keys, "Saved once today's note exists" while it doesn't, or the error of a failed save.
 
+**The wizard overlay** (`wizard` view, `routine:<id>`): the routine's name with "2 of 4" or "All done" on the
+right (`--o3`, tabular figures), then the day's items as a list: a round check (filled with `--context`, a white
+tick, once done) and the title, struck through in `--o3` when done; an item with a link has a link button on the
+right. ↑↓ cycle through all items, Space or ↵ ticks, ⌘O opens the link. It opens on the first open item and closes
+by itself 0.7 s after the last one is ticked; there is no skip. The footer has the keys (⌘O only for an item with
+a link) or the error of a failed tick.
+
 ## Contexts
 
 Each context has a colour (Settings → Contexts). `styles/context.css` turns `data-context="<colour>"` on any
@@ -388,7 +395,7 @@ text, as in Spotlight. Group headings are small `--o3` text; a row's detail foll
 - A group may carry a description under its heading (`.settings-group-desc`, `--fs-meta`, `--o2`). A lookup
   reads Found in `--style-green` or Missing in `--style-yellow` (`.settings-state`).
 - Pages register in `registry/settingsPages.ts`, in four groups: **Setup** (Vault, Contexts, Projects),
-  **Obsidian** (Daily Note, Journal), **Workflows** (with its first page) and **System** (General, Tools, Shortcuts,
+  **Obsidian** (Daily Note, Routines, Journal), **Workflows** (with its first page) and **System** (General, Tools, Shortcuts,
   Appearance). Shortcuts lists the global shortcuts first, each marked Global (`.shortcut-global`), then the
   app menu's keys (fixed), then the windows' own keys; a key field records the next key, Escape stops, ⌫
   unbinds; conflicts show in `--style-yellow`. A concept with several items gets a page with one card per item;

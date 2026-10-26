@@ -4,8 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../api", async (orig) => ({ ...(await orig<object>()), api: (await import("../../test/apiMock")).createApiMock() }));
 
-import { api, type HubView, type JournalProgress } from "../../api";
-import { JournalRow } from "./ChipRows";
+import { api, type HubView, type JournalProgress, type RoutineProgress } from "../../api";
+import { JournalRow, RoutinesRow } from "./ChipRows";
 
 const mocked = vi.mocked(api, true);
 
@@ -19,6 +19,54 @@ async function renderRow(journal: JournalProgress[], patch: Partial<HubView> = {
 const journalTool = (shortcut: string | null): HubView["tools"] => [
   { kind: "tool", id: "journal", title: "Journal", command: "journal:open", shortcut, detail: null, accent: false, enabled: true },
 ];
+
+const routine = (patch: Partial<RoutineProgress> = {}): RoutineProgress => ({ id: "morning", name: "Morning", done: 0, total: 4, ...patch });
+
+async function renderRoutines(routines: RoutineProgress[], patch: Partial<HubView> = {}) {
+  const hub: HubView = { ...(await api.hubView()), routines, ...patch };
+  render(<RoutinesRow hub={hub} />);
+}
+
+describe("RoutinesRow", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("renders nothing without routines", async () => {
+    await renderRoutines([]);
+    expect(screen.queryByRole("region", { name: "Routines" })).not.toBeInTheDocument();
+  });
+
+  it("lists one button per routine in a Routines section", async () => {
+    await renderRoutines([routine(), routine({ id: "evening", name: "Evening" })]);
+    expect(screen.getByRole("region", { name: "Routines" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Morning", "Evening"]);
+  });
+
+  it("shows one dot per item labelled with the done count", async () => {
+    await renderRoutines([routine({ done: 1, total: 4 })]);
+    expect(screen.getByLabelText("1 of 4").children).toHaveLength(4);
+    expect(screen.queryByLabelText("Done")).not.toBeInTheDocument();
+  });
+
+  it("shows a check once every item is done", async () => {
+    await renderRoutines([routine({ done: 4, total: 4 })]);
+    expect(screen.getByLabelText("Done")).toBeInTheDocument();
+    expect(screen.queryByLabelText("4 of 4")).not.toBeInTheDocument();
+  });
+
+  it("runs the routine's command when its chip is clicked today", async () => {
+    await renderRoutines([routine(), routine({ id: "evening", name: "Evening" })]);
+    await userEvent.click(screen.getByRole("button", { name: /^Evening/ }));
+    expect(mocked.runCommand).toHaveBeenCalledWith("routine:evening");
+  });
+
+  it("disables the chips on another day", async () => {
+    await renderRoutines([routine()], { isToday: false });
+    const chip = screen.getByRole("button", { name: /^Morning/ });
+    expect(chip).toBeDisabled();
+    await userEvent.click(chip);
+    expect(mocked.runCommand).not.toHaveBeenCalled();
+  });
+});
 
 describe("JournalRow", () => {
   beforeEach(() => vi.clearAllMocks());

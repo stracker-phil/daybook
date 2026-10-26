@@ -278,7 +278,8 @@ impl DailyNotes {
         drained
     }
 
-    /// A note created in Obsidian by hand gets the waiting changes once Templater is done with it.
+    /// Writes the waiting changes once their note exists and Templater is done with it: when a note
+    /// appears, and on the scheduler's tick.
     pub fn note_appeared(&self, settings: &Settings) {
         if self.pending.count() == 0 || self.creating.load(Ordering::SeqCst) {
             return;

@@ -7,7 +7,6 @@ pub use schedule::{AutoSwitch, scheduled};
 
 use std::path::Path;
 use std::sync::Mutex;
-use std::time::Duration;
 
 use chrono::{DateTime, Local, NaiveDateTime, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
@@ -25,8 +24,6 @@ use crate::store::settings::{Context, ContextColor, Settings};
 use crate::{notify, tray, window};
 
 pub const FILE_NAME: &str = "context.json";
-/// How often the work hours are checked.
-const TICK: Duration = Duration::from_secs(30);
 
 /// "🐈 Personal": the context's label (an emoji) before its name.
 pub fn context_title(label: &str, name: &str) -> String {
@@ -192,8 +189,8 @@ async fn switch_by_hand(app: AppHandle, id: String) -> AppResult<()> {
     Ok(())
 }
 
-/// Switches to the context whose work hours just started and says so.
-fn apply_schedule(app: &AppHandle) {
+/// Switches to the context whose work hours just started and says so; runs on the scheduler's tick.
+pub fn apply_schedule(app: &AppHandle) {
     let state = app.state::<AppState>();
     let settings = state.settings.get();
     let Some(id) = state.contexts.due(&settings, Local::now().naive_local()) else {
@@ -214,18 +211,6 @@ fn apply_schedule(app: &AppHandle) {
         Ok(None) => {}
         Err(e) => log::warn!("Couldn't switch the context by its work hours: {e}"),
     }
-}
-
-/// Checks the work hours now and every `TICK`.
-pub fn start(app: &AppHandle) {
-    let app = app.clone();
-    tauri::async_runtime::spawn(async move {
-        let mut ticks = tokio::time::interval(TICK);
-        loop {
-            ticks.tick().await;
-            apply_schedule(&app);
-        }
-    });
 }
 
 pub fn register(bus: &mut CommandBus<AppHandle>) {

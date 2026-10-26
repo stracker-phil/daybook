@@ -375,7 +375,11 @@ focus: Array<FocusLine> | null,
 /**
  * The day's journal groups, in Settings order.
  */
-journal: Array<JournalProgress>, };
+journal: Array<JournalProgress>, 
+/**
+ * The current context's routines on the day, in Settings order.
+ */
+routines: Array<RoutineProgress>, };
 
 /**
  * "Open Jira Issue" opens `base_url` + the key; a bare number gets `default_prefix`.
@@ -730,6 +734,11 @@ export type Routine = { id: string, name: string,
 contexts: Array<string>, steps: Array<RoutineStep>, timing: Timing, };
 
 /**
+ * A routine's progress as the board, the menus and the reminders show it.
+ */
+export type RoutineProgress = { id: string, name: string, done: number, total: number, };
+
+/**
  * One item of a routine's checklist.
  */
 export type RoutineStep = { title: string, 
@@ -741,6 +750,17 @@ link: string,
  * Weekdays the item is due (0 = Sunday); empty: every day.
  */
 days: Array<number>, };
+
+export type RoutineStepView = { 
+/**
+ * The item's place in the routine, also on days that skip earlier items.
+ */
+index: number, title: string, link: string, done: boolean, };
+
+/**
+ * A routine as the wizard shows it: today's items, ticked or not.
+ */
+export type RoutineView = { id: string, name: string, steps: Array<RoutineStepView>, };
 
 /**
  * A look for one macOS mode: `Default` has a dark sidebar beside light content, `Light` is all light,

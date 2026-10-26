@@ -111,6 +111,25 @@ fn obsidian_url(settings: &Settings, file: &Path) -> AppResult<String> {
         .ok_or_else(|| AppError::InvalidInput(format!("{} is outside the vault", file.display())))
 }
 
+/// Opens a URL as it is and a vault path (`3-Personal/Work-Log`) in Obsidian.
+pub fn open_target(app: &AppHandle, target: &str) -> AppResult<()> {
+    let url = if obsidian::is_url(target) {
+        target.to_string()
+    } else {
+        let settings = app.state::<AppState>().settings.get();
+        let file = obsidian::vault_file(&super::vault(&settings)?, target)
+            .ok_or_else(|| AppError::InvalidInput(format!("{target} is outside the vault")))?;
+        obsidian_url(&settings, &file)?
+    };
+    open_url(app, url)
+}
+
+fn open_url(app: &AppHandle, url: String) -> AppResult<()> {
+    app.opener()
+        .open_url(url, None::<&str>)
+        .map_err(|e| AppError::Io(e.to_string()))
+}
+
 /// Opens `day`'s note (default today) in Obsidian; today's is created when it doesn't exist yet.
 #[tauri::command]
 pub async fn daily_note_open(app: AppHandle, day: Option<String>) -> AppResult<()> {
@@ -139,9 +158,7 @@ pub async fn open_day(app: &AppHandle, day: Option<&str>) -> AppResult<()> {
     let Some(url) = url else {
         return Ok(());
     };
-    app.opener()
-        .open_url(url, None::<&str>)
-        .map_err(|e| AppError::Io(e.to_string()))
+    open_url(app, url)
 }
 
 /// Creates today's note and reports whether it exists afterwards.

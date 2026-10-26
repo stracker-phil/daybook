@@ -1,7 +1,7 @@
 //! The Obsidian CLI (Obsidian → Settings → General → Command line interface, 1.12+) and
 //! `obsidian://` links.
 
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -89,6 +89,34 @@ fn encode_component(text: &str) -> String {
         .collect()
 }
 
+/// `http://`, `https://` or `obsidian://`; anything else is a vault path.
+pub fn is_url(target: &str) -> bool {
+    target.split_once("://").is_some_and(|(scheme, _)| {
+        ["http", "https", "obsidian"]
+            .iter()
+            .any(|known| scheme.eq_ignore_ascii_case(known))
+    })
+}
+
+/// The file a vault-relative `target` names (a note when it has no extension); `None` when it would leave
+/// the vault.
+pub fn vault_file(vault: &Path, target: &str) -> Option<PathBuf> {
+    let relative = Path::new(target.trim());
+    let inside = relative
+        .components()
+        .all(|part| matches!(part, Component::Normal(_) | Component::CurDir));
+    if !inside || relative.file_name().is_none() {
+        return None;
+    }
+    let file = vault.join(relative);
+    if file.extension().is_some() {
+        return Some(file);
+    }
+    let mut note = file.into_os_string();
+    note.push(".md");
+    Some(note.into())
+}
+
 /// `obsidian://open` for a vault file, optionally at a heading; `None` outside the vault.
 pub fn open_url(
     vault_name: &str,
@@ -164,6 +192,46 @@ mod tests {
             url.as_deref(),
             Some("obsidian://open?vault=Vault&file=Note.md%23Plan%20for%20Today")
         );
+    }
+
+    #[test]
+    fn only_web_and_obsidian_schemes_are_urls() {
+        for (target, expected) in [
+            ("https://x", true),
+            ("http://x", true),
+            ("obsidian://open?vault=V&file=N", true),
+            ("HTTPS://x", true),
+            ("Obsidian://open", true),
+            ("3-Personal/Work-Log", false),
+            ("Notes: draft", false),
+            ("mailto:x", false),
+            ("", false),
+        ] {
+            assert_eq!(is_url(target), expected, "{target}");
+        }
+    }
+
+    #[test]
+    fn a_vault_target_names_a_note_or_keeps_its_extension() {
+        let vault = Path::new("/v");
+        for (target, expected) in [
+            ("3-Personal/Work-Log", "/v/3-Personal/Work-Log.md"),
+            ("a/b.pdf", "/v/a/b.pdf"),
+            ("  Note  ", "/v/Note.md"),
+        ] {
+            assert_eq!(
+                vault_file(vault, target),
+                Some(PathBuf::from(expected)),
+                "{target}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_target_leaving_the_vault_names_no_file() {
+        for target in ["../x", "/etc/passwd", "a/../../x", "", "   ", "."] {
+            assert_eq!(vault_file(Path::new("/v"), target), None, "{target}");
+        }
     }
 
     #[test]

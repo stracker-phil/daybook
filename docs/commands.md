@@ -49,6 +49,7 @@ notification (`notify.rs`). The managed `bus::Commands` holds the app's bus, fil
 | `daily:create` | Create Today's Note | needs a vault; disabled while Obsidian creates it |
 | `context:switch` | Switch Context… | needs a vault; the switcher overlay (`contexts/`) |
 | `mode:<context>` | Switch to a context | family; needs a vault; choices: the contexts; leaving the status behind while Working offers Off ([status.md](status.md#offer-off)) |
+| `routine:<routine>` | Open a routine | family; needs a vault; choices: the current context's routines; adds the day's items to the note and shows the wizard overlay ([routines.md](routines.md)) |
 | `status:working`, `status:break`, `status:off` | Change Status to … | needs a vault; the status overlay with that status picked (`status/`) |
 | `status:toggle` | Change Status… | needs a vault; Break picked while Working, else Working |
 | `meetings:check` | Check for a Call Now | checks now; a call that is gone ends at once ([presence-and-calls.md](presence-and-calls.md#calls)) |

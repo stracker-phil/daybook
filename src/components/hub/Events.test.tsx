@@ -47,6 +47,7 @@ function renderEvents(dayEvents: DayEvents, patch: Partial<HubView> = {}) {
     reminder: null,
     focus: null,
     journal: [],
+    routines: [],
     events: dayEvents,
     ...patch,
   };

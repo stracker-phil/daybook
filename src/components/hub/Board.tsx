@@ -2,11 +2,11 @@ import { PanelRight } from "lucide-react";
 import { useBindingLabel } from "../../commands";
 import { useStore } from "../../state/store";
 import { Toolbar } from "../Toolbar";
-import { JournalRow } from "./ChipRows";
+import { JournalRow, RoutinesRow } from "./ChipRows";
 import { Events } from "./Events";
 import { TodayCard } from "./TodayCard";
 
-/** The day in the middle of the Daybook window, under the greeting: the reminder, the day's events, then the journal. */
+/** The day in the middle of the Daybook window, under the greeting: the reminder, the day's events, then the routines and the journal. */
 export function Board() {
   const hub = useStore((s) => s.hub);
   const title = hub?.title ?? "";
@@ -26,6 +26,7 @@ export function Board() {
           <div className="board-content">
             <TodayCard reminder={hub.reminder} focus={hub.focus} isToday={hub.isToday} />
             <Events hub={hub} />
+            <RoutinesRow hub={hub} />
             <JournalRow hub={hub} />
           </div>
         )}

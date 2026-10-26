@@ -22,6 +22,7 @@ import type {
   PaletteResults,
   PanelSession,
   RemoteEvent,
+  RoutineView,
   Settings,
   ShortcutOverview,
   SlackIdentity,
@@ -65,6 +66,12 @@ export const api = {
   journalInfo: () => invoke<JournalInfo>("journal_info"),
   /** Rewrites one group's callout in today's note (it waits for the note when it doesn't exist yet). */
   journalSave: (group: string, answers: JournalGroupAnswers) => invoke<void>("journal_save", { group, answers }),
+  /** A routine with today's items, ticked or not. */
+  routineViewToday: (id: string) => invoke<RoutineView>("routine_view_today", { id }),
+  /** Ticks (`done`) or unticks item `index` of a routine in today's note. */
+  routineStep: (id: string, index: number, done: boolean) => invoke<void>("routine_step", { id, index, done }),
+  /** Opens an item's link: a URL, or a vault path in Obsidian. */
+  routineOpenLink: (link: string) => invoke<void>("routine_open_link", { link }),
   /** The palette's results for what was typed, grouped by kind. */
   paletteQuery: (query: string) => invoke<PaletteResults>("palette_query", { query }),
   /** Runs a palette pick; the palette closes or another overlay replaces it. */

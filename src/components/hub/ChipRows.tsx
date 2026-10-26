@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
-import { BookOpen, Check } from "lucide-react";
+import { BookOpen, Check, ListChecks } from "lucide-react";
 import { api, type HubView, type JournalProgress } from "../../api";
 import { fail } from "../../state/requests";
 import { ShortcutCap } from "../Field";
 
-/** One dot per question, filled when answered; a check once all are. */
+/** One dot per question or item, filled when done; a check once all are. */
 function Progress({ done, total }: { done: number; total: number }) {
   if (total > 0 && done >= total) return <Check className="chip-done" size="1.077rem" aria-label="Done" />;
   return (
@@ -44,15 +44,36 @@ function JournalTrailing({ group }: { group: JournalProgress }) {
   return group.hasNote ? <Progress done={1} total={1} /> : null;
 }
 
+function runOrFail(command: string, failure: string) {
+  return () => void api.runCommand(command).catch((e) => fail(e, failure));
+}
+
 function shortcutOf(hub: HubView, command: string): string | null {
   for (const tool of hub.tools) if (tool.kind === "tool" && tool.command === command) return tool.shortcut;
   return null;
 }
 
+/** The current context's routines on the day; today's open the routine's checklist. */
+export function RoutinesRow({ hub }: { hub: HubView }) {
+  if (hub.routines.length === 0) return null;
+  return (
+    <ChipRow label="Routines">
+      {hub.routines.map((routine) => (
+        <Chip
+          key={routine.id}
+          icon={<ListChecks size="1.077rem" aria-hidden="true" />}
+          title={routine.name}
+          trailing={routine.total > 0 ? <Progress done={routine.done} total={routine.total} /> : null}
+          onClick={hub.isToday ? runOrFail(`routine:${routine.id}`, "Couldn't open the routine") : undefined}
+        />
+      ))}
+    </ChipRow>
+  );
+}
+
 /** The day's journal groups; today's open the journal overlay on that group. */
 export function JournalRow({ hub }: { hub: HubView }) {
   if (hub.journal.length === 0) return null;
-  const open = (group: string) => void api.runCommand(`journal:open:${group}`).catch((e) => fail(e, "Couldn't open the journal"));
   return (
     <ChipRow label="Journal" shortcut={shortcutOf(hub, "journal:open")}>
       {hub.journal.map((group) => (
@@ -61,7 +82,7 @@ export function JournalRow({ hub }: { hub: HubView }) {
           icon={<BookOpen size="1.077rem" aria-hidden="true" />}
           title={group.title}
           trailing={<JournalTrailing group={group} />}
-          onClick={hub.isToday ? () => open(group.title) : undefined}
+          onClick={hub.isToday ? runOrFail(`journal:open:${group.title}`, "Couldn't open the journal") : undefined}
         />
       ))}
     </ChipRow>
