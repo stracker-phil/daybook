@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./api", async (orig) => ({ ...(await orig<object>()), api: (await import("./test/apiMock")).createApiMock() }));
 
 import App from "./App";
-import { api, type HubView } from "./api";
+import { api, EMPTY_UI_STATE, type HubView } from "./api";
 import { resetStore, useStore } from "./state/store";
 import { settings } from "./test/settings";
 
@@ -26,6 +26,8 @@ const hub = (patch: Partial<HubView> = {}): HubView => ({
   focus: null,
   journal: [],
   routines: [],
+  notes: [],
+  todos: [],
   events: { timeline: { hours: [], workHours: null, fullDay: [], blocks: [], now: null }, rows: [] },
   ...patch,
 });
@@ -172,7 +174,7 @@ describe("App", () => {
     });
 
     it("starts hidden when the saved layout says so", async () => {
-      mocked.getUiState.mockResolvedValueOnce({ sidebarHidden: true, inspectorHidden: false, sidebarWidth: 200, paneSizes: {}, hidePastEvents: false });
+      mocked.getUiState.mockResolvedValueOnce({ ...EMPTY_UI_STATE, sidebarHidden: true });
       await renderApp();
       await vi.waitFor(() => expect(sidebar()).not.toBeInTheDocument());
     });
@@ -196,7 +198,7 @@ describe("App", () => {
     });
 
     it("starts hidden when the saved layout says so", async () => {
-      mocked.getUiState.mockResolvedValueOnce({ sidebarHidden: false, inspectorHidden: true, sidebarWidth: 200, paneSizes: {}, hidePastEvents: false });
+      mocked.getUiState.mockResolvedValueOnce({ ...EMPTY_UI_STATE, inspectorHidden: true });
       await renderApp();
       await vi.waitFor(() => expect(inspector()).not.toBeInTheDocument());
       expect(screen.getByRole("button", { name: "Show Inspector" })).toHaveAttribute("aria-pressed", "false");

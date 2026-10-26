@@ -86,7 +86,7 @@ pub fn register(bus: &mut Bus) {
         Command::new("daily:open", "Open Today's Note")
             .help("Open today's note in Obsidian")
             .needs_vault()
-            .run(|app| async move { vault::commands::open_day(&app, None).await }),
+            .run(|app| async move { vault::commands::open_day(&app, None, None).await }),
     );
     bus.add(
         Command::new("daily:create", "Create Today's Note")

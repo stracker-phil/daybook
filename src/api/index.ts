@@ -117,7 +117,9 @@ export const api = {
   /** Today's note: where it is, whether it exists or is being created, and how many changes wait for it. */
   dailyNoteState: () => invoke<DailyNoteState>("daily_note_state"),
   /** Opens a day's note (`YYYY-MM-DD`, default today) in Obsidian; today's is created when missing. */
-  dailyNoteOpen: (day?: string) => invoke<void>("daily_note_open", { day: day ?? null }),
+  dailyNoteOpen: (day?: string, heading?: string) => invoke<void>("daily_note_open", { day: day ?? null, heading: heading ?? null }),
+  /** Opens a todo's note (relative to the vault) in Obsidian. */
+  todoOpen: (file: string) => invoke<void>("todo_open", { file }),
   /** Creates today's note through the Obsidian CLI; resolves whether it exists now. */
   dailyNoteCreate: () => invoke<boolean>("daily_note_create"),
   /** Opens `view` in the overlay; the same view again closes it. */

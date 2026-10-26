@@ -66,7 +66,8 @@ The Daybook window has three columns: the sidebar, the board and the inspector.
 - **Sidebar** (`Sidebar`, `.sidebar`): full height on its own palette (dark in the Default scheme). On top a drag
   strip under the window buttons (`.sidebar-titlebar`), then the day (`.day-header`): the weekday in
   `--fs-title` bold `--sidebar-strong` over the date in `--fs-meta` `--sidebar-muted`, one button that opens the
-  day's note in Obsidian, with ‹ › beside it (borderless, 30% while there is no day that way). Below it the tools
+  day's note in Obsidian, with ‹ › beside it (borderless, 30% while there is no day that way; P and N), and on
+  another day "Back to Today" (O) under it in `--accent`. Below it the tools
   in Settings → Tools order (`.si` rows, see [Rows](#rows)): icon, title and, where one works, the global
   shortcut as a dimmed key cap; the context row in the context's colour (`--context`, taken in the sidebar's
   tone); a row that only tells (the call) reads in `--sidebar-muted`; `--sidebar-line` hairlines for the
@@ -79,7 +80,10 @@ The Daybook window has three columns: the sidebar, the board and the inspector.
   features: the Today card, events and the timeline, the routine and journal chips, today's notes. See
   [The board](#the-board).
 - **Inspector** (`Inspector`, `.inspector`): a 24.5rem column on `--bg-quiet` with a `--line` hairline at its
-  left edge and its own toolbar; it holds the open todos, then the Activity tab. ⌘⌃I and the toolbar's
+  left edge and its own toolbar ("12 open"); it holds the open todos: groups (Today, This Week, Last Week, a month,
+  a year) whose header ("June (3)", `--fs-meta` semibold `--o3`, a chevron) folds them, kept in `ui_state.json`
+  (`collapsedTodoGroups`); each todo is its text over "12 Oct · Notes › Topic" in `--fs-meta` `--o3`, and a click
+  opens its note in Obsidian (Daybook never ticks one). Then the Activity tab. ⌘⌃I and the toolbar's
   `PanelRight` button (`aria-pressed`) show and hide it; the state is kept in `ui_state.json`
   (`inspectorHidden`).
 - **Unified toolbar** (`Toolbar`, `.toolbar`): every view starts with one 52px row beside the window buttons
@@ -342,6 +346,12 @@ tick, once done) and the title, struck through in `--o3` when done; an item with
 right. ↑↓ cycle through all items, Space or ↵ ticks, ⌘O opens the link. It opens on the first open item and closes
 by itself 0.7 s after the last one is ticked; there is no skip. The footer has the keys (⌘O only for an item with
 a link) or the error of a failed tick.
+
+**Other days.** ‹ › (or P, N) show the closest day with a daily note, O and "Back to Today" return; today always
+counts. Another day is read-only: its title is the day's name, there is no reminder, the focus list and the
+chips don't open overlays, and the date and note topics open that day's note. Commands, keys and overlays always
+work on today; the open todos are the same on every day. The board's last section lists the note's topics
+("Today's notes", or "Notes"), one row each that opens the note at it, with "Open in Obsidian" in its header.
 
 ## Contexts
 

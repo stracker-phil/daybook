@@ -57,12 +57,24 @@ function closeWindow() {
   void api.runCommand("window:close").catch((e) => fail(e, "Could not close the window"));
 }
 
+const notTyping = () => !isTextInput(document.activeElement);
+
+/** The day before or after the shown one that has a note; nothing at either end. */
+function stepDay(direction: "previousDay" | "nextDay") {
+  const { hub, showDay } = useStore.getState();
+  const day = hub?.[direction];
+  if (day) showDay(day);
+}
+
 /** The windows' own keys; Settings, the palette and ⌘W are Rust commands with app menu keys. */
 const APP_COMMANDS: Command[] = [
   { id: "shortcuts.show", title: "Keyboard shortcuts", scope: "hub", defaultBinding: "Shift+?", run: toggleShortcuts },
   { id: "sidebar.toggle", title: "Toggle sidebar", scope: "hub", defaultBinding: "Mod+Ctrl+S", run: () => useStore.getState().toggleSidebar() },
+  { id: "day.previous", title: "Previous day with a note", scope: "hub", defaultBinding: "P", when: notTyping, run: () => stepDay("previousDay") },
+  { id: "day.next", title: "Next day with a note", scope: "hub", defaultBinding: "N", when: notTyping, run: () => stepDay("nextDay") },
+  { id: "day.today", title: "Back to today", scope: "hub", defaultBinding: "O", when: notTyping, run: () => useStore.getState().showDay(null) },
   { id: "inspector.toggle", title: "Toggle inspector", scope: "hub", defaultBinding: "Mod+Ctrl+I", run: () => useStore.getState().toggleInspector() },
-  { id: "window.close", title: "Close window", scope: "global", defaultBinding: "Escape", when: () => !isTextInput(document.activeElement), run: closeWindow },
+  { id: "window.close", title: "Close window", scope: "global", defaultBinding: "Escape", when: notTyping, run: closeWindow },
   { id: "zoom.in", title: "Larger text", scope: "global", defaultBinding: "Mod+=", run: () => zoomText(1) },
   { id: "zoom.out", title: "Smaller text", scope: "global", defaultBinding: "Mod+-", run: () => zoomText(-1) },
   { id: "zoom.reset", title: "Default text size", scope: "global", run: () => saveTextSize(DEFAULT_TEXT_SIZE) },

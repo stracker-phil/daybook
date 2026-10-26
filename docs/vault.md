@@ -165,21 +165,42 @@ message ("Obsidian CLI not found. Turn it on in …", "Obsidian didn't create �
 ## Watcher
 
 `watch.rs` wraps a `notify` watcher (FSEvents) on one folder and reports the `.md` files that changed, in one
-batch once the folder has been quiet for 300 ms. `DailyNotes::watch_today_folder` follows the folder of
-today's note: it starts at startup and is re-pointed after a settings save and on every `edit_today` (so a new
-month's folder is picked up once it exists). The recursive watcher for search and todos (steps 15 and 17) uses
-the same `FolderWatch::start(folder, recursive: true, …)`.
+batch once the folder has been quiet for 300 ms. `DailyNotes::watch_daily_notes` follows the daily-notes
+folder and everything below it (`recursive: true`, so year archives and month folders count): it starts at
+startup and is re-pointed after a settings save and on every `edit_today` (so a folder is picked up once it
+exists). Every batch also reaches the [open-todo index](#open-todos) (`NotesIndex::changed`).
 
 Every change reaches the listener `commands::install` sets, which emits `note_changed { day }`: `day` is
 today (`YYYY-MM-DD`) when today's note changed or the waiting changes or the creating state changed, `null` for
 another note in the folder.
+
+## Open todos
+
+`todos/` keeps an index over the daily-notes folder (`NotesIndex`, `index.rs`): the notes whose file name holds
+a `YYYY-MM-DD` date, found once by walking the folder (dot folders skipped), and each note's open todos, scanned
+once and kept until the watcher reports the note (`changed`); a note that appeared or went makes the folder be
+walked again. A changed vault, format or focus heading starts over.
+
+- `scan.rs` (pure, `scan_open_todos`): every unticked `- [ ]` (`*` and `+` too), also inside callouts, with the
+  headings from level 2 down ("Notes › Meeting Two"); not `- [ ] ?`, not inside code fences, not in the focus
+  section (up to the next heading of its level).
+- `mod.rs` `open_todos`: newest note first, the same text (case and spacing ignored) on the same day once,
+  routine items left out (the wizard ticks them). Each `OpenTodo` has its text, `detail` ("12 Oct · Notes ›
+  Meeting Two"), date and vault-relative file.
+- `groups.rs` (pure): Today, This Week (from Monday), Last Week, then each month of this year and each earlier
+  year; empty groups never appear.
+- `note_days`: the days whose daily note exists (a dated note that isn't that day's daily note, in the folder
+  or its year archive, doesn't count); the Daybook window's ‹ › step through them.
+
+Daybook never ticks a todo; a click opens its note in Obsidian (`todo_open`).
 
 ## Commands
 
 | Command | Args | Returns | Errors |
 |---|---|---|---|
 | `daily_note_state` | – | `DailyNoteState` | – |
-| `daily_note_open` | `day: string \| null` (`YYYY-MM-DD`, default today) | – (opens the note in Obsidian through `obsidian://open`; today's missing note is created instead) | `invalid_input` (no vault, not a day), `not_found` (no note that day), `io` |
+| `daily_note_open` | `day: string \| null` (`YYYY-MM-DD`, default today), `heading: string \| null` | – (opens the note in Obsidian through `obsidian://open`, at `heading` when given; today's missing note is created instead) | `invalid_input` (no vault, not a day), `not_found` (no note that day), `io` |
+| `todo_open` | `file` (vault-relative) | – (opens the todo's note in Obsidian) | `invalid_input` (no vault, outside the vault), `io` |
 | `daily_note_create` | – | `bool`: whether today's note exists afterwards | `invalid_input`, `io` |
 | `vault_info` | – | `VaultInfo` (`DailyNotes::info`, for Settings → Vault): the `DailyNoteFormat` in use (`null` without a vault), today's note path and whether it exists, the Obsidian CLI's path | – |
 | `dev_edit_today_note` (debug builds, `dev.rs`) | `op: NoteOp` | `WriteOutcome` | as `edit_today` |

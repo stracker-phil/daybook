@@ -135,7 +135,8 @@ fn load_format(vault: &Path, fallback: &DailyNote) -> DailyNoteFormat {
 }
 
 impl DailyNoteFormat {
-    fn folder_in(&self, vault: &Path) -> PathBuf {
+    /// The daily-notes folder.
+    pub fn folder_in(&self, vault: &Path) -> PathBuf {
         if self.folder.is_empty() {
             vault.to_path_buf()
         } else {

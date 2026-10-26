@@ -11,11 +11,12 @@ function run(command: string) {
   void api.runCommand(command).catch((e) => fail(e, "Could not run the command"));
 }
 
-/** The weekday and date of the day shown; a click opens its note in Obsidian. */
+/** The weekday and date of the day shown; a click opens its note in Obsidian. ‹ › step to the days with a note. */
 function DayHeader({ hub }: { hub: HubView }) {
+  const showDay = useStore((s) => s.showDay);
   function openNote() {
     if (hub.isToday) run("daily:open");
-    else void api.dailyNoteOpen(hub.day).catch((e) => fail(e, "Could not open the note"));
+    else api.dailyNoteOpen(hub.day).catch((e) => fail(e, "Could not open the note"));
   }
   return (
     <div className="day-header">
@@ -24,13 +25,18 @@ function DayHeader({ hub }: { hub: HubView }) {
         <span className="day-date">{hub.date}</span>
       </button>
       <div className="day-arrows">
-        <button type="button" className="icon-btn tiny" aria-label="Previous Day with a Note" title="Previous Day with a Note" disabled={!hub.previousDay}>
+        <button type="button" className="icon-btn tiny" aria-label="Previous Day with a Note" title="Previous Day with a Note (P)" disabled={!hub.previousDay} onClick={() => showDay(hub.previousDay)}>
           <ChevronLeft size="1.077rem" aria-hidden="true" />
         </button>
-        <button type="button" className="icon-btn tiny" aria-label="Next Day with a Note" title="Next Day with a Note" disabled={!hub.nextDay}>
+        <button type="button" className="icon-btn tiny" aria-label="Next Day with a Note" title="Next Day with a Note (N)" disabled={!hub.nextDay} onClick={() => showDay(hub.nextDay)}>
           <ChevronRight size="1.077rem" aria-hidden="true" />
         </button>
       </div>
+      {!hub.isToday && (
+        <button type="button" className="back-to-today" title="Back to Today (O)" onClick={() => showDay(null)}>
+          Back to Today
+        </button>
+      )}
     </div>
   );
 }

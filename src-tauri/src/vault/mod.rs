@@ -150,7 +150,8 @@ impl DailyNotes {
         (self.today)()
     }
 
-    fn vault_and_format(&self, settings: &Settings) -> AppResult<(PathBuf, DailyNoteFormat)> {
+    /// The vault and where its daily notes are.
+    pub fn vault_and_format(&self, settings: &Settings) -> AppResult<(PathBuf, DailyNoteFormat)> {
         let vault = vault(settings)?;
         let format = self.formats.get(&vault, &settings.daily_note);
         Ok((vault, format))
@@ -221,7 +222,7 @@ impl DailyNotes {
     ) -> AppResult<WriteOutcome> {
         let vault = vault(settings)?;
         let file = self.today_path(settings)?;
-        self.watch_today_folder(settings);
+        self.watch_daily_notes(settings);
         let exists = file.is_file();
         if self.pending.has_for(&file) || !exists {
             self.queue(&file, op)?;
@@ -292,12 +293,12 @@ impl DailyNotes {
         self.drain(settings);
     }
 
-    /// Follows today's daily-notes folder; a missing folder is watched once it exists.
-    pub fn watch_today_folder(self: &Arc<Self>, settings: &Settings) {
+    /// Follows the daily-notes folder and everything below it; a missing folder is watched once it exists.
+    pub fn watch_daily_notes(self: &Arc<Self>, settings: &Settings) {
         let folder = self
-            .today_path(settings)
+            .vault_and_format(settings)
             .ok()
-            .and_then(|file| file.parent().map(Path::to_path_buf));
+            .map(|(vault, format)| format.folder_in(&vault));
         let mut watch = self.watch.lock_unpoisoned();
         if watch.as_ref().map(FolderWatch::folder) == folder.as_deref() {
             return;
@@ -307,7 +308,7 @@ impl DailyNotes {
             return;
         };
         let this = Arc::downgrade(self);
-        let started = FolderWatch::start(&folder, false, move |paths| {
+        let started = FolderWatch::start(&folder, true, move |paths| {
             if let Some(this) = this.upgrade() {
                 this.notify(NoteEvent::Changed(paths));
             }

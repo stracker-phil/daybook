@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../api", async (orig) => ({ ...(await orig<object>()), api: (await import("../test/apiMock")).createApiMock() }));
 
-import { api, DEFAULT_TEXT_SIZE } from "../api";
+import { api, DEFAULT_TEXT_SIZE, type HubView } from "../api";
 import { resetStore, useStore } from "../state/store";
 import { settings } from "../test/settings";
 import { handleKeydown, installCommands, runCommand } from "./index";
@@ -30,7 +30,7 @@ describe("app commands", () => {
   });
 
   it("registers only the window's own commands", () => {
-    expect(allCommands().map((c) => c.id).sort()).toEqual(["inspector.toggle", "shortcuts.show", "sidebar.toggle", "window.close", "zoom.in", "zoom.out", "zoom.reset"]);
+    expect(allCommands().map((c) => c.id).sort()).toEqual(["day.next", "day.previous", "day.today", "inspector.toggle", "shortcuts.show", "sidebar.toggle", "window.close", "zoom.in", "zoom.out", "zoom.reset"]);
   });
 
   it.each(["app.settings", "palette.toggle", "app.background", "app.quit", "settings.toggle"])("has no %s command", (id) => {
@@ -83,6 +83,53 @@ describe("app commands", () => {
       resetStore({ settings: settings(), dialog: OPEN_DIALOG });
       await press("{Meta>}{Control>}i{/Control}{/Meta}");
       expect(useStore.getState().uiState.inspectorHidden).toBe(false);
+    });
+  });
+
+  describe("day browsing", () => {
+    const hubOf = async (patch: Partial<HubView>): Promise<HubView> => {
+      const hub = { ...(await api.hubView()), ...patch };
+      mocked.hubView.mockClear();
+      return hub;
+    };
+
+    it("loads the previous day with a note on P", async () => {
+      resetStore({ settings: settings(), hub: await hubOf({ previousDay: "2026-10-22", nextDay: "2026-10-25" }) });
+      await press("p");
+      expect(mocked.hubView).toHaveBeenCalledWith("2026-10-22");
+    });
+
+    it("loads the next day with a note on N", async () => {
+      resetStore({ settings: settings(), hub: await hubOf({ previousDay: "2026-10-22", nextDay: "2026-10-25" }) });
+      await press("n");
+      expect(mocked.hubView).toHaveBeenCalledWith("2026-10-25");
+    });
+
+    it.each([
+      ["p", { previousDay: null, nextDay: "2026-10-25" }],
+      ["n", { previousDay: "2026-10-22", nextDay: null }],
+    ])("does nothing on %s at the end of the notes", async (key, patch) => {
+      resetStore({ settings: settings(), hub: await hubOf(patch) });
+      await press(key);
+      expect(mocked.hubView).not.toHaveBeenCalled();
+      expect(useStore.getState().shownDay).toBeNull();
+    });
+
+    it("returns to today on O", async () => {
+      resetStore({ settings: settings(), shownDay: "2026-10-20", hub: await hubOf({ isToday: false, day: "2026-10-20" }) });
+      await press("o");
+      expect(useStore.getState().shownDay).toBeNull();
+      expect(mocked.hubView).toHaveBeenCalledWith(undefined);
+    });
+
+    it("does not navigate while typing in a text field", async () => {
+      resetStore({ settings: settings(), hub: await hubOf({ previousDay: "2026-10-22" }) });
+      const input = document.createElement("input");
+      document.body.append(input);
+      input.focus();
+      await press("p");
+      input.remove();
+      expect(mocked.hubView).not.toHaveBeenCalled();
     });
   });
 

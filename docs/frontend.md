@@ -81,8 +81,8 @@ the `AppError`. The store re-exports it with `flushUiState` and the `Dialog` and
 |---|---|
 | `settings` | `settings` (`null` until loaded), `keybindings`, `loadSettings` (settings and keybindings in parallel; keybindings fall back to `{}`), `applySettings(settings)` (settings Rust saved elsewhere, from `settings_changed`), `saveSettings(settings, { quiet? })` (stores what `api.updateSettings` returns, toasts "Settings saved" unless `quiet`), `saveKeybindings(bindings)` (stores Rust's answer and calls `setOverrides`), `applyKeybindings(bindings)` (the same for bindings saved in the other window), `setLaunchAtLogin(enabled)` (`api.autostartSet`, then patches `settings.launchAtLogin` so a later save keeps it; resolves whether it is on now, `null` on a toasted failure) |
 | `ui` | `toasts`, `toast(kind, message, action?)`, `dismissToast(id)`, `dialog` (a `Dialog` or `null`), `openDialog`, `closeDialog` |
-| `viewState` | `uiState` (`UiState` from Rust: `sidebarHidden`, `inspectorHidden`, `sidebarWidth`, `paneSizes`; `EMPTY_UI_STATE` until it loads), `loadUiState`, `setPaneSize(pane, px)`, `toggleSidebar`, `toggleInspector` |
-| `hub` | `hub` (the `HubView`, `null` until loaded), `loadHub` (`api.hubView()`) |
+| `viewState` | `uiState` (`UiState` from Rust: `sidebarHidden`, `inspectorHidden`, `sidebarWidth`, `paneSizes`, `hidePastEvents`, `collapsedTodoGroups`; `EMPTY_UI_STATE` until it loads), `loadUiState`, `setPaneSize(pane, px)`, `toggleSidebar`, `toggleInspector`, `toggleHidePastEvents`, `toggleTodoGroup(label)` |
+| `hub` | `hub` (the `HubView`, `null` until loaded), `shownDay` (`null`: today, so the window follows midnight), `loadHub` (`api.hubView(shownDay)`; a stale answer for a day no longer shown is dropped, and an answer that is today resets `shownDay`), `showDay(day)` |
 
 Every `viewState` change is written through `api.setUiState` 500 ms after the last one (drags fire
 constantly); `flushUiState` writes a pending change at once.
@@ -155,6 +155,7 @@ them; the scope keeps a key to its window: `global` (label "Every window") is ac
 | `shortcuts.show` | Keyboard shortcuts (opens the overview of the active scopes; pressed again it closes it) | hub | ⇧? |
 | `sidebar.toggle` | Toggle sidebar (`toggleSidebar`) | hub | ⌘⌃S |
 | `inspector.toggle` | Toggle inspector (`toggleInspector`) | hub | ⌘⌃I |
+| `day.previous`, `day.next`, `day.today` | Previous / next day with a note, back to today (`showDay`; not while typing) | hub | P N O |
 | `window.close` | Close window (runs `window:close`; not while a text field has the focus) | global | Escape |
 | `zoom.in`, `zoom.out` | Larger text, Smaller text (step through `TEXT_SIZES`, saved quietly; past either end nothing changes) | global | ⌘= ⌘- |
 | `zoom.reset` | Default text size (`DEFAULT_TEXT_SIZE`) | global | – (⌘0 is the app menu's Daybook) |
@@ -233,15 +234,18 @@ clipboard is not available.
 Shell components in `components/`:
 
 - `Sidebar`: the drag strip under the window buttons (`data-tauri-drag-region`), the day header (weekday and
-  date, a click runs `daily:open` today or opens that day's note; ‹ › step to the closest days with a note,
-  disabled while `previousDay`/`nextDay` are null), the "Tools" nav of `hub.tools` (a `.si` row per tool with
+  date, a click runs `daily:open` today or opens that day's note; ‹ › step to the closest days with a note
+  through `showDay`, disabled while `previousDay`/`nextDay` are null; "Back to Today" on another day), the "Tools" nav of `hub.tools` (a `.si` row per tool with
   its `TOOL_INFO` icon, title and `ShortcutCap`, running its command; separators as hairlines), and the
   footer: what Slack shows (`SlackBadge` from `SlackStatus.tsx`, when `hub.slack` is set) and the Settings gear
   (runs `app:settings`; its tooltip names ⌘,).
 - `hub/Board.tsx`: the toolbar titled `hub.title` with the inspector toggle (its tooltip names the key), over
   the board. Its sections come with their steps, in the prototype's order: the Today card,
   events and the timeline, the routine and journal chips, today's notes.
-- `hub/Inspector.tsx`: the right column with its toolbar ("Todos"); the tabs come with their features.
+- `hub/Inspector.tsx`: the right column: the toolbar ("N open"), then `hub.todos` as foldable groups
+  (`uiState.collapsedTodoGroups`), each todo opening its note through `api.todoOpen`.
+- `hub/TodaysNotes.tsx`: the board's last section, `hub.notes` as rows that open the day's note at the topic
+  (`api.dailyNoteOpen(day, heading)`).
 - `Toolbar`: the unified toolbar a view renders first: `title`, an optional `detail`, the actions as children;
   its empty space drags the window.
 - `Field.tsx`: `KeyCap` (renders nothing for an unbound command), `ShortcutCap` (a Settings-notation

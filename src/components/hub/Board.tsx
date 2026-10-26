@@ -5,8 +5,9 @@ import { Toolbar } from "../Toolbar";
 import { JournalRow, RoutinesRow } from "./ChipRows";
 import { Events } from "./Events";
 import { TodayCard } from "./TodayCard";
+import { TodaysNotes } from "./TodaysNotes";
 
-/** The day in the middle of the Daybook window, under the greeting: the reminder, the day's events, then the routines and the journal. */
+/** The day in the middle of the Daybook window, under the greeting: the reminder, the day's events, then the routines, the journal and the day's notes. */
 export function Board() {
   const hub = useStore((s) => s.hub);
   const title = hub?.title ?? "";
@@ -28,6 +29,7 @@ export function Board() {
             <Events hub={hub} />
             <RoutinesRow hub={hub} />
             <JournalRow hub={hub} />
+            <TodaysNotes hub={hub} />
           </div>
         )}
       </div>

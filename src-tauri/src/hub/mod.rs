@@ -2,6 +2,8 @@
 //! page.
 
 mod day;
+mod days;
+mod index;
 mod reminder;
 mod tools;
 
@@ -11,6 +13,7 @@ use tauri::{AppHandle, Manager};
 use ts_rs::TS;
 
 pub use day::{DayEvents, DayInput, day_events};
+pub use days::adjacent_days;
 pub use reminder::{ReminderLine, reminder_line};
 pub use tools::{HubInput, HubTool, ToolRow, hub_tools};
 
@@ -24,8 +27,11 @@ use crate::routines::{self, RoutineProgress};
 use crate::slack::{self, ShownStatus};
 use crate::state::AppState;
 use crate::store::settings::{Settings, Status};
+use crate::todos::TodoGroup;
 use crate::vault::commands::blocking;
+use crate::vault::ops::notes::NoteSectionRef;
 use crate::{shortcuts, tools as tool_state};
+use index::{read_index, todo_dates};
 
 #[derive(Serialize, Clone, Debug, PartialEq, TS)]
 #[ts(export, export_to = "src/api/types.gen.ts")]
@@ -59,6 +65,10 @@ pub struct HubView {
     pub journal: Vec<JournalProgress>,
     /// The current context's routines on the day, in Settings order.
     pub routines: Vec<RoutineProgress>,
+    /// The topics of the day's notes section.
+    pub notes: Vec<NoteSectionRef>,
+    /// Every open todo in the daily notes, the same on every day.
+    pub todos: Vec<TodoGroup>,
 }
 
 fn greeting(hour: u32) -> &'static str {
@@ -99,6 +109,8 @@ pub fn hub_view_at(
         focus: None,
         journal: Vec::new(),
         routines: Vec::new(),
+        notes: Vec::new(),
+        todos: Vec::new(),
     }
 }
 
@@ -143,6 +155,11 @@ pub async fn hub_view(app: AppHandle, day: Option<String>) -> AppResult<HubView>
     }
     view.journal = read_journal(&app, &settings, shown).await;
     view.routines = read_routines(&app, &settings, shown).await;
+    let index = read_index(&app, &settings, shown, now.date()).await;
+    view.previous_day = index.previous.map(|day| day.to_string());
+    view.next_day = index.next.map(|day| day.to_string());
+    view.notes = index.notes;
+    view.todos = index.todos;
     let context = app_state.contexts.current(&settings);
     view.events = day_events(&DayInput {
         day: shown,
@@ -158,7 +175,7 @@ pub async fn hub_view(app: AppHandle, day: Option<String>) -> AppResult<HubView>
             events: &events,
             routines: &reminder_routines(&view.routines, &settings),
             journal: &reminder_journal(&view.journal, &settings),
-            todo_dates: &[],
+            todo_dates: &todo_dates(&view.todos),
         })
         .map(reminder_line);
     }

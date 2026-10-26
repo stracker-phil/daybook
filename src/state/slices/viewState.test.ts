@@ -66,6 +66,28 @@ describe("view state slice", () => {
     });
   });
 
+  describe("toggleTodoGroup", () => {
+    it("folds a group and unfolds it again", () => {
+      useStore.getState().toggleTodoGroup("Today");
+      expect(useStore.getState().uiState.collapsedTodoGroups).toEqual(["Today"]);
+      useStore.getState().toggleTodoGroup("Today");
+      expect(useStore.getState().uiState.collapsedTodoGroups).toEqual([]);
+    });
+
+    it("keeps the other folded groups", () => {
+      useStore.getState().toggleTodoGroup("Today");
+      useStore.getState().toggleTodoGroup("Last week");
+      useStore.getState().toggleTodoGroup("Today");
+      expect(useStore.getState().uiState.collapsedTodoGroups).toEqual(["Last week"]);
+    });
+
+    it("writes the folded groups after the debounce", () => {
+      useStore.getState().toggleTodoGroup("Today");
+      vi.advanceTimersByTime(500);
+      expect(mocked.setUiState).toHaveBeenCalledWith(expect.objectContaining({ collapsedTodoGroups: ["Today"] }));
+    });
+  });
+
   it("toasts when saving the layout fails", async () => {
     mocked.setUiState.mockRejectedValueOnce({ kind: "io", message: "Read-only", code: null });
     useStore.getState().toggleSidebar();

@@ -12,6 +12,8 @@ export interface ViewStateSlice {
   toggleInspector: () => void;
   /** The board's events list: only today's events that aren't over, or all. */
   toggleHidePastEvents: () => void;
+  /** Folds or unfolds one of the inspector's todo groups. */
+  toggleTodoGroup: (label: string) => void;
 }
 
 export const viewStateSlice: Slice<ViewStateSlice> = {
@@ -47,6 +49,12 @@ export const viewStateSlice: Slice<ViewStateSlice> = {
 
       toggleHidePastEvents() {
         patchUiState((current) => ({ hidePastEvents: !current.hidePastEvents }));
+      },
+
+      toggleTodoGroup(label) {
+        patchUiState(({ collapsedTodoGroups: folded }) => ({
+          collapsedTodoGroups: folded.includes(label) ? folded.filter((group) => group !== label) : [...folded, label],
+        }));
       },
     };
   },

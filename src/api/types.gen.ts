@@ -379,7 +379,15 @@ journal: Array<JournalProgress>,
 /**
  * The current context's routines on the day, in Settings order.
  */
-routines: Array<RoutineProgress>, };
+routines: Array<RoutineProgress>, 
+/**
+ * The topics of the day's notes section.
+ */
+notes: Array<NoteSectionRef>, 
+/**
+ * Every open todo in the daily notes, the same on every day.
+ */
+todos: Array<TodoGroup>, };
 
 /**
  * "Open Jira Issue" opens `base_url` + the key; a bare number gets `default_prefix`.
@@ -534,6 +542,20 @@ export type OnCall = "nothing" | "pause" | "lower";
  * Events that open a routine's checklist or a journal group by themselves.
  */
 export type OpenEvent = "start" | "context" | "meeting-start" | "meeting-end" | "off";
+
+export type OpenTodo = { text: string, 
+/**
+ * "12 Oct · Notes › Meeting Two": the note's day, then the headings it sits under.
+ */
+detail: string, 
+/**
+ * The note's day, `YYYY-MM-DD`.
+ */
+date: string, 
+/**
+ * The note, relative to the vault.
+ */
+file: string, };
 
 /**
  * The app that opens each service's join links; `None`: the app macOS has for the link.
@@ -1017,6 +1039,8 @@ due: TimeWindow | null,
  */
 openWhenDue: boolean, openOn: Array<OpenEvent>, };
 
+export type TodoGroup = { label: string, todos: Array<OpenTodo>, };
+
 export type TodoSpan = "today" | "week" | "month" | "all";
 
 /**
@@ -1067,7 +1091,11 @@ paneSizes: { [key in string]: number },
 /**
  * The board lists only today's events that aren't over.
  */
-hidePastEvents: boolean, };
+hidePastEvents: boolean, 
+/**
+ * The labels of the inspector's todo groups that are folded away.
+ */
+collapsedTodoGroups: Array<string>, };
 
 export type Vault = { path: string | null, 
 /**

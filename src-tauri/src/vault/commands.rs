@@ -45,7 +45,7 @@ fn same_file(a: &Path, b: &Path) -> bool {
 }
 
 /// Forwards the vault's events to the page, writes changes that waited since the last session and
-/// starts watching today's folder.
+/// starts watching the daily-notes folder.
 pub fn install(app: &AppHandle) {
     let state = app.state::<AppState>();
     let handle = app.clone();
@@ -54,7 +54,7 @@ pub fn install(app: &AppHandle) {
         .set_listener(move |event| on_note_event(&handle, event));
     let notes = Arc::clone(&state.notes);
     let settings = state.settings.get();
-    notes.watch_today_folder(&settings);
+    notes.watch_daily_notes(&settings);
     tauri::async_runtime::spawn_blocking(move || {
         let drained = notes.drain(&settings);
         if drained.written > 0 {
@@ -83,6 +83,9 @@ fn on_note_event(app: &AppHandle, event: NoteEvent) {
     let state = app.state::<AppState>();
     let notes = Arc::clone(&state.notes);
     let settings = state.settings.get();
+    if let NoteEvent::Changed(paths) = &event {
+        state.todos.changed(paths);
+    }
     let day = changed_day(&event, &notes, &settings);
     if let Err(e) = app.emit(NOTE_CHANGED_EVENT, NoteChanged { day: day.map(iso) }) {
         log::warn!("Couldn't announce a note change: {e}");
@@ -105,9 +108,9 @@ pub fn daily_note_state(state: State<'_, AppState>) -> DailyNoteState {
     state.notes.state(&state.settings.get())
 }
 
-fn obsidian_url(settings: &Settings, file: &Path) -> AppResult<String> {
+fn obsidian_url(settings: &Settings, file: &Path, heading: Option<&str>) -> AppResult<String> {
     let vault = super::vault(settings)?;
-    obsidian::open_url(&settings.vault.name, &vault, file, None)
+    obsidian::open_url(&settings.vault.name, &vault, file, heading)
         .ok_or_else(|| AppError::InvalidInput(format!("{} is outside the vault", file.display())))
 }
 
@@ -119,7 +122,7 @@ pub fn open_target(app: &AppHandle, target: &str) -> AppResult<()> {
         let settings = app.state::<AppState>().settings.get();
         let file = obsidian::vault_file(&super::vault(&settings)?, target)
             .ok_or_else(|| AppError::InvalidInput(format!("{target} is outside the vault")))?;
-        obsidian_url(&settings, &file)?
+        obsidian_url(&settings, &file, None)?
     };
     open_url(app, url)
 }
@@ -130,13 +133,22 @@ fn open_url(app: &AppHandle, url: String) -> AppResult<()> {
         .map_err(|e| AppError::Io(e.to_string()))
 }
 
-/// Opens `day`'s note (default today) in Obsidian; today's is created when it doesn't exist yet.
+/// Opens `day`'s note (default today) in Obsidian, at `heading` when given; today's is created when it
+/// doesn't exist yet.
 #[tauri::command]
-pub async fn daily_note_open(app: AppHandle, day: Option<String>) -> AppResult<()> {
-    open_day(&app, day.as_deref()).await
+pub async fn daily_note_open(
+    app: AppHandle,
+    day: Option<String>,
+    heading: Option<String>,
+) -> AppResult<()> {
+    open_day(&app, day.as_deref(), heading).await
 }
 
-pub async fn open_day(app: &AppHandle, day: Option<&str>) -> AppResult<()> {
+pub async fn open_day(
+    app: &AppHandle,
+    day: Option<&str>,
+    heading: Option<String>,
+) -> AppResult<()> {
     let state = app.state::<AppState>();
     let notes = Arc::clone(&state.notes);
     let settings = state.settings.get();
@@ -152,7 +164,7 @@ pub async fn open_day(app: &AppHandle, day: Option<&str>) -> AppResult<()> {
             notes.create_today(&settings)?;
             return Ok(None);
         };
-        obsidian_url(&settings, &file).map(Some)
+        obsidian_url(&settings, &file, heading.as_deref()).map(Some)
     })
     .await?;
     let Some(url) = url else {

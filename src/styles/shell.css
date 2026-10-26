@@ -51,3 +51,22 @@
 
 .crash { padding: 3.077rem; display: flex; flex-direction: column; gap: var(--space-3); align-items: flex-start; }
 .crash pre { font-family: var(--font-mono); font-size: var(--data-font-size); color: var(--style-red); white-space: pre-wrap; user-select: text; }
+
+/* The inspector's open todos: foldable groups with counts, each todo its text over its day and place. */
+.todo-group { display: flex; flex-direction: column; }
+.todo-group-head {
+  display: flex; align-items: center; gap: var(--space-1); padding: var(--space-3) var(--space-2) var(--space-1); border: 0; background: none;
+  font: inherit; font-size: var(--fs-meta); font-weight: 600; color: var(--o3); text-align: left;
+}
+.todo-group-head:focus-visible { outline: none; text-decoration: underline; }
+.todo-chevron { flex: none; transition: transform 120ms; }
+.todo-group-head[aria-expanded="true"] .todo-chevron { transform: rotate(90deg); }
+.todo-row {
+  display: flex; flex-direction: column; gap: 0.154rem; width: 100%; padding: var(--space-2); border: 0; border-radius: var(--radius-sm);
+  background: none; font: inherit; color: var(--text); text-align: left;
+}
+.todo-row:hover { background: var(--fill); }
+.todo-row:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.todo-text { overflow-wrap: anywhere; }
+.todo-detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-meta); }
+@media (prefers-reduced-motion: reduce) { .todo-chevron { transition: none; } }

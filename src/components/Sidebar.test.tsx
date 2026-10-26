@@ -38,6 +38,8 @@ const hubView = (patch: Partial<HubView> = {}): HubView => ({
   focus: null,
   journal: [],
   routines: [],
+  notes: [],
+  todos: [],
   events: { timeline: { hours: [], workHours: null, fullDay: [], blocks: [], now: null }, rows: [] },
   ...patch,
 });
@@ -82,6 +84,46 @@ describe("Sidebar", () => {
       renderSidebar({ previousDay: "2026-10-22", nextDay: null });
       expect(screen.getByRole("button", { name: "Previous Day with a Note" })).toBeEnabled();
       expect(screen.getByRole("button", { name: "Next Day with a Note" })).toBeDisabled();
+    });
+  });
+
+  describe("day browsing", () => {
+    const browsing = { day: "2026-10-20", isToday: false, weekday: "Tuesday", date: "20 October 2026", previousDay: "2026-10-18", nextDay: "2026-10-22" };
+
+    it("loads the previous day with a note", async () => {
+      renderSidebar(browsing);
+      await userEvent.click(screen.getByRole("button", { name: "Previous Day with a Note" }));
+      expect(mocked.hubView).toHaveBeenCalledWith("2026-10-18");
+    });
+
+    it("loads the next day with a note", async () => {
+      renderSidebar(browsing);
+      await userEvent.click(screen.getByRole("button", { name: "Next Day with a Note" }));
+      expect(mocked.hubView).toHaveBeenCalledWith("2026-10-22");
+    });
+
+    it("disables the previous arrow without an earlier note", () => {
+      renderSidebar({ previousDay: null, nextDay: "2026-10-25" });
+      expect(screen.getByRole("button", { name: "Previous Day with a Note" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Next Day with a Note" })).toBeEnabled();
+    });
+
+    it("offers Back to Today only on another day", () => {
+      renderSidebar(browsing);
+      expect(screen.getByRole("button", { name: "Back to Today" })).toBeInTheDocument();
+    });
+
+    it("offers no Back to Today on today", () => {
+      renderSidebar();
+      expect(screen.queryByRole("button", { name: "Back to Today" })).not.toBeInTheDocument();
+    });
+
+    it("loads today again from Back to Today", async () => {
+      renderSidebar(browsing);
+      useStore.setState({ shownDay: "2026-10-20" });
+      await userEvent.click(screen.getByRole("button", { name: "Back to Today" }));
+      expect(useStore.getState().shownDay).toBeNull();
+      expect(mocked.hubView).toHaveBeenCalledWith(undefined);
     });
   });
 

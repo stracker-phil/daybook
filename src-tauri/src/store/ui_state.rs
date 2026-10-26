@@ -23,6 +23,8 @@ pub struct UiState {
     pub pane_sizes: HashMap<String, f32>,
     /// The board lists only today's events that aren't over.
     pub hide_past_events: bool,
+    /// The labels of the inspector's todo groups that are folded away.
+    pub collapsed_todo_groups: Vec<String>,
 }
 
 impl Default for UiState {
@@ -33,6 +35,7 @@ impl Default for UiState {
             sidebar_width: 200,
             pane_sizes: HashMap::new(),
             hide_past_events: false,
+            collapsed_todo_groups: Vec::new(),
         }
     }
 }
@@ -79,7 +82,42 @@ mod tests {
                 sidebar_width: 200,
                 pane_sizes: HashMap::new(),
                 hide_past_events: false,
+                collapsed_todo_groups: Vec::new(),
             }
+        );
+    }
+
+    #[tokio::test]
+    async fn collapsed_todo_groups_persist_across_reopen_and_default_to_none() {
+        let dir = temp_config_dir();
+        let ui = UiState {
+            collapsed_todo_groups: vec!["Last Week".to_string(), "2025".to_string()],
+            ..UiState::default()
+        };
+        UiStateStore::open(dir.path())
+            .set(ui.clone())
+            .await
+            .unwrap();
+        assert_eq!(
+            UiStateStore::open(dir.path()).get().collapsed_todo_groups,
+            ["Last Week", "2025"]
+        );
+
+        let other = temp_config_dir();
+        std::fs::write(
+            other.path().join("ui_state.json"),
+            r#"{"sidebarWidth": 300}"#,
+        )
+        .unwrap();
+        assert!(
+            UiStateStore::open(other.path())
+                .get()
+                .collapsed_todo_groups
+                .is_empty()
+        );
+        assert_eq!(
+            serde_json::to_value(&ui).unwrap()["collapsedTodoGroups"],
+            serde_json::json!(["Last Week", "2025"])
         );
     }
 
@@ -132,6 +170,7 @@ mod tests {
             sidebar_width: 260,
             pane_sizes: HashMap::from([("list".to_string(), 320.0)]),
             hide_past_events: true,
+            collapsed_todo_groups: vec!["Today".to_string()],
         };
         let saved = UiStateStore::open(dir.path())
             .set(ui.clone())
@@ -163,7 +202,8 @@ mod tests {
                 "inspectorHidden": false,
                 "sidebarWidth": 200,
                 "paneSizes": {},
-                "hidePastEvents": false
+                "hidePastEvents": false,
+                "collapsedTodoGroups": []
             })
         );
     }

@@ -24,7 +24,7 @@ no database. The JSON files live in the config dir, `~/Library/Application Suppo
 |---|---|---|
 | `settings.json` | `Settings`: appearance, the vault and daily note, and every feature's configuration ([backend: settings](backend.md#settings)) | `store::settings::SettingsStore` |
 | `keybindings.json` | the owner's shortcut overrides by command id | `store::keybindings::KeybindingsStore` |
-| `ui_state.json` | window layout: `sidebarHidden`, `inspectorHidden`, `sidebarWidth`, `paneSizes`, `hidePastEvents` | `store::ui_state::UiStateStore` |
+| `ui_state.json` | window layout: `sidebarHidden`, `inspectorHidden`, `sidebarWidth`, `paneSizes`, `hidePastEvents`, `collapsedTodoGroups` | `store::ui_state::UiStateStore` |
 | `pending-entries.json` | note changes waiting for their daily note | `vault::pending::Pending` |
 | `context.json` | the current context | `contexts::Contexts` |
 | `status-memory.json` | today's status: date, status, since, whether you worked today ([status.md](status.md)) | `status::Statuses` |

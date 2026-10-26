@@ -9,6 +9,7 @@ use crate::status::Statuses;
 use crate::store::keybindings::KeybindingsStore;
 use crate::store::settings::SettingsStore;
 use crate::store::ui_state::UiStateStore;
+use crate::todos::NotesIndex;
 use crate::vault::DailyNotes;
 
 pub struct AppState {
@@ -21,6 +22,7 @@ pub struct AppState {
     pub statuses: Statuses,
     pub slack: SlackFiles,
     pub fired: Fired,
+    pub todos: NotesIndex,
 }
 
 impl AppState {
@@ -35,6 +37,7 @@ impl AppState {
             statuses: Statuses::open(config_dir),
             slack: SlackFiles::open(config_dir),
             fired: Fired::open(config_dir),
+            todos: NotesIndex::default(),
         }
     }
 }

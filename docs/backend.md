@@ -136,7 +136,7 @@ its module.
 | `choose_folder` | – | `string \| null` (the folder panel, which can create a folder; `null` when cancelled) | `io` |
 | `reveal_path` | `path: String` | – (Finder shows the enclosing folder with `path` selected) | `io` |
 | `context_state` (`contexts/mod.rs`) | – | `ContextState` | – |
-| `hub_view` (`hub/mod.rs`) | `day: string \| null` (`YYYY-MM-DD`, today when null) | `HubView`: the day, its weekday and date, the board's title (a greeting today), the closest days with a note (null until their step), the sidebar's tool rows, today's status, the reminder (today only) and the day's events ([calendar.md](calendar.md#the-day-model)) | `invalid_input` for a malformed day |
+| `hub_view` (`hub/mod.rs`) | `day: string \| null` (`YYYY-MM-DD`, today when null) | `HubView`: the day, its weekday and date, the board's title (a greeting today), the closest days with a note (`hub/days.rs` `adjacent_days`; today always counts), the sidebar's tool rows, today's status, the reminder (today only), the day's events ([calendar.md](calendar.md#the-day-model)), focus, routines and journal, the note's topics and every open todo ([vault.md](vault.md#open-todos); `hub/index.rs`) | `invalid_input` for a malformed day |
 | `calendar_info`, `calendar_request_access`, `calendar_join` (`calendar/mod.rs`) | – / – / `url` | `CalendarInfo` / `CalendarAccess` / – ([calendar.md](calendar.md)); `calendar_join` joins through `calls::join` ([presence-and-calls.md](presence-and-calls.md#joining)) | `calendar_request_access`: `io` when the privacy settings don't open; `calendar_join`: `invalid_input` unless a join link |
 | `slack_info`, `slack_connect`, `slack_test`, `slack_disconnect` (`slack/commands.rs`) | – / `token` / – / – | `SlackInfo` / `SlackIdentity` / `SlackIdentity` / – ([slack.md](slack.md#commands)) | `slack_connect`: `invalid_input`, `network`, `io`; `slack_test`: `not_found`, `network` |
 | `calls_info`, `calls_request_access`, `calls_pick_app` (`calls/mod.rs`) | – / `permission` / – | `CallsInfo` / whether Accessibility is allowed / `AppRef \| null` ([presence-and-calls.md](presence-and-calls.md#commands)) | `calls_request_access`: `io`; `calls_pick_app`: `invalid_input` for anything but an app |
@@ -360,7 +360,7 @@ failed save leaves memory unchanged. `JsonStore::open_with` normalizes the loade
 |---|---|
 | `settings.json` | `Settings` ([Settings](#settings)) |
 | `keybindings.json` | `{ "commandId": "Mod+Shift+X" \| null }` overrides; `null` unbinds ([Key bindings](#key-bindings)) |
-| `ui_state.json` | `UiState` (`store/ui_state.rs`): `sidebarHidden`, `inspectorHidden`, `sidebarWidth` (px, default 200), `paneSizes` (splitter positions in px by pane id); missing keys take the defaults, unknown keys are ignored |
+| `ui_state.json` | `UiState` (`store/ui_state.rs`): `sidebarHidden`, `inspectorHidden`, `sidebarWidth` (px, default 200), `paneSizes` (splitter positions in px by pane id), `hidePastEvents`, `collapsedTodoGroups` (the folded todo groups); missing keys take the defaults, unknown keys are ignored |
 | `daybook.sock`, `daybook.lock` | single instance |
 | `context.json` | `Active { id, setAt }`, the current context (`contexts::Contexts`) |
 | `status-memory.json` | `StatusMemory { date, status, since, workedToday }`, today's status (`status::Statuses`, [status.md](status.md)) |

@@ -30,7 +30,7 @@
 .sidebar-separator { height: 1px; margin: var(--space-1) var(--space-4); background: var(--sidebar-line); }
 
 /* The day: weekday and date (a click opens its note) with ‹ › beside them. */
-.day-header { display: flex; align-items: flex-start; gap: var(--space-1); padding: 0 var(--space-2) var(--space-3); }
+.day-header { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-1); padding: 0 var(--space-2) var(--space-3); }
 .day-title {
   flex: 1; min-width: 0; display: flex; flex-direction: column; padding: var(--space-2); border: none; border-radius: var(--radius-sm);
   background: none; color: var(--sidebar-strong); text-align: left; cursor: default;
@@ -42,6 +42,12 @@
 .day-arrows { flex: none; display: flex; padding-top: var(--space-2); }
 .day-arrows .icon-btn { color: var(--sidebar-muted); }
 .day-arrows .icon-btn:disabled { opacity: 0.3; }
+/* Under the date while another day is shown. */
+.back-to-today {
+  flex-basis: 100%; padding: 0 var(--space-2); border: none; background: none; color: var(--accent);
+  font: inherit; font-size: var(--fs-meta); text-align: left; cursor: default;
+}
+.back-to-today:hover { text-decoration: underline; }
 
 /* Tool rows: the context row in the context's colour; a row without a command only tells. */
 .tool-row:disabled { opacity: 1; }

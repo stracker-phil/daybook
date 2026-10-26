@@ -31,6 +31,7 @@ export function createApiMock(): typeof realApi {
     revealPath: vi.fn().mockResolvedValue(undefined),
     dailyNoteState: vi.fn().mockResolvedValue({ path: null, exists: false, creating: false, waiting: 0 }),
     dailyNoteOpen: vi.fn().mockResolvedValue(undefined),
+    todoOpen: vi.fn().mockResolvedValue(undefined),
     dailyNoteCreate: vi.fn().mockResolvedValue(false),
     shortcutOverview: vi.fn().mockResolvedValue({ registered: true, global: [], menu: [] }),
     hubView: vi.fn().mockResolvedValue({
@@ -48,6 +49,8 @@ export function createApiMock(): typeof realApi {
       focus: null,
       journal: [],
       routines: [],
+      notes: [],
+      todos: [],
       events: { timeline: { hours: [], workHours: null, fullDay: [], blocks: [], now: null }, rows: [] },
     }),
     calendarInfo: vi.fn().mockResolvedValue({ access: "full-access", calendars: [] }),

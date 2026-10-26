@@ -42,6 +42,7 @@ pub mod status_rules;
 pub mod store;
 #[cfg(any(test, feature = "test-util"))]
 pub mod test_support;
+pub mod todos;
 pub mod tools;
 pub mod tray;
 pub mod vault;
