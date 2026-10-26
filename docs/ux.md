@@ -326,6 +326,16 @@ cancelled), ⌘1…9 sets the line's project emoji (the same key again makes it 
 list and ends it on an empty item, Tab and ⇧Tab indent, ⌘↵ saves and closes, ⌘S sends to Slack and stays open.
 It stays open while focus is elsewhere. The end-of-day list step uses the same editor.
 
+**The journal overlay** (`journal` view, ⌘J in the app, `journal:open:<group>` for one group): "Journal" with
+the groups as a segmented control on the right (⌘1…⌘9 switch); it opens on the asked group, else the first with
+open questions. Each question is its title (semibold), its hint (`--fs-meta`, `--o3`) and its answers as plain
+rows: numbered for a list, a checkbox per task (disabled while the row is empty, done ones struck through in
+`--o2`), a growing text field for text; a free-text group is one growing field. There is always one empty row at
+the end (the only one with a placeholder); ↵ goes to the next row, ↑↓ move between fields, ⌫ on an empty row
+removes it. Answers save 0.8 s after typing stops and when the group or the overlay closes; a re-read of the
+note replaces the answers only when its trimmed content differs, so the note echoing a save never moves the
+caret. The footer has the keys, "Saved once today's note exists" while it doesn't, or the error of a failed save.
+
 ## Contexts
 
 Each context has a colour (Settings → Contexts). `styles/context.css` turns `data-context="<colour>"` on any
@@ -378,7 +388,7 @@ text, as in Spotlight. Group headings are small `--o3` text; a row's detail foll
 - A group may carry a description under its heading (`.settings-group-desc`, `--fs-meta`, `--o2`). A lookup
   reads Found in `--style-green` or Missing in `--style-yellow` (`.settings-state`).
 - Pages register in `registry/settingsPages.ts`, in four groups: **Setup** (Vault, Contexts, Projects),
-  **Obsidian** (Daily Note), **Workflows** (with its first page) and **System** (General, Tools, Shortcuts,
+  **Obsidian** (Daily Note, Journal), **Workflows** (with its first page) and **System** (General, Tools, Shortcuts,
   Appearance). Shortcuts lists the global shortcuts first, each marked Global (`.shortcut-global`), then the
   app menu's keys (fixed), then the windows' own keys; a key field records the next key, Escape stops, ⌫
   unbinds; conflicts show in `--style-yellow`. A concept with several items gets a page with one card per item;

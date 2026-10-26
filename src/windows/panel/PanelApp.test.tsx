@@ -83,6 +83,21 @@ describe("PanelApp", () => {
       expect(mocked.panelReady).toHaveBeenCalledWith(1, expect.any(Number));
     });
 
+    it("renders the asked journal group for the journal view", async () => {
+      const q = (name: string) => ({ question: name, hint: "", kind: "text" as const, answer: { items: [], tasks: [], text: "" }, answered: false });
+      mocked.journalInfo.mockResolvedValue({
+        noteExists: true,
+        groups: [
+          { title: "Morning", questions: [q("Plan")], answered: 0, total: 1, note: "" },
+          { title: "Evening", questions: [q("Highlight")], answered: 0, total: 1, note: "" },
+        ],
+      });
+      mocked.panelSession.mockResolvedValue({ session: 1, view: "journal", args: { group: "Evening" } });
+      render(<PanelApp />);
+      expect(await screen.findByRole("textbox", { name: "Highlight" })).toBeInTheDocument();
+      expect(mocked.panelReady).toHaveBeenCalledWith(1, expect.any(Number));
+    });
+
     it("renders the offer to set Off for the offer-off view", async () => {
       mocked.panelSession.mockResolvedValue({ session: 1, view: "offer-off", args: { to: "🐈 Personal" } });
       render(<PanelApp />);

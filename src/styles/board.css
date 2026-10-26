@@ -73,3 +73,23 @@ button.event-row:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .event-time { flex: none; width: 7.5rem; color: var(--o3); font-size: var(--data-font-size); font-variant-numeric: tabular-nums; }
 .event-app { flex: none; padding: 0 var(--space-2); border-radius: 999px; background: var(--fill); font-size: var(--fs-caption); line-height: 1.385rem; color: var(--o2); }
 .event-calendar { flex: none; max-width: 12rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-meta); }
+
+/* Routines and journal groups: one line each, the title in a fixed column, the chips wrapping beside it. */
+.chip-row { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-4) var(--space-3) 0; border-top: 1px solid var(--line); }
+.chip-row-title {
+  display: flex; flex: none; align-items: center; gap: var(--space-2); width: 8.615rem; min-height: var(--control-h); margin: 0;
+  font-size: var(--fs-meta); font-weight: 600; color: var(--o2);
+}
+.chip-list { display: flex; flex: 1; flex-wrap: wrap; gap: var(--space-2); min-width: 0; }
+.chip {
+  display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; height: var(--control-h); padding: 0 var(--space-3);
+  border: 0; border-radius: var(--radius); background: var(--fill); font: inherit; color: var(--text);
+}
+.chip:enabled:hover { background: var(--fill-strong); }
+.chip:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.chip-icon { display: inline-flex; flex: none; }
+.chip-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip-dots { display: inline-flex; flex: none; gap: var(--space-1); }
+.chip-dot { width: 0.462rem; height: 0.462rem; border-radius: 50%; background: var(--line); }
+.chip-dot[data-done="true"] { background: var(--context); }
+.chip-done { flex: none; color: var(--context); }

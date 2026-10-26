@@ -206,3 +206,35 @@ export const parseList = (text: string) =>
     .map((word) => word.trim())
     .filter(Boolean);
 export const joinList = (words: string[]) => words.join(", ");
+
+/** A bare text input that saves on blur or ↵; an empty value isn't saved when `required`. */
+interface CommitInputProps {
+  label: string;
+  value: string;
+  onCommit: (value: string) => void;
+  placeholder?: string;
+  required?: boolean;
+  className?: string;
+}
+
+export function CommitInput({ label, value, onCommit, placeholder, required, className }: CommitInputProps) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  const commit = () => {
+    const next = draft.trim();
+    if (next === value) return;
+    if (next || !required) onCommit(next);
+    else setDraft(value);
+  };
+  return (
+    <input
+      className={["input", className].filter(Boolean).join(" ")}
+      aria-label={label}
+      placeholder={placeholder}
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+    />
+  );
+}

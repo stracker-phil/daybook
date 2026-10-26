@@ -18,6 +18,7 @@ pub mod help;
 pub mod hub;
 mod instance;
 pub mod ipc;
+pub mod journal;
 pub mod launch;
 pub mod lock;
 pub mod menu;

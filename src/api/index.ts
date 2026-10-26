@@ -13,6 +13,8 @@ import type {
   ErrorKind,
   FocusInfo,
   HubView,
+  JournalGroupAnswers,
+  JournalInfo,
   Keybindings,
   LaunchEvent,
   Missing,
@@ -59,6 +61,10 @@ export const api = {
   focusSave: (body: string) => invoke<void>("focus_save", { body }),
   /** Puts the list as typed into the day's message in Slack, without writing the note. */
   focusSend: (body: string) => invoke<void>("focus_send", { body }),
+  /** Today's journal groups with their answers. */
+  journalInfo: () => invoke<JournalInfo>("journal_info"),
+  /** Rewrites one group's callout in today's note (it waits for the note when it doesn't exist yet). */
+  journalSave: (group: string, answers: JournalGroupAnswers) => invoke<void>("journal_save", { group, answers }),
   /** The palette's results for what was typed, grouped by kind. */
   paletteQuery: (query: string) => invoke<PaletteResults>("palette_query", { query }),
   /** Runs a palette pick; the palette closes or another overlay replaces it. */

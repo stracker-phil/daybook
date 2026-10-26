@@ -18,10 +18,11 @@ use crate::bus;
 use crate::calendar;
 use crate::error::{AppError, AppResult};
 use crate::focus::{self, FocusLine, focus_lines};
-use crate::reminders::{ReminderInput, pick_reminder};
+use crate::journal::{self, JournalProgress};
+use crate::reminders::{ReminderInput, ReminderJournalGroup, pick_reminder};
 use crate::slack::{self, ShownStatus};
 use crate::state::AppState;
-use crate::store::settings::Status;
+use crate::store::settings::{Settings, Status};
 use crate::vault::commands::blocking;
 use crate::{shortcuts, tools as tool_state};
 
@@ -53,6 +54,8 @@ pub struct HubView {
     pub slack: Option<ShownStatus>,
     /// The day's focus list; `None` while the focus workflow is off.
     pub focus: Option<Vec<FocusLine>>,
+    /// The day's journal groups, in Settings order.
+    pub journal: Vec<JournalProgress>,
 }
 
 fn greeting(hour: u32) -> &'static str {
@@ -91,6 +94,7 @@ pub fn hub_view_at(
         events: DayEvents::default(),
         slack: None,
         focus: None,
+        journal: Vec::new(),
     }
 }
 
@@ -133,6 +137,7 @@ pub async fn hub_view(app: AppHandle, day: Option<String>) -> AppResult<HubView>
             });
         view.focus = Some(focus_lines(&body, &settings.projects));
     }
+    view.journal = read_journal(&app, &settings, shown).await;
     let context = app_state.contexts.current(&settings);
     view.events = day_events(&DayInput {
         day: shown,
@@ -147,12 +152,44 @@ pub async fn hub_view(app: AppHandle, day: Option<String>) -> AppResult<HubView>
             rules: &settings.reminders,
             events: &events,
             routines: &[],
-            journal: &[],
+            journal: &reminder_journal(&view.journal, &settings),
             todo_dates: &[],
         })
         .map(reminder_line);
     }
     Ok(view)
+}
+
+async fn read_journal(
+    app: &AppHandle,
+    settings: &Settings,
+    day: NaiveDate,
+) -> Vec<JournalProgress> {
+    let handle = app.clone();
+    let reading = settings.clone();
+    blocking(move || Ok(journal::progress_of(&handle, &reading, day)))
+        .await
+        .unwrap_or_else(|e| {
+            log::warn!("Couldn't read the journal of {day}: {e}");
+            Vec::new()
+        })
+}
+
+fn reminder_journal(groups: &[JournalProgress], settings: &Settings) -> Vec<ReminderJournalGroup> {
+    groups
+        .iter()
+        .map(|group| ReminderJournalGroup {
+            title: group.title.clone(),
+            answered: group.answered,
+            total: group.total,
+            has_note: group.has_note,
+            due: settings
+                .journal
+                .iter()
+                .find(|config| config.title == group.title)
+                .and_then(|config| config.timing.due.clone()),
+        })
+        .collect()
 }
 
 #[cfg(test)]

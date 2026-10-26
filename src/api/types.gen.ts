@@ -371,7 +371,11 @@ slack: ShownStatus | null,
 /**
  * The day's focus list; `None` while the focus workflow is off.
  */
-focus: Array<FocusLine> | null, };
+focus: Array<FocusLine> | null, 
+/**
+ * The day's journal groups, in Settings order.
+ */
+journal: Array<JournalProgress>, };
 
 /**
  * "Open Jira Issue" opens `base_url` + the key; a bare number gets `default_prefix`.
@@ -411,7 +415,29 @@ answers: { [key in string]: JournalAnswer },
  */
 note: string, };
 
+/**
+ * A group as the overlay shows it; one without questions is free text (`note`).
+ */
+export type JournalGroupView = { title: string, questions: Array<JournalQuestionView>, answered: number, total: number, note: string, };
+
+export type JournalInfo = { groups: Array<JournalGroupView>, 
+/**
+ * Whether today's note exists; saving answers waits for it.
+ */
+noteExists: boolean, };
+
+/**
+ * A group's progress as the board, the menus and the reminders show it.
+ */
+export type JournalProgress = { title: string, answered: number, total: number, 
+/**
+ * A free-text group was written.
+ */
+hasNote: boolean, };
+
 export type JournalQuestion = { question: string, hint: string, kind: AnswerKind, };
+
+export type JournalQuestionView = { question: string, hint: string, kind: AnswerKind, answer: JournalAnswer, answered: boolean, };
 
 export type JournalTask = { text: string, done: boolean, };
 

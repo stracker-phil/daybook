@@ -109,3 +109,9 @@
 .presence-dot { flex: none; width: 0.615rem; height: 0.615rem; border-radius: 50%; box-sizing: border-box; }
 .presence-dot[data-presence="auto"] { background: var(--style-green); }
 .presence-dot[data-presence="away"] { border: 1.5px solid var(--o2); }
+.check-column { display: flex; flex-direction: column; gap: var(--space-2); }
+.journal-question-fields { display: flex; flex-direction: column; gap: var(--space-2); width: 100%; }
+.journal-question-line { display: flex; gap: var(--space-2); }
+.journal-question-line .grow { flex: 1; min-width: 0; }
+.journal-group-actions { display: flex; align-items: center; gap: var(--space-2); width: 100%; }
+.journal-group-actions .item-actions { flex: 1; }

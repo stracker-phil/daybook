@@ -65,7 +65,7 @@ when the op can never apply. `describe()` is one line for the action log.
 
 | Kind | Writes | Module |
 |---|---|---|
-| `journalGroup { group, answers }` | rewrites one journal group's callout (only answered questions; unknown questions kept; the group and an empty section removed when nothing is answered) | `ops/journal.rs` |
+| `journalGroup { group, answers }` | rewrites one journal group's callout (only answered questions; unknown questions kept; the group and an empty section removed when nothing is answered) | `ops/journal/` |
 | `planStep { title, done }` | ticks or unticks a routine item in the plan section, adding it if needed | `ops/plan.rs` |
 | `planList { titles }` | adds a starting routine's missing items unticked | `ops/plan.rs` |
 | `focus { body }` | replaces the focus section's body | `ops/focus.rs` |
@@ -77,6 +77,38 @@ The modules also read what they write (`read_plan_tasks`, `read_focus`, `parse_j
 **Adding a kind:** add the variant to `NoteOp` (serde tag `kind`, camelCase), its pure writer in `ops/`, the
 arm in `NoteOp::edit` and the line in `describe`. Waiting entries of a kind this version can't read are
 dropped when `pending-entries.json` loads.
+
+## Journal
+
+Settings → Journal holds the question groups (`settings.journal`: title, callout type, folded, questions with
+a hint and a kind, timing). Each group is one callout in the journal section, in Settings order:
+
+```text
+> [!NOTE]+ Dawn
+> **What am I grateful for?** - _Small things count too_
+> 1. Sunshine
+>
+> **The "One Thing"** - _What would I do today even without pay?_
+> - [ ] Finish the draft
+```
+
+A list answer is numbered, a task answer a task line, a text answer plain lines (blank lines dropped, since a
+blank `>` line ends the answer); a group without questions is free text. Only answered questions are written,
+`?` placeholders count as unanswered, questions the app doesn't know are kept, an existing callout keeps its own
+header (fold state), and a group without answers loses its callout (the section too once empty). Titles match
+case- and quote-insensitively.
+
+`journal/` reads it: `progress.rs` (pure) fills the groups with a note's answers (`journal_groups`) and counts
+them (`JournalProgress`: answered of total, `has_note` for a written free-text group); `mod.rs` has the commands
+and `journal:open` / `journal:open:<group>` (the journal overlay); `rename.rs` moves a renamed group's reminder
+rule along on save (`follow_renamed_groups`, called from `update_settings`). The progress feeds the board's
+journal chips (`HubView.journal`, for the shown day), the tool snapshot (the Journal menu and palette entries
+with `1/3` or `Done`) and the reminder rule of each group (due while its `timing.due` window is open).
+
+| Command | Arguments | Returns |
+|---|---|---|
+| `journal_info` | – | `JournalInfo`: today's groups with their answers, `noteExists` |
+| `journal_save` | `group`, `answers` | –; writes `NoteOp::JournalGroup` through the writer (waits for the note when it doesn't exist); `not_found` for an unknown group, `invalid_input` past 50 answers or entries or 20,000 characters |
 
 ## The writer
 

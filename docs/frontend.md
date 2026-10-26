@@ -62,7 +62,8 @@ The board (`hub/Board.tsx`) shows `TodayCard` (the reminder line; with an action
 focus on mount and on `window_opened`, so ↵ runs it: a command through `runCommand`, a call through
 `calendarJoin`; then `hub.focus`, the focus list as one button that runs `focus:open`, disabled on another day) and `Events` (the section title, the eye toggle `toggleHidePastEvents` saved as
 `uiState.hidePastEvents`, `DayTimeline`, the rows). `Events` keeps the hovered key, so a row and its timeline block
-highlight each other ([calendar.md](calendar.md#the-day-model)). The hub reloads on `calendar_changed` and `call_changed` too.
+highlight each other ([calendar.md](calendar.md#the-day-model)). `JournalRow` (`hub/ChipRows.tsx`) follows: a chip per
+`hub.journal` group with its progress dots, running `journal:open:<group>` today. The hub reloads on `calendar_changed` and `call_changed` too.
 
 ## Store
 
@@ -268,6 +269,7 @@ saves the current settings with the patch through `saveSettings` quietly, so eve
 | Setup | Calendar (`calendar`) | `CalendarPage`: the calendar access with Allow Access… or Open Privacy Settings (`useCalendarInfo`: `api.calendarInfo`, read again on `calendar_changed`) |
 | Setup | Slack (`slack`) | `SlackPage`: not connected, the user token field and Connect (`api.slackConnect`); connected, the identity, Test Connection (`api.slackTest`) and Remove Token (`api.slackDisconnect`); `api.slackInfo`, read again on `slack_changed` ([slack.md](slack.md)) |
 | Setup | Contexts (`contexts`), Projects (`projects`) | one card per item (`ContextsPage`, `ProjectsPage`); a context's calendars are checkboxes of this Mac's calendars (`ContextCalendars`), a chosen one missing here stays listed |
+| Obsidian | Journal (`journal`) | `JournalPage`: a card per group (Name, Callout type, Folded, `TimingFields`: the due switch and window, "Opens by itself"; then its questions with Question, Answer kind and Hint, Move Up/Down, Remove Question; Add Question, Move Up/Down, Remove Group); Add Group. A renamed group keeps its reminder rule (`journal::follow_renamed_groups` on save) |
 | Obsidian | Daily Note (`daily-note`) | `DailyNotePage`: the fallback folder and format; the sections in `dailyNote.order`, each with its heading level and text, moved up and down (the notes heading is one line, `dailyNote.notes`) |
 | Workflows | Workflows (`workflows`) | `WorkflowsPage`: "When you pick a status" (each status's workflow switch in `slack.manualWorkflows`, its suggested channel message in `statusMessages`, the first Working's, Off's "Ask first" = `endOfDay.enabled`) and "End-of-day check" (reminder, question, link, the messages for yes and not yet; the required ones ignore an empty value) ([status.md](status.md#settings)); the Slack channel and each status's Slack status (`SlackStatusField`); "Before an absence" and a card per rule (`AbsenceWorkflows`); "Daily focus" (`focus.enabled`, `focus.endOfDayTitle`) |
 | Workflows | Reminders (`reminders`) | `RemindersPage`: a card per rule in order with its Remind switch: the meeting's minutes before, the todos' span and time range (`TimeRangeField openEnd`), the due time of a routine or journal group; Move Up/Down, Remove for meeting and todo rules, Add Upcoming meeting / Open todos |
