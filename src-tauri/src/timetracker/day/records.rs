@@ -49,8 +49,9 @@ pub struct Suggestion {
     #[serde(default)]
     pub by: String,
     pub spans: Vec<Span>,
-    pub project_id: String,
-    pub project: String,
+    /// `None` on a stored suggestion still waiting for its project.
+    pub project_id: Option<String>,
+    pub project: Option<String>,
     pub client: Option<String>,
     pub tag: Option<String>,
     #[serde(default)]
@@ -139,6 +140,19 @@ mod tests {
         assert_eq!(suggestions[0].spans.len(), 1);
         assert_eq!(suggestions[1].by, "");
         assert_eq!(suggestions[1].note, "");
+    }
+
+    #[test]
+    fn a_stored_suggestion_without_a_project_is_read() {
+        let json = r#"[
+            {"id":"s1","by":"Daybook","projectId":null,"project":null,"client":null,"tag":null,"note":"Zoom - Dentist",
+             "spans":[{"start":1,"end":2,"startIso":"2026-10-23T09:00:00+02:00","endIso":"2026-10-23T09:30:00+02:00"}]}
+        ]"#;
+        let suggestions = parse_suggestions(json).unwrap();
+        assert_eq!(suggestions.len(), 1);
+        assert_eq!(suggestions[0].project_id, None);
+        assert_eq!(suggestions[0].project, None);
+        assert_eq!(suggestions[0].note, "Zoom - Dentist");
     }
 
     #[test]

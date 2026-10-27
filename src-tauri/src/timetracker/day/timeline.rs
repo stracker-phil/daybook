@@ -43,6 +43,8 @@ fn has_note(note: &str) -> bool {
     !note.trim().is_empty()
 }
 
+const NO_PROJECT: &str = "No project";
+
 fn title(project: &str, note: &str) -> String {
     if has_note(note) {
         format!("{project} · {note}")
@@ -66,8 +68,8 @@ enum What<'a> {
 
 /// The fields a row takes from its recording or suggestion.
 struct Source<'a> {
-    project_id: &'a str,
-    project: &'a str,
+    project_id: Option<&'a str>,
+    project: Option<&'a str>,
     client: &'a Option<String>,
     note: &'a str,
     tag: &'a Option<String>,
@@ -78,8 +80,8 @@ struct Source<'a> {
 fn source<'a>(what: &What<'a>) -> Source<'a> {
     match *what {
         What::Recording(r) => Source {
-            project_id: &r.project_id,
-            project: &r.project,
+            project_id: Some(&r.project_id),
+            project: Some(&r.project),
             client: &r.client,
             note: &r.note,
             tag: &r.tag,
@@ -93,8 +95,8 @@ fn source<'a>(what: &What<'a>) -> Source<'a> {
                 &s.by
             };
             Source {
-                project_id: &s.project_id,
-                project: &s.project,
+                project_id: s.project_id.as_deref(),
+                project: s.project.as_deref(),
                 client: &s.client,
                 note: &s.note,
                 tag: &s.tag,
@@ -172,16 +174,17 @@ fn gap_row(from: &Point, to: &Point) -> DayActivityRow {
 
 fn item_row(item: &Item, projects: &[TtProject]) -> DayActivityRow {
     let source = source(&item.what);
-    let project = project_of(projects, source.project_id);
+    let project = source.project_id.and_then(|id| project_of(projects, id));
     let ms = item.end.ms - item.start.ms;
+    let project_name = source.project.unwrap_or(NO_PROJECT);
     DayActivityRow {
         kind: item.kind,
         start: item.start.label.clone(),
         end: item.end.label.clone(),
         duration: format_duration(ms),
         duration_ms: ms,
-        title: title(source.project, source.note),
-        project: Some(source.project.to_string()),
+        title: title(project_name, source.note),
+        project: source.project.map(String::from),
         client: source.client.clone(),
         note: source.note.to_string(),
         tag: source.tag.clone(),
@@ -191,7 +194,7 @@ fn item_row(item: &Item, projects: &[TtProject]) -> DayActivityRow {
         copy_text: Some(if has_note(source.note) {
             source.note.to_string()
         } else {
-            source.project.to_string()
+            project_name.to_string()
         }),
         recording_id: source.recording_id,
     }

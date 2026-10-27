@@ -214,11 +214,20 @@ mod tests {
             id: id.into(),
             by: by.into(),
             spans,
-            project_id: "p1".into(),
-            project: "Project p1".into(),
+            project_id: Some("p1".into()),
+            project: Some("Project p1".into()),
             client: None,
             tag: None,
             note: String::new(),
+        }
+    }
+
+    fn suggestion_without_project(note: &str) -> Suggestion {
+        Suggestion {
+            project_id: None,
+            project: None,
+            note: note.into(),
+            ..suggestion("s", "Daybook", vec![span((10, 0), Some((10, 30)))])
         }
     }
 
@@ -491,6 +500,29 @@ mod tests {
                 ),
             ]
         );
+    }
+
+    #[test]
+    fn a_suggestion_without_a_project_reads_no_project_with_its_note_and_no_colour() {
+        let suggestions = [suggestion_without_project("Zoom - Dentist")];
+        let v = view(&[], &suggestions, at(12, 0));
+        let row = &v.rows[0];
+        assert_eq!(row.kind, DayActivityRowKind::Suggestion);
+        assert_eq!(row.project, None);
+        assert_eq!(row.color, None);
+        assert_eq!(row.shade, None);
+        assert_eq!(row.title, "No project · Zoom - Dentist");
+        assert_eq!(row.copy_text.as_deref(), Some("Zoom - Dentist"));
+        assert_eq!(row.suggested_by.as_deref(), Some("Suggested by Daybook"));
+    }
+
+    #[test]
+    fn a_suggestion_without_a_project_or_note_reads_no_project() {
+        let suggestions = [suggestion_without_project("")];
+        let v = view(&[], &suggestions, at(12, 0));
+        let row = &v.rows[0];
+        assert_eq!(row.title, "No project");
+        assert_eq!(row.copy_text.as_deref(), Some("No project"));
     }
 
     #[test]

@@ -36,10 +36,10 @@ fn joined(parts: &[Option<String>]) -> String {
         .join(" · ")
 }
 
-/// "Apollo 10:00–10:30": the suggestion's project and span, as far as given.
+/// "Apollo 10:00–10:30" (or "Without a project 10:00–10:30"): the suggestion's project and span.
 fn suggestion_head(args: &[&str], project: impl Fn(&str) -> String) -> String {
     [
-        option(args, "project").map(project),
+        Some(option(args, "project").map_or_else(|| "Without a project".into(), project)),
         option(args, "span").and_then(span_times),
     ]
     .into_iter()
@@ -195,6 +195,24 @@ mod tests {
                 names
             ),
             "Suggestion: Apollo 10:00–10:30 · Zoom - Weekly"
+        );
+    }
+
+    #[test]
+    fn a_suggestion_without_a_project_says_so() {
+        assert_eq!(
+            describe_write(
+                &[
+                    "record",
+                    "--span",
+                    "2026-10-27T10:00:00-2026-10-27T10:30:00",
+                    "--note=Zoom - Dentist",
+                    "--source",
+                    "Daybook",
+                ],
+                names
+            ),
+            "Suggestion: Without a project 10:00–10:30 · Zoom - Dentist"
         );
     }
 

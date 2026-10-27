@@ -31,9 +31,10 @@ it stands in Daybook. The numbers in this table are Daybook's.
 | [0020](0020-network-only-to-listed-hosts.md) | Daybook talks to Slack (and later Apple's catalog), nothing else | Accepted (2026-10-25), implemented |
 | [0021](0021-a-local-http-api-with-guards.md) | A local HTTP API, off by default and guarded | Accepted (2026-10-27), implemented |
 | [0022](0022-daybook-drives-timetracker-through-its-cli.md) | Daybook drives TimeTracker through its CLI and never tracks time itself | Accepted (2026-10-27), implemented |
-| [0023](0023-status-drives-the-timer-calls-are-suggestions.md) | The status drives the timer; calls are suggestions | Accepted (2026-10-27), implemented |
+| [0023](0023-status-drives-the-timer-calls-are-suggestions.md) | The status drives the timer; calls are suggestions | Accepted (2026-10-27), implemented; calls part superseded by [0029](0029-every-call-goes-to-timetracker.md) |
 | [0024](0024-daybook-shows-timetrackers-day-read-only.md) | Daybook shows TimeTracker's day read-only | Accepted (2026-10-27), implemented |
 | [0025](0025-quick-note-presentation-covers-one-screen.md) | Quick note presentation covers one screen, not macOS full screen | Accepted (2026-10-27), implemented |
 | [0026](0026-the-daybook-window-follows-the-prototypes-look.md) | The Daybook window follows the prototype's look | Accepted (2026-10-27), implemented; partly supersedes 0007, 0009, 0011 |
 | [0027](0027-several-windows-on-a-native-window-layer.md) | Several windows on a native window layer | Accepted (2026-10-27), implemented |
 | [0028](0028-overlays-follow-the-prototype.md) | Overlays follow the prototype's look; the activity is not the timer | Accepted (2026-10-27), implemented; partly supersedes 0011 |
+| [0029](0029-every-call-goes-to-timetracker.md) | Every call goes to TimeTracker, with or without a project | Accepted (2026-10-27), implemented; supersedes the calls part of 0023 |

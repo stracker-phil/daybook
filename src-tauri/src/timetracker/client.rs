@@ -203,26 +203,21 @@ fn span_time(at: NaiveDateTime) -> String {
     at.format("%Y-%m-%dT%H:%M:%S").to_string()
 }
 
-/// A suggestion on TimeTracker's project `project_id` from `start` to `end` (one local day), shown
-/// as "Suggested by Daybook"; the stored suggestion's id, `None` in a dry run.
+/// A "Suggested by Daybook" suggestion on one local day, on `project_id` or none for the owner to pick;
+/// its id, `None` in a dry run.
 pub fn record(
     tt: &dyn TimeTracker,
-    project_id: &str,
+    project_id: Option<&str>,
     (start, end): (NaiveDateTime, NaiveDateTime),
     note: &str,
 ) -> AppResult<Option<String>> {
     let span = format!("{}-{}", span_time(start), span_time(end));
     let note_arg = format!("--note={note}");
-    let args = [
-        "record",
-        "--project",
-        project_id,
-        "--span",
-        &span,
-        &note_arg,
-        "--source",
-        "Daybook",
-    ];
+    let mut args = vec!["record"];
+    if let Some(project_id) = project_id {
+        args.extend(["--project", project_id]);
+    }
+    args.extend(["--span", &span, &note_arg, "--source", "Daybook"]);
     parse_recorded(&call(tt, &args)?).map_err(AppError::TimeTrackerRefused)
 }
 
@@ -712,7 +707,7 @@ mod tests {
         ));
         let id = record(
             &tt,
-            "tt1",
+            Some("tt1"),
             (local(10, 0, 0), local(10, 45, 30)),
             "Zoom - Oscorp Weekly",
         );
@@ -734,9 +729,43 @@ mod tests {
     }
 
     #[test]
+    fn record_without_a_project_sends_no_project_argument() {
+        let tt = Fake::answering(reply(
+            Some(0),
+            r#"{"kind":"suggestion","id":"s-2","projectId":null,"note":"Zoom - Dentist","source":"Daybook"}"#,
+            "",
+        ));
+        let id = record(
+            &tt,
+            None,
+            (local(10, 0, 0), local(10, 45, 30)),
+            "Zoom - Dentist",
+        );
+        assert_eq!(id, Ok(Some("s-2".to_string())));
+        assert_eq!(
+            tt.calls(),
+            vec![vec![
+                "record",
+                "--span",
+                "2026-10-27T10:00:00-2026-10-27T10:45:30",
+                "--note=Zoom - Dentist",
+                "--source",
+                "Daybook",
+                "--json"
+            ]]
+        );
+    }
+
+    #[test]
     fn record_keeps_a_note_that_starts_with_a_dash_as_text() {
         let tt = Fake::answering(reply(Some(0), "", ""));
-        record(&tt, "tt1", (local(9, 0, 0), local(9, 30, 0)), "- weekly").unwrap();
+        record(
+            &tt,
+            Some("tt1"),
+            (local(9, 0, 0), local(9, 30, 0)),
+            "- weekly",
+        )
+        .unwrap();
         assert!(tt.calls()[0].contains(&"--note=- weekly".to_string()));
     }
 
@@ -744,7 +773,12 @@ mod tests {
     fn record_with_an_empty_reply_gives_no_id() {
         let tt = Fake::answering(reply(Some(0), "", ""));
         assert_eq!(
-            record(&tt, "tt1", (local(9, 0, 0), local(9, 30, 0)), "Zoom - x"),
+            record(
+                &tt,
+                Some("tt1"),
+                (local(9, 0, 0), local(9, 30, 0)),
+                "Zoom - x"
+            ),
             Ok(None)
         );
     }
@@ -769,7 +803,7 @@ mod tests {
         ] {
             let tt = Fake::answering(answer.clone());
             assert_eq!(
-                record(&tt, "tt1", (local(9, 0, 0), local(9, 30, 0)), "n")
+                record(&tt, Some("tt1"), (local(9, 0, 0), local(9, 30, 0)), "n")
                     .unwrap_err()
                     .kind(),
                 kind,
@@ -787,6 +821,19 @@ mod tests {
             "--span",
             "2026-10-27T10:00:00-2026-10-27T10:45:30",
             "--note=Zoom - Oscorp Weekly",
+            "--source",
+            "Daybook",
+            "--json"
+        ]));
+    }
+
+    #[test]
+    fn record_without_a_project_is_also_a_write_that_a_debug_build_only_pretends_to_run() {
+        assert!(changes_data(&[
+            "record",
+            "--span",
+            "2026-10-27T10:00:00-2026-10-27T10:45:30",
+            "--note=Zoom - Dentist",
             "--source",
             "Daybook",
             "--json"

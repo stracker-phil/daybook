@@ -1,5 +1,5 @@
-//! A finished call as a TimeTracker suggestion on its project, or why it isn't sent
-//! (docs/timetracker.md#status-and-calls). Pure.
+//! A finished call as a TimeTracker suggestion, or why it isn't sent (docs/timetracker.md#status-and-calls).
+//! Pure.
 
 use chrono::{NaiveDateTime, TimeDelta};
 
@@ -14,13 +14,13 @@ pub const MIN_CALL: TimeDelta = TimeDelta::minutes(3);
 /// TimeTracker refuses longer notes.
 const MAX_NOTE_CHARS: usize = 500;
 
-/// `record --project <project_id> --span <start>-<end> --note=<note> --source Daybook`.
+/// `record [--project <project_id>] --span <start>-<end> --note=<note> --source Daybook`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CallSuggestion {
-    /// TimeTracker's project id.
-    pub project_id: String,
-    /// The Daybook project.
-    pub project: String,
+    /// TimeTracker's project id; `None` leaves the project to pick in TimeTracker's Day view.
+    pub project_id: Option<String>,
+    /// The Daybook project named in the title, if any.
+    pub project: Option<String>,
     pub start: NaiveDateTime,
     /// At most the midnight after `start`: TimeTracker keeps a suggestion on one day.
     pub end: NaiveDateTime,
@@ -33,8 +33,6 @@ pub enum Skip {
     NotWorking,
     NoStatusFeature,
     TooShort,
-    NoProject,
-    NotLinked,
 }
 
 impl Skip {
@@ -43,8 +41,6 @@ impl Skip {
             Self::NotWorking => "Not Working".into(),
             Self::NoStatusFeature => "The context has no Status feature".into(),
             Self::TooShort => format!("Shorter than {} minutes", MIN_CALL.num_minutes()),
-            Self::NoProject => "No project in the title".into(),
-            Self::NotLinked => "Project not linked to TimeTracker".into(),
         }
     }
 }
@@ -89,8 +85,8 @@ fn same_day_end(start: NaiveDateTime, end: NaiveDateTime) -> NaiveDateTime {
     end.min(midnight)
 }
 
-/// Checked in order: Working, the Status feature, at least `MIN_CALL` (of the part on its first day), a
-/// project named in the call's or the overlapping event's title, its link to TimeTracker (the first).
+/// The project is the one named in the call's or the overlapping event's title, on its first TimeTracker
+/// link; a call without either still goes, without a project.
 pub fn call_suggestion(finished: &FinishedCall) -> Result<CallSuggestion, Skip> {
     let call = finished.call;
     if finished.status != Some(Status::Working) {
@@ -109,14 +105,11 @@ pub fn call_suggestion(finished: &FinishedCall) -> Result<CallSuggestion, Skip> 
         _ => call.title.as_str(),
     };
     let text = format!("{title} {}", event.unwrap_or_default());
-    let project = meeting_project(&text, finished.offered).ok_or(Skip::NoProject)?;
-    let linked = project
-        .timetracker_projects
-        .first()
-        .ok_or(Skip::NotLinked)?;
+    let matched = meeting_project(&text, finished.offered);
+    let link = matched.and_then(|p| p.timetracker_projects.first());
     Ok(CallSuggestion {
-        project_id: linked.id.clone(),
-        project: project.name.clone(),
+        project_id: link.map(|l| l.id.clone()),
+        project: matched.map(|p| p.name.clone()),
         start: call.since,
         end,
         note: note(&call.app, title),
@@ -193,8 +186,8 @@ mod tests {
         assert_eq!(
             suggest(&zoom, at(27, 10, 45, 30), &[], &[&oscorp]),
             Ok(CallSuggestion {
-                project_id: "tt-oscorp".into(),
-                project: "Oscorp".into(),
+                project_id: Some("tt-oscorp".into()),
+                project: Some("Oscorp".into()),
                 start: at(27, 10, 0, 0),
                 end: at(27, 10, 45, 30),
                 note: "Zoom - Oscorp Weekly".into(),
@@ -210,7 +203,7 @@ mod tests {
 
         let suggestion = suggest(&zoom, at(27, 10, 30, 0), &[], &[&oscorp]).unwrap();
 
-        assert_eq!(suggestion.project, "Oscorp");
+        assert_eq!(suggestion.project.as_deref(), Some("Oscorp"));
         assert_eq!(suggestion.note, "Zoom - qrs standup");
     }
 
@@ -223,7 +216,7 @@ mod tests {
 
         let suggestion = suggest(&zoom, at(27, 10, 45, 0), &events, &[&internal, &oscorp]).unwrap();
 
-        assert_eq!(suggestion.project_id, "tt-oscorp");
+        assert_eq!(suggestion.project_id.as_deref(), Some("tt-oscorp"));
         assert_eq!(suggestion.note, "Zoom - Weekly sync");
     }
 
@@ -243,10 +236,11 @@ mod tests {
         let oscorp = project("Oscorp", &["tt-oscorp"]);
         let teams = call("Teams", "Meeting", at(27, 10, 0, 0));
 
-        assert_eq!(
-            suggest(&teams, at(27, 10, 30, 0), &[], &[&oscorp]),
-            Err(Skip::NoProject)
-        );
+        let suggestion = suggest(&teams, at(27, 10, 30, 0), &[], &[&oscorp]).unwrap();
+
+        assert_eq!(suggestion.project_id, None);
+        assert_eq!(suggestion.project, None);
+        assert_eq!(suggestion.note, "Teams - Meeting");
     }
 
     #[test]
@@ -274,7 +268,7 @@ mod tests {
         let suggestion =
             suggest(&teams, at(27, 10, 45, 0), &events, &[&oscorp, &internal]).unwrap();
 
-        assert_eq!(suggestion.project_id, "tt-internal");
+        assert_eq!(suggestion.project_id.as_deref(), Some("tt-internal"));
         assert_eq!(suggestion.note, "Teams - Internal Sync");
     }
 
@@ -284,10 +278,10 @@ mod tests {
         let zoom = call("Zoom", "Weekly sync", at(27, 10, 0, 0));
         let events = [event("Oscorp Weekly", at(27, 9, 0, 0), at(27, 10, 0, 0))];
 
-        assert_eq!(
-            suggest(&zoom, at(27, 10, 30, 0), &events, &[&oscorp]),
-            Err(Skip::NoProject)
-        );
+        let suggestion = suggest(&zoom, at(27, 10, 30, 0), &events, &[&oscorp]).unwrap();
+
+        assert_eq!(suggestion.project_id, None);
+        assert_eq!(suggestion.project, None);
     }
 
     #[test]
@@ -296,10 +290,10 @@ mod tests {
         let zoom = call("Zoom", "Weekly sync", at(27, 10, 0, 0));
         let events = [event("Oscorp Weekly", at(27, 10, 30, 0), at(27, 11, 0, 0))];
 
-        assert_eq!(
-            suggest(&zoom, at(27, 10, 30, 0), &events, &[&oscorp]),
-            Err(Skip::NoProject)
-        );
+        let suggestion = suggest(&zoom, at(27, 10, 30, 0), &events, &[&oscorp]).unwrap();
+
+        assert_eq!(suggestion.project_id, None);
+        assert_eq!(suggestion.project, None);
     }
 
     #[test]
@@ -371,28 +365,35 @@ mod tests {
     }
 
     #[test]
-    fn a_call_naming_no_offered_project_is_not_sent() {
+    fn a_call_naming_no_offered_project_is_sent_without_a_project() {
         let oscorp = project("Oscorp", &["tt-oscorp"]);
         let zoom = call("Zoom", "Dentist", at(27, 10, 0, 0));
+        let expected = Ok(CallSuggestion {
+            project_id: None,
+            project: None,
+            start: at(27, 10, 0, 0),
+            end: at(27, 10, 30, 0),
+            note: "Zoom - Dentist".into(),
+        });
 
-        assert_eq!(
-            suggest(&zoom, at(27, 10, 30, 0), &[], &[&oscorp]),
-            Err(Skip::NoProject)
-        );
-        assert_eq!(
-            suggest(&zoom, at(27, 10, 30, 0), &[], &[]),
-            Err(Skip::NoProject)
-        );
+        assert_eq!(suggest(&zoom, at(27, 10, 30, 0), &[], &[&oscorp]), expected);
+        assert_eq!(suggest(&zoom, at(27, 10, 30, 0), &[], &[]), expected);
     }
 
     #[test]
-    fn a_project_without_a_timetracker_link_is_not_sent() {
+    fn a_project_without_a_timetracker_link_is_sent_by_name_without_an_id() {
         let oscorp = project("Oscorp", &[]);
         let zoom = call("Zoom", "Oscorp", at(27, 10, 0, 0));
 
         assert_eq!(
             suggest(&zoom, at(27, 10, 30, 0), &[], &[&oscorp]),
-            Err(Skip::NotLinked)
+            Ok(CallSuggestion {
+                project_id: None,
+                project: Some("Oscorp".into()),
+                start: at(27, 10, 0, 0),
+                end: at(27, 10, 30, 0),
+                note: "Zoom - Oscorp".into(),
+            })
         );
     }
 
@@ -446,8 +447,6 @@ mod tests {
             (Skip::NotWorking, "Not Working"),
             (Skip::NoStatusFeature, "The context has no Status feature"),
             (Skip::TooShort, "Shorter than 3 minutes"),
-            (Skip::NoProject, "No project in the title"),
-            (Skip::NotLinked, "Project not linked to TimeTracker"),
         ] {
             assert_eq!(skip.reason(), reason, "{skip:?}");
         }

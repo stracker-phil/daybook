@@ -151,12 +151,14 @@ On a call's end (a call that drops and comes back within the grace is one call),
 was "Meeting", its title) is suggested once it ends for good. A call moving to another app (`Switched`) ends the old
 one at once. The status counts as it was when the call ended. Then `call_suggestion` (pure) checks, in
 order: the status is Working; the context has the Status feature; the call (cut at midnight) lasts 3 minutes or
-more; the title (or, for a generic "Meeting", the overlapping event's) names a current project by its name or a
-meeting word; that project is linked to a TimeTracker project (the first link is used). Then it sends
-`timetracker record --project <id> --span <start>-<end> --note=<App> - <title> --source Daybook`: a stored suggestion
-TimeTracker shows as "Suggested by Daybook" to approve. TimeTracker shows only the part of a suggestion no recording
-covers, so a call made while a timer runs often doesn't show. When TimeTracker isn't running a notification says the
-call wasn't sent. Every outcome is logged.
+more. Every call that passes goes to TimeTracker ([ADR 0029](adr/0029-every-call-goes-to-timetracker.md)): when the
+title (or, for a generic "Meeting", the overlapping event's) names a current project by its name or a meeting word and
+that project is linked to TimeTracker, on its first link; otherwise without a project. It sends
+`timetracker record [--project <id>] --span <start>-<end> --note=<App> - <title> --source Daybook`: a stored
+suggestion TimeTracker shows as "Suggested by Daybook" to approve; one without a project waits in TimeTracker's Day
+view for the owner to pick one, and the action log reads "Suggestion: Without a project …". TimeTracker shows only the
+part of a suggestion no recording covers, so a call made while a timer runs often doesn't show. When TimeTracker isn't
+running a notification says the call wasn't sent. Every outcome is logged.
 
 ## The Activity tab
 
@@ -170,7 +172,8 @@ refuses.
 `day/view.rs` (pure, `day_view`) builds `DayActivity`:
 - **Timeline:** one row per span of each recording and each suggestion, in start order. A span without an end is the
   running row ("now"). A gap of 5 minutes or more between rows is a "Nothing recorded" row; suggestions count as
-  covered time. Suggestions show "Suggested by Slack" and count toward no total.
+  covered time. Suggestions show "Suggested by Slack" and count toward no total; one without a project reads
+  "No project" in place of the project's name and draws in graphite.
 - **By Project:** projects in order of first appearance with their total, then one line per recording: the note
   (or "No description"), the tag and its spans ("10:30–11:30, 12:00–12:45").
 - Totals use TimeTracker's durations, formatted like TimeTracker (`1h 05m`, `45m`). Colours come from the project

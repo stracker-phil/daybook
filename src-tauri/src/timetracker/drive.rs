@@ -117,12 +117,13 @@ async fn send(app: &AppHandle, suggestion: CallSuggestion) {
     let span = format!("{}–{}", start.format("%H:%M"), end.format("%H:%M"));
     let sent_note = note.clone();
     let recorded = blocking(app, move |tool| {
-        client::record(tool, &project_id, (start, end), &sent_note)
+        client::record(tool, project_id.as_deref(), (start, end), &sent_note)
     })
     .await;
     match recorded {
         Ok(id) => log::info!(
-            "Call → TimeTracker: suggested {project} {span} \"{note}\" ({})",
+            "Call → TimeTracker: suggested {} {span} \"{note}\" ({})",
+            project.as_deref().unwrap_or("without a project"),
             id.as_deref().unwrap_or("dry run")
         ),
         Err(e) if e.kind() == ErrorKind::TimetrackerNotRunning => {

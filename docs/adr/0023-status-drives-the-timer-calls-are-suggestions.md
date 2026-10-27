@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted (2026-10-27), implemented.
+Accepted (2026-10-27), implemented. The calls part is superseded by
+[ADR 0029](0029-every-call-goes-to-timetracker.md): every call is sent, without a project when none is linked.
 
 ## Context
 
