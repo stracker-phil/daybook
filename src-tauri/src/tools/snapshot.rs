@@ -6,7 +6,10 @@ use super::state::{
     ContextItem, GroupProgress, LinkItem, Progress, RoutineProgress, TodayNote, ToolState, Topic,
 };
 use crate::state::AppState;
-use crate::{calls, jira, journal, links, music, projects, quick_notes, routines, search, status};
+use crate::{
+    calls, jira, journal, links, music, projects, quick_notes, routines, search, status,
+    timetracker,
+};
 
 pub fn snapshot(app: &AppHandle) -> ToolState {
     let state = app.state::<AppState>();
@@ -25,6 +28,9 @@ pub fn snapshot(app: &AppHandle) -> ToolState {
         Vec::new()
     });
     let quick_access = links::current(app);
+    let tracking = timetracker::tracking(app);
+    let (tt, timer) = timetracker::tool_state(&tracking, &settings);
+    let current_project = timetracker::link::current_project(&offered, tracking.timer.as_ref());
     let link_items = |items: Vec<_>| items.into_iter().map(LinkItem::Link).collect();
     ToolState {
         has_vault: settings.vault.path.is_some(),
@@ -48,7 +54,7 @@ pub fn snapshot(app: &AppHandle) -> ToolState {
             .unwrap_or_default(),
         status: today_status.status,
         status_since: today_status.since,
-        projects: projects::project_groups(&offered, None),
+        projects: projects::project_groups(&offered, current_project.as_deref()),
         meeting_since: call
             .as_ref()
             .map(|call| call.since.format("%H:%M").to_string()),
@@ -91,5 +97,7 @@ pub fn snapshot(app: &AppHandle) -> ToolState {
         links_more: link_items(quick_access.more),
         tickets: jira::today_tickets(app),
         music: music::tool_state(app),
+        tt,
+        timer,
     }
 }

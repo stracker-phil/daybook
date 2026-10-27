@@ -13,3 +13,13 @@ export function AccentSwatches({ value, onChange, withSystem = false }: { value:
     </div>
   );
 }
+
+/** OKLCH lightness of shade 0 and the step between shades (TimeTracker's `shadeLightness`). */
+const DARKEST = 0.36;
+const SHADE_STEP = 0.06;
+
+/** A small filled circle in a TimeTracker project's colour: an accent hue at one of its shades (0 darkest). */
+export function AccentDot({ accent, shade }: { accent: string; shade: number }) {
+  const background = `oklch(from var(--a-${accent}, var(--o3)) ${(DARKEST + shade * SHADE_STEP).toFixed(2)} c h)`;
+  return <span className="accent-dot" aria-hidden="true" style={{ background }} />;
+}

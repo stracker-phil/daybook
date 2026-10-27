@@ -240,6 +240,20 @@ mod tests {
     }
 
     #[test]
+    fn a_current_project_without_launcher_projects_leaves_the_order_alone() {
+        let all = projects();
+        let work = current_projects(&all, Some("work"));
+        assert_eq!(
+            group_names(&project_groups(&work, Some("Internal"))),
+            ["Oscorp", "Zeno"]
+        );
+        assert_eq!(
+            group_names(&project_groups(&work, Some("Unknown"))),
+            ["Oscorp", "Zeno"]
+        );
+    }
+
+    #[test]
     fn a_group_lists_the_launcher_projects_of_its_project() {
         let all = projects();
         let work = current_projects(&all, Some("work"));

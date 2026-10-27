@@ -27,6 +27,7 @@ use crate::routines::{self, RoutineProgress};
 use crate::slack::{self, ShownStatus};
 use crate::state::AppState;
 use crate::store::settings::{Settings, Status};
+use crate::timetracker::commands::{TimeTrackerLink, show_link};
 use crate::todos::TodoGroup;
 use crate::vault::commands::blocking;
 use crate::vault::ops::notes::NoteSectionRef;
@@ -69,6 +70,8 @@ pub struct HubView {
     pub notes: Vec<NoteSectionRef>,
     /// Every open todo in the daily notes, the same on every day.
     pub todos: Vec<TodoGroup>,
+    /// Shows the day in TimeTracker.
+    pub timetracker: TimeTrackerLink,
 }
 
 fn greeting(hour: u32) -> &'static str {
@@ -111,6 +114,7 @@ pub fn hub_view_at(
         routines: Vec::new(),
         notes: Vec::new(),
         todos: Vec::new(),
+        timetracker: show_link(day, is_today),
     }
 }
 

@@ -44,6 +44,7 @@ function useBackendEvents() {
       api.onCalendarChanged(reloadHub),
       api.onCallChanged(reloadHub),
       api.onSlackChanged(reloadHub),
+      api.onTimerChanged(reloadHub),
       api.onWindowOpened(reloadHub),
     ];
 

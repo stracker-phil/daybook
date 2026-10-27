@@ -127,7 +127,11 @@ impl StageHost for TauriHost {
         for page in pages {
             // A window not built yet has no page to answer.
             if self.window(*page).is_some()
-                && let Err(e) = self.0.emit_to(EventTarget::webview_window(page.label()), event, payload.clone())
+                && let Err(e) = self.0.emit_to(
+                    EventTarget::webview_window(page.label()),
+                    event,
+                    payload.clone(),
+                )
             {
                 log::warn!("Couldn't send {event} to the {} window: {e}", page.as_str());
             }

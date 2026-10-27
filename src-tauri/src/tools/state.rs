@@ -2,6 +2,7 @@
 
 use crate::store::settings::Feature;
 pub use crate::store::settings::Status;
+pub use crate::timetracker::TtState;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct TodayNote {
@@ -88,6 +89,26 @@ pub struct Topic {
     pub level: u8,
 }
 
+/// TimeTracker's running timer as the surfaces show it.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct TimerView {
+    /// The linked Daybook project's name, else TimeTracker's project.
+    pub project: String,
+    /// Empty without a note.
+    pub note: String,
+}
+
+impl TimerView {
+    /// `Oscorp · QRS-6805 review`
+    pub fn text(&self) -> String {
+        [self.project.as_str(), self.note.as_str()]
+            .into_iter()
+            .filter(|part| !part.is_empty())
+            .collect::<Vec<_>>()
+            .join(" · ")
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ToolState {
     pub has_vault: bool,
@@ -119,6 +140,9 @@ pub struct ToolState {
     pub note_topics: Vec<Topic>,
     /// Today's Jira tickets, newest first.
     pub tickets: Vec<String>,
+    pub tt: TtState,
+    /// TimeTracker's running timer.
+    pub timer: Option<TimerView>,
 }
 
 /// A vault with today's note, two contexts (the first current, with Status and Jira), the status

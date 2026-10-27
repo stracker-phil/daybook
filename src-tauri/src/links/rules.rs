@@ -1,5 +1,5 @@
 //! Which links show now: every rule a link sets must match, and an event link's window must be open.
-//! Project rules match nothing while no current project is known (it comes with the TimeTracker timer).
+//! Project rules match nothing while no current project is known (TimeTracker's timer runs on none).
 //! Pure.
 
 use chrono::{Datelike, Duration, NaiveDateTime, Timelike};

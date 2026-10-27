@@ -8,7 +8,7 @@ use crate::bus::CommandStatus;
 use crate::contexts::context_title;
 use crate::status::status_label;
 use crate::store::settings::{Hotkeys, ToolId, ToolPlacement};
-use crate::tools::{Surface, ToolState, tidy_separators, visible_tools};
+use crate::tools::{Surface, TimerView, ToolState, tidy_separators, visible_tools};
 
 #[derive(Serialize, Clone, Debug, PartialEq, TS)]
 #[ts(export, export_to = "src/api/types.gen.ts")]
@@ -73,7 +73,14 @@ fn entry(id: ToolId, state: &ToolState) -> Entry {
             command: Some("status:toggle"),
             detail: state.status.and(state.status_since.clone()),
         },
-        ToolId::Activity => row("Log activity…", "activity:switch"),
+        ToolId::Activity => Entry::Row {
+            title: state
+                .timer
+                .as_ref()
+                .map_or_else(|| "Log activity…".into(), TimerView::text),
+            command: Some("timetracker:show"),
+            detail: None,
+        },
         ToolId::Call => Entry::Row {
             title: state.meeting_since.as_ref().map_or_else(
                 || "In a meeting".into(),
@@ -212,6 +219,7 @@ mod tests {
             [
                 Some(ToolId::Context),
                 Some(ToolId::Status),
+                Some(ToolId::Activity),
                 None,
                 Some(ToolId::Journal),
                 Some(ToolId::Search),
@@ -370,6 +378,40 @@ mod tests {
                 status.map(|_| "10:05".to_string()),
                 "{status:?}"
             );
+        }
+    }
+
+    #[test]
+    fn the_activity_row_is_titled_by_the_timer_else_invites_to_log() {
+        for (timer, title) in [
+            (
+                Some(TimerView {
+                    project: "Oscorp".into(),
+                    note: "review".into(),
+                }),
+                "Oscorp · review",
+            ),
+            (
+                Some(TimerView {
+                    project: "Oscorp".into(),
+                    note: String::new(),
+                }),
+                "Oscorp",
+            ),
+            (None, "Log activity…"),
+        ] {
+            let state = ToolState {
+                timer: timer.clone(),
+                ..bare_state()
+            };
+            let tools = build(
+                &place(&[ToolId::Activity]),
+                &state,
+                &CommandsStub::default(),
+            );
+            let activity = row(&tools, ToolId::Activity).unwrap();
+            assert_eq!(activity.title, title, "{timer:?}");
+            assert_eq!(activity.command.as_deref(), Some("timetracker:show"));
         }
     }
 

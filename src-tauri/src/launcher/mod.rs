@@ -20,7 +20,7 @@ use crate::process::{self, is_executable};
 use crate::state::AppState;
 use crate::tools::ProjectGroup;
 use crate::vault::commands::blocking;
-use crate::{commands, projects, window};
+use crate::{commands, projects, timetracker, window};
 
 const VIEW: &str = "projects";
 /// `projects:open:<id>` shows a Launcher project.
@@ -141,7 +141,7 @@ fn groups(app: &AppHandle) -> Vec<ProjectGroup> {
     let settings = state.settings.get();
     let context = state.contexts.current(&settings).map(|c| c.id.clone());
     let offered = projects::current_projects(&settings.projects, context.as_deref());
-    projects::project_groups(&offered, None)
+    projects::project_groups(&offered, timetracker::current_project(app).as_deref())
 }
 
 /// A Launcher project of the overlay; `command` shows it.

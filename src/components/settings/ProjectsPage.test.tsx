@@ -11,7 +11,7 @@ import { SettingsWindow } from "./SettingsWindow";
 
 const mocked = vi.mocked(api, true);
 
-const project = (patch: Partial<Project>): Project => ({ name: "Project", slackEmoji: "", active: true, contexts: [], keywords: [], launcherProjects: [], ...patch });
+const project = (patch: Partial<Project>): Project => ({ name: "Project", slackEmoji: "", active: true, contexts: [], keywords: [], launcherProjects: [], timetrackerProjects: [], ...patch });
 
 function renderPage(patch: Partial<Settings> = {}) {
   resetStore({ settings: settings(patch) });
@@ -135,7 +135,7 @@ describe("ProjectsPage", () => {
     it("appends an active New project", async () => {
       renderPage();
       await userEvent.click(screen.getByRole("button", { name: "Add Project" }));
-      expect(saved()[2]).toEqual({ name: "New project", slackEmoji: "", active: true, contexts: [], keywords: [], launcherProjects: [] });
+      expect(saved()[2]).toEqual({ name: "New project", slackEmoji: "", active: true, contexts: [], keywords: [], launcherProjects: [], timetrackerProjects: [] });
       expect(await screen.findByRole("heading", { name: "New project" })).toBeInTheDocument();
     });
   });

@@ -17,6 +17,7 @@ use it, see the [project README](../README.md).
 | [music.md](music.md) | Apple Music: entries, the scripts, the player state, the automation per context, the artist search, the overlay |
 | [automation.md](automation.md) | The `daybook` CLI words, `daybook://` links and the local HTTP API: the shared actions, the grammar, the guards |
 | [stage.md](stage.md) | The Stage presenter hook: transport on the HTTP API, discovery, windows and anchors, the bridge to the pages |
+| [timetracker.md](timetracker.md) | TimeTracker: the CLI client, watching the timer, linking projects, what Daybook shows |
 | [routines.md](routines.md) | Routines and their checklist overlay, the wizard that opens routines and journal groups by itself, the scheduler's tick |
 | [status.md](status.md) | Working, Break and Off: status memory, the change rule, `status_changed` and its listeners, the status and offer-off overlays |
 | [windows.md](windows.md) | Every window, its level and focus rules, the overlay's open protocol, focus hand-back, the pointer screen, what needed objc2 |

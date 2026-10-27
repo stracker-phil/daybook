@@ -38,8 +38,7 @@ fn applies(id: ToolId, state: &ToolState) -> bool {
                     .is_some_and(|context| !context.label.is_empty())
         }
         ToolId::Status => state.has_feature(Feature::Status),
-        // Check-ins come back with TimeTracker.
-        ToolId::Activity => false,
+        ToolId::Activity => state.has_feature(Feature::Status),
         ToolId::Call => state.meeting_since.is_some(),
         ToolId::Jira => state.has_feature(Feature::Jira),
         ToolId::Links => !state.links_now.is_empty() || !state.links_more.is_empty(),
@@ -312,8 +311,13 @@ mod tests {
     }
 
     #[test]
-    fn the_activity_tool_never_shows() {
-        assert_eq!(rail(&[ToolId::Activity], &bare_state()), []);
+    fn the_activity_tool_shows_with_the_status_feature() {
+        assert_eq!(rail(&[ToolId::Activity], &bare_state()), [ToolId::Activity]);
+        let without_status = ToolState {
+            features: vec![Feature::Jira],
+            ..bare_state()
+        };
+        assert_eq!(rail(&[ToolId::Activity], &without_status), []);
     }
 
     #[test]

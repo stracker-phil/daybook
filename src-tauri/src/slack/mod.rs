@@ -40,7 +40,7 @@ use crate::state::AppState;
 use crate::status::StatusChanged;
 use crate::store::json_store::JsonStore;
 use crate::store::settings::{Feature, SlackStatus};
-use crate::{notify, status as day_status};
+use crate::{notify, status as day_status, timetracker};
 
 /// What Slack shows and the day's message, kept across restarts.
 pub struct SlackFiles {
@@ -237,6 +237,11 @@ pub async fn shown_now(app: &AppHandle) -> Option<ShownStatus> {
     )
 }
 
+/// TimeTracker's timer moved to another project (or none).
+pub fn project_changed(app: &AppHandle, project: Option<String>) {
+    step(app, |live, setup| live.project_changed(project, setup));
+}
+
 /// A calendar heads-up started, changed or ended.
 pub fn set_heads_up(app: &AppHandle, next: Option<HeadsUp>) {
     step(app, |live, setup| live.heads_up_changed(next, setup));
@@ -246,7 +251,7 @@ fn status_changed(app: &AppHandle, change: &StatusChanged) {
     let picked = Picked {
         status: change.next,
         note: change.message.clone(),
-        project: None,
+        project: timetracker::current_project(app),
     };
     step(app, |live, setup| live.status_picked(picked, setup));
     let settings = app.state::<AppState>().settings.get();

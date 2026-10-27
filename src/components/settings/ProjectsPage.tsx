@@ -3,12 +3,15 @@ import type { SettingsPageProps } from "../../registry/settingsPages";
 import { Group, Row, Switch, TextField } from "./controls";
 import { ChoiceList, ItemActions, joinList, moveItem, parseList, replaceItem } from "./fields";
 import { LauncherProjectsField, useLauncherProjects, type Launcher } from "./LauncherProjectsField";
+import { TimeTrackerProjectsField } from "./TimeTrackerProjectsField";
+import { useTimetrackerProjects, type TimeTrackerProjectsResult } from "./useTimeTracker";
 
-function ProjectCard({ project, projects, contexts, launcher, index, count, onChange, onMove, onRemove }: {
+function ProjectCard({ project, projects, contexts, launcher, timetracker, index, count, onChange, onMove, onRemove }: {
   project: Project;
   projects: Project[];
   contexts: { id: string; title: string }[];
   launcher: Launcher;
+  timetracker: TimeTrackerProjectsResult;
   index: number;
   count: number;
   onChange: (patch: Partial<Project>) => void;
@@ -34,6 +37,9 @@ function ProjectCard({ project, projects, contexts, launcher, index, count, onCh
       <Row label="Launcher projects" description="Opened from the Projects tool (Daybook window, menu bar, ⌘K) in Project Launcher." stacked>
         <LauncherProjectsField project={project} projects={projects} launcher={launcher} onChange={(launcherProjects) => onChange({ launcherProjects })} />
       </Row>
+      <Row label="TimeTracker projects" description="A TimeTracker timer on one of these shows this project." stacked>
+        <TimeTrackerProjectsField project={project} projects={projects} timetracker={timetracker} onChange={(timetrackerProjects) => onChange({ timetrackerProjects })} />
+      </Row>
       <TextField label="Slack emoji" description="Starts the project's lines in the focus list, e.g. :oscorp:." placeholder=":emoji:" value={project.slackEmoji} onCommit={(slackEmoji) => onChange({ slackEmoji: slackEmoji.trim() })} />
       <Row label="">
         <ItemActions index={index} count={count} onMove={onMove} onRemove={onRemove} removeLabel="Remove Project" />
@@ -42,7 +48,7 @@ function ProjectCard({ project, projects, contexts, launcher, index, count, onCh
   );
 }
 
-const newProject = (): Project => ({ name: "New project", slackEmoji: "", active: true, contexts: [], keywords: [], launcherProjects: [] });
+const newProject = (): Project => ({ name: "New project", slackEmoji: "", active: true, contexts: [], keywords: [], launcherProjects: [], timetrackerProjects: [] });
 
 /** One card per project. Links bound to a project follow a rename and drop a removed one (Rust does that on save). */
 export function ProjectsPage({ s, set }: SettingsPageProps) {
@@ -50,6 +56,7 @@ export function ProjectsPage({ s, set }: SettingsPageProps) {
   const contexts = s.contexts.map((context) => ({ id: context.id, title: [context.label.trim(), context.name].filter(Boolean).join(" ") }));
   const save = (next: Project[]) => set({ projects: next });
   const launcher = useLauncherProjects();
+  const timetracker = useTimetrackerProjects();
   return (
     <>
       {projects.map((project, i) => (
@@ -59,6 +66,7 @@ export function ProjectsPage({ s, set }: SettingsPageProps) {
           projects={projects}
           contexts={contexts}
           launcher={launcher}
+          timetracker={timetracker}
           index={i}
           count={projects.length}
           onChange={(patch) => save(replaceItem(projects, i, patch))}

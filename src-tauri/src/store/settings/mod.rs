@@ -11,6 +11,7 @@ mod read;
 mod shell;
 mod slack;
 mod store;
+mod timetracker;
 mod types;
 mod vault;
 mod workflows;
@@ -27,6 +28,7 @@ pub use rail::*;
 pub use shell::*;
 pub use slack::*;
 pub use store::{FILE_NAME as SETTINGS_FILE, SettingsStore};
+pub use timetracker::*;
 pub use types::*;
 pub use vault::*;
 pub use workflows::*;
@@ -70,6 +72,7 @@ pub struct Settings {
     pub hotkeys: Hotkeys,
     pub api: Api,
     pub jira: Jira,
+    pub timetracker: TimeTrackerSettings,
 }
 
 impl Default for Settings {
@@ -103,6 +106,7 @@ impl Default for Settings {
             hotkeys: Hotkeys::default(),
             api: Api::default(),
             jira: Jira::default(),
+            timetracker: TimeTrackerSettings::default(),
         }
     }
 }
@@ -151,6 +155,7 @@ impl Settings {
             hotkeys: Hotkeys::read(get("hotkeys")),
             api: Api::read(get("api")),
             jira: Jira::read(get("jira")),
+            timetracker: TimeTrackerSettings::read(get("timetracker")),
         }
     }
 
@@ -320,7 +325,8 @@ mod tests {
                 "tools",
                 "hotkeys",
                 "api",
-                "jira"
+                "jira",
+                "timetracker"
             ]
         );
     }

@@ -18,7 +18,7 @@ use crate::error::AppResult;
 use crate::lock::MutexExt;
 use crate::state::AppState;
 use crate::tools::{Link, link_argument, link_command, link_target};
-use crate::{calendar, vault, window};
+use crate::{calendar, timetracker, vault, window};
 
 const VIEW: &str = "links";
 const PREFIX: &str = "link:";
@@ -62,7 +62,7 @@ pub fn current(app: &AppHandle) -> QuickAccess {
         &settings.links,
         context.as_deref(),
         &events,
-        None,
+        timetracker::current_project(app).as_deref(),
     )
 }
 

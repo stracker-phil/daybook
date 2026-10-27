@@ -135,7 +135,7 @@ fn palette_color(raw: Option<&Value>, index: usize) -> ContextColor {
     one_of(raw).unwrap_or(CONTEXT_COLORS[index % CONTEXT_COLORS.len()])
 }
 
-/// A Project Launcher project: its id opens it, the name is the one it had when linked.
+/// A Project Launcher or TimeTracker project: the id, and the name it had when linked.
 #[derive(Serialize, Clone, Debug, PartialEq, TS)]
 #[ts(export, export_to = "src/api/types.gen.ts")]
 #[serde(rename_all = "camelCase")]
@@ -161,6 +161,8 @@ pub struct Project {
     pub keywords: Vec<String>,
     /// Opened from the Projects tool.
     pub launcher_projects: Vec<LinkedProject>,
+    /// TimeTracker's projects of this one: its timer on any of them means this project.
+    pub timetracker_projects: Vec<LinkedProject>,
 }
 
 impl Project {
@@ -172,6 +174,7 @@ impl Project {
             contexts: vec![],
             keywords: vec![],
             launcher_projects: vec![],
+            timetracker_projects: vec![],
         }
     }
 
@@ -187,6 +190,7 @@ impl Project {
             contexts: distinct(strings(source.get("contexts"))),
             keywords: keywords(source.get("keywords")),
             launcher_projects: linked_projects(source.get("launcherProjects")),
+            timetracker_projects: linked_projects(source.get("timetrackerProjects")),
             name,
         })
     }

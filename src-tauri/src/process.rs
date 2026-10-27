@@ -21,6 +21,8 @@ const POLL: Duration = Duration::from_millis(20);
 #[derive(Debug, Clone, PartialEq)]
 pub struct Output {
     pub success: bool,
+    /// `None` when a signal ended it.
+    pub code: Option<i32>,
     pub stdout: String,
     pub stderr: String,
 }
@@ -35,7 +37,7 @@ pub enum RunError {
     TimedOut { program: String, timeout: Duration },
 }
 
-fn path_with_tools() -> String {
+pub(crate) fn path_with_tools() -> String {
     let mut path = EXTRA_PATH.join(":");
     if let Ok(existing) = std::env::var("PATH") {
         path.push(':');
@@ -102,6 +104,7 @@ pub fn run(program: &Path, args: &[String], timeout: Duration) -> Result<Output,
     };
     Ok(Output {
         success: status.success(),
+        code: status.code(),
         stdout: stdout.join().unwrap_or_default(),
         stderr: stderr.join().unwrap_or_default(),
     })
@@ -145,6 +148,7 @@ mod tests {
             output,
             Output {
                 success: true,
+                code: Some(0),
                 stdout: "hello there\n".into(),
                 stderr: String::new(),
             }
@@ -159,6 +163,7 @@ mod tests {
             output,
             Output {
                 success: false,
+                code: Some(3),
                 stdout: "out\n".into(),
                 stderr: "oops\n".into(),
             }

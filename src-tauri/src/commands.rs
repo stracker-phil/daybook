@@ -10,7 +10,7 @@ use crate::state::AppState;
 use crate::store::keybindings::Keybindings;
 use crate::store::settings::Settings;
 use crate::store::ui_state::UiState;
-use crate::{jira, journal, projects, rail, shortcuts, tray};
+use crate::{jira, journal, projects, rail, shortcuts, timetracker, tray};
 
 #[tauri::command]
 pub fn get_settings(state: State<'_, AppState>) -> Settings {
@@ -91,6 +91,7 @@ fn settings_saved(app: &AppHandle, previous: &Settings, saved: &Settings) {
     if previous.api != saved.api {
         crate::http_api::restart(app);
     }
+    timetracker::settings_saved(app, previous, saved);
     tray::refresh(app);
     if let Err(e) = app.emit(SETTINGS_CHANGED_EVENT, saved) {
         log::warn!("Couldn't announce the saved settings: {e}");

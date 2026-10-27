@@ -1,12 +1,24 @@
-import { PanelRight } from "lucide-react";
+import { PanelRight, Timer } from "lucide-react";
+import { api, type TimeTrackerLink } from "../../api";
 import { useBindingLabel } from "../../commands";
 import { useStageMeta } from "../../stage/meta";
+import { fail } from "../../state/requests";
 import { useStore } from "../../state/store";
 import { Toolbar } from "../Toolbar";
 import { JournalRow, RoutinesRow } from "./ChipRows";
 import { Events } from "./Events";
 import { TodayCard } from "./TodayCard";
 import { TodaysNotes } from "./TodaysNotes";
+
+/** Shows the day in TimeTracker; Rust names the command and its label for the day shown. */
+function TimeTrackerButton({ link: { command, label } }: { link: TimeTrackerLink }) {
+  const show = () => void api.runCommand(command).catch((e) => fail(e, "Couldn't open TimeTracker"));
+  return (
+    <button type="button" className="icon-btn" data-stage="hub:timetracker" data-stage-label={label} aria-label={label} title={label} onClick={show}>
+      <Timer size="1.077rem" aria-hidden="true" />
+    </button>
+  );
+}
 
 /** The day in the middle of the Daybook window, under the greeting: the reminder, the day's events, then the routines, the journal and the day's notes. */
 export function Board() {
@@ -20,6 +32,7 @@ export function Board() {
   return (
     <div className="view-page">
       <Toolbar title={title}>
+        {hub && <TimeTrackerButton link={hub.timetracker} />}
         <button
           type="button"
           className="icon-btn"

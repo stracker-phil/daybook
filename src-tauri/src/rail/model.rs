@@ -11,7 +11,7 @@ use crate::hub::shortcut_for;
 use crate::music::state::{MusicState, PlayerState};
 use crate::status::status_label;
 use crate::store::settings::{Hotkeys, Rail, Status, ToolId, ToolPlacement};
-use crate::tools::{LinkItem, Surface, ToolState, tidy_separators, visible_tools};
+use crate::tools::{LinkItem, Surface, ToolState, TtState, tidy_separators, visible_tools};
 
 #[derive(Serialize, Clone, Debug, PartialEq, TS)]
 #[ts(export, export_to = "src/api/types.gen.ts")]
@@ -142,6 +142,24 @@ fn call_button(input: &RailInput) -> Button {
     }
 }
 
+/// The activity row: the running timer as caption and detail, else a prompt to log.
+fn activity_button(state: &ToolState) -> Button {
+    let detail = match (state.tt, &state.timer) {
+        (TtState::Available, Some(timer)) => format!("Now: {}", timer.text()),
+        (TtState::Available, None) => "Log what you just did".into(),
+        (TtState::NotRunning, _) => "TimeTracker isn't running".into(),
+        (TtState::Missing, _) => "TimeTracker isn't installed".into(),
+    };
+    Button {
+        caption: state
+            .timer
+            .as_ref()
+            .map(|timer| timer.project.clone())
+            .filter(|project| !project.is_empty()),
+        ..button("Log Activity…", Some(detail), "timetracker:show", false)
+    }
+}
+
 fn journal_button(state: &ToolState) -> Button {
     let progress = &state.journal;
     let has_questions = progress.total > 0;
@@ -226,12 +244,7 @@ fn tool_button(id: ToolId, input: &RailInput) -> Option<Button> {
             true,
         ),
         ToolId::Status => status_button(input),
-        ToolId::Activity => plain(
-            "Log Activity…",
-            "Log what you just did",
-            "activity:switch",
-            false,
-        ),
+        ToolId::Activity => activity_button(state),
         ToolId::Call => call_button(input),
         ToolId::Journal => journal_button(state),
         ToolId::Hub => plain(
@@ -339,7 +352,7 @@ mod tests {
     use crate::menu::model::CommandsStub;
     use crate::music::state::MusicListItem;
     use crate::tools::{
-        ContextItem, LauncherProject, Link, Progress, ProjectGroup, bare_state, fixture,
+        ContextItem, LauncherProject, Link, Progress, ProjectGroup, TimerView, bare_state, fixture,
     };
 
     fn music(player: PlayerState, entry: Option<&str>, track: Option<&str>) -> MusicState {
@@ -604,6 +617,45 @@ mod tests {
         let tool = Setup::new(&[ToolId::Context], state).tool(ToolId::Context);
         assert_eq!(tool.label, "Context");
         assert_eq!(tool.badge, None);
+    }
+
+    #[test]
+    fn the_activity_button_tells_about_the_timer_and_captions_its_project() {
+        let timer = |project: &str, note: &str| {
+            Some(TimerView {
+                project: project.into(),
+                note: note.into(),
+            })
+        };
+        for (tt, view, detail, caption) in [
+            (
+                TtState::Available,
+                timer("Oscorp", "note"),
+                "Now: Oscorp · note",
+                Some("Oscorp"),
+            ),
+            (
+                TtState::Available,
+                timer("Oscorp", ""),
+                "Now: Oscorp",
+                Some("Oscorp"),
+            ),
+            (TtState::Available, None, "Log what you just did", None),
+            (TtState::NotRunning, None, "TimeTracker isn't running", None),
+            (TtState::Missing, None, "TimeTracker isn't installed", None),
+        ] {
+            let state = ToolState {
+                tt,
+                timer: view.clone(),
+                ..fixture()
+            };
+            let tool = Setup::new(&[ToolId::Activity], state).tool(ToolId::Activity);
+            assert_eq!(tool.label, "Log Activity…");
+            assert_eq!(tool.detail.as_deref(), Some(detail), "{tt:?} {view:?}");
+            assert_eq!(tool.caption.as_deref(), caption, "{tt:?} {view:?}");
+            assert_eq!(tool.command, "timetracker:show");
+            assert_eq!(tool.menu, None);
+        }
     }
 
     #[test]

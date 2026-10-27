@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { ACCENTS } from "../api";
-import { AccentSwatches } from "./Accent";
+import { AccentDot, AccentSwatches } from "./Accent";
 
 const swatchNames = () => within(screen.getByRole("group", { name: "Accent" })).getAllByRole("button").map((b) => b.getAttribute("aria-label"));
 
@@ -36,5 +36,12 @@ describe("AccentSwatches", () => {
     render(<AccentSwatches value={null} onChange={onChange} />);
     await userEvent.click(screen.getByRole("button", { name: "Accent teal" }));
     expect(onChange).toHaveBeenCalledWith("teal");
+  });
+});
+
+describe("AccentDot", () => {
+  it.each(["blue", "no-such-accent"])("renders a dot hidden from assistive technology for the accent %s", (accent) => {
+    const { container } = render(<AccentDot accent={accent} shade={3} />);
+    expect(container.firstElementChild).toHaveAttribute("aria-hidden", "true");
   });
 });

@@ -1,5 +1,5 @@
 /** The core settings pages. Modules register their own pages from their install function. */
-import { BellRing, Bot, BookOpen, CalendarDays, FolderKanban, FolderOpen, Keyboard, Layers, LayoutList, Link2, ListChecks, MessageSquare, Music, NotebookPen, Palette, PanelRight, Power, Search, Ticket, Video, Workflow } from "lucide-react";
+import { BellRing, Bot, BookOpen, CalendarDays, FolderKanban, FolderOpen, Keyboard, Layers, LayoutList, Link2, ListChecks, MessageSquare, Music, NotebookPen, Palette, PanelRight, Power, Search, Ticket, Timer, Video, Workflow } from "lucide-react";
 import { TEXT_SIZES, type Scheme } from "../../api";
 import { schemeLook } from "../../lib/theme";
 import { registerSettingsPage, type SettingsPageProps } from "../../registry/settingsPages";
@@ -22,6 +22,7 @@ import { RoutinesPage } from "./RoutinesPage";
 import { SearchPage } from "./SearchPage";
 import { ShortcutsPage } from "./ShortcutsPage";
 import { SlackPage } from "./SlackPage";
+import { TimeTrackerPage } from "./TimeTrackerPage";
 import { ToolsPage } from "./ToolsPage";
 import { VaultPage } from "./VaultPage";
 import { WorkflowsPage } from "./WorkflowsPage";
@@ -127,6 +128,15 @@ export function registerCoreSettingsPages() {
     order: 8,
     intro: "Open Jira Issue (from the menu or its shortcut) opens an issue by number, key or link. In contexts with the Jira feature, it is also remembered for the suggestions.",
     Body: JiraPage,
+  });
+  registerSettingsPage({
+    id: "timetracker",
+    group: "Setup",
+    label: "TimeTracker",
+    icon: Timer,
+    order: 9,
+    intro: "Daybook shows what TimeTracker is timing. TimeTracker keeps all the time; Daybook never records any.",
+    Body: TimeTrackerPage,
   });
   registerSettingsPage({ id: "contexts", group: "Setup", label: "Contexts", icon: Layers, order: 10, intro: "Each context turns features on and off, has its colour and work hours, and can become current by itself when they start.", Body: ContextsPage });
   registerSettingsPage({ id: "projects", group: "Setup", label: "Projects", icon: FolderKanban, order: 20, intro: "What you work on: offered for meetings and the Projects tool in the contexts you pick.", Body: ProjectsPage });

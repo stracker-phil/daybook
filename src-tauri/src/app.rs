@@ -14,7 +14,8 @@ use crate::store::import::Import;
 use crate::{
     bus, calendar, calls, commands, contexts, deep_link, focus, http_api, ipc, jira, journal,
     launcher, links, menu, music, notify, presence, quick_notes, rail, remote, routines, scheduler,
-    search, shortcuts, slack, stage, status, status_rules, tray, vault, window, wizard,
+    search, shortcuts, slack, stage, status, status_rules, timetracker, tray, vault, window,
+    wizard,
 };
 
 const MAX_LOG_BYTES: u128 = 5 * 1024 * 1024;
@@ -36,6 +37,7 @@ pub fn start(
         .manage(presence::Presence::default())
         .manage(slack::Slack::default())
         .manage(music::Music::default())
+        .manage(timetracker::TimeTrackerService::default())
         .manage(rail::RailState::default())
         .manage(commands_bus())
         .manage(shortcuts::Pause::default())
@@ -80,6 +82,7 @@ pub fn start(
             calls::start(app.handle());
             slack::install(app.handle());
             music::install(app.handle());
+            timetracker::install(app.handle());
             status_rules::start(app.handle());
             notify::install(app.handle());
             window::panel::build(app.handle())?;
@@ -106,7 +109,10 @@ pub fn start(
                 code: None, api, ..
             } => api.prevent_exit(),
             RunEvent::Reopen { .. } => window::show_main(app),
-            RunEvent::Exit => stage::unpublish(app),
+            RunEvent::Exit => {
+                stage::unpublish(app);
+                timetracker::stop(app);
+            }
             _ => {}
         });
 }
@@ -126,6 +132,7 @@ fn commands_bus() -> bus::Commands {
     jira::register(&mut commands);
     launcher::register(&mut commands);
     music::register(&mut commands);
+    timetracker::register(&mut commands);
     rail::register(&mut commands);
     bus::register_aliases(&mut commands);
     bus::Commands(commands)

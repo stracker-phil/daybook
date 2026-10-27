@@ -220,6 +220,31 @@ mod config_normalize_port {
         assert!(
             !load(json!({ "projects": [{ "name": "Old", "active": false }] })).projects[0].active
         );
+        let linked = load(json!({
+            "projects": [{
+                "name": "Oscorp",
+                "timetrackerProjects": [
+                    { "id": "t1", "name": "Oscorp Core" },
+                    { "id": "t1", "name": "again" },
+                    { "name": "no id" },
+                    { "id": "t2" }
+                ]
+            }]
+        }));
+        assert_eq!(
+            linked.projects[0].timetracker_projects,
+            [
+                LinkedProject {
+                    id: "t1".into(),
+                    name: "Oscorp Core".into()
+                },
+                LinkedProject {
+                    id: "t2".into(),
+                    name: "t2".into()
+                }
+            ]
+        );
+        assert_eq!(linked.projects[0].launcher_projects, []);
         assert_eq!(
             load(json!({ "projects": [{ "name": "W", "contexts": ["work", "work", " "] }] }))
                 .projects[0]

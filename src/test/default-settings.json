@@ -175,7 +175,8 @@
       "active": true,
       "contexts": [],
       "keywords": [],
-      "launcherProjects": []
+      "launcherProjects": [],
+      "timetrackerProjects": []
     },
     {
       "name": "Oscorp",
@@ -183,7 +184,8 @@
       "active": true,
       "contexts": [],
       "keywords": [],
-      "launcherProjects": []
+      "launcherProjects": [],
+      "timetrackerProjects": []
     }
   ],
   "contexts": [
@@ -576,5 +578,9 @@
   "jira": {
     "baseUrl": "",
     "defaultPrefix": ""
+  },
+  "timetracker": {
+    "path": "",
+    "linked": false
   }
 }

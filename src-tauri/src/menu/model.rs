@@ -286,7 +286,10 @@ fn tool_entries(id: ToolId, input: &MenuInput) -> Vec<MenuEntry> {
             .map(|since| MenuEntry::Info(format!("In a meeting since {since}")))
             .collect(),
         ToolId::Journal => journal_entries(input),
-        ToolId::Hub => vec![command("Open Daybook", "hub:open", &hotkeys.hub)],
+        ToolId::Hub => vec![
+            command("Open Daybook", "hub:open", &hotkeys.hub),
+            plain("Open in TimeTracker", "timetracker:show"),
+        ],
         ToolId::Search => with_choices(
             "Search Vault",
             command("Search Vault…", "search:open", &hotkeys.search),
@@ -583,6 +586,7 @@ mod tests {
             labels(&menu),
             [
                 "Open Daybook",
+                "Open in TimeTracker",
                 "—",
                 "Open Today's Note",
                 "—",
@@ -593,6 +597,10 @@ mod tests {
         assert_eq!(
             menu[0],
             command_entry("Open Daybook", "hub:open", Some("cmd+d"))
+        );
+        assert_eq!(
+            menu[1],
+            command_entry("Open in TimeTracker", "timetracker:show", None)
         );
     }
 
@@ -1161,6 +1169,9 @@ mod tests {
     fn a_whole_menu_loses_what_the_commands_do_not_know() {
         let menu = menu_of(&bare_state(), &[ToolId::Hub]);
         let pruned = prune(menu, &stub(&["daily:open", "app:settings"], &[]));
-        assert_eq!(labels(&pruned), ["Open Daybook", "—", "Quit Daybook"]);
+        assert_eq!(
+            labels(&pruned),
+            ["Open Daybook", "Open in TimeTracker", "—", "Quit Daybook"]
+        );
     }
 }

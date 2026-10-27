@@ -12,7 +12,7 @@ import { ProjectsPage } from "./ProjectsPage";
 const mocked = vi.mocked(api, true);
 const save = vi.fn<(patch: Partial<Settings>) => void>();
 
-const project = (patch: Partial<Project>): Project => ({ name: "Project", slackEmoji: "", active: true, contexts: [], keywords: [], launcherProjects: [], ...patch });
+const project = (patch: Partial<Project>): Project => ({ name: "Project", slackEmoji: "", active: true, contexts: [], keywords: [], launcherProjects: [], timetrackerProjects: [], ...patch });
 const entry = (id: string, name: string, archived = false): LauncherProject => ({ id, name, archived });
 const answer = (projects: LauncherProject[], rest: Partial<LauncherProjects> = {}): LauncherProjects => ({ found: true, projects, error: null, ...rest });
 

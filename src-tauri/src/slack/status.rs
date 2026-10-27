@@ -2,7 +2,7 @@
 //! order). Pure: each change returns the step to take. A call's status is replaced afterwards only if
 //! Slack took it.
 
-use super::decide::{Decision, HeadsUp, Wanted, decide, with_project};
+use super::decide::{Decision, HeadsUp, Wanted, decide, focus_of, with_project};
 use crate::store::settings::{SlackStatus, Status, StatusMap};
 
 /// A status the owner picked.
@@ -145,6 +145,22 @@ impl Live {
         self.heads_up = next;
         if !changed || !setup.slack_on || self.call_on_screen() {
             Step::Idle
+        } else {
+            self.apply(setup)
+        }
+    }
+
+    /// The timer's project changed; Slack hears of it only while Working and when its text changes
+    /// (Internal reads as none).
+    pub fn project_changed(&mut self, project: Option<String>, setup: &Setup) -> Step {
+        let current = self.picked(setup);
+        let same_focus = focus_of(current.project.as_deref()) == focus_of(project.as_deref());
+        let working = current.status == Status::Working;
+        self.picked = Some(Picked { project, ..current });
+        if same_focus || !setup.slack_on || !working {
+            Step::Idle
+        } else if self.call_on_screen() {
+            self.kept_for_later(setup)
         } else {
             self.apply(setup)
         }
@@ -437,6 +453,98 @@ mod tests {
         live.call_changed(Some(other), &setup);
         live.call_sent(&call());
         assert_eq!(live.call_changed(None, &setup), Step::Idle);
+    }
+
+    fn working_on(project: Option<&str>) -> Picked {
+        Picked {
+            status: Status::Working,
+            note: String::new(),
+            project: project.map(String::from),
+        }
+    }
+
+    fn working_named(world: &World, text: &str) -> Step {
+        status_step(
+            &SlackStatus {
+                text: text.into(),
+                ..world.statuses.working.clone()
+            },
+            "",
+        )
+    }
+
+    #[test]
+    fn a_project_after_internal_is_sent_while_working() {
+        let world = World::new();
+        let setup = world.setup(true);
+        let mut live = Live::default();
+        live.status_picked(working_on(Some("Internal")), &setup);
+
+        assert_eq!(
+            live.project_changed(Some("Oscorp".into()), &setup),
+            working_named(&world, "9:00 - 18:00 | Oscorp")
+        );
+    }
+
+    #[test]
+    fn the_same_project_again_sends_nothing() {
+        let world = World::new();
+        let setup = world.setup(true);
+        let mut live = Live::default();
+        live.status_picked(working_on(Some("Oscorp")), &setup);
+
+        assert_eq!(
+            live.project_changed(Some("Oscorp".into()), &setup),
+            Step::Idle
+        );
+    }
+
+    #[test]
+    fn a_project_change_sends_nothing_outside_working_or_without_slack() {
+        let world = World::new();
+        let mut on_break = Live::default();
+        on_break.status_picked(picked(Status::Break, ""), &world.setup(true));
+        assert_eq!(
+            on_break.project_changed(Some("Oscorp".into()), &world.setup(true)),
+            Step::Idle
+        );
+
+        let mut no_slack = Live::default();
+        no_slack.status_picked(working_on(None), &world.setup(false));
+        assert_eq!(
+            no_slack.project_changed(Some("Oscorp".into()), &world.setup(false)),
+            Step::Idle
+        );
+    }
+
+    #[test]
+    fn a_project_change_during_a_shown_call_waits_until_the_call_ends() {
+        let world = World::new();
+        let setup = world.setup(true);
+        let mut live = Live::default();
+        live.status_picked(working_on(None), &setup);
+        live.call_changed(Some(call()), &setup);
+        live.call_sent(&call());
+
+        assert_eq!(
+            live.project_changed(Some("Oscorp".into()), &setup),
+            Step::Skip {
+                mapping: SlackStatus {
+                    text: "9:00 - 18:00 | Oscorp".into(),
+                    ..world.statuses.working.clone()
+                },
+                note: String::new(),
+                reason: KEPT_FOR_LATER,
+            }
+        );
+        assert_eq!(
+            live.call_changed(None, &setup),
+            working_named(&world, "9:00 - 18:00 | Oscorp")
+        );
+        assert_eq!(
+            live.status_picked(working_on(None), &setup),
+            working_named(&world, "9:00 - 18:00")
+        );
     }
 
     #[test]

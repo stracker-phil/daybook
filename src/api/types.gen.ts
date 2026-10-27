@@ -303,7 +303,7 @@ export type EndOfDayCheck = { reminder: string, question: string,
  */
 url: string, };
 
-export type ErrorKind = "io" | "invalid_input" | "not_found" | "network" | "cancelled";
+export type ErrorKind = "io" | "invalid_input" | "not_found" | "network" | "cancelled" | "timetracker_not_running" | "timetracker_refused" | "timetracker_missing";
 
 export type EventRow = { key: string, 
 /**
@@ -448,7 +448,11 @@ notes: Array<NoteSectionRef>,
 /**
  * Every open todo in the daily notes, the same on every day.
  */
-todos: Array<TodoGroup>, };
+todos: Array<TodoGroup>, 
+/**
+ * Shows the day in TimeTracker.
+ */
+timetracker: TimeTrackerLink, };
 
 /**
  * "Open Jira Issue" opens `base_url` + the key; a bare number gets `default_prefix`.
@@ -541,7 +545,7 @@ export type LauncherRow = { id: string, name: string, command: string, };
 export type LinkItem = { title: string, target: string, command: string, };
 
 /**
- * A Project Launcher project: its id opens it, the name is the one it had when linked.
+ * A Project Launcher or TimeTracker project: the id, and the name it had when linked.
  */
 export type LinkedProject = { id: string, name: string, };
 
@@ -741,7 +745,11 @@ keywords: Array<string>,
 /**
  * Opened from the Projects tool.
  */
-launcherProjects: Array<LinkedProject>, };
+launcherProjects: Array<LinkedProject>, 
+/**
+ * TimeTracker's projects of this one: its timer on any of them means this project.
+ */
+timetrackerProjects: Array<LinkedProject>, };
 
 /**
  * A project and its Launcher projects, for the `projects` overlay.
@@ -1101,7 +1109,7 @@ music: Array<MusicEntry>, search: Search, journal: Array<JournalGroup>, routines
 /**
  * In priority order; every routine and journal group has exactly one.
  */
-reminders: Array<ReminderRule>, rail: Rail, tools: Array<ToolPlacement>, hotkeys: Hotkeys, api: Api, jira: Jira, };
+reminders: Array<ReminderRule>, rail: Rail, tools: Array<ToolPlacement>, hotkeys: Hotkeys, api: Api, jira: Jira, timetracker: TimeTrackerSettings, };
 
 export type ShortcutOverview = { 
 /**
@@ -1362,6 +1370,43 @@ export type TextPart = { text: string, hit: boolean, };
 export type TextSize = "small" | "medium" | "large";
 
 /**
+ * Settings → TimeTracker.
+ */
+export type TimeTrackerInfo = { 
+/**
+ * The tool Daybook runs.
+ */
+path: string, 
+/**
+ * The tool's path when Settings leaves it empty.
+ */
+defaultPath: string, state: TtState, 
+/**
+ * From `status`, while it runs.
+ */
+version: string | null, };
+
+/**
+ * The Daybook window's way to the shown day in TimeTracker.
+ */
+export type TimeTrackerLink = { command: string, label: string, };
+
+/**
+ * The picker's projects; the archived ones too, so a linked one still has its name.
+ */
+export type TimeTrackerProjects = { state: TtState, projects: Array<TtProject>, };
+
+export type TimeTrackerSettings = { 
+/**
+ * The `timetracker` command; empty: `~/.local/bin/timetracker`.
+ */
+path: string, 
+/**
+ * Projects were linked to TimeTracker's by name once; it doesn't happen again.
+ */
+linked: boolean, };
+
+/**
  * A daily window from `from` to `to` (`HH:MM`; empty: the end of the day; before `from`: past
  * midnight).
  */
@@ -1395,6 +1440,36 @@ label: string, at: number,
  * Every hour has a tick; labels skip hours so they never crowd.
  */
 labeled: boolean, };
+
+/**
+ * TimeTracker's state and its timer; payload of `timer_changed`.
+ */
+export type TimerChanged = { tt: TtState, 
+/**
+ * Only while TimeTracker is available.
+ */
+timer: TimerState | null, };
+
+/**
+ * The running timer; TimeTracker has none while `running` is false.
+ */
+export type TimerState = { recordingId: string, 
+/**
+ * TimeTracker's project id.
+ */
+projectId: string, 
+/**
+ * TimeTracker's project name.
+ */
+project: string, client: string | null, tagId: string | null, tag: string | null, 
+/**
+ * `None` when the timer has no note.
+ */
+note: string | null, 
+/**
+ * Ms since the epoch: the open span's start.
+ */
+startedAt: number, };
 
 /**
  * When a routine or journal group is due, and when it opens by itself.
@@ -1450,6 +1525,24 @@ export type TopicRow = { topic: NoteSectionRef,
  * Not in the note yet; opening it adds it.
  */
 create: boolean, };
+
+/**
+ * A TimeTracker project from `projects --archived --json`.
+ */
+export type TtProject = { id: string, name: string, clientId: string | null, client: string | null, 
+/**
+ * An accent name, e.g. `blue`.
+ */
+color: string, 
+/**
+ * 0 to 8, darkest first.
+ */
+shade: number, billable: boolean, archived: boolean, };
+
+/**
+ * Whether Daybook can reach TimeTracker.
+ */
+export type TtState = "available" | "notRunning" | "missing";
 
 export type UiState = { sidebarHidden: boolean, 
 /**

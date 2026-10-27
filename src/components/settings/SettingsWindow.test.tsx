@@ -76,6 +76,7 @@ describe("SettingsWindow", () => {
         "Calendar",
         "Slack",
         "Jira",
+        "TimeTracker",
         "Contexts",
         "Projects",
         "Daily Note",
@@ -100,7 +101,7 @@ describe("SettingsWindow", () => {
     it("groups them under Setup, Obsidian, Workflows and System, in that order", () => {
       renderWindow();
       const text = nav().textContent.replace(/\s+/g, "");
-      expect(text).toBe("SetupVaultCalendarSlackJiraContextsProjectsObsidianDailyNoteRoutinesJournalSearchWorkflowsWorkflowsRemindersCallsLinksMusicDemoflowSystemGeneralToolsRailAutomationShortcutsAppearance");
+      expect(text).toBe("SetupVaultCalendarSlackJiraTimeTrackerContextsProjectsObsidianDailyNoteRoutinesJournalSearchWorkflowsWorkflowsRemindersCallsLinksMusicDemoflowSystemGeneralToolsRailAutomationShortcutsAppearance");
     });
   });
 

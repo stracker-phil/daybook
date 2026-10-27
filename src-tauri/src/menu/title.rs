@@ -1,10 +1,11 @@
-//! The menu-bar item's title: the context's label and the status. Pure.
+//! The menu-bar item's title: the context's label and the status. TimeTracker's own item tells what is
+//! timed, so Daybook adds text only when TimeTracker has nothing to say. Pure.
 
 use chrono::NaiveDateTime;
 
 use crate::clock::minutes_since;
 use crate::store::settings::Feature;
-use crate::tools::{Status, ToolState};
+use crate::tools::{Status, ToolState, TtState};
 
 /// `12m`, `1h 5m`
 fn duration(minutes: u32) -> String {
@@ -15,14 +16,23 @@ fn duration(minutes: u32) -> String {
     }
 }
 
-/// What the status adds to the title: `Working`, `Break · 12m`; nothing while Off or before the
+/// What Working adds: TimeTracker's own item names a running timer, so only its absence is said.
+fn working_title(state: &ToolState) -> &'static str {
+    match (state.tt, &state.timer) {
+        (TtState::Available, Some(_)) => "",
+        (TtState::Available, None) => "No timer",
+        (TtState::NotRunning | TtState::Missing, _) => "Working",
+    }
+}
+
+/// What the status adds to the title: `No timer`, `Break · 12m`; nothing while Off or before the
 /// day's first status.
 fn status_title(state: &ToolState, now: NaiveDateTime) -> String {
     if !state.has_feature(Feature::Status) {
         return String::new();
     }
     match state.status {
-        Some(Status::Working) => "Working".into(),
+        Some(Status::Working) => working_title(state).into(),
         Some(Status::Break) => minutes_since(state.status_since.as_deref(), now).map_or_else(
             || "Break".into(),
             |minutes| format!("Break · {}", duration(minutes)),
@@ -52,7 +62,7 @@ mod tests {
     use chrono::NaiveDate;
 
     use super::*;
-    use crate::tools::{ContextItem, bare_state};
+    use crate::tools::{ContextItem, TimerView, bare_state};
 
     fn relabelled(label: &str) -> ToolState {
         ToolState {
@@ -164,6 +174,61 @@ mod tests {
                 "{status:?} since {since:?}"
             );
         }
+    }
+
+    fn timed(tt: TtState, timer: Option<&str>) -> ToolState {
+        ToolState {
+            tt,
+            timer: timer.map(|project| TimerView {
+                project: project.into(),
+                note: String::new(),
+            }),
+            ..bare_state()
+        }
+    }
+
+    #[test]
+    fn working_tells_about_the_timer_only_when_timetracker_has_nothing_to_say() {
+        for (tt, timer, expected) in [
+            (TtState::Available, Some("Oscorp"), "[W]"),
+            (TtState::Available, None, "[W] No timer"),
+            (TtState::NotRunning, None, "[W] Working"),
+            (TtState::Missing, None, "[W] Working"),
+            (TtState::NotRunning, Some("Oscorp"), "[W] Working"),
+            (TtState::Missing, Some("Oscorp"), "[W] Working"),
+        ] {
+            assert_eq!(
+                menu_bar_title(&timed(tt, timer), at(10, 0)),
+                expected,
+                "{tt:?} {timer:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn break_and_off_ignore_the_timer() {
+        for (status, expected) in [(Status::Break, "[W] Break"), (Status::Off, "[W]")] {
+            for timer in [None, Some("Oscorp")] {
+                let state = ToolState {
+                    status: Some(status),
+                    ..timed(TtState::Available, timer)
+                };
+                assert_eq!(
+                    menu_bar_title(&state, at(10, 0)),
+                    expected,
+                    "{status:?} {timer:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn no_timer_stands_alone_when_the_label_is_empty() {
+        let state = ToolState {
+            tt: TtState::Available,
+            ..relabelled(" ")
+        };
+        assert_eq!(menu_bar_title(&state, at(10, 0)), "No timer");
     }
 
     #[test]

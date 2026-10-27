@@ -21,6 +21,12 @@ pub enum AppError {
     Network(String),
     #[error("Cancelled")]
     Cancelled,
+    #[error("{0}")]
+    TimeTrackerNotRunning(String),
+    #[error("{0}")]
+    TimeTrackerRefused(String),
+    #[error("{0}")]
+    TimeTrackerMissing(String),
 }
 
 impl AppError {
@@ -31,6 +37,9 @@ impl AppError {
             AppError::NotFound(_) => ErrorKind::NotFound,
             AppError::Network(_) => ErrorKind::Network,
             AppError::Cancelled => ErrorKind::Cancelled,
+            AppError::TimeTrackerNotRunning(_) => ErrorKind::TimetrackerNotRunning,
+            AppError::TimeTrackerRefused(_) => ErrorKind::TimetrackerRefused,
+            AppError::TimeTrackerMissing(_) => ErrorKind::TimetrackerMissing,
         }
     }
 
@@ -85,6 +94,9 @@ pub enum ErrorKind {
     NotFound,
     Network,
     Cancelled,
+    TimetrackerNotRunning,
+    TimetrackerRefused,
+    TimetrackerMissing,
 }
 
 impl From<std::io::Error> for AppError {

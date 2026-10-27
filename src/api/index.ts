@@ -52,6 +52,9 @@ import type {
   Status,
   ToolId,
   StatusChanged,
+  TimeTrackerInfo,
+  TimeTrackerProjects,
+  TimerChanged,
   UiState,
   VaultInfo,
 } from "./types";
@@ -189,6 +192,12 @@ export const api = {
   jiraSuggestions: () => invoke<string[]>("jira_suggestions"),
   /** Project Launcher's projects (cached for a minute unless `fresh`); asking may start it. */
   launcherProjects: (fresh: boolean) => invoke<LauncherProjects>("launcher_projects", { fresh }),
+  /** Settings → TimeTracker: the command's path, whether TimeTracker can be reached, and its version. */
+  timetrackerInfo: () => invoke<TimeTrackerInfo>("timetracker_info"),
+  /** TimeTracker's projects, archived ones too, and its state; the list read last unless `fresh`. */
+  timetrackerProjects: (fresh: boolean) => invoke<TimeTrackerProjects>("timetracker_projects", { fresh }),
+  /** Brings TimeTracker to the front, starting it if needed. */
+  timetrackerFocus: () => invoke<void>("timetracker_focus"),
   /** Reads Music; the entries and what Music plays now. Each music action answers with the new state. */
   musicState: () => invoke<MusicState>("music_state"),
   /** Plays an entry of Settings → Music. */
@@ -249,6 +258,8 @@ export const api = {
   onMusicChanged: (handler: (music: MusicState) => void): Promise<UnlistenFn> => listen<MusicState>("music_changed", (e) => handler(e.payload)),
   /** What Slack shows, or the Slack connection, changed. */
   onSlackChanged: (handler: () => void): Promise<UnlistenFn> => listen("slack_changed", handler),
+  /** TimeTracker started or stopped a timer, or started, quit or went missing. */
+  onTimerChanged: (handler: (change: TimerChanged) => void): Promise<UnlistenFn> => listen<TimerChanged>("timer_changed", (e) => handler(e.payload)),
   /** Settings were saved, from any window. */
   onSettingsChanged: (handler: (settings: Settings) => void): Promise<UnlistenFn> => listen<Settings>("settings_changed", (e) => handler(e.payload)),
   /** Shortcut overrides were saved, from any window. */
@@ -292,6 +303,9 @@ const ERROR_KINDS: Record<ErrorKind, true> = {
   not_found: true,
   network: true,
   cancelled: true,
+  timetracker_not_running: true,
+  timetracker_refused: true,
+  timetracker_missing: true,
 };
 
 export function toAppError(e: unknown): AppError {
