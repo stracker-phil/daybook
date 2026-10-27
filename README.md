@@ -23,18 +23,35 @@ on macOS on Apple Silicon only.
 
 ## CLI
 
-`daybook` without arguments starts Daybook or brings it to the front; every subcommand asks the running app.
+`daybook` without arguments starts Daybook or brings it to the front. Every other word asks the running app,
+which knows all its commands; `--json` works everywhere, `--help` anywhere prints help and runs nothing.
 
 | Command | Does |
 |---|---|
 | `daybook --hidden` | start without opening the window (launch at login uses it) |
-| `daybook show` | show the window without taking focus, starting Daybook if needed |
-| `daybook focus` | show the window and bring it to the front, starting Daybook if needed |
-| `daybook hide` | hide the window; Daybook keeps running in the menu bar |
-| `daybook quit` | quit Daybook |
-| `daybook status` | the version and whether the window shows; `--json` prints the reply as JSON |
+| `daybook show` / `daybook focus` | show the window without taking focus / bring it to the front; both start Daybook if needed |
+| `daybook hide` / `daybook quit` | hide the window / quit Daybook |
+| `daybook status` | the version and whether the window shows (`--json` for scripts) |
+| `daybook status <working\|break\|off> [note]` | set the status, with an optional note for Slack |
+| `daybook slack <status> [note]` | set only the Slack status as that status would |
+| `daybook state` | context, status, call, running event, music and waiting note changes as JSON |
+| `daybook help [group]`, `daybook commands` | the commands, by group |
+| `daybook <command words>` | any command by the words of its id: `daybook journal open`, `daybook music play Focus` |
 
-`daybook://show` opens the window from a link.
+The other words need Daybook running ("Daybook isn't running", exit 2 otherwise).
+
+## Links and the HTTP API
+
+`daybook://<action>?…` runs the same actions from a link: `daybook://show`, `daybook://status?status=break&note=Lunch`,
+`daybook://command?id=journal:open`. A link that fails shows a notification.
+
+With Settings → Automation → HTTP API on, `http://127.0.0.1:27180/v1/<action>` (`state`, `show`, `status`, `slack`,
+`command`) answers `GET` and `POST` (JSON or form) with the token from Settings:
+
+```sh
+curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:27180/v1/state
+curl -H "Authorization: Bearer $TOKEN" -d status=break -d note=Lunch http://127.0.0.1:27180/v1/status
+```
 
 ## Docs
 

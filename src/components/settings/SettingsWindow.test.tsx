@@ -91,6 +91,7 @@ describe("SettingsWindow", () => {
         "General",
         "Tools",
         "Rail",
+        "Automation",
         "Shortcuts",
         "Appearance",
       ]);
@@ -99,7 +100,7 @@ describe("SettingsWindow", () => {
     it("groups them under Setup, Obsidian, Workflows and System, in that order", () => {
       renderWindow();
       const text = nav().textContent.replace(/\s+/g, "");
-      expect(text).toBe("SetupVaultCalendarSlackJiraContextsProjectsObsidianDailyNoteRoutinesJournalSearchWorkflowsWorkflowsRemindersCallsLinksMusicDemoflowSystemGeneralToolsRailShortcutsAppearance");
+      expect(text).toBe("SetupVaultCalendarSlackJiraContextsProjectsObsidianDailyNoteRoutinesJournalSearchWorkflowsWorkflowsRemindersCallsLinksMusicDemoflowSystemGeneralToolsRailAutomationShortcutsAppearance");
     });
   });
 

@@ -198,42 +198,25 @@ one; every subcommand is a second process that sends one request over the socket
 
 ### Command tree
 
-`cli/mod.rs` (clap derive; `Cli`, `Command`, `parse` and `message`). Flags: `--hidden` (start without the
-window; a running instance stays as it is), `--log-level <error|warn|info|debug|trace>` (`LogLevel`, for this
-run), `--json` (global: replies as JSON), `--help` (with examples, `EXAMPLES`), `--version`.
+`cli/mod.rs` (clap derive) keeps only the flags: `--hidden` (start without the window), `--log-level
+<error|warn|info|debug|trace>`, `--json`, `-h/--help`, `--version`. Everything else is a list of words
+(`CliOutcome::Words { words, json }`) that the running app parses, because only it knows every command and its
+choices: the binary sends `IpcMessage::Cli { words, json }` (`instance::ask_words`, 30 s) and prints the
+`CliReply { code, stdout, stderr }` it gets back. A lone `show` or `focus` stays `Remote { starts_app: true }` and
+starts Daybook when none runs; any other word without a running app prints "Daybook isn't running" and exits 2,
+and `help` then prints the own words offline (`help_without_app`). The grammar, the help and the action words are
+in [automation.md](automation.md#the-cli).
 
-| Subcommand | `IpcMessage` | Prints |
-|---|---|---|
-| `show` | `show { focus: false }`; starts the app when none runs | – |
-| `focus` | `activate { hidden: false }`; starts the app when none runs | – |
-| `hide`, `quit` | `hide`, `quit` | – |
-| `status` | `status` | two lines, below |
-
-`parse(args) -> Result<CliOutcome, CliError>` is pure: `CliOutcome` is `Run { hidden, log_level }`,
-`Exit { message }` (help, version) or `Remote { message, json, starts_app }`. `CliError.in_app` is true only
-when every argument is a flag or a flag's value (`names_command`): a plain launch with bad flags also shows the
-error in the app, which may have been opened from Finder. An error with a word in it, a subcommand known or
-mistyped (`daybook stauts`), only prints and exits 2 without starting the app.
-
-`cli/reply.rs`: `render(message, result)` is the human text, `None` for subcommands that print nothing; a
-reply of the wrong shape is `The running Daybook sent an unexpected reply: …`. `status` prints one fact per
-line, so scripts can grep:
+`cli/reply.rs`: `CliReply::print`, `json`, `usage` (exit 2), `failed` (exit 1) and `action_reply`; `report_text`
+is the human text of `daybook status` (one fact per line, so scripts can grep):
 
 ```
 Daybook 0.1.0
 window: hidden          (window: visible)
 ```
 
-`--json` prints the reply's `result` instead (`status --json` is a `StatusReport { version, windowVisible }`;
-a `null` result prints nothing); an error prints `{ "kind", "message" }` (`IpcError`) on stdout, else the
-message on stderr.
-
-**Exit codes:** 0 ok; 1 the app answered with an error; 2 bad arguments, Daybook is not running, or the
-running app could not be reached.
-
-**Adding a subcommand:** a `Command` variant and its arm in `cli::message` (and in `starts_app` if it may
-start the app), an `IpcMessage` variant with its `kind`, its arm in `remote::handle`, a `reply::render` arm
-when it prints something, and parser tests.
+**Exit codes:** 0 ok; 1 the app answered with an error; 2 bad words, Daybook is not running, or the running app
+could not be reached.
 
 ### Socket and protocol
 
@@ -259,7 +242,7 @@ when it prints something, and parser tests.
   missing or refused: start the app), `Rejected` (no `ok`) or an error such as a timeout (print and exit 2,
   so a hung instance never leads to a second one).
 - **Messages** (`IpcMessage`, tagged by `type`, camelCase): `activate { hidden }`, `error { message }`,
-  `show { focus }`, `hide`, `quit`, `status`, and `eval { js }` (debug builds only, sent by
+  `show { focus }`, `hide`, `quit`, `status`, `cli { words, json }` (30 s), and `eval { js }` (debug builds only, sent by
   `scripts/dev/js.sh`). `IpcMessage::kind` names each for the log.
 - **Stale sockets:** `bind` removes a leftover socket only when connecting to it is refused; it refuses to
   bind while a listener is alive.
@@ -276,6 +259,7 @@ Every message is logged by type (`IpcMessage::kind`, never the contents).
 | `hide` | `window::hide_main` | `null` |
 | `quit` | `app.exit(0)` 200 ms after replying (`QUIT_DELAY`), so the reply reaches the sender | `null` |
 | `status` | `remote::status_report` | `StatusReport` |
+| `cli { words, json }` | `automation::cli::answer`: parses the words and runs the action or command | `CliReply` |
 | `eval { js }` | `dev::eval` ([Dev hooks](#dev-hooks)) | `null` |
 
 A message that starts the app is pushed to `LaunchQueue` in `setup` instead, so `show` and `focus` reach the
@@ -295,17 +279,12 @@ unknown id is logged at debug. `RemoteRequest` (tagged by `type`) has no variant
 
 ### Deep links
 
-`deep_link.rs`: `listen` registers `on_open_url` for `daybook://` (scheme in `tauri.conf.json`
-`plugins.deep-link`). macOS delivers a link to the running app, or starts the app and then delivers it.
-`link_message(url)` maps a link to a message:
-
-| Link | Message |
-|---|---|
-| `daybook://show` (a trailing `/` and a query are ignored) | `show { focus: true }` |
-
-Every link goes through `launch::queue`, so a link that starts the app waits for the page. A link that does
-not parse or names nothing becomes `IpcMessage::Error` (`A daybook:// link failed: Daybook has no such
-link`): the window shows a toast.
+`deep_link.rs`: `listen` registers `on_open_url` for `daybook://` (`LINK_SCHEME`; debug builds claim
+`daybook-debug://` in `tauri.debug.conf.json`, so the two builds never take each other's links). `parse_link(url)`
+(pure) reads `daybook://<action>?<params>` (no host means `show`; a path is an error; a repeated parameter's last
+value wins) and runs `automation::run`. Links wait in `PendingLinks` until the page has loaded
+(`page_ready`, called from `take_launch_events`). A failure shows a notification ("Daybook couldn’t do that",
+`<action>: <message>`); a link never opens a window to report an error ([automation.md](automation.md#links)).
 
 ## Contexts and projects
 

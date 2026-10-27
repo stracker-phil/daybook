@@ -1,4 +1,5 @@
 mod app;
+pub mod automation;
 pub mod autostart;
 pub mod bus;
 pub mod calendar;
@@ -15,6 +16,7 @@ pub mod events;
 pub mod focus;
 mod handlers;
 pub mod help;
+pub mod http_api;
 pub mod hub;
 mod instance;
 pub mod ipc;
@@ -77,6 +79,12 @@ pub const APP_NAME: &str = if cfg!(debug_assertions) {
     "Daybook"
 };
 const SOCKET_NAME: &str = "daybook.sock";
+/// Debug builds claim their own scheme (`tauri.debug.conf.json`), so links reach the installed app.
+pub const LINK_SCHEME: &str = if cfg!(debug_assertions) {
+    "daybook-debug"
+} else {
+    "daybook"
+};
 
 /// Same directory Tauri resolves as `app_config_dir`, but available before the app starts.
 fn config_dir() -> PathBuf {
@@ -108,18 +116,27 @@ pub fn run() {
         Ok(CliOutcome::Run { hidden, log_level }) => {
             (IpcMessage::Activate { hidden }, log_level, hidden)
         }
-        Ok(CliOutcome::Remote {
-            message,
-            json,
-            starts_app,
-        }) => {
+        Ok(CliOutcome::Remote { message, json }) => {
             if let Some(code) = instance::ask(&socket, &message, json) {
                 std::process::exit(code);
             }
-            if !starts_app {
-                fail("Daybook is not running");
-            }
             (message, None, false)
+        }
+        Ok(CliOutcome::Ask { message, json }) => match instance::ask(&socket, &message, json) {
+            Some(code) => std::process::exit(code),
+            None => fail("Daybook isn't running"),
+        },
+        Ok(CliOutcome::Words { words, json }) => {
+            if let Some(code) = instance::ask_words(&socket, words.clone(), json) {
+                std::process::exit(code);
+            }
+            match cli::help_without_app(&words) {
+                Some(text) => {
+                    println!("{text}");
+                    std::process::exit(0);
+                }
+                None => fail("Daybook isn't running"),
+            }
         }
         Err(CliError {
             message,
@@ -166,6 +183,39 @@ mod tests {
             &release
         };
         assert_eq!(expected["identifier"], serde_json::json!(IDENTIFIER));
+    }
+
+    #[test]
+    fn link_scheme_matches_the_deep_link_scheme_in_the_tauri_config() {
+        let release: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        let debug: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.debug.conf.json")).unwrap();
+        let expected = if cfg!(debug_assertions) {
+            &debug
+        } else {
+            &release
+        };
+        assert_eq!(
+            expected["plugins"]["deep-link"]["desktop"]["schemes"],
+            serde_json::json!([LINK_SCHEME])
+        );
+    }
+
+    #[test]
+    fn the_debug_link_scheme_differs_from_the_release_one() {
+        let release: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        let debug: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.debug.conf.json")).unwrap();
+        assert_eq!(
+            release["plugins"]["deep-link"]["desktop"]["schemes"],
+            serde_json::json!(["daybook"])
+        );
+        assert_eq!(
+            debug["plugins"]["deep-link"]["desktop"]["schemes"],
+            serde_json::json!(["daybook-debug"])
+        );
     }
 
     #[test]

@@ -88,6 +88,9 @@ fn settings_saved(app: &AppHandle, previous: &Settings, saved: &Settings) {
         shortcuts::apply(app);
     }
     rail::settings_changed(app, saved);
+    if previous.api != saved.api {
+        crate::http_api::restart(app);
+    }
     tray::refresh(app);
     if let Err(e) = app.emit(SETTINGS_CHANGED_EVENT, saved) {
         log::warn!("Couldn't announce the saved settings: {e}");
@@ -176,8 +179,10 @@ pub fn reveal_path(app: AppHandle, path: String) -> AppResult<()> {
         .map_err(|e| AppError::Io(e.to_string()))
 }
 
+/// The page listens: it takes what waited for it, and links waiting for it run.
 #[tauri::command]
-pub fn take_launch_events(state: State<'_, AppState>) -> Vec<LaunchEvent> {
+pub fn take_launch_events(app: AppHandle, state: State<'_, AppState>) -> Vec<LaunchEvent> {
+    crate::deep_link::page_ready(&app);
     state.launches.take_events()
 }
 

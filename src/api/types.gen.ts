@@ -7,13 +7,18 @@ export type AnswerKind = "list" | "task" | "text";
  */
 export type Api = { enabled: boolean, port: number, 
 /**
- * Required by every request; generated on first start.
- */
-token: string, 
-/**
  * The Stage hook and its discovery file.
  */
 presentations: boolean, };
+
+/**
+ * The server as Settings → Automation shows it.
+ */
+export type ApiStatus = { running: boolean, 
+/**
+ * Why it doesn't listen although it is on.
+ */
+error: string | null, port: number, };
 
 /**
  * The JSON shape of an `AppError`.
@@ -44,6 +49,19 @@ genre: string, };
  * Artists by name, best match first, and the store they were found in.
  */
 export type ArtistSearch = { storefront: string, artists: Array<ArtistMatch>, };
+
+/**
+ * Settings → Automation.
+ */
+export type AutomationInfo = { cli: CliInfo, api: ApiStatus, token: string, 
+/**
+ * `http://127.0.0.1:<port>/v1`
+ */
+baseUrl: string, 
+/**
+ * Requests to copy, with `<token>` for the token.
+ */
+examples: Array<string>, };
 
 /**
  * An app trigger Settings can add again, with what its built-in check looks for.
@@ -100,6 +118,15 @@ export type Choice = { "kind": "item", label: string, command: string, detail: s
 checked: boolean | null, } | { "kind": "heading", label: string, } | { "kind": "separator" } | { "kind": "steps", label: string, steps: Array<ChoiceStep>, };
 
 export type ChoiceStep = { label: string, command: string, active: boolean, };
+
+/**
+ * The installed `daybook` command (`scripts/install.sh`).
+ */
+export type CliInfo = { path: string, 
+/**
+ * It runs this app.
+ */
+linked: boolean, };
 
 export type Context = { id: string, 
 /**

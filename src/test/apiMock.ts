@@ -71,6 +71,17 @@ export function createApiMock(): typeof realApi {
     slackConnect: vi.fn().mockResolvedValue({ team: "Acme", user: "pat" }),
     slackTest: vi.fn().mockResolvedValue({ team: "Acme", user: "pat" }),
     slackDisconnect: vi.fn().mockResolvedValue(undefined),
+    automationInfo: vi.fn().mockResolvedValue({
+      cli: { path: "/Users/pat/.local/bin/daybook", linked: true },
+      api: { running: false, error: null, port: 27180 },
+      token: "secret-token",
+      baseUrl: "http://127.0.0.1:27180/v1",
+      examples: [
+        'curl -s -H "Authorization: Bearer <token>" http://127.0.0.1:27180/v1/state',
+        'curl -s -H "Authorization: Bearer <token>" -d status=break -d note=Lunch http://127.0.0.1:27180/v1/status',
+      ],
+    }),
+    automationNewToken: vi.fn().mockResolvedValue("new-token"),
     statusSet: vi.fn().mockResolvedValue(undefined),
     focusInfo: vi.fn().mockResolvedValue({ body: "", projects: [], slack: "none", channel: "" }),
     focusSave: vi.fn().mockResolvedValue(undefined),

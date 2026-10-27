@@ -32,6 +32,7 @@ use self::sender::{Outcome, SendError, Sender};
 use self::status::{Live, Picked, Setup, Step};
 use self::token::Tokens;
 use crate::calls::{self, CallEvent};
+use crate::error::{AppError, AppResult};
 use crate::events::{CONTEXT_CHANGED_EVENT, SLACK_CHANGED_EVENT, STATUS_CHANGED_EVENT};
 use crate::lock::MutexExt;
 use crate::secrets::Secret;
@@ -189,6 +190,26 @@ fn report(app: &AppHandle, outcome: Outcome<Applied>, described: &str, call: Opt
         Outcome::NotConnected => log::info!("Slack status {described}: Slack isn't connected"),
         Outcome::Failed(_) => {}
     }
+}
+
+/// Sets a Slack status right away and waits for Slack, outside the contexts and workflows; a pending
+/// send and its retry are dropped.
+pub async fn set_now(app: &AppHandle, mapping: &SlackStatus, note: &str) -> AppResult<()> {
+    let token = token(app)
+        .await
+        .ok_or_else(|| AppError::InvalidInput("Connect Slack in Settings → Slack first.".into()))?;
+    slack(app).sender.supersede();
+    let applied = slack(app)
+        .api
+        .apply(&token, mapping, note, 0)
+        .await
+        .map_err(|e| AppError::Network(e.to_string()))?;
+    log::info!("Slack status set: {}", describe_status(mapping, note));
+    if let Some(problem) = applied.problem {
+        log::info!("{problem}");
+    }
+    record_shown(app, applied);
+    Ok(())
 }
 
 fn record_shown(app: &AppHandle, applied: Applied) {

@@ -198,7 +198,10 @@ impl Hotkeys {
 pub struct Api {
     pub enabled: bool,
     pub port: u16,
-    /// Required by every request; generated on first start.
+    /// Only a token imported from the prototype, until it moves to the Keychain on the next start
+    /// (`http_api::token`); never shown to the page.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    #[ts(skip)]
     pub token: String,
     /// The Stage hook and its discovery file.
     pub presentations: bool,

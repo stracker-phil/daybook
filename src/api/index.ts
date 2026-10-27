@@ -3,6 +3,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   AppError,
   AppRef,
+  AutomationInfo,
   ArtistSearch,
   CalendarAccess,
   CalendarInfo,
@@ -118,6 +119,10 @@ export const api = {
   slackTest: () => invoke<SlackIdentity>("slack_test"),
   /** Removes the token from the Keychain. */
   slackDisconnect: () => invoke<void>("slack_disconnect"),
+  /** Settings → Automation: the `daybook` command's link, the HTTP API's state and its token (from the Keychain). */
+  automationInfo: () => invoke<AutomationInfo>("automation_info"),
+  /** Stores a new API token in the Keychain; scripts with the old one stop working. */
+  automationNewToken: () => invoke<string>("automation_new_token"),
   /** Where the daily notes are and whether today's note and the Obsidian CLI were found. */
   vaultInfo: () => invoke<VaultInfo>("vault_info"),
   /** While Settings records a shortcut, global shortcuts and the menu's key equivalents step aside. */

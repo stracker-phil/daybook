@@ -571,7 +571,6 @@
   "api": {
     "enabled": false,
     "port": 27180,
-    "token": "",
     "presentations": true
   },
   "jira": {

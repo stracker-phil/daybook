@@ -5,6 +5,7 @@ use std::fs::File;
 use std::path::Path;
 use std::time::Duration;
 
+use crate::cli::reply::CliReply;
 use crate::ipc::{self, Forward, IpcError, IpcMessage};
 use crate::{cli, fail};
 
@@ -83,6 +84,34 @@ pub fn ask(socket: &Path, message: &IpcMessage, json: bool) -> Option<i32> {
             Some(1)
         }
     }
+}
+
+/// Hands the command's words to the running app and prints its answer; returns the exit code, or
+/// `None` when nothing listens.
+pub fn ask_words(socket: &Path, words: Vec<String>, json: bool) -> Option<i32> {
+    let reply = match ipc::request(socket, IpcMessage::Cli { words, json }) {
+        Ok(Some(reply)) => reply,
+        Ok(None) => return None,
+        Err(e) => fail(&format!("Could not reach the running Daybook: {e}")),
+    };
+    let reply: CliReply = match reply.into_result() {
+        Ok(result) => serde_json::from_value(result).unwrap_or_else(|e| {
+            fail(&format!(
+                "The running Daybook sent an unexpected reply: {e}"
+            ))
+        }),
+        Err(error) => {
+            print_error(&error, json);
+            return Some(1);
+        }
+    };
+    if !reply.stdout.is_empty() {
+        println!("{}", reply.stdout);
+    }
+    if !reply.stderr.is_empty() {
+        eprintln!("{}", reply.stderr);
+    }
+    Some(reply.code)
 }
 
 fn print_error(error: &IpcError, json: bool) {

@@ -1,6 +1,6 @@
-//! Requests from the CLI: `handle` maps each `IpcMessage` to the module
-//! that does it. Requests only the page can answer go out as `REMOTE_EVENT` with an id and come back
-//! through `remote_reply`.
+//! Requests from the CLI: `handle` maps each `IpcMessage` to the module that does it; the command's
+//! words go to `automation::cli`. Requests only the page can answer go out as `REMOTE_EVENT` with an
+//! id and come back through `remote_reply`.
 
 use std::time::Duration;
 
@@ -100,7 +100,7 @@ pub fn status_report(app: &AppHandle) -> StatusReport {
     }
 }
 
-fn quit_after_reply(app: AppHandle) {
+pub fn quit_after_reply(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(QUIT_DELAY).await;
         app.exit(0);
@@ -128,6 +128,10 @@ pub async fn handle(app: AppHandle, message: IpcMessage) -> HandlerResult {
             Ok(serde_json::Value::Null)
         }
         IpcMessage::Status => json(status_report(&app)),
+        IpcMessage::Cli {
+            words,
+            json: as_json,
+        } => json(crate::automation::cli::answer(&app, &words, as_json).await),
         launch @ (IpcMessage::Activate { .. } | IpcMessage::Error { .. }) => {
             launch::queue(&app, launch);
             Ok(serde_json::Value::Null)

@@ -12,9 +12,9 @@ use crate::ipc::IpcMessage;
 use crate::state::AppState;
 use crate::store::import::Import;
 use crate::{
-    bus, calendar, calls, commands, contexts, deep_link, focus, ipc, jira, journal, launcher,
-    links, menu, music, notify, presence, quick_notes, rail, remote, routines, scheduler, search,
-    shortcuts, slack, status, status_rules, tray, vault, window, wizard,
+    bus, calendar, calls, commands, contexts, deep_link, focus, http_api, ipc, jira, journal,
+    launcher, links, menu, music, notify, presence, quick_notes, rail, remote, routines, scheduler,
+    search, shortcuts, slack, status, status_rules, tray, vault, window, wizard,
 };
 
 const MAX_LOG_BYTES: u128 = 5 * 1024 * 1024;
@@ -40,6 +40,8 @@ pub fn start(
         .manage(commands_bus())
         .manage(shortcuts::Pause::default())
         .manage(tray::Shown::default())
+        .manage(deep_link::PendingLinks::default())
+        .manage(http_api::HttpApi::default())
         .plugin(log_plugin())
         .plugin(init_logging(log_level))
         .plugin(tauri_plugin_opener::init())
@@ -86,6 +88,7 @@ pub fn start(
             apply_dev_frame(app);
             start_ipc(app.handle().clone(), &socket);
             deep_link::listen(app.handle());
+            http_api::install(app.handle());
             // The window starts invisible (tauri.conf.json), so a hidden start never flashes it.
             if hidden {
                 window::hide_main(app.handle());

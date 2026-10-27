@@ -1,4 +1,13 @@
 {
   "productName": "Daybook (Debug)",
-  "identifier": "com.philippstracker.daybook.debug"
+  "identifier": "com.philippstracker.daybook.debug",
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": [
+          "daybook-debug"
+        ]
+      }
+    }
+  }
 }

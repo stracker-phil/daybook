@@ -29,6 +29,9 @@
 .settings-state { font-size: var(--fs-meta); font-weight: 500; }
 .settings-state.found { color: var(--style-green); }
 .settings-state.missing { color: var(--style-yellow); }
+.settings-state.failed { color: var(--style-red); }
+/* Commands and examples to read and copy. */
+.code-block { margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); background: var(--fill); font-family: var(--font-mono); font-size: var(--fs-meta); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 /* An inset group, as in System Settings: a quiet fill, no border, hairlines between rows from the text's edge. */
 .settings-card { padding: 0 var(--space-3); }
 .settings-row { display: flex; align-items: center; gap: var(--space-4); min-height: 2.769rem; padding: var(--space-2) 0; }

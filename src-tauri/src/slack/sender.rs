@@ -43,6 +43,11 @@ impl Sender {
         }
     }
 
+    /// Makes a pending send and its retry obsolete, for a status set elsewhere.
+    pub fn supersede(&self) {
+        self.generation.fetch_add(1, Ordering::SeqCst);
+    }
+
     /// Runs `attempt`, and once more after `retry_after` when Slack fails. `on_failure` hears of each
     /// failure, with whether a retry follows.
     pub async fn push<T, F, Fut, OnFailure>(&self, attempt: F, on_failure: OnFailure) -> Outcome<T>

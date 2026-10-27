@@ -39,6 +39,12 @@ pub enum IpcMessage {
     Hide,
     Quit,
     Status,
+    /// The `daybook` command's words; the app parses them and answers with a `CliReply`.
+    Cli {
+        words: Vec<String>,
+        #[serde(default)]
+        json: bool,
+    },
     /// Runs JavaScript in the window (used by scripts/dev to drive the UI).
     #[cfg(debug_assertions)]
     Eval {
@@ -56,6 +62,7 @@ impl IpcMessage {
             IpcMessage::Hide => "Hide",
             IpcMessage::Quit => "Quit",
             IpcMessage::Status => "Status",
+            IpcMessage::Cli { .. } => "Cli",
             #[cfg(debug_assertions)]
             IpcMessage::Eval { .. } => "Eval",
         }
@@ -142,6 +149,8 @@ const ACK: &str = "ok";
 /// Longer lines get no answer.
 pub const MAX_MESSAGE_BYTES: u64 = 64 * 1024;
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(5);
+/// The command's words may wait for Slack or a command that takes a while.
+const CLI_TIMEOUT: Duration = Duration::from_secs(30);
 const ACCEPT_BACKOFF: Duration = Duration::from_millis(100);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -191,11 +200,15 @@ pub fn try_forward(socket: &Path, message: &IpcMessage) -> io::Result<Forward> {
 
 /// Sends `message` as a request and waits for its reply; `None` when nothing listens.
 pub fn request(socket: &Path, message: IpcMessage) -> io::Result<Option<IpcReply>> {
+    let timeout = match message {
+        IpcMessage::Cli { .. } => CLI_TIMEOUT,
+        _ => CLIENT_TIMEOUT,
+    };
     let request = IpcRequest {
         id: uuid::Uuid::new_v4().to_string(),
         message,
     };
-    let Some(answer) = send_line(socket, &request, CLIENT_TIMEOUT)? else {
+    let Some(answer) = send_line(socket, &request, timeout)? else {
         return Ok(None);
     };
     match serde_json::from_str::<IpcReply>(&answer) {

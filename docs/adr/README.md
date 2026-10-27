@@ -29,3 +29,4 @@ it stands in Daybook. The numbers in this table are Daybook's.
 | [0018](0018-global-shortcuts-only-in-debug-builds.md) | Release builds register no global shortcuts while the prototype runs | Accepted (2026-10-24), implemented |
 | [0019](0019-daybook-owns-the-status.md) | Daybook owns the status; it is never read from the note | Accepted (2026-10-24), implemented |
 | [0020](0020-network-only-to-listed-hosts.md) | Daybook talks to Slack (and later Apple's catalog), nothing else | Accepted (2026-10-25), implemented |
+| [0021](0021-a-local-http-api-with-guards.md) | A local HTTP API, off by default and guarded | Accepted (2026-10-27), implemented |
