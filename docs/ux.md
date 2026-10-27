@@ -46,7 +46,6 @@ no outlined cards.
 |---|---|
 | `--sidebar-bg` | the sidebar, full height, under the window buttons; the window's sidebar material instead where the scheme's sidebar tone matches the macOS mode |
 | `--bg` | content: the window background under the toolbar and the view |
-| `--bg-quiet` | a pane beside the active one |
 | `--chrome` | the Settings page list |
 | `--pop` | overlays: palette, popovers, context menus, dialogs, toasts |
 | `--fill-quiet` | inset groups (System Settings style): the Settings cards |
@@ -93,7 +92,7 @@ inspector each scroll below their titlebar row, with macOS's overlay scrollbars.
   padded 0 8px 16px; it holds the open todos: groups (Today, This Week, Last Week, a month in the Mac's locale, a
   year) whose header ("Oktober (3)", 11px 500 `--o3`, a 12px chevron, padding 12px 8px 2px) folds them, kept in
   `ui_state.json` (`collapsedTodoGroups`). Each todo is a row (10px gap, padding 6px 8px, 8px radius, a 5% hover
-  fill): a 16px checkbox (6px radius, the control fill; the accent with a check once ticked) and its text over
+  fill): a 16px checkbox (6px radius, the control fill; never shown ticked) and its text over
   "27. Okt. · Notes › Topic" in 11px `--o3`. The checkbox ticks the todo in its note
   ([vault.md](vault.md#open-todos)): it disappears at once, and comes back with an error toast when the note
   changed meanwhile; a click on the text opens its note in Obsidian. Where TimeTracker is offered, a Todos |
@@ -104,10 +103,10 @@ inspector each scroll below their titlebar row, with macOS's overlay scrollbars.
   and hide it; the state is kept in `ui_state.json` (`inspectorHidden`).
 - **An inactive window** dims like the prototype's: while the window isn't key (`window-blurred` on `<html>`),
   toolbar titles and buttons, the inspector toggle and the sidebar's content sit at 40%, and the pressed
-  inspector tab and a ticked checkbox turn grey (`--text` at 20%).
+  inspector tab turns grey (`--text` at 20%).
 - **Unified toolbar** (`Toolbar`, `.toolbar`): every view starts with one 52px row beside the window buttons
   (which sit centered in it, 20px from the left): the view's title (`.toolbar-title`, `--fs-title`, bold,
-  `--text-strong`), its detail (`.toolbar-detail`, `--fs-meta`, `--o2`), then its actions at the trailing end,
+  `--text-strong`), then its actions at the trailing end,
   with a hairline below (not in the Daybook window). Empty parts drag the window. There is no app title and no Settings button (⌘, the app
   menu, the sidebar gear and the palette open Settings). Without the sidebar the row leaves `--traffic-lights` for
   the window buttons.
@@ -174,7 +173,6 @@ set them on their own element); `applyInitialLook` paints the defaults before th
 | Token | Light | Dark | Role |
 |---|---|---|---|
 | `--bg` | `#ffffff` | `#1e1e1e` | content surface, the window background |
-| `--bg-quiet` | `#f7f7f7` | `#222222` | a pane beside the active one |
 | `--chrome` | `#f5f5f5` | `#252525` | the Settings page list |
 | `--pop` | `#ffffff` | `#2c2c2c` | overlays |
 | `--text`, `--text-strong` | `#262626`, black | `#e6e6e6`, white | primary text (`--o2`, `--o3` derive from it); titles and pressed segments |
@@ -217,15 +215,14 @@ Derived tokens in `src/styles/theme.css`, the same for every palette:
 | `--context-text`, `--on-context` | `--context` capped like `--accent-text`; the text on a context fill, picked like `--on-accent` | the context's colour as text (the sidebar's context row); a ticked focus box |
 | `--focus-ring` | a 3px ring of the accent at 45% | focus on fields, buttons, segments |
 | `--ui-font-size`, `--data-font-size` | 13px, 12px | set from the Text size setting by `applyAppearance` (`lib/theme.ts`) |
-| `--fs-display`, `--fs-heading`, `--fs-title`, `--fs-body`, `--fs-meta`, `--fs-caption` | 22, 17, 15, 13, 11 and 10px in rem | the type scale |
-| `--space-1` … `--space-6`, `--space-8`, `--margin` | 4 to 24px and 32px in rem; 20px | spacing; content margins |
+| `--fs-heading`, `--fs-title`, `--fs-body`, `--fs-meta`, `--fs-caption` | 17, 15, 13, 11 and 10px in rem | the type scale |
+| `--space-1` … `--space-6`, `--margin` | 4 to 24px in rem; 20px | spacing; content margins |
 | `--control-h`, `--toolbar-control-h` | 22px, 28px in rem | push buttons, fields, popup buttons, menu items; toolbar buttons |
-| `--row-h`, `--pad` | at least 20px plus 2 × 3px | the row anatomy (px: it grows only for large data sizes) |
+| `--pad` | 3px | the padding above and below a row's line |
 | `--font-ui`, `--font-mono` | the system font (SF Pro), SF Mono | fixed |
 | `--radius-sm`, `--radius`, `--radius-lg` | 6, 10, 12px | controls; menus, popovers and inset groups; sheets and panels |
 | `--sidebar-width` | 220px | the sidebar column (px, as the prototype's) |
 | `--toolbar-height`, `--traffic-lights` | 52px, 84px | the unified toolbar (centered on the window buttons); its left inset without the sidebar (px: they don't scale) |
-| `--scrollbar-size` | 8px | room kept beside a scroller's rows; no scrollbar is styled, so every scroller keeps macOS's overlay scrollbars, shown only while scrolling (`base.css`) |
 
 **Accent:** Settings → Appearance "Accent" picks the app accent: System first (a swatch of the accent hues around
 a circle; it follows the macOS accent color through WebKit's `AccentColor`, with white text on it), then the
@@ -238,11 +235,10 @@ nine hues. System is the default (`SYSTEM_ACCENT`); an unknown value falls back 
 
 | Token | Size | Used for |
 |---|---|---|
-| `--fs-display` | 22px | large numbers |
 | `--fs-heading` | 17px | large headings inside a view |
 | `--fs-title` | 15px | toolbar titles, the sidebar's app name, Settings page titles, the palette's field |
 | `--fs-body` | 13px (the UI size) | everything else, sheet titles (bold) and group headings (semibold) included |
-| `--fs-meta` | 11px | secondary text: meta lines, labels, descriptions, counts, toolbar details |
+| `--fs-meta` | 11px | secondary text: meta lines, labels, descriptions, counts |
 | `--fs-caption` | 10px | key caps |
 
 Numbers use tabular figures (the body sets `tabular-nums`); `--data-font-size` (12px) sizes data values. Both
@@ -259,7 +255,7 @@ their names; accessible names follow the visible labels.
 
 ## Spacing and radius
 
-Spacing sits on an 8px grid with 4px half steps (`--space-1` 4px to `--space-8` 32px, in rem so it zooms);
+Spacing sits on an 8px grid with 4px half steps (`--space-1` 4px to `--space-6` 24px, in rem so it zooms);
 content keeps 20px margins (`--margin`). Rows are at least 28px (inset group rows 36px). Inset groups and
 popovers have a 10px radius; sheets 20px padding and a 12px radius.
 
@@ -273,7 +269,6 @@ AppKit sizes and looks ([ADR 0011](adr/0011-native-macos-look.md)), in `styles/c
 | Default button | `.btn-primary` | the push button filled with the accent and `--on-accent` text (500). Only a sheet's or window's default action, last in its row |
 | Destructive | `.btn-danger` | a push button with `--style-red` text (500) |
 | Borderless | `.btn-quiet`, `.icon-btn` | no bezel until hovered (`--fill`), pressed `--fill-strong`; icons in `--o2`. `.icon-btn` is a 22px square (`.tiny` 18px) |
-| Split button | `.split-btn` with `.split-btn-menu` | two push buttons joined, the second a chevron for a menu |
 | Toolbar button | `.btn` or `.icon-btn` inside `.toolbar` | borderless, 28px high, icon and label, hover bezel |
 | Link | `.link-btn` | plain `--accent-text`, no bezel |
 | Popup button | `select.input` | WebKit's native chevrons inside the push button bezel |
@@ -282,23 +277,17 @@ AppKit sizes and looks ([ADR 0011](adr/0011-native-macos-look.md)), in `styles/c
 | Segmented control | `SegmentedControl` (`.segmented`) | a 22px `--fill` track with 2px padding; segments in `--text`; the pressed one raised on `--raised` with `--shadow-small`, its label `--text-strong` |
 | Switch | `.switch` | 32 by 18px, a `--fill-strong` track, a white `--knob` thumb with `--shadow-small`; on, the track is the accent |
 | Key cap | `KeyCap` (`.keycap`) | the UI font at `--fs-caption`, `--o3` on a `--fill` rounded rect |
-| Secondary label | `.secondary-label` | plain `--fs-meta` `--o2` text after a name; never a chip or badge |
 | Swatches | `AccentSwatches` (`.accent-swatches`) | 16px circles with a hairline; the chosen one ringed; `withSystem` adds the System swatch first |
 
-Buttons in a row end with the default button: Cancel, then Save; a destructive or secondary action sits at the
-leading end (`.actions-start`).
+Buttons in a row end with the default button: Cancel, then Save.
 
 ## Components
 
 | Component | Where | Look |
 |---|---|---|
-| `Toolbar` (`components/Toolbar.tsx`) | the first row of every view | see [Shell](#shell); props `title`, `detail` and the actions as children |
-| Sheet | `Modal` (default `variant="sheet"`): `PromptDialog`, `ShortcutsDialog` | `--pop`, `--radius-lg`, `--shadow`, 20px padding, the title 13px bold, over `--scrim`; buttons in `.actions`, at least 70px wide |
-| Panel | `Modal variant="panel"`: the palette, Settings | the overlay surface laid out by its content, `--radius-lg`, over `--scrim` |
-| Popover | `Modal variant="popover"` | `--pop`, `--radius`, `--shadow`, placed under its control, no scrim |
-| Context menu | `ContextMenu` (`.menu`) | see [Overlays](#overlays) |
+| `Toolbar` (`components/Toolbar.tsx`) | the first row of every view | see [Shell](#shell); props `title` and the actions as children |
+| Sheet | `Modal` (default `variant="sheet"`): `ShortcutsDialog` | `--pop`, `--radius-lg`, `--shadow`, 20px padding, the title 13px bold, over `--scrim`; buttons in `.actions`, at least 70px wide |
 | Toasts | `Toasts` (`.toasts`, `.toast`) | bottom right on `--pop` with `--radius` and `--shadow`; an icon in the kind's tint (`--style-red`, `--style-green`, `--accent-text`), the text selectable, an optional action (Undo) as a link |
-| Splitter | `Splitter` (`.splitter-x`, `.splitter-y`) | a `--line` hairline with a wider invisible grab area, like an NSSplitView divider; the accent while it has the keyboard focus |
 | Crash page | `ErrorBoundary` (`.crash`) | the error in mono `--style-red` |
 
 Toasts dismiss themselves (success after 2.5 s, info 4 s, errors 8 s, one with an action 10 s); an error reads
@@ -328,30 +317,22 @@ is `--sidebar-selected` with its label in `--sidebar-strong` (500) and its icon 
 Inputs look like AppKit's (see [Controls](#controls)), never like rows. A text field is a 22px frame on
 `--field` with a 1px inset `--field-line` and the accent focus ring; a search field (`InsetField`,
 `components/Field.tsx`) a `--fill` capsule with a leading icon, the placeholder in `--o3` and an optional key cap
-that follows the user's bindings. A select is a popup button. A labelled form field (`FormField`, `.form-field`)
-puts its label in `--fs-meta` `--o2` above the control and the error from `AppError.field` in `--style-red`
-below it.
+that follows the user's bindings. A select is a popup button.
 
 ### Focus rings
 
 A focus ring is for the keyboard only; a click never draws one. Buttons, rows and links show theirs on
-`:focus-visible`; text fields keep the accent ring on any focus, since they take typing. Key focus that a view
-draws itself (a `.focused` element) shows only while `<html data-input="keyboard">` is set
-(`lib/inputModality.ts`): a key press outside a text field (or Tab in one) sets it, a pointer press clears it.
+`:focus-visible`; text fields keep the accent ring on any focus, since they take typing.
 
 ## Overlays
 
-Inside the window: palette, popovers, context menus, toasts and dialogs, all `--pop` with `--shadow` (a hairline
-ring and a soft drop; no border). Menus, toasts and popovers take `--radius` (10px), sheets and panels
-`--radius-lg` (12px). Sheets and panels sit over `--scrim`; popovers sit over nothing. Overlays take `Esc` first
+Inside a window: toasts and dialogs, both `--pop` with `--shadow` (a hairline ring and a soft drop; no border).
+Toasts take `--radius` (10px), sheets `--radius-lg` (12px) over `--scrim`. Overlays take `Esc` first
 (`Modal` stops it in the capture phase). A click on the scrim closes the dialog. Tab cycles inside it in reading
 order: fields first, then Cancel and the default button; the first control, or the one a dialog marks with
 `autoFocus`, has the focus, and closing returns it to where it was.
 
-Context menus use the UI font, 22px items with a 6px radius; the hovered or focused item is `--accent` with
-`--on-accent` text, disabled items `--o3`, separators an inset 1px `--line`; an item can carry a detail line
-(`.with-detail`) or a check (`.checkable`). The native WebKit context menu is suppressed outside text fields
-(`lib/nativeMenu.ts`).
+The native WebKit context menu is suppressed outside text fields (`lib/nativeMenu.ts`).
 
 Daybook's own overlay panel (a non-activating window over other apps), the rail and the quick notes editor are
 separate windows; the rail has [its own section](#the-rail).

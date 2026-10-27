@@ -193,20 +193,12 @@ fn section_order(raw: Option<&Value>) -> Vec<DailySection> {
             order.push(section);
         }
     }
-    for (index, section) in DAILY_SECTIONS.iter().enumerate() {
-        if order.contains(section) {
-            continue;
-        }
-        let at = if index == 0 {
-            0
-        } else {
-            order
-                .iter()
-                .position(|s| *s == DAILY_SECTIONS[index - 1])
-                .map_or(0, |i| i + 1)
-        };
-        order.insert(at, *section);
-    }
+    insert_missing(
+        &mut order,
+        &DAILY_SECTIONS,
+        |section| *section,
+        |section| section,
+    );
     order
 }
 

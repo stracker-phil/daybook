@@ -59,6 +59,7 @@ pub struct StatusChanged {
     pub by_activity: bool,
 }
 
+/// How the surfaces name a status.
 pub fn status_label(status: Option<Status>) -> &'static str {
     match status {
         Some(Status::Working) => "Working and present",
@@ -137,6 +138,7 @@ fn change_status(
     Ok(())
 }
 
+/// Today's status memory.
 pub fn today(app: &AppHandle) -> StatusMemory {
     app.state::<AppState>()
         .statuses
@@ -240,6 +242,7 @@ pub fn register(bus: &mut CommandBus<AppHandle>) {
     );
 }
 
+/// Starts the `TICK` that refreshes the menu-bar title.
 pub fn start(app: &AppHandle) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {

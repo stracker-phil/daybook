@@ -14,7 +14,7 @@ use crate::automation::{AutomationError, Params};
 #[derive(Serialize, Debug, Clone, PartialEq)]
 pub struct Describe {
     pub protocol: u32,
-    pub features: [&'static str; 8],
+    pub features: [&'static str; FEATURES.len()],
     pub app: AppInfo,
     pub windows: Vec<WindowInfo>,
     pub anchors: Vec<AnchorInfo>,

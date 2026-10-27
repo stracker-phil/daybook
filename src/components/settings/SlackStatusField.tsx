@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Presence, SlackStatus } from "../../api";
 import { asShortcode } from "../../lib/slackEmoji";
-import { EmojiGlyph, PRESENCE_LABELS, PresenceDot } from "../SlackStatus";
+import { PRESENCE_LABELS, PresenceDot, SlackLine } from "../SlackStatus";
 import { BufferedInput, Checkbox } from "./controls";
 
 const PRESENCES: Presence[] = ["auto", "away", "keep"];
@@ -13,10 +13,7 @@ function SlackStatusBar({ value }: { value: SlackStatus }) {
       {value.keepStatus ? (
         <span className="slack-status-text empty">Status unchanged</span>
       ) : (
-        <>
-          <EmojiGlyph code={value.emoji} />
-          <span className={value.text ? "slack-status-text" : "slack-status-text empty"}>{value.text || "No status"}</span>
-        </>
+        <SlackLine emoji={value.emoji} text={value.text} />
       )}
       {value.presence !== "keep" && (
         <span className="slack-presence">

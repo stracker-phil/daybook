@@ -12,7 +12,7 @@
   display: flex; align-items: baseline; gap: 8px; width: 100%; padding: 8px 12px;
   border: 0; border-radius: 8px; background: none; font: inherit; color: var(--text); text-align: left;
 }
-button.reminder:hover, button.reminder:focus-visible { background: color-mix(in srgb, var(--text) 5%, transparent); }
+button.reminder:hover, button.reminder:focus-visible { background: var(--wash); }
 button.reminder:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .reminder-label { flex: none; font-size: 11px; }
 .reminder-action { flex: none; font-size: 11px; color: var(--accent-text); }
@@ -24,7 +24,7 @@ button.reminder:focus-visible { outline: none; box-shadow: var(--focus-ring); }
   display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 8px 12px;
   border: 0; border-radius: 8px; background: none; font: inherit; color: var(--text); text-align: left;
 }
-.focus-list:enabled:hover { background: color-mix(in srgb, var(--text) 5%, transparent); }
+.focus-list:enabled:hover { background: var(--wash); }
 .focus-list:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .focus-add { display: flex; align-items: center; gap: 12px; color: var(--accent-text); }
 .focus-item { display: flex; align-items: flex-start; gap: 12px; line-height: 18px; }
@@ -32,17 +32,17 @@ button.reminder:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .focus-item[data-mark="cancelled"] .focus-text { color: var(--o3); text-decoration: line-through; }
 .focus-box {
   display: inline-flex; flex: none; align-items: center; justify-content: center; margin-top: 1px;
-  width: 16px; height: 16px; border: 1px solid color-mix(in srgb, var(--text) 10%, transparent); border-radius: 5px; color: var(--o3); box-sizing: border-box;
+  width: 16px; height: 16px; border: 1px solid var(--wash-strong); border-radius: 5px; color: var(--o3); box-sizing: border-box;
 }
 .focus-box[data-mark="done"] { border-color: transparent; background: var(--context); color: var(--on-context); }
 .focus-box[data-mark="in-progress"]::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--context); }
-.focus-tag { flex: none; padding: 0 6px; border-radius: 4px; background: color-mix(in srgb, var(--text) 5%, transparent); font-size: 11px; line-height: 20px; }
+.focus-tag { flex: none; padding: 0 6px; border-radius: 4px; background: var(--wash); font-size: 11px; line-height: 20px; }
 
 /* Sections: the title row lines up with the rows below it (12px in), 6px above them. */
 .board-section { display: flex; flex-direction: column; gap: 6px; }
 .board-section-head { display: flex; align-items: center; gap: 8px; padding: 0 12px; }
 .board-section-title { display: flex; flex: 1; align-items: center; gap: 8px; margin: 0; }
-/* A section's or chip row's title: 11px, medium, tertiary; a shortcut hint may follow it (`.section-hint`). */
+/* A section's or chip row's title: 11px, medium, tertiary; a shortcut's key cap may follow it (sidebar.css). */
 .board-section-title, .chip-row-title { font-size: 11px; font-weight: 500; line-height: 14px; color: var(--o3); }
 .board-section-head .icon-btn { width: 16px; height: 16px; padding: 0; background: none; color: var(--o3); }
 .board-section-head .icon-btn:hover { background: none; color: var(--text); }
@@ -57,7 +57,7 @@ button.reminder:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .timeline-hour { position: absolute; top: 0; display: flex; flex-direction: column; align-items: center; transform: translateX(-50%); }
 .timeline-label { font-size: 11px; line-height: 16px; color: color-mix(in srgb, var(--text) 40%, transparent); font-variant-numeric: tabular-nums; }
 .timeline-tick { width: 1px; height: 6px; margin-top: 2px; background: var(--hairline); }
-.timeline-bar { position: absolute; inset: 24px 0 auto; height: 36px; overflow: hidden; border-radius: 6px; background: color-mix(in srgb, var(--text) 5%, transparent); }
+.timeline-bar { position: absolute; inset: 24px 0 auto; height: 36px; overflow: hidden; border-radius: 6px; background: var(--wash); }
 .timeline-work { position: absolute; top: 0; height: 3px; background: color-mix(in srgb, var(--context) 55%, transparent); pointer-events: none; }
 .timeline-full-day { position: absolute; inset: auto 0 0; height: 3px; background: color-mix(in srgb, var(--context) 55%, transparent); pointer-events: none; }
 .timeline-full-day[data-highlighted="true"] { background: var(--context); animation: timeline-pulse 2.5s ease-in-out infinite; }
@@ -83,7 +83,7 @@ button.event-row:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .event-time { flex: none; width: 96px; color: var(--o3); font-variant-numeric: tabular-nums; }
 /* The call app as the prototype's badge: a pill in the control fill. */
 .event-app {
-  flex: none; padding: 2px 6px; border-radius: 999px; background: color-mix(in srgb, var(--text) 10%, transparent);
+  flex: none; padding: 2px 6px; border-radius: 999px; background: var(--wash-strong);
   font-size: 11px; font-weight: 500; line-height: 14px; color: var(--o2);
 }
 .event-calendar { flex: none; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
@@ -94,14 +94,14 @@ button.event-row:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .chip-list { display: flex; flex: 1; flex-wrap: wrap; gap: 8px; min-width: 0; }
 .chip {
   display: inline-flex; align-items: center; gap: 10px; min-width: 0; height: 36px; padding: 0 12px;
-  border: 0; border-radius: 8px; background: color-mix(in srgb, var(--text) 5%, transparent); font: inherit; color: var(--text);
+  border: 0; border-radius: 8px; background: var(--wash); font: inherit; color: var(--text);
 }
-.chip:enabled:hover { background: color-mix(in srgb, var(--text) 10%, transparent); }
+.chip:enabled:hover { background: var(--wash-strong); }
 .chip:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .chip-icon { display: inline-flex; flex: none; }
 .chip-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chip-dots { display: inline-flex; flex: none; gap: 4px; }
-.chip-dot { width: 6px; height: 6px; border-radius: 50%; background: color-mix(in srgb, var(--text) 10%, transparent); }
+.chip-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--wash-strong); }
 .chip-dot[data-done="true"] { background: var(--context); }
 .chip-done { flex: none; color: var(--context-text); }
 
@@ -111,7 +111,7 @@ button.event-row:focus-visible { outline: none; box-shadow: var(--focus-ring); }
   display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 12px;
   border: 0; border-radius: 8px; background: none; font: inherit; color: var(--text); text-align: left;
 }
-.note-row:hover { background: color-mix(in srgb, var(--text) 5%, transparent); }
+.note-row:hover { background: var(--wash); }
 .note-row svg { flex: none; color: var(--o3); }
 .note-row.write, .note-row.write svg { color: var(--accent-text); }
 .note-row:focus-visible { outline: none; box-shadow: var(--focus-ring); }

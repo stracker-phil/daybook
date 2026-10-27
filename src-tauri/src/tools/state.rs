@@ -1,5 +1,6 @@
 //! What the tools read: a snapshot that each feature fills with its part.
 
+use crate::contexts::context_title;
 use crate::store::settings::Feature;
 pub use crate::store::settings::Status;
 pub use crate::timetracker::TtState;
@@ -20,7 +21,14 @@ pub struct ContextItem {
     pub name: String,
 }
 
-/// Answered questions of today's journal (overall or one group).
+impl ContextItem {
+    /// "💼 Nexo": the label, then the name (`contexts::context_title`).
+    pub fn title(&self) -> String {
+        context_title(&self.label, &self.name)
+    }
+}
+
+/// How much of a journal group or routine is done today: answered questions or ticked steps.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Progress {
     pub done: u32,
@@ -80,6 +88,14 @@ pub struct Music {
     pub volume: Option<u8>,
     /// The entry that plays or is paused.
     pub entry: Option<String>,
+}
+
+impl Music {
+    /// The entry that plays now; `None` while paused or stopped.
+    pub fn playing_entry(&self) -> Option<&MusicItem> {
+        let id = self.entry.as_deref().filter(|_| self.playing)?;
+        self.entries.iter().find(|item| item.id == id)
+    }
 }
 
 /// A topic of today's note that quick notes can go under.

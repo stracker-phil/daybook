@@ -5,7 +5,7 @@ use super::client::{RawReply, RunFailure, reply_result};
 use super::reply::parse_recorded;
 use crate::action_log::{self, ActionState, ActionTarget};
 
-pub const DRY_RUN: &str = "Dry run: a debug build doesn't change TimeTracker's data";
+const DRY_RUN: &str = "Dry run: a debug build doesn't change TimeTracker's data";
 
 /// The value of `--name=value` or `--name value` in `args`.
 fn option<'a>(args: &[&'a str], name: &str) -> Option<&'a str> {

@@ -1,17 +1,10 @@
-//! The overlay's Tauri commands: opening and closing it, and the page's answers.
+//! The overlay's Tauri commands: closing it and the page's answers.
 
-use serde_json::Value;
 use tauri::{AppHandle, State};
 
 use super::Panel;
 use super::session::PanelSession;
 use crate::lock::MutexExt;
-
-/// Opens `view` (with `args` for the view) in the overlay; the same view again closes it.
-#[tauri::command]
-pub async fn panel_open(app: AppHandle, view: String, args: Option<Value>) {
-    super::open(&app, &view, args.unwrap_or(Value::Null)).await;
-}
 
 #[tauri::command]
 pub fn panel_close(app: AppHandle) {

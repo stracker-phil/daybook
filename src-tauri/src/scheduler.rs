@@ -1,6 +1,6 @@
 //! One tick for the work that falls due by the clock (docs/routines.md#the-scheduler): the context
-//! switch by work hours, the changes waiting for today's note, the wizard, then the check-in. Coming
-//! back to the Mac ticks at once.
+//! switch by work hours, the changes waiting for today's note, the wizard, the check-in, then the
+//! events the links read. Coming back to the Mac ticks at once.
 
 use std::sync::Arc;
 use std::time::Duration;

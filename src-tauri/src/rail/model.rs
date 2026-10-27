@@ -6,12 +6,13 @@ use serde::Serialize;
 use ts_rs::TS;
 
 use crate::bus::CommandStatus;
-use crate::contexts::context_title;
 use crate::hub::shortcut_for;
 use crate::music::state::{MusicState, PlayerState};
 use crate::status::status_label;
 use crate::store::settings::{Hotkeys, Rail, Status, ToolId, ToolPlacement};
-use crate::tools::{LinkItem, Surface, ToolState, TtState, tidy_separators, visible_tools};
+use crate::tools::{
+    ContextItem, LinkItem, Surface, ToolState, TtState, tidy_separators, visible_tools,
+};
 
 #[derive(Serialize, Clone, Debug, PartialEq, TS)]
 #[ts(export, export_to = "src/api/types.gen.ts")]
@@ -47,7 +48,7 @@ pub enum RailButton {
     Separator,
 }
 
-/// Payload of `rail_model` and the answer of `rail_model`.
+/// Payload of the `rail_model` event and the answer of the `rail_model` command.
 #[derive(Serialize, Clone, Debug, PartialEq, TS)]
 #[ts(export, export_to = "src/api/types.gen.ts")]
 #[serde(rename_all = "camelCase")]
@@ -237,7 +238,7 @@ fn tool_button(id: ToolId, input: &RailInput) -> Option<Button> {
         ToolId::Context => button(
             &state
                 .current_context()
-                .map(|context| context_title(&context.label, &context.name))
+                .map(ContextItem::title)
                 .unwrap_or_else(|| "Context".into()),
             Some("Click to switch context".into()),
             "context:switch",
@@ -302,7 +303,7 @@ fn aria_label(id: ToolId, label: &str) -> String {
     }
 }
 
-/// The rail's buttons in Settings → General → Tools order; a tool whose command no feature registered yet is
+/// The rail's buttons in Settings → General → Tools order; a tool whose command no feature registered is
 /// left out.
 pub fn rail_model(input: &RailInput) -> RailModel {
     let ids = visible_tools(input.tools, input.state, Surface::Rail);

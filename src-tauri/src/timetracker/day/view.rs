@@ -8,6 +8,7 @@ use ts_rs::TS;
 use super::projects::by_project;
 use super::records::{Recording, Suggestion};
 use super::timeline::{timeline, timeline_items};
+use crate::clock::iso_day;
 use crate::timetracker::reply::TtProject;
 
 /// Time between rows from this long on shows as a gap.
@@ -142,7 +143,7 @@ pub fn day_view(
         }
     });
     DayActivity {
-        day: day.format("%Y-%m-%d").to_string(),
+        day: iso_day(day),
         is_today,
         running: items
             .iter()

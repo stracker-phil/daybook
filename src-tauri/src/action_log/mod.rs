@@ -17,12 +17,13 @@ use chrono::{DateTime, Local};
 use tauri::{AppHandle, Emitter, Manager};
 
 pub use model::{ActionState, ActionTarget, LineRef};
-pub use scope::{Entered, Trigger, carry, carry_sync, current, within};
+pub use scope::{Trigger, carry, carry_sync, current, within};
 pub use view::ActionLog as ActionLogView;
 
 use self::model::{Log, OTHER};
 use crate::error::AppResult;
 use crate::events::ACTION_LOG_CHANGED_EVENT;
+use crate::locale::{self, DateLocale};
 use crate::lock::MutexExt;
 use crate::state::AppState;
 use crate::store::json_file::JsonFile;
@@ -181,8 +182,8 @@ impl ActionLog {
         }
     }
 
-    pub fn view(&self, now: DateTime<Local>) -> ActionLogView {
-        view::action_log(&self.log.lock_unpoisoned(), now)
+    pub fn view(&self, now: DateTime<Local>, locale: DateLocale) -> ActionLogView {
+        view::action_log(&self.log.lock_unpoisoned(), now, locale)
     }
 
     pub fn clear(self: &Arc<Self>) -> AppResult<()> {
@@ -325,8 +326,11 @@ where
 }
 
 #[tauri::command]
-pub fn action_log_get(state: tauri::State<'_, AppState>) -> ActionLogView {
-    state.action_log.view(Local::now())
+pub async fn action_log_get(app: AppHandle) -> ActionLogView {
+    let locale = locale::system_async().await;
+    app.state::<AppState>()
+        .action_log
+        .view(Local::now(), locale)
 }
 
 #[tauri::command]
@@ -370,8 +374,12 @@ mod tests {
         )
     }
 
+    fn en_gb() -> DateLocale {
+        DateLocale::parse("en_GB")
+    }
+
     fn lines_of(log: &ActionLog, now: DateTime<Local>) -> Vec<Vec<(ActionTarget, String)>> {
-        log.view(now)
+        log.view(now, en_gb())
             .events
             .into_iter()
             .map(|event| {
@@ -385,7 +393,7 @@ mod tests {
     }
 
     fn triggers_of(log: &ActionLog, now: DateTime<Local>) -> Vec<String> {
-        log.view(now)
+        log.view(now, en_gb())
             .events
             .into_iter()
             .map(|event| event.trigger)
@@ -453,7 +461,7 @@ mod tests {
         done(&log, Some(&first), "Journal: Morning", now);
         let second = log.begin("Journal saved: Morning", true, None, now + minutes(5));
         assert_eq!(second.event, first.event);
-        let view = log.view(now + minutes(5));
+        let view = log.view(now + minutes(5), en_gb());
         assert_eq!(view.events.len(), 1);
         assert_eq!(view.events[0].lines[0].count, 2);
     }
@@ -549,7 +557,7 @@ mod tests {
             Some("Not connected".into()),
             now,
         );
-        let logged = &log.view(now).events[0].lines[0];
+        let logged = &log.view(now, en_gb()).events[0].lines[0];
         assert_eq!(logged.state, ActionState::Failed);
         assert_eq!(logged.detail.as_deref(), Some("Not connected"));
     }
@@ -583,7 +591,7 @@ mod tests {
         let (_dir, log) = open_log(NEVER);
         let now = Local::now();
         let trigger = log.begin("Context change", false, None, now);
-        assert!(log.view(now).events.is_empty());
+        assert!(log.view(now, en_gb()).events.is_empty());
         log.keep(&trigger);
         assert_eq!(triggers_of(&log, now), ["Context change"]);
         assert!(lines_of(&log, now)[0].is_empty());
@@ -610,7 +618,7 @@ mod tests {
 
         log.clear().unwrap();
 
-        assert!(log.view(Local::now()).events.is_empty());
+        assert!(log.view(Local::now(), en_gb()).events.is_empty());
         assert_eq!(std::fs::read_to_string(file.path()).unwrap().trim(), "[]");
     }
 
@@ -653,8 +661,11 @@ mod tests {
 
         let reopened = ActionLog::with_delay(dir.path(), NEVER);
 
-        assert_eq!(reopened.view(Local::now()), log.view(Local::now()));
-        assert_eq!(reopened.view(Local::now()).events.len(), 2);
+        assert_eq!(
+            reopened.view(Local::now(), en_gb()),
+            log.view(Local::now(), en_gb())
+        );
+        assert_eq!(reopened.view(Local::now(), en_gb()).events.len(), 2);
     }
 
     #[test]

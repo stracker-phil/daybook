@@ -10,6 +10,8 @@ use tokio::sync::watch as signal;
 
 use super::checks::{GENERIC_TITLE, call_title};
 use super::detect::{Detection, Found, Missing, RuleCheck, detect, unknown_checks};
+use super::probe::MacProbe;
+use super::titles::EventTitles;
 use super::tracker::{CallEvent, EndReason, MAX_FAILURES, Mode, Seen};
 use super::{Announced, calls, detecting};
 use crate::action_log::{self, ActionState, ActionTarget};
@@ -30,6 +32,8 @@ pub(super) struct Watch {
     /// Whether a check has run since the start.
     checked: signal::Sender<bool>,
     pub status: Mutex<Status>,
+    probe: MacProbe,
+    titles: Mutex<EventTitles>,
 }
 
 impl Default for Watch {
@@ -39,6 +43,8 @@ impl Default for Watch {
             woke_from: Mutex::default(),
             checked: signal::channel(false).0,
             status: Mutex::default(),
+            probe: MacProbe::default(),
+            titles: Mutex::default(),
         }
     }
 }
@@ -84,7 +90,7 @@ enum Why {
 async fn detect_now(app: &AppHandle, rules: Vec<MeetingRule>, active: Option<String>) -> Detection {
     let handle = app.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        detect(&rules, &calls(&handle).probe, active.as_deref())
+        detect(&rules, &calls(&handle).watch.probe, active.as_deref())
     })
     .await
     .unwrap_or_else(|e| {
@@ -99,12 +105,17 @@ async fn detect_now(app: &AppHandle, rules: Vec<MeetingRule>, active: Option<Str
 
 /// The calendar event running now, asked once per event (`EventTitles`).
 async fn event_title(app: &AppHandle, bundle_id: &str, now: NaiveDateTime) -> Option<String> {
-    if let Some(cached) = calls(app).titles.lock_unpoisoned().get(bundle_id, now) {
+    if let Some(cached) = calls(app)
+        .watch
+        .titles
+        .lock_unpoisoned()
+        .get(bundle_id, now)
+    {
         return cached;
     }
     let events = calendar::events_on(app, now.date(), now.date()).await;
     let running = running_event(&events, now);
-    calls(app).titles.lock_unpoisoned().remember(
+    calls(app).watch.titles.lock_unpoisoned().remember(
         bundle_id,
         running.map(|event| (event.title.as_str(), event.end)),
         now,
@@ -165,9 +176,12 @@ async fn check(app: &AppHandle, why: Why) {
     let seen = observe_detection(app).await;
     let mode = mode_for(&state.watch, why);
     let now = Local::now().naive_local();
-    let changes = state.tracker.lock_unpoisoned().observe(seen, now, mode);
+    let changes = state
+        .tracker
+        .lock_unpoisoned()
+        .observe(seen.clone(), now, mode);
     if !changes.is_empty() {
-        announce(app, changes);
+        announce(app, changes, &seen);
     }
     state.watch.checked.send_replace(true);
 }
@@ -209,29 +223,36 @@ fn traced(change: &CallEvent) -> Option<action_log::Trigger> {
     }
 }
 
+/// Why the check of `bundle_id` failed in this round.
+fn check_error<'a>(seen: &'a Seen, bundle_id: &str) -> Option<&'a str> {
+    let Seen::Checked(checks) = seen else {
+        return None;
+    };
+    checks.iter().find_map(|check| match &check.found {
+        Found::Unknown(error) if check.bundle_id == bundle_id => Some(error.as_str()),
+        _ => None,
+    })
+}
+
 /// The active call's detector kept failing: logged, in the action log and once as a notification.
-fn failing(app: &AppHandle, name: &str, trigger: &action_log::Trigger) {
-    let error = calls(app).watch.status.lock_unpoisoned().error.clone();
+fn failing(app: &AppHandle, name: &str, error: &str, trigger: &action_log::Trigger) {
     let text = format!("{name}'s call check failed {MAX_FAILURES} times in a row");
-    log::warn!("{text}; the call counts as ended: {error:?}");
+    log::warn!("{text}; the call counts as ended: {error}");
     let _entered = trigger.enter();
     action_log::log(
         ActionTarget::Daybook,
         &text,
         ActionState::Failed,
-        error.clone(),
+        Some(error.to_string()),
     );
     notify::show(
         app,
         "Call check failing",
-        &format!(
-            "{text}, so the call counts as ended. {}",
-            error.unwrap_or_default()
-        ),
+        &format!("{text}, so the call counts as ended. {error}"),
     );
 }
 
-fn announce(app: &AppHandle, changes: Vec<CallEvent>) {
+fn announce(app: &AppHandle, changes: Vec<CallEvent>, seen: &Seen) {
     for change in changes {
         let trigger = traced(&change);
         if let (
@@ -243,7 +264,8 @@ fn announce(app: &AppHandle, changes: Vec<CallEvent>) {
             Some(trigger),
         ) = (&change, &trigger)
         {
-            failing(app, &call.app, trigger);
+            let error = check_error(seen, &call.bundle_id).unwrap_or_default();
+            failing(app, &call.app, error, trigger);
         }
         // Nobody may be listening yet.
         let _ = calls(app).events.send(Announced {
@@ -305,5 +327,59 @@ async fn tick(app: &AppHandle) {
     }
     if !presence::is_asleep(app) {
         check(app, Why::Tick).await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn rule_check(bundle_id: &str, found: Found) -> RuleCheck {
+        RuleCheck {
+            bundle_id: bundle_id.into(),
+            app: bundle_id.into(),
+            found,
+        }
+    }
+
+    fn unknown(bundle_id: &str, error: &str) -> RuleCheck {
+        rule_check(bundle_id, Found::Unknown(error.into()))
+    }
+
+    #[test]
+    fn the_active_call_gets_its_own_check_error_when_two_rules_fail() {
+        let seen = Seen::Checked(vec![
+            unknown("us.zoom.xos", "zoom: no permission"),
+            unknown("com.microsoft.teams2", "teams: no answer"),
+        ]);
+        for (bundle_id, expected) in [
+            ("us.zoom.xos", "zoom: no permission"),
+            ("com.microsoft.teams2", "teams: no answer"),
+        ] {
+            assert_eq!(check_error(&seen, bundle_id), Some(expected), "{bundle_id}");
+        }
+    }
+
+    #[test]
+    fn an_active_rule_that_answered_has_no_check_error() {
+        let seen = Seen::Checked(vec![
+            unknown("us.zoom.xos", "zoom: no permission"),
+            rule_check("com.microsoft.teams2", Found::Call("Standup".into())),
+            rule_check("com.apple.FaceTime", Found::NotInCall),
+        ]);
+        for bundle_id in ["com.microsoft.teams2", "com.apple.FaceTime"] {
+            assert_eq!(check_error(&seen, bundle_id), None, "{bundle_id}");
+        }
+    }
+
+    #[test]
+    fn an_active_rule_absent_from_the_round_has_no_check_error() {
+        let seen = Seen::Checked(vec![unknown("us.zoom.xos", "zoom: no permission")]);
+        assert_eq!(check_error(&seen, "com.microsoft.teams2"), None);
+    }
+
+    #[test]
+    fn a_round_without_checks_has_no_check_error() {
+        assert_eq!(check_error(&Seen::Off, "us.zoom.xos"), None);
     }
 }

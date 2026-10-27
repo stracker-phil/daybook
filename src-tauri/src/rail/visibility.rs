@@ -3,8 +3,8 @@
 
 use super::geometry::{Frame, Point};
 
-pub const DWELL_MS: u64 = 200;
-pub const LEAVE_MS: u64 = 700;
+const DWELL_MS: u64 = 200;
+const LEAVE_MS: u64 = 700;
 
 pub fn is_inside(point: Point, frame: Frame, slop: f64) -> bool {
     point.x >= frame.x - slop
@@ -88,6 +88,43 @@ pub fn next_rail_step(
 
 fn since(start: u64, now: u64) -> u64 {
     if start == 0 { now } else { start }
+}
+
+fn while_hidden(view: RailView, timers: RailTimers, now: u64, delays: RailDelays) -> RailStep {
+    if view.pinned {
+        return step(RailAction::Show, IDLE);
+    }
+    if !view.enabled || !view.at_edge {
+        return step(RailAction::Nothing, IDLE);
+    }
+    let edge_since = since(timers.edge_since, now);
+    if now.saturating_sub(edge_since) >= delays.show {
+        return step(RailAction::Show, IDLE);
+    }
+    step(
+        RailAction::Nothing,
+        RailTimers {
+            edge_since,
+            ..timers
+        },
+    )
+}
+
+fn while_shown(view: RailView, timers: RailTimers, now: u64, delays: RailDelays) -> RailStep {
+    if view.pinned || view.held {
+        return step(RailAction::Nothing, IDLE);
+    }
+    let outside_since = since(timers.outside_since, now);
+    if now.saturating_sub(outside_since) >= delays.hide {
+        return step(RailAction::Hide, IDLE);
+    }
+    step(
+        RailAction::Nothing,
+        RailTimers {
+            outside_since,
+            ..timers
+        },
+    )
 }
 
 #[cfg(test)]
@@ -286,41 +323,4 @@ mod tests {
         assert!(!is_inside(point, frame, 0.0));
         assert!(is_inside(point, frame, 16.0));
     }
-}
-
-fn while_hidden(view: RailView, timers: RailTimers, now: u64, delays: RailDelays) -> RailStep {
-    if view.pinned {
-        return step(RailAction::Show, IDLE);
-    }
-    if !view.enabled || !view.at_edge {
-        return step(RailAction::Nothing, IDLE);
-    }
-    let edge_since = since(timers.edge_since, now);
-    if now.saturating_sub(edge_since) >= delays.show {
-        return step(RailAction::Show, IDLE);
-    }
-    step(
-        RailAction::Nothing,
-        RailTimers {
-            edge_since,
-            ..timers
-        },
-    )
-}
-
-fn while_shown(view: RailView, timers: RailTimers, now: u64, delays: RailDelays) -> RailStep {
-    if view.pinned || view.held {
-        return step(RailAction::Nothing, IDLE);
-    }
-    let outside_since = since(timers.outside_since, now);
-    if now.saturating_sub(outside_since) >= delays.hide {
-        return step(RailAction::Hide, IDLE);
-    }
-    step(
-        RailAction::Nothing,
-        RailTimers {
-            outside_since,
-            ..timers
-        },
-    )
 }

@@ -40,7 +40,7 @@ pub fn iso_day(value: &Value) -> Value {
     let day = value
         .as_str()
         .and_then(|text| chrono::NaiveDate::parse_from_str(text, "%a %b %d %Y").ok())
-        .map(|day| day.format("%Y-%m-%d").to_string());
+        .map(crate::clock::iso_day);
     json!(day.unwrap_or_default())
 }
 

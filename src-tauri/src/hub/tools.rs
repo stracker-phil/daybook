@@ -5,10 +5,9 @@ use serde::Serialize;
 use ts_rs::TS;
 
 use crate::bus::CommandStatus;
-use crate::contexts::context_title;
 use crate::status::status_label;
 use crate::store::settings::{Hotkeys, ToolId, ToolPlacement};
-use crate::tools::{Surface, TimerView, ToolState, tidy_separators, visible_tools};
+use crate::tools::{ContextItem, Surface, TimerView, ToolState, tidy_separators, visible_tools};
 
 #[derive(Serialize, Clone, Debug, PartialEq, TS)]
 #[ts(export, export_to = "src/api/types.gen.ts")]
@@ -63,7 +62,7 @@ fn entry(id: ToolId, state: &ToolState) -> Entry {
         ToolId::Context => Entry::Row {
             title: state
                 .current_context()
-                .map(|context| context_title(&context.label, &context.name))
+                .map(ContextItem::title)
                 .unwrap_or_else(|| "Context".into()),
             command: Some("context:switch"),
             detail: None,
@@ -97,24 +96,15 @@ fn entry(id: ToolId, state: &ToolState) -> Entry {
         ToolId::Links => row("Links", "links:open"),
         ToolId::Projects => row("Projects", "projects:open"),
         ToolId::Music => Entry::Row {
-            title: playing_name(state)
-                .map_or_else(|| "Music".into(), |name| format!("Music · {name}")),
+            title: state
+                .music
+                .playing_entry()
+                .map_or_else(|| "Music".into(), |entry| format!("Music · {}", entry.name)),
             command: Some("music:open"),
             detail: None,
         },
         ToolId::Separator1 | ToolId::Separator2 => Entry::Separator,
     }
-}
-
-/// The entry that plays now; `None` while paused or stopped.
-fn playing_name(state: &ToolState) -> Option<&str> {
-    let music = &state.music;
-    let entry = music.entry.as_deref().filter(|_| music.playing)?;
-    music
-        .entries
-        .iter()
-        .find(|item| item.id == entry)
-        .map(|item| item.name.as_str())
 }
 
 /// The global shortcut of a tool, in Settings notation; the rail shows it too.

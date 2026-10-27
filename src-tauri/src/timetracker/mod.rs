@@ -38,8 +38,9 @@ use crate::lock::MutexExt;
 use crate::state::AppState;
 use crate::store::settings::Settings;
 use crate::tools::TimerView;
-use crate::{activity, projects, slack, tray};
+use crate::{activity, slack, tray};
 
+/// What Daybook knows of TimeTracker, managed as Tauri state.
 #[derive(Default)]
 pub struct TimeTrackerService {
     tracking: Mutex<Tracking>,
@@ -49,6 +50,7 @@ pub struct TimeTrackerService {
     shown_day: Mutex<Option<NaiveDate>>,
     /// The Daybook project of the timer as Slack heard it last.
     project: Mutex<Option<String>>,
+    /// The running `watch`, so a new path or quitting can end it.
     watching: Arc<Mutex<Option<Child>>>,
     /// Whether a `watch` is connected.
     link: Mutex<WatchLink>,
@@ -61,7 +63,7 @@ fn service(app: &AppHandle) -> &TimeTrackerService {
 }
 
 /// The tool at the path from Settings.
-pub fn cli(app: &AppHandle) -> Cli {
+fn cli(app: &AppHandle) -> Cli {
     let settings = app.state::<AppState>().settings.get();
     let cli = Cli::new(
         resolve_path(&settings.timetracker.path),
@@ -84,6 +86,7 @@ pub async fn blocking<T: Send + 'static>(
         .map_err(|_| AppError::TimeTrackerNotRunning(client::NO_ANSWER.into()))?
 }
 
+/// How the `watch` thread follows TimeTracker now.
 pub fn watch_link(app: &AppHandle) -> WatchLink {
     *service(app).link.lock_unpoisoned()
 }
@@ -114,8 +117,7 @@ pub fn tool_state(tracking: &Tracking, settings: &Settings) -> (TtState, Option<
 pub fn current_project(app: &AppHandle) -> Option<String> {
     let state = app.state::<AppState>();
     let settings = state.settings.get();
-    let context = state.contexts.current(&settings).map(|c| c.id.clone());
-    let offered = projects::current_projects(&settings.projects, context.as_deref());
+    let offered = state.contexts.current_projects(&settings);
     link::current_project(&offered, tracking(app).timer.as_ref())
 }
 
@@ -342,7 +344,10 @@ fn watch_forever(app: &AppHandle, woken: &Receiver<()>) {
 
 /// An older TimeTracker without `watch`: its timer every `POLL`, until the path changes.
 fn poll_until_woken(app: &AppHandle, woken: &Receiver<()>) {
-    log::info!("This TimeTracker has no `watch`; reading its timer every 30 s");
+    log::info!(
+        "This TimeTracker has no `watch`; reading its timer every {} s",
+        watch::POLL.as_secs()
+    );
     set_link(app, WatchLink::Polling);
     loop {
         set_tracking(app, poll(&cli(app)));

@@ -38,7 +38,8 @@ use self::sender::Sender;
 use self::status::{Live, Picked, Setup, Step};
 use self::token::Tokens;
 use crate::action_log::{self, ActionState, ActionTarget};
-use crate::calls::{self, Announced, CallEvent};
+use crate::calls::{self, CallEvent};
+use crate::clock::iso_day;
 use crate::events::{CONTEXT_CHANGED_EVENT, SLACK_CHANGED_EVENT, STATUS_CHANGED_EVENT};
 use crate::lock::MutexExt;
 use crate::secrets::Secret;
@@ -223,7 +224,7 @@ fn post_message(app: &AppHandle, channel: &str, text: String, change: &StatusCha
 }
 
 fn remember_day_message(app: &AppHandle, posted: &api::Posted, text: &str) {
-    let today = Local::now().format("%Y-%m-%d").to_string();
+    let today = iso_day(Local::now().date_naive());
     let remembered = app.state::<AppState>().slack.day_message.update(|day| {
         if let Some(next) = day.remember(&today, &posted.channel, &posted.ts, text) {
             *day = next;
@@ -279,25 +280,6 @@ pub fn install(app: &AppHandle) {
     app.listen(CONTEXT_CHANGED_EVENT, move |_| {
         step(&handle, |live, setup| live.context_changed(setup));
     });
-    follow_calls(app);
+    calls::follow(app, call_changed);
     lifecycle::restore_after_restart(app);
-}
-
-/// Every call start, move and end, for as long as the app runs.
-fn follow_calls(app: &AppHandle) {
-    let handle = app.clone();
-    let mut calls = calls::subscribe(app);
-    tauri::async_runtime::spawn(async move {
-        use tokio::sync::broadcast::error::RecvError;
-        loop {
-            match calls.recv().await {
-                Ok(Announced { event, trigger }) => {
-                    let _entered = trigger.as_ref().map(action_log::Trigger::enter);
-                    call_changed(&handle, event);
-                }
-                Err(RecvError::Lagged(_)) => continue,
-                Err(RecvError::Closed) => break,
-            }
-        }
-    });
 }

@@ -21,6 +21,7 @@ fn shows_call_status(app: &AppHandle) -> bool {
         .read(|shown| shown.at(now_ms).is_call_status(&rules))
 }
 
+/// Once the first call check found no call, a call status Slack still shows is replaced.
 pub(super) fn restore_after_restart(app: &AppHandle) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {

@@ -1,3 +1,5 @@
+//! The app's error type and its JSON shape across the Tauri boundary (`{ kind, message, field? }`).
+
 use serde::{Deserialize, Serialize, Serializer};
 use ts_rs::TS;
 

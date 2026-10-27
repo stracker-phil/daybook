@@ -17,6 +17,7 @@ use super::reply::{
     parse_refusal, parse_status, parse_timer,
 };
 use super::watch::TtState;
+use crate::clock::iso_day;
 use crate::error::{AppError, AppResult, ErrorKind};
 use crate::lock::MutexExt;
 use crate::process::{self, RunError};
@@ -165,13 +166,13 @@ pub fn recent(tt: &dyn TimeTracker, limit: u8) -> AppResult<Vec<RecentTimer>> {
 
 /// The recordings with time on `day`, as TimeTracker's Day view shows them.
 pub fn recordings(tt: &dyn TimeTracker, day: NaiveDate) -> AppResult<Vec<Recording>> {
-    let day = day.format("%Y-%m-%d").to_string();
+    let day = iso_day(day);
     parse_recordings(&call(tt, &["recordings", &day])?).map_err(AppError::TimeTrackerRefused)
 }
 
 /// The suggestions to review on `day`: rules' and stored ones.
 pub fn suggestions(tt: &dyn TimeTracker, day: NaiveDate) -> AppResult<Vec<Suggestion>> {
-    let day = day.format("%Y-%m-%d").to_string();
+    let day = iso_day(day);
     parse_suggestions(&call(tt, &["suggestions", &day])?).map_err(AppError::TimeTrackerRefused)
 }
 
@@ -227,7 +228,7 @@ pub fn record(
 
 /// Shows TimeTracker's Day view of `day`, else today; starts TimeTracker if needed.
 pub fn show(tt: &dyn TimeTracker, day: Option<NaiveDate>) -> AppResult<()> {
-    let day = day.map(|day| day.format("%Y-%m-%d").to_string());
+    let day = day.map(iso_day);
     let mut args = vec!["show"];
     args.extend(day.as_deref());
     call(tt, &args).map(|_| ())

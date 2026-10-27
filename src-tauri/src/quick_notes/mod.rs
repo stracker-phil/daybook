@@ -1,4 +1,4 @@
-//! Quick notes (docs/ux.md#quick-notes): pick or name a topic below the notes heading of today's note,
+//! Quick notes (docs/vault.md#quick-notes): pick or name a topic below the notes heading of today's note,
 //! then write it in the editor window. A save never overwrites a change made in the note meanwhile.
 
 pub mod presentation;

@@ -1,7 +1,8 @@
 import type { ReminderRule, Settings, TimeWindow, TodoSpan } from "../../api";
 import type { SettingsPageProps } from "../../registry/settingsPages";
 import { BufferedInput, ControlRow, EntryFooter, FormRow, Group, LeadSwitch } from "./controls";
-import { ItemActions, TimeRangeField, moveItem } from "./fields";
+import { TimeRangeField } from "./fields";
+import { listEditor } from "./listEditor";
 
 type AddableRule = Extract<ReminderRule, { kind: "meeting" | "todos" }>;
 
@@ -81,8 +82,7 @@ function RuleFields({ rule, s, onChange }: { rule: ReminderRule; s: Settings; on
 /** The first enabled rule that applies wins, so the list order is the precedence. */
 export function RemindersPage({ s, set }: SettingsPageProps) {
   const rules = s.reminders;
-  const save = (reminders: ReminderRule[]) => set({ reminders });
-  const replace = (index: number, rule: ReminderRule) => save(rules.map((entry, i) => (i === index ? rule : entry)));
+  const edit = listEditor(rules, (reminders) => set({ reminders }));
   return (
     <Group>
       <ControlRow stacked>
@@ -91,24 +91,16 @@ export function RemindersPage({ s, set }: SettingsPageProps) {
             key={i}
             label={title(rule, s)}
             checked={rule.enabled}
-            onChange={(enabled) => replace(i, { ...rule, enabled })}
-            accessory={
-              <ItemActions
-                index={i}
-                count={rules.length}
-                onMove={(from, to) => save(moveItem(rules, from, to))}
-                onRemove={isAddable(rule) ? () => save(rules.filter((_, j) => j !== i)) : undefined}
-                removeLabel="Remove Reminder"
-              />
-            }
+            onChange={(enabled) => edit.change(i, { enabled })}
+            accessory={edit.actions(i, isAddable(rule) ? "Remove Reminder" : undefined)}
           >
-            {rule.enabled && <RuleFields rule={rule} s={s} onChange={(next) => replace(i, next)} />}
+            {rule.enabled && <RuleFields rule={rule} s={s} onChange={(next) => edit.change(i, next)} />}
           </LeadSwitch>
         ))}
       </ControlRow>
       <EntryFooter>
         {(Object.keys(ADDABLE) as AddableRule["kind"][]).map((kind) => (
-          <button key={kind} type="button" className="btn" onClick={() => save([...rules, newRule(kind)])}>
+          <button key={kind} type="button" className="btn" onClick={() => edit.add(newRule(kind))}>
             Add {ADDABLE[kind]}
           </button>
         ))}

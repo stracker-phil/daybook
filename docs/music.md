@@ -40,11 +40,11 @@ entries exist (not while away), right after each action and again 2.5 s later; a
 - The day's first Working (`startWith`): start that entry unless Music already plays.
 Pausing on Break and Off and starting with the workday act only while the context has the Status feature
 (`rules::effective`); the call rule acts in every context. `automation.rs` follows `status_changed`
-([status.md](status.md)) and the call signals ([presence-and-calls.md](presence-and-calls.md)) and runs the steps
+([status.md](status.md)) and the call signals (`calls::follow`, [presence-and-calls.md](presence-and-calls.md)) and runs the steps
 one after another. Daybook only pauses music it found playing and resumes only what it paused. A call moving to
 another app (`CallEvent::Switched`) changes nothing: the music stays lowered or paused.
 
-The lowered volume (`Lowered`: from, to) is kept in `music-held.json` (`AppState::music_held`) until it is back.
+The lowered volume (`Lowered`: from, to) is kept in `music-held.json` (`music::HELD_FILE`, `AppState::music_held`) until it is back.
 Quitting during a call restores it (`music::restore_on_exit`, within the 3 s `app.rs` gives Slack and music
 together); after a restart or a crash, once the first call check found no call, the volume goes back too
 (unless it was changed by hand). Music paused for a call stays paused after a restart.

@@ -1,7 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { ErrorBoundary } from "../../components/ErrorBoundary";
-import { installInputModality } from "../../lib/inputModality";
 import { installNativeMenuGuard } from "../../lib/nativeMenu";
 import { applyInitialLook } from "../../lib/theme";
 import { installModules } from "../../modules";
@@ -14,7 +13,6 @@ installModules("settings");
 applyInitialLook();
 void installStageHooks("settings");
 installNativeMenuGuard();
-installInputModality();
 
 if (import.meta.env.VITE_DEV_HOOKS === "1") window.daybook = useStore;
 

@@ -19,7 +19,7 @@ use tauri::{
 use tokio::sync::oneshot;
 
 use self::handshake::Handshake;
-use self::session::{Closing, FocusLoss, OpenDecision, PanelState};
+use self::session::{Closing, FocusLoss, OpenDecision, PanelSession, PanelState};
 use super::display::{Rect, top_center};
 use super::front_app::{CloseContext, HandBack, hand_back};
 use super::native as appkit;
@@ -184,24 +184,20 @@ async fn remember_front_app(app: &AppHandle) {
     panel(app).state.lock_unpoisoned().remember(target, active);
 }
 
-/// The open overlay's view.
-pub fn view(app: &AppHandle) -> Option<String> {
+fn open_session<R>(app: &AppHandle, read: impl FnOnce(&PanelSession) -> R) -> Option<R> {
     let panel = panel(app);
     let state = panel.state.lock_unpoisoned();
-    state
-        .is_open()
-        .then(|| state.session().map(|s| s.view.clone()))
-        .flatten()
+    state.session().filter(|_| state.is_open()).map(read)
+}
+
+/// The open overlay's view.
+pub fn view(app: &AppHandle) -> Option<String> {
+    open_session(app, |s| s.view.clone())
 }
 
 /// The open overlay's session.
 pub fn session_id(app: &AppHandle) -> Option<u32> {
-    let panel = panel(app);
-    let state = panel.state.lock_unpoisoned();
-    state
-        .is_open()
-        .then(|| state.session().map(|s| s.session))
-        .flatten()
+    open_session(app, |s| s.session)
 }
 
 fn is_current(app: &AppHandle, session: u32) -> bool {

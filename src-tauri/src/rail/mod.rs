@@ -20,6 +20,7 @@ use chrono::Local;
 use tauri::{AppHandle, Emitter, Manager};
 
 pub use commands::register;
+pub(crate) use window::RAIL;
 
 use self::controller::{Action, Controller, Poll, RailShown};
 use self::model::{RailInput, RailModel, rail_model};
@@ -220,14 +221,14 @@ fn update(app: &AppHandle, state: &ToolState) -> RailModel {
     model
 }
 
-fn refresh(app: &AppHandle) {
-    update(app, &tools::snapshot(app));
+fn refresh(app: &AppHandle) -> RailModel {
+    update(app, &tools::snapshot(app))
 }
 
 /// The buttons as last built, built now for a page that loads first.
 pub fn current_model(app: &AppHandle) -> RailModel {
     let built = rail(app).model.lock_unpoisoned().clone();
-    built.unwrap_or_else(|| update(app, &tools::snapshot(app)))
+    built.unwrap_or_else(|| refresh(app))
 }
 
 pub fn shown(app: &AppHandle) -> RailShown {

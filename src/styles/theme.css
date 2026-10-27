@@ -11,7 +11,6 @@
   --data-font-size: 12px;
 
   /* Type scale: the macOS text styles, in rem so ⌘= and ⌘- scale them. */
-  --fs-display: 1.692rem;
   --fs-heading: 1.308rem;
   --fs-title: 1.154rem;
   --fs-body: 1rem;
@@ -25,7 +24,6 @@
   --space-4: 1.231rem;
   --space-5: 1.538rem;
   --space-6: 1.846rem;
-  --space-8: 2.462rem;
   --margin: var(--space-5);
 
   --accent: AccentColor;
@@ -36,12 +34,7 @@
   --o2: color-mix(in srgb, var(--text) 68%, transparent);
   --o3: color-mix(in srgb, var(--text) 52%, transparent);
 
-  /* Room kept beside a scroller's rows; scrollbars themselves are macOS's overlay ones (base.css). */
-  --scrollbar-size: 8px;
-
-  /* The line grows past 20px only for large data font sizes, so rows never clip their text. */
   --pad: 3px;
-  --row-h: calc(max(20px, var(--data-font-size) * 1.6) + 2 * var(--pad));
   /* A key cap's height (.keycap); a field or tab ending in one keeps the same gap beside it as above and below. */
   --keycap-h: calc(1.231rem + 2px);
 
@@ -60,7 +53,6 @@
      and don't scale with the UI size, so neither does it. */
   --toolbar-height: 52px;
   --traffic-lights: 84px;
-
 }
 
 /* Shared controls inside the sidebar (buttons, key caps, rows) take the sidebar tokens; its accent hues come from

@@ -1,55 +1,15 @@
 //! The menu-bar menu as plain data; `tray` turns it into native items. Pure.
 
 use super::activity::activity_entries;
+use super::choices::{choices_of, overlay_then, with_choices};
+pub use super::entry::MenuEntry;
+use super::entry::{command, plain, submenu};
 pub use super::prune::prune;
 use super::prune::tidy;
 pub use super::title::menu_bar_title;
 pub use crate::bus::CommandStatus;
-use crate::contexts::context_title;
 use crate::store::settings::{Feature, Hotkeys, ToolId, ToolPlacement};
-use crate::tools::{Choice, Link, LinkItem, Status, Step, ToolState, link_command, tool_choices};
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum MenuEntry {
-    Command {
-        label: String,
-        command: String,
-        /// A global shortcut, shown only (Settings notation).
-        shortcut: Option<String>,
-        enabled: bool,
-    },
-    Radio {
-        label: String,
-        command: String,
-        checked: bool,
-    },
-    /// An on/off setting; its command toggles it.
-    Checkbox {
-        label: String,
-        command: String,
-        checked: bool,
-    },
-    /// A greyed line that only tells something.
-    Info(String),
-    Submenu {
-        label: String,
-        items: Vec<MenuEntry>,
-    },
-    Separator,
-}
-
-impl MenuEntry {
-    pub fn label(&self) -> Option<&str> {
-        match self {
-            Self::Command { label, .. }
-            | Self::Radio { label, .. }
-            | Self::Checkbox { label, .. }
-            | Self::Info(label)
-            | Self::Submenu { label, .. } => Some(label),
-            Self::Separator => None,
-        }
-    }
-}
+use crate::tools::{Link, LinkItem, Status, ToolState, link_command};
 
 pub struct MenuInput<'a> {
     pub state: &'a ToolState,
@@ -59,28 +19,6 @@ pub struct MenuInput<'a> {
 }
 
 const MAX_LINKS: usize = 10;
-
-/// A command with its global shortcut; an empty one shows none.
-pub(super) fn command(label: &str, id: &str, shortcut: &str) -> MenuEntry {
-    MenuEntry::Command {
-        label: label.into(),
-        command: id.into(),
-        shortcut: (!shortcut.is_empty()).then(|| shortcut.to_string()),
-        enabled: true,
-    }
-}
-
-/// A command without a shortcut.
-fn plain(label: &str, id: &str) -> MenuEntry {
-    command(label, id, "")
-}
-
-fn submenu(label: impl Into<String>, items: Vec<MenuEntry>) -> MenuEntry {
-    MenuEntry::Submenu {
-        label: label.into(),
-        items,
-    }
-}
 
 fn link_entry(link: &Link) -> MenuEntry {
     plain(&link.title, &link_command(&link.target))
@@ -112,99 +50,16 @@ pub fn link_menu(state: &ToolState) -> Vec<MenuEntry> {
     shown
 }
 
-fn steps_submenu(label: String, steps: Vec<Step>) -> MenuEntry {
-    submenu(
-        label,
-        steps
-            .into_iter()
-            .map(|step| MenuEntry::Radio {
-                label: format!("{} %", step.label),
-                command: step.command,
-                checked: step.active,
-            })
-            .collect(),
-    )
-}
-
-/// `Label · detail`; a radio item for a pick among several.
-fn choice_item(
-    label: String,
-    id: String,
-    detail: Option<String>,
-    checked: Option<bool>,
-) -> MenuEntry {
-    let label = match detail {
-        Some(detail) => format!("{label} · {detail}"),
-        None => label,
-    };
-    match checked {
-        Some(checked) => MenuEntry::Radio {
-            label,
-            command: id,
-            checked,
-        },
-        None => plain(&label, &id),
-    }
-}
-
-fn choices_to_menu(choices: Vec<Choice>) -> Vec<MenuEntry> {
-    choices
-        .into_iter()
-        .map(|choice| match choice {
-            Choice::Separator => MenuEntry::Separator,
-            Choice::Heading { label } => MenuEntry::Info(label),
-            Choice::Steps { label, steps } => steps_submenu(label, steps),
-            Choice::Item {
-                label,
-                command,
-                detail,
-                checked,
-            } => choice_item(label, command, detail, checked),
-        })
-        .collect()
-}
-
-fn choices_of(id: ToolId, input: &MenuInput) -> Vec<MenuEntry> {
-    choices_to_menu(tool_choices(id, input.state))
-}
-
-/// What opens the overlay, then the choices: the submenu's items.
-fn overlay_then(overlay: MenuEntry, choices: Vec<MenuEntry>) -> Vec<MenuEntry> {
-    let mut items = vec![overlay, MenuEntry::Separator];
-    items.extend(choices);
-    items
-}
-
-/// A tool with choices becomes a submenu: what opens its overlay first, then its choices.
-pub(super) fn with_choices(
-    label: &str,
-    overlay: MenuEntry,
-    id: ToolId,
-    input: &MenuInput,
-) -> Vec<MenuEntry> {
-    let choices = choices_of(id, input);
-    if choices.is_empty() {
-        return vec![overlay];
-    }
-    vec![submenu(label, overlay_then(overlay, choices))]
-}
-
 fn music_entries(input: &MenuInput) -> Vec<MenuEntry> {
     let music = &input.state.music;
     let mut items = choices_of(ToolId::Music, input);
     if items.is_empty() {
         return Vec::new();
     }
-    let playing = if music.playing {
-        music
-            .entries
-            .iter()
-            .find(|entry| music.entry.as_deref() == Some(entry.id.as_str()))
-    } else {
-        None
-    };
     items.push(command("Music…", "music:open", &input.hotkeys.music));
-    let label = playing.map_or("Music".into(), |entry| format!("Music: {}", entry.name));
+    let label = music
+        .playing_entry()
+        .map_or("Music".into(), |entry| format!("Music: {}", entry.name));
     vec![submenu(label, items)]
 }
 
@@ -222,10 +77,7 @@ fn context_entries(input: &MenuInput) -> Vec<MenuEntry> {
         "context:switch",
         &input.hotkeys.switch_context,
     ));
-    vec![submenu(
-        format!("Context: {}", context_title(&current.label, &current.name)),
-        items,
-    )]
+    vec![submenu(format!("Context: {}", current.title()), items)]
 }
 
 fn status_name(status: Option<Status>) -> &'static str {

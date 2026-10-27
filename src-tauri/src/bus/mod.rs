@@ -9,7 +9,7 @@ mod command;
 mod commands;
 
 pub use app::{Commands, spawn};
-pub use command::{ArgChoice, Command, Family, FamilySpec, FromWords, Info, RunFuture, Spec};
+pub use command::{ArgChoice, Command, Family, FromWords, Info, RunFuture};
 pub use commands::{register, register_aliases};
 
 use crate::error::{AppError, AppResult};
@@ -414,7 +414,7 @@ mod tests {
             Command::new("context:set:", "Context")
                 .family("<context>")
                 .choices(|_| vec![ArgChoice::new("work"), ArgChoice::new("home")])
-                .from_words(|words| {
+                .argument_from_words(|words| {
                     if words.is_empty() {
                         Err("Needs a context.".into())
                     } else {
@@ -566,8 +566,6 @@ mod tests {
         assert_eq!(info.title, "Open Daybook");
         assert_eq!(info.help, "Opens the window.");
         assert!(info.hidden && info.needs_vault && info.quits);
-        assert_eq!(info.group("hub:open"), "hub");
-        assert_eq!(bus.info("plain").unwrap().group("plain"), "plain");
         let defaults = bus.info("plain").unwrap();
         assert_eq!(defaults.help, "Title");
         assert!(!defaults.hidden && !defaults.needs_vault && !defaults.quits);

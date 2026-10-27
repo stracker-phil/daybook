@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import type { QuickLink } from "../../api";
 import type { SettingsPageProps } from "../../registry/settingsPages";
 import { EntryFooter, Group, Row, Switch } from "./controls";
-import { CommitInput, DaysField, ItemActions, ToggleChips, contextChoices, moveItem, replaceItem, type Choice } from "./fields";
+import { CommitInput, DaysField, ItemActions, ToggleChips, contextChoices, type Choice } from "./fields";
+import { listEditor } from "./listEditor";
 import { clockTime, LinkMeetingFields, LinkTimeFields } from "./LinkRuleFields";
 
 const NEW_LINK: QuickLink = {
@@ -26,7 +27,7 @@ const mondayFirst = (day: number) => (day + 6) % 7;
 /** An empty pick means the rule is unset. */
 const orNull = <T,>(list: T[]) => (list.length > 0 ? list : null);
 
-/** `Work | Oscorp | Mo, Fr | 09:00–12:00 | 🗓️ Weekly`: when the link shows, for the collapsed card. */
+/** `Work | Oscorp | Mo, Fr | 09:00–12:00 | 🗓️ Weekly`: when the link shows, for its collapsed line. */
 function summary(link: QuickLink, contexts: Choice[]): string {
   const parts = [
     contexts.filter((context) => link.contexts?.includes(context.id)).map((context) => context.title).join(", "),
@@ -43,16 +44,13 @@ interface LinkEntryProps {
   link: QuickLink;
   contexts: Choice[];
   projects: string[];
-  index: number;
-  count: number;
   open: boolean;
+  actions: ReactNode;
   onToggle: () => void;
   onChange: (patch: Partial<QuickLink>) => void;
-  onMove: (from: number, to: number) => void;
-  onRemove: () => void;
 }
 
-function LinkEntry({ link, contexts, projects, index, count, open, onToggle, onChange, onMove, onRemove }: LinkEntryProps) {
+function LinkEntry({ link, contexts, projects, open, actions, onToggle, onChange }: LinkEntryProps) {
   const Chevron = open ? ChevronDown : ChevronRight;
   return (
     <>
@@ -62,7 +60,7 @@ function LinkEntry({ link, contexts, projects, index, count, open, onToggle, onC
         </button>
         <CommitInput label="Title" placeholder="Title" className={open ? "link-title grow" : "link-title"} value={link.title} onCommit={(title) => onChange({ title })} />
         {!open && <span className="link-summary o2">{summary(link, contexts)}</span>}
-        <ItemActions index={index} count={count} onMove={onMove} onRemove={onRemove} removeLabel="Remove Link" />
+        {actions}
       </div>
       {open && (
         <>
@@ -110,25 +108,26 @@ function LinkEntry({ link, contexts, projects, index, count, open, onToggle, onC
 
 /** One line per link, collapsed to its title and when it shows. */
 export function LinksPage({ s, set }: SettingsPageProps) {
-  // Which cards show their details, by position; they start collapsed.
+  // Which lines show their details, by position; they start collapsed.
   const [open, setOpen] = useState<boolean[]>([]);
   const links = s.links;
   const flags = links.map((_, i) => open[i] === true);
   const contexts = contextChoices(s.contexts);
   const projects = s.projects.map((project) => project.name);
-  const save = (next: QuickLink[]) => set({ links: next.filter((link) => link.target || link.title) });
-  // A card's open flag follows its link.
-  const moveAt = (from: number, to: number) => {
-    setOpen(moveItem(flags, from, to));
-    save(moveItem(links, from, to));
+  const edit = listEditor(links, (next) => set({ links: next.filter((link) => link.target || link.title) }));
+  // A line's open flag follows its link.
+  const flagEdit = listEditor(flags, setOpen);
+  const move = (from: number, to: number) => {
+    flagEdit.move(from, to);
+    edit.move(from, to);
   };
-  const removeAt = (i: number) => {
-    setOpen(flags.filter((_, j) => j !== i));
-    save(links.filter((_, j) => j !== i));
+  const remove = (i: number) => {
+    flagEdit.remove(i);
+    edit.remove(i);
   };
-  const appendOpen = (link: QuickLink) => {
-    setOpen([...flags, true]);
-    save([...links, link]);
+  const addOpen = () => {
+    flagEdit.add(true);
+    edit.add(NEW_LINK);
   };
 
   return (
@@ -142,17 +141,14 @@ export function LinksPage({ s, set }: SettingsPageProps) {
           link={link}
           contexts={contexts}
           projects={projects}
-          index={i}
-          count={links.length}
           open={flags[i]}
+          actions={<ItemActions index={i} count={links.length} onMove={move} onRemove={() => remove(i)} removeLabel="Remove Link" />}
           onToggle={() => setOpen(flags.map((flag, j) => (j === i ? !flag : flag)))}
-          onChange={(patch) => save(replaceItem(links, i, patch))}
-          onMove={moveAt}
-          onRemove={() => removeAt(i)}
+          onChange={(patch) => edit.change(i, patch)}
         />
       ))}
       <EntryFooter>
-        <button type="button" className="btn" onClick={() => appendOpen(NEW_LINK)}>
+        <button type="button" className="btn" onClick={addOpen}>
           Add Link
         </button>
       </EntryFooter>

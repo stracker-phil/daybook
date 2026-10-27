@@ -162,10 +162,6 @@ fn command_plan(args: &[String], catalog: &[CliCommand]) -> Plan {
     unknown(args, catalog)
 }
 
-fn rest_text(words: &[String]) -> String {
-    words.join(" ")
-}
-
 /// `slack <status> [note...]` or `slack custom <emoji> [text...]`.
 fn slack_plan(rest: &[String]) -> Plan {
     let next = rest.first().map(|w| w.to_lowercase());
@@ -174,12 +170,12 @@ fn slack_plan(rest: &[String]) -> Plan {
             Action::Slack,
             &[
                 ("status", status.to_string()),
-                ("note", rest_text(&rest[1..])),
+                ("note", rest[1..].join(" ")),
             ],
         ),
         Some("custom") if rest.len() >= 2 => action(
             Action::Slack,
-            &[("emoji", rest[1].clone()), ("text", rest_text(&rest[2..]))],
+            &[("emoji", rest[1].clone()), ("text", rest[2..].join(" "))],
         ),
         Some("custom") => usage(format!("{TOOL} slack custom needs an emoji, e.g. :tomato:")),
         _ => usage(format!("{TOOL} slack needs working, break, off or custom.")),
@@ -225,7 +221,7 @@ pub fn parse_cli(args: &[String], catalog: &[CliCommand]) -> Plan {
                 Action::Status,
                 &[
                     ("status", next.unwrap_or_default().to_string()),
-                    ("note", rest_text(&rest[1..])),
+                    ("note", rest[1..].join(" ")),
                 ],
             );
         }

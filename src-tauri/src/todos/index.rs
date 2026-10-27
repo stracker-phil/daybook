@@ -10,6 +10,7 @@ use chrono::NaiveDate;
 use regex::Regex;
 
 use super::scan::{ScannedTodo, scan_open_todos, todo_key};
+use crate::clock::parse_day;
 use crate::lock::MutexExt;
 
 static DATE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(\d{4}-\d{2}-\d{2})").unwrap());
@@ -37,7 +38,7 @@ pub struct NotesIndex {
 
 fn date_of(file: &Path) -> Option<NaiveDate> {
     let name = file.file_name()?.to_str()?;
-    NaiveDate::parse_from_str(&DATE.captures(name)?[1], "%Y-%m-%d").ok()
+    parse_day(&DATE.captures(name)?[1]).ok()
 }
 
 fn dated_notes(dir: &Path, found: &mut Vec<DatedNote>) {
@@ -77,9 +78,7 @@ impl Inner {
             found
         })
     }
-}
 
-impl Inner {
     /// `file`'s open todos, scanned once until the note changes; `None` when it can't be read.
     fn scanned(&mut self, file: &Path, skip_heading: &str) -> Option<Vec<ScannedTodo>> {
         if let Some(scanned) = self.todos.get(file) {

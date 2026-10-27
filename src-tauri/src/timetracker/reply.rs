@@ -4,6 +4,8 @@ use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::clock::parse_day;
+
 /// The running timer; TimeTracker has none while `running` is false.
 #[derive(Serialize, Clone, Debug, PartialEq, TS)]
 #[ts(export, export_to = "src/api/types.gen.ts")]
@@ -101,8 +103,8 @@ struct Recorded {
 
 /// A refusal printed on stdout with exit code 1.
 #[derive(Deserialize)]
-pub struct Refusal {
-    pub message: String,
+struct Refusal {
+    message: String,
 }
 
 /// What changed in TimeTracker's data, from a `data` line.
@@ -208,9 +210,7 @@ pub fn parse_watch_line(line: &str) -> Option<WatchLine> {
                 "rules" => DataKind::Rules,
                 _ => DataKind::Other,
             };
-            let day = change
-                .day
-                .and_then(|day| NaiveDate::parse_from_str(&day, "%Y-%m-%d").ok());
+            let day = change.day.and_then(|day| parse_day(&day).ok());
             Some(WatchLine::Data(DataChange { kind, day }))
         }
         _ => None,

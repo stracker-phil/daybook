@@ -1,5 +1,5 @@
-//! Where the rail goes on a screen. Points with y growing downwards from the top of the main screen, as
-//! in the prototype; `flip` converts Cocoa's y-up rectangles once per poll. Pure.
+//! Where the rail goes on a screen. Points with y growing downwards from the top of the main screen;
+//! `flip` converts Cocoa's y-up rectangles once per poll. Pure.
 
 use serde::Serialize;
 use ts_rs::TS;
@@ -58,7 +58,7 @@ pub struct RailLook {
 }
 
 /// Room around the bar inside the rail window, for its shadow.
-pub const RAIL_PADDING: f64 = 6.0;
+const RAIL_PADDING: f64 = 6.0;
 /// Off the top and bottom of the work area when the rail sits at one end or at the pointer.
 const END_MARGIN: f64 = 8.0;
 
@@ -67,7 +67,7 @@ pub fn round(value: f64) -> f64 {
     (value + 0.5).floor()
 }
 
-pub fn bar_width(size: RailSize) -> f64 {
+fn bar_width(size: RailSize) -> f64 {
     match size {
         RailSize::Compact => 32.0,
         RailSize::Regular => 40.0,

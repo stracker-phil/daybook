@@ -1,3 +1,5 @@
+//! What a launch or a deep link leaves for the page: queued until the page listens.
+
 use std::sync::Mutex;
 
 use serde::Serialize;
@@ -26,6 +28,7 @@ pub enum LaunchEvent {
     Activate,
 }
 
+/// `LaunchEvent`s waiting for the page to take them (`take_launch_events`).
 #[derive(Default)]
 pub struct LaunchQueue {
     events: Mutex<Vec<LaunchEvent>>,

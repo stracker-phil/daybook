@@ -5,6 +5,7 @@ use ts_rs::TS;
 
 use crate::calendar::CalendarAccess;
 use crate::slack::api::SlackIdentity;
+use crate::timetracker::watch::POLL;
 use crate::timetracker::{TtState, WatchLink};
 
 #[derive(Serialize, Clone, Debug, PartialEq, TS)]
@@ -165,7 +166,7 @@ pub fn timetracker_group(facts: &TimeTrackerFacts) -> DiagnosticGroup {
         WatchLink::Connected => row("Live updates", "Connected", DiagnosticTone::Ok),
         WatchLink::Polling => row(
             "Live updates",
-            "Read every 30 s (TimeTracker has no watch)",
+            format!("Read every {} s (TimeTracker has no watch)", POLL.as_secs()),
             DiagnosticTone::Info,
         ),
         WatchLink::Waiting => row("Live updates", "Not connected", DiagnosticTone::Warn),

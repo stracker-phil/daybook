@@ -132,6 +132,25 @@ pub fn parsed<T: DeserializeOwned>(value: Option<&Value>) -> Option<T> {
     value.and_then(|value| serde_json::from_value(value.clone()).ok())
 }
 
+/// Adds each of `defaults` that `list` lacks right after the default it follows, or first.
+pub fn insert_missing<T, K: Copy + PartialEq>(
+    list: &mut Vec<T>,
+    defaults: &[K],
+    key: impl Fn(&T) -> K,
+    make: impl Fn(K) -> T,
+) {
+    for (index, id) in defaults.iter().enumerate() {
+        if list.iter().any(|item| key(item) == *id) {
+            continue;
+        }
+        let at = index
+            .checked_sub(1)
+            .and_then(|before| list.iter().position(|item| key(item) == defaults[before]))
+            .map_or(0, |i| i + 1);
+        list.insert(at, make(*id));
+    }
+}
+
 /// Distinct weekdays (0 = Sunday … 6), sorted.
 pub fn weekdays(value: Option<&Value>) -> Vec<u8> {
     let mut days: Vec<u8> = items(value)

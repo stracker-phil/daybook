@@ -1,5 +1,5 @@
-import { DEFAULT_TEXT_SIZE, TEXT_SIZES, api, type TextSize } from "../api";
-import { fail } from "../state/requests";
+import { DEFAULT_TEXT_SIZE, TEXT_SIZES, type TextSize } from "../api";
+import { runBusCommand } from "../state/requests";
 import { useStore } from "../state/store";
 import {
   allCommands,
@@ -54,9 +54,7 @@ function toggleShortcuts() {
   if (!s.dialog) s.openDialog({ type: "shortcuts", scopes: activeScopes() });
 }
 
-function closeWindow() {
-  void api.runCommand("window:close").catch((e) => fail(e, "Could not close the window"));
-}
+const closeWindow = () => runBusCommand("window:close", "Could not close the window");
 
 const notTyping = () => !isTextInput(document.activeElement);
 
@@ -67,9 +65,7 @@ export function setQuickNoteLoaded(loaded: boolean) {
   quickNoteLoaded = loaded;
 }
 
-function presentQuickNote() {
-  void api.runCommand("notes:present").catch((e) => fail(e, "Could not present the note"));
-}
+const presentQuickNote = () => runBusCommand("notes:present", "Could not present the note");
 
 /** The day before or after the shown one that has a note; nothing at either end. */
 function stepDay(direction: "previousDay" | "nextDay") {

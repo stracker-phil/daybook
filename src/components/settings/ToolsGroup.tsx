@@ -1,13 +1,13 @@
 import type { ToolPlacement } from "../../api";
 import type { SettingsPageProps } from "../../registry/settingsPages";
-import { Group, Row } from "./controls";
+import { Group, Row, SwitchInput } from "./controls";
 import { ItemActions, moveItem, replaceItem } from "./fields";
 import { TOOL_INFO } from "./toolInfo";
 
 function PlaceSwitch({ label, checked, disabled, onChange }: { label: string; checked: boolean; disabled?: boolean; onChange: (on: boolean) => void }) {
   return (
     <label className="check">
-      <input type="checkbox" role="switch" className="switch" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+      <SwitchInput checked={checked} disabled={disabled} onChange={onChange} />
       {label}
     </label>
   );

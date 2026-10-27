@@ -201,9 +201,10 @@ fn init_logging(level: LogLevel) -> tauri::plugin::TauriPlugin<tauri::Wry> {
 
 #[cfg(debug_assertions)]
 fn apply_dev_frame(app: &tauri::App) {
-    let (Some((x, y, w, h)), Some(window)) =
-        (crate::dev::window_frame(), app.get_webview_window("main"))
-    else {
+    let (Some((x, y, w, h)), Some(window)) = (
+        crate::dev::window_frame(),
+        app.get_webview_window(crate::window::MAIN),
+    ) else {
         return;
     };
     let _ = window.set_position(tauri::LogicalPosition::new(x, y));

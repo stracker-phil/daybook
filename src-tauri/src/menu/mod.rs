@@ -2,7 +2,9 @@
 //! command it runs. The menu-bar menu's model is in `model`.
 
 mod activity;
+mod choices;
 pub mod command_shortcuts;
+mod entry;
 pub mod model;
 mod prune;
 mod title;

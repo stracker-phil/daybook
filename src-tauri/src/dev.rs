@@ -27,7 +27,7 @@ pub fn background() -> bool {
 pub fn eval(app: &tauri::AppHandle, js: &str) {
     let (label, js) = match js.strip_prefix('@').and_then(|rest| rest.split_once('\n')) {
         Some((label, rest)) => (label.trim(), rest),
-        None => ("main", js),
+        None => (crate::window::MAIN, js),
     };
     let Some(window) = app.get_webview_window(label) else {
         return;

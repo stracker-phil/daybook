@@ -14,9 +14,11 @@ use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
 
 use crate::events::{SHOW_ACTIVITY_TAB_EVENT, TOGGLE_INSPECTOR_EVENT, WINDOW_OPENED_EVENT};
 
-const MAIN: &str = "main";
+/// The Daybook window's label.
+pub(crate) const MAIN: &str = "main";
 
-/// Skipped with `DAYBOOK_BACKGROUND=1` in debug builds so scripts/dev never steal focus.
+/// Unminimizes and focuses the window; skipped with `DAYBOOK_BACKGROUND=1` in debug builds so
+/// scripts/dev never steal focus.
 fn bring_to_front(window: &WebviewWindow) {
     #[cfg(debug_assertions)]
     if crate::dev::background() {

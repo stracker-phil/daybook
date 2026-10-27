@@ -32,7 +32,7 @@ use crate::store::settings::{Feature, Project, Settings, Status};
 use crate::timetracker::reply::RecentTimer;
 use crate::timetracker::{self, TtState, client};
 use crate::tools::RecentActivity;
-use crate::{calls, presence, projects, status, tray, window};
+use crate::{calls, presence, status, tray, window};
 
 pub const VIEW: &str = "activity";
 /// Recent timers this young aren't asked for again when the overlay opens.
@@ -59,9 +59,9 @@ fn activity(app: &AppHandle) -> &Activity {
 
 /// The projects that count in the current context.
 fn offered(settings: &Settings, app: &AppHandle) -> Vec<Project> {
-    let state = app.state::<AppState>();
-    let context = state.contexts.current(settings).map(|c| c.id.clone());
-    projects::current_projects(&settings.projects, context.as_deref())
+    app.state::<AppState>()
+        .contexts
+        .current_projects(settings)
         .into_iter()
         .cloned()
         .collect()
@@ -266,7 +266,7 @@ pub fn register(bus: &mut CommandBus<AppHandle>) {
     bus.add_family(
         Command::new(prefill::PREFIX, "Log Activity… with this filled in")
             .family("<project> <activity...>")
-            .from_words(prefill::argument_from_words)
+            .argument_from_words(prefill::argument_from_words)
             .run(|app, argument| async move {
                 let prefill = prefill::parse_prefill(&argument);
                 open(&app, ActivityMode::Switch, Some(prefill)).await

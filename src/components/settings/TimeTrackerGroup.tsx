@@ -1,10 +1,7 @@
 import type { TimeTrackerInfo } from "../../api";
 import type { SettingsPageProps } from "../../registry/settingsPages";
-import { Group, Row, TextField } from "./controls";
+import { Group, PathText, Row, TextField } from "./controls";
 import { openTimeTracker, useTimetrackerInfo } from "./useTimeTracker";
-
-/** `/Users/name/…` → `~/…`. */
-const tildePath = (path: string) => path.replace(/^\/Users\/[^/]+/, "~");
 
 function StateLabel({ info }: { info: TimeTrackerInfo }) {
   if (info.state === "available") return <span className="settings-state found">{info.version ? `Running · ${info.version}` : "Running"}</span>;
@@ -17,7 +14,7 @@ export function TimeTrackerGroup({ s, set }: SettingsPageProps) {
   const { data: info } = useTimetrackerInfo(timetracker.path);
   return (
     <Group title="TimeTracker" anchor="timetracker" description="Daybook shows what TimeTracker is timing; it never records time itself.">
-      <Row label="State" description={info ? <span className="mono selectable">{tildePath(info.path)}</span> : undefined}>
+      <Row label="State" description={info ? <PathText path={info.path} /> : undefined}>
         {info && (
           <span className="button-row">
             <StateLabel info={info} />

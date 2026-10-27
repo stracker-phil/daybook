@@ -1,5 +1,6 @@
-//! The day's focus list (docs/slack.md#the-days-message): today's note holds it as typed; the focus overlay edits it, ⌘S
-//! puts it into the day's message in Slack, and going Off posts the end-of-day list as a reply.
+//! The day's focus list (docs/slack.md#the-days-message): today's note holds it as typed; the focus
+//! overlay edits it, ⌘S puts it into the day's message in Slack, and going Off posts the end-of-day list
+//! as a reply.
 
 pub mod board;
 
@@ -14,7 +15,6 @@ pub use board::{FocusLine, focus_lines};
 
 use crate::bus::{Command, CommandBus};
 use crate::error::{AppError, AppResult};
-use crate::projects::current_projects;
 use crate::slack::day::{focus_channel, focus_target, post_day_reply, update_day_message};
 use crate::slack::day_message::{FocusTarget, paragraphs};
 use crate::state::AppState;
@@ -88,8 +88,9 @@ async fn write(app: &AppHandle, body: &str) -> AppResult<()> {
 pub async fn focus_info(app: AppHandle) -> AppResult<FocusInfo> {
     let state = app.state::<AppState>();
     let settings = state.settings.get();
-    let context = state.contexts.current(&settings).map(|c| c.id.as_str());
-    let projects = current_projects(&settings.projects, context)
+    let projects = state
+        .contexts
+        .current_projects(&settings)
         .into_iter()
         .map(|project| FocusProject {
             name: project.name.clone(),

@@ -22,8 +22,8 @@ use crate::lock::MutexExt;
 use crate::state::AppState;
 use crate::status::{self, OfferOff};
 use crate::store::json_store::JsonStore;
-use crate::store::settings::{Context, ContextColor, Settings};
-use crate::{action_log, notify, tray, window};
+use crate::store::settings::{Context, ContextColor, Project, Settings};
+use crate::{action_log, notify, projects, tray, window};
 
 pub const FILE_NAME: &str = "context.json";
 
@@ -34,6 +34,13 @@ pub fn context_title(label: &str, name: &str) -> String {
         .filter(|part| !part.is_empty())
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+impl Context {
+    /// "💼 Nexo": the label, then the name (`context_title`).
+    pub fn title(&self) -> String {
+        context_title(&self.label, &self.name)
+    }
 }
 
 /// What `context.json` holds; the contexts themselves are in the settings.
@@ -80,6 +87,12 @@ impl Contexts {
 
     pub fn current<'a>(&self, settings: &'a Settings) -> Option<&'a Context> {
         current(&settings.contexts, &self.active())
+    }
+
+    /// The projects that count in the current context (`projects::current_projects`).
+    pub fn current_projects<'a>(&self, settings: &'a Settings) -> Vec<&'a Project> {
+        let context = self.current(settings).map(|context| context.id.as_str());
+        projects::current_projects(&settings.projects, context)
     }
 
     fn set(&self, id: &str) -> AppResult<()> {
@@ -137,7 +150,7 @@ pub fn describe(settings: &Settings, active: &Active) -> ContextState {
             .iter()
             .map(|context| ContextItem {
                 id: context.id.clone(),
-                title: context_title(&context.label, &context.name),
+                title: context.title(),
                 color: context.color,
             })
             .collect(),
@@ -174,10 +187,9 @@ fn switch(app: &AppHandle, id: &str) -> AppResult<Option<(Option<Context>, Conte
 
 /// The action log's title of a switch: "Context changed by schedule: 🐈 Personal → 💼 Nexo".
 pub fn change_title(previous: Option<&Context>, next: &Context, by_schedule: bool) -> String {
-    let title = |context: &Context| context_title(&context.label, &context.name);
-    let from = previous.map_or_else(|| "none".to_string(), title);
+    let from = previous.map_or_else(|| "none".to_string(), Context::title);
     let how = if by_schedule { " by schedule" } else { "" };
-    format!("Context changed{how}: {from} → {}", title(next))
+    format!("Context changed{how}: {from} → {}", next.title())
 }
 
 /// Names the switch in the action log and keeps its event.
@@ -217,9 +229,7 @@ async fn switch_and_offer(
     }
     match switched {
         Some((previous, next)) if offers_off(&app, previous.as_ref(), &next) => {
-            let offer = OfferOff {
-                to: context_title(&next.label, &next.name),
-            };
+            let offer = OfferOff { to: next.title() };
             window::panel::open(&app, "offer-off", serde_json::to_value(offer)?).await;
         }
         _ if window::panel::view(&app).as_deref() == Some("context") => {
@@ -293,7 +303,7 @@ pub fn register(bus: &mut CommandBus<AppHandle>) {
                     .iter()
                     .map(|context| ArgChoice {
                         word: context.id.clone(),
-                        title: Some(context_title(&context.label, &context.name)),
+                        title: Some(context.title()),
                         argument: context.id.clone(),
                     })
                     .collect()

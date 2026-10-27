@@ -59,7 +59,8 @@ async fn current_heads_up(app: &AppHandle) -> Option<HeadsUp> {
     rules::pick_heads_up(now, &events, rules, zone_of)
 }
 
-pub async fn refresh(app: &AppHandle) {
+/// Tells Slack the heads-up that holds now.
+async fn refresh(app: &AppHandle) {
     let checking = &app.state::<Checking>().inner().0;
     if checking.swap(true, Ordering::SeqCst) {
         return;
@@ -74,6 +75,7 @@ fn refresh_soon(app: &AppHandle) {
     tauri::async_runtime::spawn(async move { refresh(&app).await });
 }
 
+/// Checks every `TICK` and on calendar, context and settings changes.
 pub fn start(app: &AppHandle) {
     app.manage(Checking::default());
     for event in [

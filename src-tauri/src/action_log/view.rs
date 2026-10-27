@@ -5,6 +5,8 @@ use serde::Serialize;
 use ts_rs::TS;
 
 use super::model::{ActionState, ActionTarget, Event, Line, Log};
+use crate::clock::iso_day;
+use crate::locale::DateLocale;
 
 #[derive(Serialize, Clone, Debug, PartialEq, TS)]
 #[ts(export, export_to = "src/api/types.gen.ts")]
@@ -21,7 +23,7 @@ pub struct ActionLogEvent {
     pub id: String,
     /// `YYYY-MM-DD`
     pub day: String,
-    /// "Today", "Yesterday" or "Mon 26 Oct".
+    /// "Today", "Yesterday" or the day in the Mac's locale ("Mon 26 Oct").
     pub day_label: String,
     /// `HH:MM`
     pub time: String,
@@ -43,13 +45,13 @@ pub struct ActionLogLine {
     pub count: u32,
 }
 
-pub fn day_label(day: NaiveDate, today: NaiveDate) -> String {
+pub fn day_label(day: NaiveDate, today: NaiveDate, locale: DateLocale) -> String {
     if day == today {
         "Today".into()
     } else if today.pred_opt() == Some(day) {
         "Yesterday".into()
     } else {
-        day.format("%a %-d %b").to_string()
+        locale.short_day(day, today)
     }
 }
 
@@ -68,12 +70,12 @@ fn line_view(line: &Line, count: u32) -> ActionLogLine {
     }
 }
 
-fn event_view(event: &Event, today: NaiveDate) -> ActionLogEvent {
+fn event_view(event: &Event, today: NaiveDate, locale: DateLocale) -> ActionLogEvent {
     let day = event.at.date_naive();
     ActionLogEvent {
         id: event.id.clone(),
-        day: day.format("%Y-%m-%d").to_string(),
-        day_label: day_label(day, today),
+        day: iso_day(day),
+        day_label: day_label(day, today, locale),
         time: hh_mm(event.at),
         trigger: event.title.clone(),
         lines: event
@@ -84,8 +86,8 @@ fn event_view(event: &Event, today: NaiveDate) -> ActionLogEvent {
     }
 }
 
-/// The visible events at `now`, newest first.
-pub fn action_log(log: &Log, now: DateTime<Local>) -> ActionLog {
+/// The visible events at `now`, newest first, their days in `locale`.
+pub fn action_log(log: &Log, now: DateTime<Local>, locale: DateLocale) -> ActionLog {
     let today = now.date_naive();
     let mut events = log.visible(now);
     // Equal times: later-recorded first.
@@ -95,7 +97,7 @@ pub fn action_log(log: &Log, now: DateTime<Local>) -> ActionLog {
     ActionLog {
         events: events
             .into_iter()
-            .map(|event| event_view(event, today))
+            .map(|event| event_view(event, today, locale))
             .collect(),
     }
 }
@@ -142,6 +144,10 @@ mod tests {
         }
     }
 
+    fn en_gb() -> DateLocale {
+        DateLocale::parse("en_GB")
+    }
+
     fn ids(view: &ActionLog) -> Vec<&str> {
         view.events.iter().map(|event| event.id.as_str()).collect()
     }
@@ -154,15 +160,33 @@ mod tests {
             (date(2026, 10, 26), "Yesterday"),
             (date(2026, 10, 25), "Sun 25 Oct"),
             (date(2026, 10, 1), "Thu 1 Oct"),
-            (date(2025, 12, 31), "Wed 31 Dec"),
+            (date(2025, 12, 31), "Wed 31 Dec 2025"),
         ] {
-            assert_eq!(day_label(day, today), expected, "{day}");
+            assert_eq!(day_label(day, today, en_gb()), expected, "{day}");
+        }
+    }
+
+    #[test]
+    fn a_day_label_is_written_in_the_locale() {
+        let today = date(2026, 10, 27);
+        for (day, expected) in [
+            (date(2026, 10, 25), "So 25. Okt."),
+            (date(2025, 12, 31), "Mi 31. Dez. 2025"),
+        ] {
+            assert_eq!(
+                day_label(day, today, DateLocale::parse("de_DE")),
+                expected,
+                "{day}"
+            );
         }
     }
 
     #[test]
     fn yesterday_is_found_across_a_year_boundary() {
-        assert_eq!(day_label(date(2025, 12, 31), date(2026, 1, 1)), "Yesterday");
+        assert_eq!(
+            day_label(date(2025, 12, 31), date(2026, 1, 1), en_gb()),
+            "Yesterday"
+        );
     }
 
     #[test]
@@ -182,7 +206,10 @@ mod tests {
                 ),
             ],
         };
-        assert_eq!(ids(&action_log(&log, now())), ["third", "second", "first"]);
+        assert_eq!(
+            ids(&action_log(&log, now(), en_gb())),
+            ["third", "second", "first"]
+        );
     }
 
     #[test]
@@ -201,7 +228,10 @@ mod tests {
                 ),
             ],
         };
-        assert_eq!(ids(&action_log(&log, now())), ["repeated", "single"]);
+        assert_eq!(
+            ids(&action_log(&log, now(), en_gb())),
+            ["repeated", "single"]
+        );
     }
 
     #[test]
@@ -219,7 +249,7 @@ mod tests {
                 ),
             ],
         };
-        assert_eq!(ids(&action_log(&log, now())), ["lines", "kept"]);
+        assert_eq!(ids(&action_log(&log, now(), en_gb())), ["lines", "kept"]);
     }
 
     #[test]
@@ -240,6 +270,7 @@ mod tests {
                 events: vec![saved],
             },
             now(),
+            en_gb(),
         );
         assert_eq!(
             serde_json::to_value(&view).unwrap(),
@@ -282,7 +313,7 @@ mod tests {
                 vec![line("a", at(10, 27, 8, 5))],
             )],
         };
-        let view = action_log(&log, now());
+        let view = action_log(&log, now(), en_gb());
         assert_eq!(view.events[0].day_label, "Today");
         assert_eq!(view.events[0].time, "08:05");
     }
@@ -290,7 +321,7 @@ mod tests {
     #[test]
     fn an_empty_log_has_no_events() {
         assert_eq!(
-            action_log(&Log::default(), now()),
+            action_log(&Log::default(), now(), en_gb()),
             ActionLog { events: Vec::new() }
         );
     }

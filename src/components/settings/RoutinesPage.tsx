@@ -1,22 +1,17 @@
+import type { ReactNode } from "react";
 import type { Routine, RoutineStep } from "../../api";
 import type { SettingsPageProps } from "../../registry/settingsPages";
-import { ControlRow, EntryFooter, Group, Row, TextField } from "./controls";
-import { CommitInput, DaysField, ItemActions, ToggleChips, contextChoices, moveItem, replaceItem, type Choice } from "./fields";
+import { AddButton, ControlRow, EntryFooter, Group, Row, TextField } from "./controls";
+import { CommitInput, DaysField, ToggleChips, contextChoices, type Choice } from "./fields";
+import { listEditor } from "./listEditor";
 import { TimingFields } from "./TimingFields";
 
-function StepRow({ step, index, count, onChange, onMove, onRemove }: {
-  step: RoutineStep;
-  index: number;
-  count: number;
-  onChange: (patch: Partial<RoutineStep>) => void;
-  onMove: (from: number, to: number) => void;
-  onRemove: () => void;
-}) {
+function StepRow({ step, actions, onChange }: { step: RoutineStep; actions: ReactNode; onChange: (patch: Partial<RoutineStep>) => void }) {
   return (
     <ControlRow stacked>
       <div className="item-line">
         <CommitInput label="Item" className="grow" placeholder="What to do" required value={step.title} onCommit={(title) => onChange({ title })} />
-        <ItemActions index={index} count={count} onMove={onMove} onRemove={onRemove} removeLabel="Remove Item" />
+        {actions}
       </div>
       <div className="item-line">
         <CommitInput label="Link" className="grow" placeholder="Link to open with ⌘O (optional): https://… or a vault path" value={step.link} onCommit={(link) => onChange({ link })} />
@@ -26,17 +21,9 @@ function StepRow({ step, index, count, onChange, onMove, onRemove }: {
   );
 }
 
-function RoutineCard({ routine, contexts, index, count, onChange, onMove, onRemove }: {
-  routine: Routine;
-  contexts: Choice[];
-  index: number;
-  count: number;
-  onChange: (patch: Partial<Routine>) => void;
-  onMove: (from: number, to: number) => void;
-  onRemove: () => void;
-}) {
+function RoutineCard({ routine, contexts, actions, onChange }: { routine: Routine; contexts: Choice[]; actions: ReactNode; onChange: (patch: Partial<Routine>) => void }) {
   const steps = routine.steps;
-  const setSteps = (next: RoutineStep[]) => onChange({ steps: next });
+  const edit = listEditor(steps, (next) => onChange({ steps: next }));
   return (
     <Group title={routine.name} description="Items are due every day unless you pick weekdays, e.g. only Fr for a weekly task.">
       <TextField label="Name" required value={routine.name} onCommit={(name) => onChange({ name: name.trim() })} />
@@ -50,18 +37,15 @@ function RoutineCard({ routine, contexts, index, count, onChange, onMove, onRemo
         <StepRow
           key={i}
           step={step}
-          index={i}
-          count={steps.length}
-          onChange={(patch) => setSteps(replaceItem(steps, i, patch))}
-          onMove={(from, to) => setSteps(moveItem(steps, from, to))}
-          onRemove={() => setSteps(steps.filter((_, j) => j !== i))}
+          actions={edit.actions(i, "Remove Item")}
+          onChange={(patch) => edit.change(i, patch)}
         />
       ))}
       <EntryFooter>
-        <button type="button" className="btn" onClick={() => setSteps([...steps, { title: "New item", link: "", days: [] }])}>
+        <button type="button" className="btn" onClick={() => edit.add({ title: "New item", link: "", days: [] })}>
           Add Item
         </button>
-        <ItemActions index={index} count={count} onMove={onMove} onRemove={onRemove} removeLabel="Remove Routine" />
+        {actions}
       </EntryFooter>
     </Group>
   );
@@ -74,7 +58,7 @@ const newRoutine = (): Routine => ({ id: "", name: "New routine", contexts: [], 
 export function RoutinesPage({ s, set }: SettingsPageProps) {
   const routines = s.routines;
   const contexts = contextChoices(s.contexts);
-  const save = (next: Routine[]) => set({ routines: next });
+  const edit = listEditor(routines, (next) => set({ routines: next }));
   return (
     <>
       {routines.map((routine, i) => (
@@ -82,18 +66,11 @@ export function RoutinesPage({ s, set }: SettingsPageProps) {
           key={i}
           routine={routine}
           contexts={contexts}
-          index={i}
-          count={routines.length}
-          onChange={(patch) => save(replaceItem(routines, i, patch))}
-          onMove={(from, to) => save(moveItem(routines, from, to))}
-          onRemove={() => save(routines.filter((_, j) => j !== i))}
+          actions={edit.actions(i, "Remove Routine")}
+          onChange={(patch) => edit.change(i, patch)}
         />
       ))}
-      <div>
-        <button type="button" className="btn" onClick={() => save([...routines, newRoutine()])}>
-          Add Routine
-        </button>
-      </div>
+      <AddButton label="Add Routine" onClick={() => edit.add(newRoutine())} />
     </>
   );
 }

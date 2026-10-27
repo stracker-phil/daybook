@@ -15,8 +15,7 @@
 @media (prefers-color-scheme: dark) { [data-sidebar="dark"] .sidebar { background: transparent; } }
 /* The strip under the window buttons, a drag region; the day header follows 16px below it. */
 .sidebar-titlebar { flex: none; height: var(--toolbar-height); }
-/* Room at the bottom for the footer, which floats over the list. */
-/* Scrolls below the titlebar strip, with macOS's overlay scrollbar. */
+/* Scrolls below the titlebar strip; room at the bottom for the footer, which floats over the list. */
 .sidebar-body { flex: 1; min-height: 0; overflow: auto; padding: 0 0 52px; }
 /* Sidebar entries as the prototype's: 32px tall, 10px inside, the icon 10px from the title, 2px apart, a 6px radius
    (docs/ux.md). */

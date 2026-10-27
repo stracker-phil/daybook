@@ -119,16 +119,22 @@ pub enum Request {
     },
 }
 
-fn value<'a>(params: &'a Params, key: &str) -> Option<&'a str> {
+/// The value of `key`, trimmed; `None` when missing or blank.
+pub fn trimmed<'a>(params: &'a Params, key: &str) -> Option<&'a str> {
     params.get(key).map(|v| v.trim()).filter(|v| !v.is_empty())
 }
 
+/// The value of `key`, trimmed; 400 when it is missing or blank.
+pub fn required<'a>(params: &'a Params, key: &str) -> Result<&'a str, AutomationError> {
+    trimmed(params, key).ok_or_else(|| AutomationError::bad(format!("“{key}” is missing.")))
+}
+
 fn text(params: &Params, key: &str) -> String {
-    value(params, key).unwrap_or_default().to_string()
+    trimmed(params, key).unwrap_or_default().to_string()
 }
 
 fn status(params: &Params) -> Result<Status, AutomationError> {
-    match value(params, "status").map(str::to_lowercase).as_deref() {
+    match trimmed(params, "status").map(str::to_lowercase).as_deref() {
         Some("working") => Ok(Status::Working),
         Some("break") => Ok(Status::Break),
         Some("off") => Ok(Status::Off),
@@ -139,17 +145,14 @@ fn status(params: &Params) -> Result<Status, AutomationError> {
 }
 
 fn presence(params: &Params) -> Result<Presence, AutomationError> {
-    match value(params, "presence").map(str::to_lowercase).as_deref() {
+    match trimmed(params, "presence")
+        .map(str::to_lowercase)
+        .as_deref()
+    {
         None | Some("auto") => Ok(Presence::Auto),
         Some("away") => Ok(Presence::Away),
         Some(_) => Err(AutomationError::bad("“presence” must be auto or away.")),
     }
-}
-
-fn required(params: &Params, key: &str) -> Result<String, AutomationError> {
-    value(params, key)
-        .map(String::from)
-        .ok_or_else(|| AutomationError::bad(format!("“{key}” is missing.")))
 }
 
 impl Request {
@@ -161,7 +164,7 @@ impl Request {
                 status: status(params)?,
                 note: text(params, "note"),
             },
-            Action::Slack if value(params, "status").is_some() => Request::SlackLike {
+            Action::Slack if trimmed(params, "status").is_some() => Request::SlackLike {
                 status: status(params)?,
                 note: text(params, "note"),
             },
@@ -171,7 +174,7 @@ impl Request {
                 presence: presence(params)?,
             },
             Action::Command => Request::Command {
-                id: required(params, "id")?,
+                id: required(params, "id")?.to_string(),
             },
         })
     }

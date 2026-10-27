@@ -7,9 +7,6 @@ use serde::{Deserialize, Serialize};
 use super::state::{Player, PlayerState};
 use crate::store::settings::{ContextMusic, MusicEntry, OnCall};
 
-/// The volume a call lowered, kept across a quit or crash mid-call.
-pub const HELD_FILE: &str = "music-held.json";
-
 /// Within this many points of the lowered volume, the volume counts as untouched since the call began.
 const UNTOUCHED_TOLERANCE: u8 = 1;
 
@@ -17,7 +14,7 @@ const UNTOUCHED_TOLERANCE: u8 = 1;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Moment {
     pub in_call: bool,
-    /// On Break or Done for today.
+    /// On Break or Off.
     pub away: bool,
 }
 

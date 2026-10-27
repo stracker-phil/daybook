@@ -1,8 +1,23 @@
-//! Wall-clock helpers: `HH:MM` strings, minutes since midnight and weekly time windows. Pure.
+//! Wall-clock helpers: `YYYY-MM-DD` days, `HH:MM` strings, minutes since midnight and weekly time
+//! windows. Pure.
 
-use chrono::{Datelike, NaiveDateTime, Timelike};
+use chrono::{Datelike, NaiveDate, NaiveDateTime, Timelike};
+
+use crate::error::{AppError, AppResult};
 
 const MINUTES_PER_DAY: u32 = 24 * 60;
+const DAY_FORMAT: &str = "%Y-%m-%d";
+
+/// `YYYY-MM-DD`, as file names, commands and the page name a day.
+pub fn iso_day(day: NaiveDate) -> String {
+    day.format(DAY_FORMAT).to_string()
+}
+
+/// A `YYYY-MM-DD` day; surrounding space is ignored.
+pub fn parse_day(text: &str) -> AppResult<NaiveDate> {
+    NaiveDate::parse_from_str(text.trim(), DAY_FORMAT)
+        .map_err(|_| AppError::InvalidInput(format!("Not a day: {text} (YYYY-MM-DD)")))
+}
 
 /// `"09:45"` and `"9:45"` → 585; `None` when it isn't a time of day.
 pub fn parse_clock(value: &str) -> Option<u32> {
@@ -52,6 +67,7 @@ pub fn is_within_window(days: &[u8], from: &str, to: &str, now: NaiveDateTime) -
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::ErrorKind;
     use chrono::NaiveDate;
 
     /// 12 Oct 2026 is a Monday.
@@ -64,6 +80,33 @@ mod tests {
 
     fn monday(hour: u32, minute: u32) -> NaiveDateTime {
         at(hour, minute, 12)
+    }
+
+    #[test]
+    fn a_day_is_written_as_year_month_day_with_zero_padding() {
+        let day = NaiveDate::from_ymd_opt(2026, 1, 5).unwrap();
+        assert_eq!(iso_day(day), "2026-01-05");
+    }
+
+    #[test]
+    fn a_day_is_read_ignoring_surrounding_space() {
+        let day = NaiveDate::from_ymd_opt(2026, 10, 26).unwrap();
+        for input in ["2026-10-26", " 2026-10-26\n"] {
+            assert_eq!(parse_day(input), Ok(day), "{input:?}");
+        }
+    }
+
+    #[test]
+    fn text_that_is_not_a_day_is_invalid_input_naming_the_text() {
+        for input in ["", "tomorrow", "26-10-2026", "2026-13-01", "2026-02-30"] {
+            let err = parse_day(input).unwrap_err();
+            assert_eq!(err.kind(), ErrorKind::InvalidInput, "{input:?}");
+            assert_eq!(
+                err.to_string(),
+                format!("Not a day: {input} (YYYY-MM-DD)"),
+                "{input:?}"
+            );
+        }
     }
 
     #[test]

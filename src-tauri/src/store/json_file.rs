@@ -1,3 +1,5 @@
+//! One private JSON file on disk: atomic saves, defaults when missing, corrupt files moved aside.
+
 use std::fs;
 use std::io::Write;
 use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};

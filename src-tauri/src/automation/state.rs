@@ -8,7 +8,6 @@ use tauri::{AppHandle, Manager};
 use crate::calendar::Event;
 use crate::calendar::events::running_event;
 use crate::calls::ActiveCall;
-use crate::contexts::context_title;
 use crate::music::state::{MusicState, PlayerState};
 use crate::state::AppState;
 use crate::status::StatusMemory;
@@ -57,7 +56,7 @@ fn clock(time: NaiveDateTime) -> String {
     time.format("%H:%M").to_string()
 }
 
-/// What `describe` needs, gathered by `now` (and by tests).
+/// What `describe` needs, gathered by `now`.
 pub struct Parts<'a> {
     pub today: &'a StatusMemory,
     pub context: Option<&'a Context>,
@@ -73,7 +72,7 @@ pub fn describe(parts: Parts) -> AutomationState {
         status: parts.today.status,
         since: parts.today.since.clone(),
         context: parts.context.map(|c| c.id.clone()),
-        context_title: parts.context.map(|c| context_title(&c.label, &c.name)),
+        context_title: parts.context.map(Context::title),
         call: parts.call.map(|call| CallNow {
             app: call.app.clone(),
             title: call.title.clone(),

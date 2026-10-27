@@ -35,6 +35,8 @@ use crate::state::AppState;
 use crate::store::settings::{MusicEntry, MusicKind};
 use crate::{presence, tools, tray};
 
+/// The volume a call lowered, kept across a quit or crash mid-call.
+pub const HELD_FILE: &str = "music-held.json";
 const POLL: Duration = Duration::from_secs(30);
 /// A station opened by link takes a moment to start.
 const SETTLE: Duration = Duration::from_millis(2_500);

@@ -20,7 +20,7 @@ async function press(keys: string) {
   }
 }
 
-const OPEN_DIALOG = { type: "confirm", title: "Delete", message: "Really?", confirmLabel: "Delete", onConfirm: () => {} } as const;
+const OPEN_DIALOG = { type: "shortcuts" as const, scopes: ["global"] };
 
 describe("app commands", () => {
   beforeEach(() => {
@@ -226,12 +226,6 @@ describe("app commands", () => {
       await press("{Shift>}?{/Shift}");
       await press("{Shift>}?{/Shift}");
       expect(useStore.getState().dialog).toBeNull();
-    });
-
-    it("leaves another open dialog alone", () => {
-      resetStore({ settings: settings(), dialog: OPEN_DIALOG });
-      runCommand("shortcuts.show");
-      expect(useStore.getState().dialog).toEqual(OPEN_DIALOG);
     });
   });
 

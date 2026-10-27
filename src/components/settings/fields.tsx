@@ -32,7 +32,7 @@ export interface Choice {
 }
 
 /** A context's label (an emoji) and name. */
-const titleOf = (context: Context) => [context.label.trim(), context.name].filter(Boolean).join(" ");
+export const titleOf = (context: Context) => [context.label.trim(), context.name].filter(Boolean).join(" ");
 
 export const contextChoices = (contexts: Context[]): Choice[] => contexts.map((context) => ({ id: context.id, title: titleOf(context) }));
 
@@ -101,16 +101,20 @@ export function TimeRangeField({ label, from, to, onChange, openEnd }: { label: 
   );
 }
 
-/** Up, down and, for a list you can add to, remove: icon buttons named by their action. */
-export function ItemActions({ index, count, onMove, onRemove, removeLabel = "Remove" }: { index: number; count: number; onMove: (from: number, to: number) => void; onRemove?: () => void; removeLabel?: string }) {
+/** Up and down (given `onMove`) and remove (given `onRemove`): icon buttons named by their action. */
+export function ItemActions({ index = 0, count = 0, onMove, onRemove, removeLabel = "Remove" }: { index?: number; count?: number; onMove?: (from: number, to: number) => void; onRemove?: () => void; removeLabel?: string }) {
   return (
     <div className="item-actions">
-      <button type="button" className="icon-btn" aria-label="Move Up" title="Move Up" disabled={index === 0} onClick={() => onMove(index, index - 1)}>
-        <ArrowUp size="1.077rem" aria-hidden="true" />
-      </button>
-      <button type="button" className="icon-btn" aria-label="Move Down" title="Move Down" disabled={index === count - 1} onClick={() => onMove(index, index + 1)}>
-        <ArrowDown size="1.077rem" aria-hidden="true" />
-      </button>
+      {onMove && (
+        <>
+          <button type="button" className="icon-btn" aria-label="Move Up" title="Move Up" disabled={index === 0} onClick={() => onMove(index, index - 1)}>
+            <ArrowUp size="1.077rem" aria-hidden="true" />
+          </button>
+          <button type="button" className="icon-btn" aria-label="Move Down" title="Move Down" disabled={index === count - 1} onClick={() => onMove(index, index + 1)}>
+            <ArrowDown size="1.077rem" aria-hidden="true" />
+          </button>
+        </>
+      )}
       {onRemove && (
         <button type="button" className="icon-btn" aria-label={removeLabel} title={removeLabel} onClick={onRemove}>
           <Trash2 size="1.077rem" aria-hidden="true" />

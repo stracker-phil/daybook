@@ -13,7 +13,7 @@ use serde_json::{Map, Value, json};
 use tauri::{AppHandle, Manager};
 use ts_rs::TS;
 
-pub use request::{Action, AutomationError, Params, Request};
+pub use request::{Action, AutomationError, Params, Request, required, trimmed};
 pub use state::AutomationState;
 
 use crate::bus::{self, Host};

@@ -1,9 +1,8 @@
-/** Settings → Workflows: Slack heads-ups before an absence in the calendar, and what counts as one. */
 import type { StatusRule, StatusRules } from "../../api";
 import type { SettingsPageProps } from "../../registry/settingsPages";
-import { Trash2 } from "lucide-react";
 import { BufferedInput, ControlRow, EntryFooter, FormRow, Group, LeadSwitch, NumberField, TextField } from "./controls";
-import { joinList, parseList, replaceItem } from "./fields";
+import { ItemActions, joinList, parseList } from "./fields";
+import { listEditor } from "./listEditor";
 import { SlackStatusEditor } from "./SlackStatusField";
 
 const MAX_HOURS = 24 * 60;
@@ -34,13 +33,8 @@ function AbsenceRule({ rule, onChange, onRemove }: { rule: StatusRule; onChange:
       <strong>hours</strong>
     </>
   );
-  const remove = (
-    <button type="button" className="icon-btn item-remove" aria-label="Remove Rule" title="Remove Rule" onClick={onRemove}>
-      <Trash2 size="1.077rem" aria-hidden="true" />
-    </button>
-  );
   return (
-    <LeadSwitch label={`Absence within ${rule.hours} hours`} title={title} checked={rule.enabled} onChange={(enabled) => onChange({ enabled })} accessory={remove}>
+    <LeadSwitch label={`Absence within ${rule.hours} hours`} title={title} checked={rule.enabled} onChange={(enabled) => onChange({ enabled })} accessory={<ItemActions onRemove={onRemove} removeLabel="Remove Rule" />}>
       <FormRow label="Slack status">
         <SlackStatusEditor value={rule.slack} onChange={(slack) => onChange({ slack })} />
       </FormRow>
@@ -48,11 +42,12 @@ function AbsenceRule({ rule, onChange, onRemove }: { rule: StatusRule; onChange:
   );
 }
 
+/** Workflows → Before an absence (Slack heads-ups) and Absences (what counts as one). */
 export function AbsenceWorkflows({ s, set }: SettingsPageProps) {
   const config = s.statusRules;
   const change = (patch: Partial<StatusRules>) => set({ statusRules: { ...config, ...patch } });
   const rules = config.rules;
-  const setRules = (next: StatusRule[]) => change({ rules: next });
+  const edit = listEditor(rules, (next) => change({ rules: next }));
   return (
     <>
       <Group
@@ -61,11 +56,11 @@ export function AbsenceWorkflows({ s, set }: SettingsPageProps) {
       >
         <ControlRow stacked>
           {rules.map((rule, i) => (
-            <AbsenceRule key={i} rule={rule} onChange={(patch) => setRules(replaceItem(rules, i, patch))} onRemove={() => setRules(rules.filter((_, j) => j !== i))} />
+            <AbsenceRule key={i} rule={rule} onChange={(patch) => edit.change(i, patch)} onRemove={() => edit.remove(i)} />
           ))}
         </ControlRow>
         <EntryFooter>
-          <button type="button" className="btn" onClick={() => setRules([...rules, NEW_RULE])}>
+          <button type="button" className="btn" onClick={() => edit.add(NEW_RULE)}>
             Add Rule
           </button>
         </EntryFooter>

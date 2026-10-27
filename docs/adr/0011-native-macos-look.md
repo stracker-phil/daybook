@@ -2,7 +2,10 @@
 
 ## Status
 
-Accepted (2026-10-24), implemented. Inherited from TimeTracker ADR 0024.
+Accepted (2026-10-24), implemented. Inherited from TimeTracker ADR 0024. Partly superseded by
+[ADR 0026](0026-the-daybook-window-follows-the-prototypes-look.md): the Daybook window (sidebar, board,
+inspector) takes the prototype's look; the Settings window, overlays, controls and the unified toolbar
+elsewhere keep this record's look.
 
 ## Context
 

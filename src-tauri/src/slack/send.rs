@@ -178,53 +178,49 @@ fn report(
 /// Sets a Slack status right away and waits for Slack, outside the contexts and workflows; a pending
 /// send and its retry are dropped.
 pub async fn set_now(app: &AppHandle, mapping: &SlackStatus, note: &str) -> AppResult<()> {
-    let described = describe_status(mapping, note);
-    let logged = action_log::sending(ActionTarget::SlackStatus, &described);
-    let Some(token) = token(app).await else {
-        logged.update(ActionState::Skipped, Some(NOT_CONNECTED.into()));
-        return Err(AppError::InvalidInput(
+    match apply_now(app, mapping, note, 0).await {
+        None => Err(AppError::InvalidInput(
             "Connect Slack in Settings → Connections → Slack first.".into(),
-        ));
-    };
-    slack(app).sender.supersede();
-    let applied = slack(app)
-        .api
-        .apply(&token, mapping, note, 0)
-        .await
-        .map_err(|e| AppError::Network(e.to_string()));
-    let applied = logged_result(app, &logged, applied)?;
-    if let Some(problem) = applied.problem {
-        logged.update(ActionState::Done, Some(problem.into()));
+        )),
+        Some(applied) => applied.map_err(|e| AppError::Network(e.to_string())),
     }
-    log::info!("Slack status set: {described}");
-    if let Some(problem) = applied.problem {
-        log::info!("{problem}");
-    }
-    record_shown(app, applied);
-    Ok(())
 }
 
 /// Sends a decision and waits for Slack, without a retry; for quitting.
 pub(super) async fn send_now(app: &AppHandle, decision: Decision) {
     let (mapping, note, expiration, _) = sending(decision);
-    if changes_nothing(&mapping) {
-        return;
+    if !changes_nothing(&mapping) {
+        apply_now(app, &mapping, &note, expiration).await;
     }
-    let described = describe_status(&mapping, &note);
+}
+
+/// Drops a pending send and its retry, sets the status and waits for Slack. `None` when Slack isn't
+/// connected.
+async fn apply_now(
+    app: &AppHandle,
+    mapping: &SlackStatus,
+    note: &str,
+    expiration: i64,
+) -> Option<Result<(), api::SlackError>> {
+    let described = describe_status(mapping, note);
     let logged = action_log::sending(ActionTarget::SlackStatus, &described);
     let Some(token) = token(app).await else {
         logged.update(ActionState::Skipped, Some(NOT_CONNECTED.into()));
-        return;
+        return None;
     };
     slack(app).sender.supersede();
     let applied = slack(app)
         .api
-        .apply(&token, &mapping, &note, expiration)
+        .apply(&token, mapping, note, expiration)
         .await;
-    if let Ok(applied) = logged_result(app, &logged, applied) {
+    Some(logged_result(app, &logged, applied).map(|applied| {
         log::info!("Slack status set: {described}");
+        if let Some(problem) = applied.problem {
+            logged.update(ActionState::Done, Some(problem.into()));
+            log::info!("{problem}");
+        }
         record_shown(app, applied);
-    }
+    }))
 }
 
 fn record_shown(app: &AppHandle, applied: Applied) {

@@ -8,11 +8,12 @@ use super::api::SlackError;
 use super::day_message::{DayMessage, FocusTarget, message_gone, paragraphs};
 use super::{in_context, logged_result, slack, token};
 use crate::action_log::{self, ActionState, ActionTarget};
+use crate::clock::iso_day;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
 fn today() -> String {
-    Local::now().format("%Y-%m-%d").to_string()
+    iso_day(Local::now().date_naive())
 }
 
 fn day_message(app: &AppHandle) -> DayMessage {

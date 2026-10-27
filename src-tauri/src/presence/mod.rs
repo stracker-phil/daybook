@@ -168,7 +168,7 @@ fn clear_stale_lock(app: &AppHandle) {
 }
 
 /// Clears what no longer holds when macOS didn't say so; without it prompts would stay off for good.
-/// Called on every call check while away, and every two seconds while locked.
+/// Called on every call tick while away, and every two seconds while locked.
 pub async fn verify(app: &AppHandle) {
     if !is_away(app) {
         return;

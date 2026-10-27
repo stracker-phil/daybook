@@ -7,6 +7,8 @@ use ts_rs::TS;
 
 use crate::automation::{AutomationError, Params};
 
+pub use crate::automation::{required, trimmed};
+
 pub const PROTOCOL: u32 = 1;
 
 /// Optional protocol capabilities Daybook implements, listed by `describe`.
@@ -24,16 +26,6 @@ pub const FEATURES: [&str; 8] = [
 const MAX_STATE_KEYS: usize = 30;
 
 pub type StageResult<T> = Result<T, AutomationError>;
-
-/// The value of `key`, trimmed; `None` when missing or blank.
-pub fn trimmed<'a>(params: &'a Params, key: &str) -> Option<&'a str> {
-    params.get(key).map(|v| v.trim()).filter(|v| !v.is_empty())
-}
-
-/// The value of `key`, trimmed; 400 when it is missing or blank.
-pub fn required<'a>(params: &'a Params, key: &str) -> StageResult<&'a str> {
-    trimmed(params, key).ok_or_else(|| AutomationError::bad(format!("“{key}” is missing.")))
-}
 
 /// CSS pixels from the page's top-left, as a page measures them.
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, TS)]
@@ -152,7 +144,7 @@ pub fn flat_state(state: Map<String, Value>) -> Map<String, Value> {
 }
 
 pub fn stage_url(port: u16) -> String {
-    format!("http://127.0.0.1:{port}/v1/stage")
+    format!("{}/stage", crate::http_api::base_url(port))
 }
 
 /// The terminal command that registers the hook with Stage (protocol §3.1); tokens are hex, so

@@ -88,19 +88,7 @@ pub fn read_tools(raw: Option<&Value>) -> Vec<ToolPlacement> {
             window: id != ToolId::Hub && on_unless_false(field(source, "window")),
         });
     }
-    for (index, id) in TOOL_IDS.iter().enumerate() {
-        if tools.iter().any(|tool| tool.id == *id) {
-            continue;
-        }
-        let at = match index {
-            0 => 0,
-            _ => tools
-                .iter()
-                .position(|tool| tool.id == TOOL_IDS[index - 1])
-                .map_or(0, |i| i + 1),
-        };
-        tools.insert(at, ToolPlacement::new(*id));
-    }
+    insert_missing(&mut tools, &TOOL_IDS, |tool| tool.id, ToolPlacement::new);
     tools
 }
 

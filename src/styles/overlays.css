@@ -17,10 +17,8 @@
 .dialog.panel { overflow: hidden; }
 .dialog.wide { width: min(43.077rem, calc(100vw - 2.462rem)); }
 .dialog.sheet h2 { margin: 0; font-size: var(--fs-body); font-weight: 700; color: var(--text-strong); }
-.form-contents { display: contents; }
 .dialog .actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-2); }
 .dialog .actions .btn { min-width: 5.385rem; }
-.dialog .actions .actions-start { margin-right: auto; }
 .dialog.sheet p { margin: 0; line-height: 1.4; }
 
 /* ---------- toasts ---------- */
@@ -51,7 +49,6 @@
 .palette-list li.active .keycap { background: color-mix(in srgb, var(--on-accent) 18%, transparent); }
 .palette-foot { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); padding: var(--space-3) var(--space-4) var(--space-2); border-top: 1px solid var(--line); font-size: var(--fs-meta); }
 .palette-list > li.palette-section { padding: var(--space-2) var(--space-2) 0.154rem; font-size: var(--fs-meta); font-weight: 600; color: var(--o3); }
-
 
 /* ---------- shortcut overview ---------- */
 .dialog.shortcuts { max-height: 80vh; overflow: hidden; }

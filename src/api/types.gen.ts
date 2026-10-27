@@ -12,7 +12,7 @@ export type ActionLogEvent = { id: string,
  */
 day: string, 
 /**
- * "Today", "Yesterday" or "Mon 26 Oct".
+ * "Today", "Yesterday" or the day in the Mac's locale ("Mon 26 Oct").
  */
 dayLabel: string, 
 /**
@@ -346,23 +346,6 @@ folder: string, format: string,
  * Read from Obsidian's settings rather than the fallback.
  */
 fromObsidian: boolean, };
-
-/**
- * Today's note as the page shows it.
- */
-export type DailyNoteState = { 
-/**
- * `None` without a vault.
- */
-path: string | null, exists: boolean, 
-/**
- * Obsidian is creating it.
- */
-creating: boolean, 
-/**
- * Changes waiting for it (or for an earlier day's note).
- */
-waiting: number, };
 
 /**
  * The daily note's sections the app knows, in their default order.
@@ -1105,7 +1088,7 @@ export type RailEdges = "right" | "left" | "both";
 export type RailHighlight = "tinted" | "filled" | "gray";
 
 /**
- * Payload of `rail_model` and the answer of `rail_model`.
+ * Payload of the `rail_model` event and the answer of the `rail_model` command.
  */
 export type RailModel = { buttons: Array<RailButton>, 
 /**
@@ -1816,14 +1799,6 @@ export type UiState = { sidebarHidden: boolean,
  * The Daybook window's right column.
  */
 inspectorHidden: boolean, 
-/**
- * In px.
- */
-sidebarWidth: number, 
-/**
- * Splitter positions by pane id, in px.
- */
-paneSizes: { [key in string]: number }, 
 /**
  * The board lists only today's events that aren't over.
  */

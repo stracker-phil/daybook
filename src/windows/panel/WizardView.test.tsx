@@ -16,6 +16,7 @@ async function renderWizard(steps: RoutineStepView[], name = "Morning") {
   mocked.routineViewToday.mockResolvedValue({ id: "morning", name, steps });
   const view = render(<WizardView routine="morning" />);
   await screen.findByText(name);
+  if (steps.length > 0) await vi.waitFor(() => expect(screen.getByRole("listbox", { name })).toHaveFocus());
   return view;
 }
 

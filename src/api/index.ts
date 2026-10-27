@@ -7,14 +7,13 @@ import type {
   ActivitySuggestion,
   AppError,
   AppRef,
-  AutomationInfo,
   ArtistSearch,
+  AutomationInfo,
   CalendarAccess,
   CalendarInfo,
   CallsInfo,
   ContextChanged,
   ContextState,
-  DailyNoteState,
   Diagnostics,
   EndOfDayAnswer,
   ErrorKind,
@@ -23,51 +22,56 @@ import type {
   JournalGroupAnswers,
   JournalInfo,
   Keybindings,
-  ProjectGroup,
   LauncherProjects,
-  QuickAccess,
   LaunchEvent,
   Missing,
   MusicState,
-  OpenTodo,
   NoteChanged,
-  PaletteResults,
-  NoteSectionRef,
   NotePreview,
+  NoteSectionRef,
+  OpenTodo,
+  PaletteResults,
   PanelSession,
+  ProjectGroup,
+  QuickAccess,
   QuickNote,
   QuickNotePresentation,
   QuickNoteSaved,
   QuickNoteTopics,
+  RailModel,
   RailPoint,
   RailRect,
   RailShown,
   RailTipContent,
-  RailModel,
   RemoteEvent,
   RoutineView,
   SearchResponse,
   SearchScopes,
   Settings,
   ShortcutOverview,
+  SlackIdentity,
+  SlackInfo,
   StageActReply,
   StageActRequest,
   StageAnchorsReply,
   StageCollectRequest,
-  SlackIdentity,
-  SlackInfo,
   Status,
-  ToolId,
   StatusChanged,
+  TimerChanged,
   TimeTrackerDay,
   TimeTrackerInfo,
   TimeTrackerProjects,
-  TimerChanged,
+  ToolId,
   UiState,
   VaultInfo,
 } from "./types";
 
 export * from "./types";
+
+/** Listens to a Rust event and hands `handler` its payload. */
+function onPayload<T>(event: string, handler: (payload: T) => void): Promise<UnlistenFn> {
+  return listen<T>(event, (e) => handler(e.payload));
+}
 
 /** The only place that talks to Rust. Tests mock this module. */
 export const api = {
@@ -161,18 +165,12 @@ export const api = {
   remoteReply: (id: string, result: unknown, error: string | null) => invoke<void>("remote_reply", { id, result, error }),
   /** The native folder panel; `null` when the user cancels. */
   chooseFolder: () => invoke<string | null>("choose_folder"),
-  /** Opens the enclosing folder in Finder with `path` selected. */
-  revealPath: (path: string) => invoke<void>("reveal_path", { path }),
-  /** Today's note: where it is, whether it exists or is being created, and how many changes wait for it. */
-  dailyNoteState: () => invoke<DailyNoteState>("daily_note_state"),
   /** Opens a day's note (`YYYY-MM-DD`, default today) in Obsidian; today's is created when missing. */
   dailyNoteOpen: (day?: string, heading?: string) => invoke<void>("daily_note_open", { day: day ?? null, heading: heading ?? null }),
   /** Opens a todo's note (relative to the vault) in Obsidian. */
   todoOpen: (file: string) => invoke<void>("todo_open", { file }),
   /** Ticks an open todo in its note; refused when that line no longer holds it. */
   todoComplete: (todo: Pick<OpenTodo, "file" | "line" | "text">) => invoke<void>("todo_complete", { file: todo.file, line: todo.line, text: todo.text }),
-  /** Creates today's note through the Obsidian CLI; resolves whether it exists now. */
-  dailyNoteCreate: () => invoke<boolean>("daily_note_create"),
   /** The quick-notes picker's rows for `query` (today's matching topics, then a new one) and the notes heading. */
   quickNotesList: (query: string) => invoke<QuickNoteTopics>("quick_notes_list", { query }),
   /** Closes the picker and opens the editor on `topic`; `create` adds it to today's note first. */
@@ -235,8 +233,6 @@ export const api = {
   musicPlaylists: () => invoke<string[]>("music_playlists"),
   /** Apple's artists named like `term`, best first, and the store searched (the entries' store, else the Mac's region). */
   musicFindArtists: (term: string) => invoke<ArtistSearch>("music_find_artists", { term, storefront: null }),
-  /** Opens `view` in the overlay; the same view again closes it. */
-  panelOpen: (view: string, args?: unknown) => invoke<void>("panel_open", { view, args: args ?? null }),
   panelClose: () => invoke<void>("panel_close"),
   /** The overlay's current session, `null` while it is closed. */
   panelSession: () => invoke<PanelSession | null>("panel_session"),
@@ -268,13 +264,13 @@ export const api = {
   /** The hidden main window was shown again (the Dock icon came back). */
   onWindowOpened: (handler: () => void): Promise<UnlistenFn> => listen("window_opened", handler),
   /** To the Settings window: show this page. */
-  onOpenSettings: (handler: (page: string) => void): Promise<UnlistenFn> => listen<string>("open_settings", (e) => handler(e.payload)),
+  onOpenSettings: (handler: (page: string) => void) => onPayload("open_settings", handler),
   /** To the Daybook window: show or hide the inspector column. */
   onToggleInspector: (handler: () => void): Promise<UnlistenFn> => listen("toggle_inspector", handler),
   /** Another context became current. */
-  onContextChanged: (handler: (change: ContextChanged) => void): Promise<UnlistenFn> => listen<ContextChanged>("context_changed", (e) => handler(e.payload)),
+  onContextChanged: (handler: (change: ContextChanged) => void) => onPayload("context_changed", handler),
   /** Today's status changed. */
-  onStatusChanged: (handler: (change: StatusChanged) => void): Promise<UnlistenFn> => listen<StatusChanged>("status_changed", (e) => handler(e.payload)),
+  onStatusChanged: (handler: (change: StatusChanged) => void) => onPayload("status_changed", handler),
   /** An event, a calendar or the calendar access changed. */
   onCalendarChanged: (handler: () => void): Promise<UnlistenFn> => listen("calendar_changed", handler),
   /** A call started, changed or ended. */
@@ -282,52 +278,48 @@ export const api = {
   /** The action log got an event or a line changed state. */
   onActionLogChanged: (handler: () => void): Promise<UnlistenFn> => listen("action_log_changed", handler),
   /** What Music plays, or its volume, changed. */
-  onMusicChanged: (handler: (music: MusicState) => void): Promise<UnlistenFn> => listen<MusicState>("music_changed", (e) => handler(e.payload)),
+  onMusicChanged: (handler: (music: MusicState) => void) => onPayload("music_changed", handler),
   /** What Slack shows, or the Slack connection, changed. */
   onSlackChanged: (handler: () => void): Promise<UnlistenFn> => listen("slack_changed", handler),
   /** TimeTracker started or stopped a timer, or started, quit or went missing. */
-  onTimerChanged: (handler: (change: TimerChanged) => void): Promise<UnlistenFn> => listen<TimerChanged>("timer_changed", (e) => handler(e.payload)),
+  onTimerChanged: (handler: (change: TimerChanged) => void) => onPayload("timer_changed", handler),
   /** TimeTracker's day the Activity tab shows changed. */
   onActivityChanged: (handler: () => void): Promise<UnlistenFn> => listen("activity_changed", handler),
   /** To the Daybook window: show the inspector on its Activity tab. */
   onShowActivityTab: (handler: () => void): Promise<UnlistenFn> => listen("show_activity_tab", handler),
   /** Settings were saved, from any window. */
-  onSettingsChanged: (handler: (settings: Settings) => void): Promise<UnlistenFn> => listen<Settings>("settings_changed", (e) => handler(e.payload)),
+  onSettingsChanged: (handler: (settings: Settings) => void) => onPayload("settings_changed", handler),
   /** Shortcut overrides were saved, from any window. */
-  onKeybindingsChanged: (handler: (bindings: Keybindings) => void): Promise<UnlistenFn> => listen<Keybindings>("keybindings_changed", (e) => handler(e.payload)),
+  onKeybindingsChanged: (handler: (bindings: Keybindings) => void) => onPayload("keybindings_changed", handler),
   /** A daily note, or the changes waiting for today's note, changed. */
-  onNoteChanged: (handler: (change: NoteChanged) => void): Promise<UnlistenFn> => listen<NoteChanged>("note_changed", (e) => handler(e.payload)),
+  onNoteChanged: (handler: (change: NoteChanged) => void) => onPayload("note_changed", handler),
   /** To the overlay page: the session to render, `null` once the overlay closed. */
-  onPanelSession: (handler: (session: PanelSession | null) => void): Promise<UnlistenFn> =>
-    listen<PanelSession | null>("panel_session", (e) => handler(e.payload)),
+  onPanelSession: (handler: (session: PanelSession | null) => void) => onPayload("panel_session", handler),
   /** To the quick-notes editor: another topic was chosen. */
   onQuickNoteTarget: (handler: () => void): Promise<UnlistenFn> => listen("quick_note_target", handler),
   /** To the quick-notes editor: presentation started or ended. */
-  onQuickNotePresentation: (handler: (presentation: QuickNotePresentation) => void): Promise<UnlistenFn> =>
-    listen<QuickNotePresentation>("quick_note_presentation", (e) => handler(e.payload)),
+  onQuickNotePresentation: (handler: (presentation: QuickNotePresentation) => void) => onPayload("quick_note_presentation", handler),
   /** To the rail page: its buttons, the status or the rail settings changed. */
-  onRailModel: (handler: (model: RailModel) => void): Promise<UnlistenFn> => listen<RailModel>("rail_model", (e) => handler(e.payload)),
+  onRailModel: (handler: (model: RailModel) => void) => onPayload("rail_model", handler),
   /** To the rail page: it slid in or out, changed sides or became sticky. */
-  onRailShown: (handler: (shown: RailShown) => void): Promise<UnlistenFn> => listen<RailShown>("rail_shown", (e) => handler(e.payload)),
+  onRailShown: (handler: (shown: RailShown) => void) => onPayload("rail_shown", handler),
   /** To the rail page: the pointer in window coordinates while it is on the rail, `null` once it left. */
-  onRailPointer: (handler: (point: RailPoint | null) => void): Promise<UnlistenFn> => listen<RailPoint | null>("rail_pointer", (e) => handler(e.payload)),
+  onRailPointer: (handler: (point: RailPoint | null) => void) => onPayload("rail_pointer", handler),
   /** To the tooltip page: the card to draw. */
-  onRailTipContent: (handler: (content: RailTipContent) => void): Promise<UnlistenFn> =>
-    listen<RailTipContent>("rail_tip_content", (e) => handler(e.payload)),
+  onRailTipContent: (handler: (content: RailTipContent) => void) => onPayload("rail_tip_content", handler),
   /** To the tooltip page: card `sequence` is on screen, so it may fade in. */
-  onRailTipPlaced: (handler: (sequence: number) => void): Promise<UnlistenFn> => listen<number>("rail_tip_placed", (e) => handler(e.payload)),
+  onRailTipPlaced: (handler: (sequence: number) => void) => onPayload("rail_tip_placed", handler),
   /** To the tooltip page: the card fades out. */
   onRailTipHidden: (handler: () => void): Promise<UnlistenFn> => listen("rail_tip_hidden", handler),
   /** To the tooltip page: the pointer in window coordinates while it is on the card's choices, `null` off them. */
-  onRailTipPointer: (handler: (point: RailPoint | null) => void): Promise<UnlistenFn> =>
-    listen<RailPoint | null>("rail_tip_pointer", (e) => handler(e.payload)),
+  onRailTipPointer: (handler: (point: RailPoint | null) => void) => onPayload("rail_tip_pointer", handler),
   /** Stage asks every page for its anchors; answer with `stageAnchors`. */
   onStageCollect: (handler: (request: string) => void): Promise<UnlistenFn> =>
     listen<StageCollectRequest>("stage:collect", (e) => handler(e.payload.request)),
   /** Stage asks every page to act on an anchor or keys; answer with `stageDone`. */
-  onStageAct: (handler: (request: StageActRequest) => void): Promise<UnlistenFn> => listen<StageActRequest>("stage:act", (e) => handler(e.payload)),
+  onStageAct: (handler: (request: StageActRequest) => void) => onPayload("stage:act", handler),
   /** Requests from other processes; answer each with `remoteReply`. */
-  onRemote: (handler: (event: RemoteEvent) => void): Promise<UnlistenFn> => listen<RemoteEvent>("remote", (e) => handler(e.payload)),
+  onRemote: (handler: (event: RemoteEvent) => void) => onPayload("remote", handler),
 };
 
 /** Every `ErrorKind` Rust sends; the `Record` makes the compiler check the list is complete. */

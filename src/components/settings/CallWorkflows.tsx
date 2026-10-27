@@ -4,7 +4,8 @@ import { api, type AppRef, type CallsInfo, type Joining, type MeetingRule, type 
 import { fail } from "../../state/requests";
 import type { SettingsPageProps } from "../../registry/settingsPages";
 import { Checkbox, ControlRow, EntryFooter, FormRow, FormText, Group, LeadSwitch, Row, Switch } from "./controls";
-import { CommitInput, ItemActions, moveItem, replaceItem } from "./fields";
+import { CommitInput } from "./fields";
+import { listEditor } from "./listEditor";
 import { SlackStatusEditor } from "./SlackStatusField";
 import { useCallsInfo } from "./useCallsInfo";
 
@@ -137,13 +138,11 @@ const APP_TRIGGERS = { title: "App triggers", anchor: "calls" };
 
 function AppTriggers({ s, set, info, reload }: SettingsPageProps & { info: CallsInfo; reload: () => void }) {
   const rules = s.meetings.rules;
-  const save = (next: MeetingRule[]) => set({ meetings: { ...s.meetings, rules: next } });
+  const edit = listEditor(rules, (next) => set({ meetings: { ...s.meetings, rules: next } }));
   const checkOf = (bundleId: string) => info.builtIns.find((builtIn) => builtIn.rule.bundleId === bundleId)?.check;
   const missing = info.builtIns.filter((builtIn) => !rules.some((rule) => rule.bundleId === builtIn.rule.bundleId));
   const needsTitles = rules.some((rule) => rule.enabled && !checkOf(rule.bundleId));
-  const move = (from: number, to: number) => save(moveItem(rules, from, to));
-  const remove = (index: number) => save(rules.filter((_, j) => j !== index));
-  const addOther = () => void pickApp().then((picked) => picked && save([...rules, newRule(picked)]));
+  const addOther = () => void pickApp().then((picked) => picked && edit.add(newRule(picked)));
   return (
     <Group
       {...APP_TRIGGERS}
@@ -157,15 +156,15 @@ function AppTriggers({ s, set, info, reload }: SettingsPageProps & { info: Calls
           const check = checkOf(rule.bundleId);
           const props: TriggerProps = {
             rule,
-            onChange: (patch) => save(replaceItem(rules, i, patch)),
-            actions: <ItemActions index={i} count={rules.length} onMove={move} onRemove={() => remove(i)} removeLabel="Remove App" />,
+            onChange: (patch) => edit.change(i, patch),
+            actions: edit.actions(i, "Remove App"),
           };
           return check ? <BuiltInTrigger key={i} check={check} {...props} /> : <CustomTrigger key={i} {...props} />;
         })}
       </ControlRow>
       <EntryFooter>
         {missing.map((builtIn) => (
-          <button key={builtIn.rule.bundleId} type="button" className="btn" onClick={() => save([...rules, builtIn.rule])}>
+          <button key={builtIn.rule.bundleId} type="button" className="btn" onClick={() => edit.add(builtIn.rule)}>
             Add {builtIn.rule.app}
           </button>
         ))}

@@ -1,6 +1,7 @@
 /* ---------- layout ---------- */
-/* The sidebar runs the full height, under the window buttons; each view (its toolbar first) sits beside it. Hiding the sidebar (sidebar.toggle) drops its column. The body stays transparent so the window's
-   sidebar material can show through a translucent sidebar (sidebar.css). */
+/* The sidebar runs the full height, under the window buttons; the board and the inspector (each under its toolbar)
+   sit beside it. Hiding a side column drops it. The body stays transparent so the window's sidebar material can show
+   through a translucent sidebar (sidebar.css). */
 .app { height: 100%; }
 .workspace {
   display: grid; height: 100%;
@@ -11,8 +12,13 @@
 .workspace.no-sidebar { grid-template-columns: 0 minmax(0, 1fr) var(--inspector-width); }
 .workspace.no-inspector { grid-template-columns: var(--sidebar-width) minmax(0, 1fr) 0; }
 .workspace.no-sidebar.no-inspector { grid-template-columns: 0 minmax(0, 1fr) 0; }
-/* The Daybook window's hairlines are light, as Glaze's separators. */
-.workspace { --hairline: color-mix(in srgb, var(--text) 6%, transparent); }
+/* The Daybook window's quiet fills and light hairlines, as Glaze draws them. Not for the sidebar: it has its own
+   `--text`, and these resolve here. */
+.workspace {
+  --hairline: color-mix(in srgb, var(--text) 6%, transparent);
+  --wash: color-mix(in srgb, var(--text) 5%, transparent);
+  --wash-strong: color-mix(in srgb, var(--text) 10%, transparent);
+}
 .workspace > .sidebar { grid-area: sidebar; }
 .workspace > .main { grid-area: work; }
 .workspace > .inspector { grid-area: inspector; }
@@ -20,31 +26,18 @@
 /* A view under its toolbar. */
 .view-page { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 
-/* The unified toolbar (`Toolbar`): the view's title, its detail and its actions in one row beside the window
-   buttons; a drag region. Its buttons are borderless with a hover bezel. */
+/* The unified toolbar (`Toolbar`): the view's title and its actions in one row beside the window buttons; a drag
+   region. The board and inspector run under theirs without a rule, as the prototype's. */
 .toolbar {
   flex: none; display: flex; align-items: center; gap: var(--space-2); height: var(--toolbar-height); min-width: 0;
-  padding: 0 var(--space-3) 0 var(--margin); background: var(--bg); border-bottom: 1px solid var(--line);
+  padding: 0 var(--space-3) 0 var(--margin); background: var(--bg);
 }
-/* The Daybook window's board and inspector run under their toolbars without a rule, as the prototype's. */
-.workspace .toolbar { border-bottom: 0; }
 .no-sidebar .toolbar { padding-left: var(--traffic-lights); }
 .toolbar-title {
-  flex: 0 1 auto; min-width: 0; margin: 0; font-size: var(--fs-title); font-weight: 700; color: var(--text-strong);
+  flex: 0 1 auto; min-width: 0; margin: 0; font-size: var(--fs-title); font-weight: 500; color: var(--text-strong);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.toolbar-detail { flex: 0 1 auto; min-width: 0; font-size: var(--fs-meta); color: var(--o2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.toolbar .btn:not(.btn-primary) { height: var(--toolbar-control-h); padding: 0 var(--space-2); background: transparent; box-shadow: none; color: var(--text); }
-.toolbar .btn:not(.btn-primary):hover:not(:disabled) { background: var(--fill); }
-.toolbar .btn:not(.btn-primary):active:not(:disabled) { background: var(--fill-strong); }
-.toolbar .btn svg { color: var(--o2); }
-/* A split button shows both halves and a hairline between them while either is hovered. */
-.toolbar .split-btn:hover > .btn:not(.btn-primary) { background: var(--fill); }
-.toolbar .split-btn > .btn:not(.btn-primary):hover:not(:disabled) { background: var(--fill-strong); }
-.toolbar .split-btn:hover > .split-btn-menu { box-shadow: inset 1px 0 0 var(--line); }
 .toolbar .icon-btn { width: var(--toolbar-control-h); height: var(--toolbar-control-h); color: var(--o2); }
-.toolbar select.input { width: auto; }
-.toolbar .inline-switch { margin: 0 var(--space-2); }
 
 .board { flex: 1; min-height: 0; overflow: auto; }
 
@@ -66,10 +59,9 @@
 .inspector-toggle.icon-btn:hover, .inspector-toggle.icon-btn:active { background: transparent; color: var(--text); }
 
 /* An inactive window dims like the prototype's (Glaze's `window-blurred`): titles, toolbar buttons and the sidebar
-   at 40%, accent fills grey. `trackWindowFocus` sets the class. */
-:root.window-blurred :is(.toolbar-title, .toolbar .btn, .toolbar .icon-btn, .inspector-toggle, .sidebar-body > *, .sidebar-footer > *) { opacity: 0.4; }
+   at 40%, the pressed inspector tab grey. `trackWindowFocus` sets the class. */
+:root.window-blurred :is(.toolbar-title, .toolbar .icon-btn, .inspector-toggle, .sidebar-body > *, .sidebar-footer > *) { opacity: 0.4; }
 :root.window-blurred .inspector .segmented button[aria-pressed="true"] { background: color-mix(in srgb, var(--text) 20%, transparent); color: var(--text); }
-:root.window-blurred .todo-check[aria-checked="true"] { background: color-mix(in srgb, var(--text) 20%, transparent); color: var(--text); }
 
 .crash { padding: 3.077rem; display: flex; flex-direction: column; gap: var(--space-3); align-items: flex-start; }
 .crash pre { font-family: var(--font-mono); font-size: var(--data-font-size); color: var(--style-red); white-space: pre-wrap; user-select: text; }
@@ -85,12 +77,11 @@
 .todo-chevron { flex: none; transition: transform 120ms; }
 .todo-group-head[aria-expanded="true"] .todo-chevron { transform: rotate(90deg); }
 .todo-row { display: flex; align-items: flex-start; gap: 10px; padding: 6px 8px; border-radius: 8px; transition: background-color 120ms; }
-.todo-row:hover { background: color-mix(in srgb, var(--text) 5%, transparent); }
+.todo-row:hover { background: var(--wash); }
 .todo-check {
   display: grid; flex: none; place-content: center; width: 16px; height: 16px; margin-top: 2px; padding: 0; border: 0; border-radius: 6px;
-  background: color-mix(in srgb, var(--text) 10%, transparent); box-shadow: 0 0.5px 1px color-mix(in srgb, var(--shade) 12%, transparent); color: transparent;
+  background: var(--wash-strong); box-shadow: 0 0.5px 1px color-mix(in srgb, var(--shade) 12%, transparent); color: transparent;
 }
-.todo-check[aria-checked="true"] { background: var(--accent); color: var(--on-accent); }
 .todo-check:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .todo-open {
   display: flex; flex: 1; flex-direction: column; min-width: 0; padding: 0; border: 0; background: none;
@@ -100,4 +91,3 @@
 .todo-text { overflow-wrap: anywhere; line-height: 18px; }
 .todo-detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; line-height: 14px; }
 @media (prefers-reduced-motion: reduce) { .todo-chevron { transition: none; } }
-.workspace .toolbar-title { font-weight: 500; }

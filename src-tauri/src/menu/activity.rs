@@ -1,6 +1,8 @@
 //! The activity tool's part of the menu-bar menu. Pure.
 
-use super::model::{MenuEntry, MenuInput, command, with_choices};
+use super::choices::with_choices;
+use super::entry::{MenuEntry, command};
+use super::model::MenuInput;
 use crate::store::settings::{Feature, ToolId};
 use crate::tools::TtState;
 

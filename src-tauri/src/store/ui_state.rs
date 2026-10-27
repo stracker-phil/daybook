@@ -1,7 +1,6 @@
 //! Window layout that survives a restart (`ui_state.json`): the sidebar, the inspector (its tab and the
-//! Activity tab's view) and pane sizes. Unknown keys are ignored.
+//! Activity tab's view) and folded todo groups. Unknown keys are ignored.
 
-use std::collections::HashMap;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
@@ -31,17 +30,13 @@ pub enum ActivityTabView {
     ByProject,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, TS)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, TS)]
 #[ts(export, export_to = "src/api/types.gen.ts")]
 #[serde(default, rename_all = "camelCase")]
 pub struct UiState {
     pub sidebar_hidden: bool,
     /// The Daybook window's right column.
     pub inspector_hidden: bool,
-    /// In px.
-    pub sidebar_width: u16,
-    /// Splitter positions by pane id, in px.
-    pub pane_sizes: HashMap<String, f32>,
     /// The board lists only today's events that aren't over.
     pub hide_past_events: bool,
     /// The labels of the inspector's todo groups that are folded away.
@@ -49,21 +44,6 @@ pub struct UiState {
     /// Stays when the Activity tab is hidden, so it comes back with it.
     pub inspector_tab: InspectorTab,
     pub activity_view: ActivityTabView,
-}
-
-impl Default for UiState {
-    fn default() -> Self {
-        Self {
-            sidebar_hidden: false,
-            inspector_hidden: false,
-            sidebar_width: 200,
-            pane_sizes: HashMap::new(),
-            hide_past_events: false,
-            collapsed_todo_groups: Vec::new(),
-            inspector_tab: InspectorTab::default(),
-            activity_view: ActivityTabView::default(),
-        }
-    }
 }
 
 pub struct UiStateStore {
@@ -105,8 +85,6 @@ mod tests {
             UiState {
                 sidebar_hidden: false,
                 inspector_hidden: false,
-                sidebar_width: 200,
-                pane_sizes: HashMap::new(),
                 hide_past_events: false,
                 collapsed_todo_groups: Vec::new(),
                 inspector_tab: InspectorTab::Todos,
@@ -195,8 +173,6 @@ mod tests {
         let ui = UiState {
             sidebar_hidden: true,
             inspector_hidden: true,
-            sidebar_width: 260,
-            pane_sizes: HashMap::from([("list".to_string(), 320.0)]),
             hide_past_events: true,
             collapsed_todo_groups: vec!["Today".to_string()],
             inspector_tab: InspectorTab::Activity,
@@ -213,14 +189,47 @@ mod tests {
     #[test]
     fn partial_file_fills_the_missing_fields_with_defaults() {
         let dir = temp_config_dir();
-        std::fs::write(dir.path().join("ui_state.json"), r#"{"sidebarWidth": 320}"#).unwrap();
+        std::fs::write(
+            dir.path().join("ui_state.json"),
+            r#"{"sidebarHidden": true}"#,
+        )
+        .unwrap();
         assert_eq!(
             UiStateStore::open(dir.path()).get(),
             UiState {
-                sidebar_width: 320,
+                sidebar_hidden: true,
                 ..UiState::default()
             }
         );
+    }
+
+    #[tokio::test]
+    async fn an_old_file_with_sidebar_width_and_pane_sizes_loads_and_drops_them_on_save() {
+        let dir = temp_config_dir();
+        std::fs::write(
+            dir.path().join("ui_state.json"),
+            r#"{"sidebarHidden": true, "sidebarWidth": 320, "paneSizes": {"list": 300.0}}"#,
+        )
+        .unwrap();
+        let store = UiStateStore::open(dir.path());
+        let loaded = store.get();
+        assert_eq!(
+            loaded,
+            UiState {
+                sidebar_hidden: true,
+                ..UiState::default()
+            }
+        );
+
+        store.set(loaded).await.unwrap();
+
+        let saved: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(dir.path().join("ui_state.json")).unwrap(),
+        )
+        .unwrap();
+        assert!(saved.get("sidebarWidth").is_none());
+        assert!(saved.get("paneSizes").is_none());
+        assert_eq!(saved["sidebarHidden"], true);
     }
 
     #[test]
@@ -230,8 +239,6 @@ mod tests {
             serde_json::json!({
                 "sidebarHidden": false,
                 "inspectorHidden": false,
-                "sidebarWidth": 200,
-                "paneSizes": {},
                 "hidePastEvents": false,
                 "collapsedTodoGroups": [],
                 "inspectorTab": "todos",
@@ -259,7 +266,7 @@ mod tests {
     #[test]
     fn a_file_with_unknown_keys_loads_without_quarantining_the_file() {
         let dir = temp_config_dir();
-        let raw = r#"{"sidebarWidth": 320, "lastDay": "2026-10-21"}"#;
+        let raw = r#"{"sidebarHidden": true, "lastDay": "2026-10-21"}"#;
         std::fs::write(dir.path().join("ui_state.json"), raw).unwrap();
 
         let loaded = UiStateStore::open(dir.path()).get();
@@ -267,7 +274,7 @@ mod tests {
         assert_eq!(
             loaded,
             UiState {
-                sidebar_width: 320,
+                sidebar_hidden: true,
                 ..UiState::default()
             }
         );

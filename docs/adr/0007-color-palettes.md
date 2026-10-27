@@ -2,7 +2,13 @@
 
 ## Status
 
-Accepted (2026-10-24), implemented. Inherited from TimeTracker ADR 0016.
+Accepted (2026-10-24), implemented. Inherited from TimeTracker ADR 0016. Partly superseded by
+[ADR 0026](0026-the-daybook-window-follows-the-prototypes-look.md).
+
+Amended (2026-10-27): the accent and context hues are Apple's system colours per tone. They live in the content
+palettes and also apply to a sidebar of the same tone; the sidebar palettes hold no hues. Text on a hue's fill
+is derived in `theme.css` instead of one token per palette (ADR 0026). The rule of no color literal outside a
+palette stands.
 
 ## Context
 

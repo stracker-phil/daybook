@@ -1,9 +1,9 @@
 import { Timer } from "lucide-react";
-import { api, type TimeTrackerLink } from "../../api";
-import { fail } from "../../state/requests";
+import type { TimeTrackerLink } from "../../api";
+import { runBusCommand } from "../../state/requests";
 
 /** Runs the shown day's TimeTracker command (Rust names it and its label); TimeTracker starts if needed. */
-export const showInTimeTracker = ({ command }: TimeTrackerLink) => void api.runCommand(command).catch((e) => fail(e, "Couldn't open TimeTracker"));
+export const showInTimeTracker = ({ command }: TimeTrackerLink) => runBusCommand(command, "Couldn't open TimeTracker");
 
 /** Shows the day in TimeTracker. */
 export function TimeTrackerButton({ link, stage }: { link: TimeTrackerLink; stage: string }) {

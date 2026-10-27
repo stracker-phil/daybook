@@ -5,10 +5,9 @@ pub mod groups;
 
 use tauri::{AppHandle, Manager};
 
-use groups::Diagnostics;
 use groups::{
-    AutomationFacts, SlackFacts, TimeTrackerFacts, VaultFacts, automation_group, permissions_group,
-    slack_group, timetracker_group, vault_group,
+    AutomationFacts, Diagnostics, SlackFacts, TimeTrackerFacts, VaultFacts, automation_group,
+    permissions_group, slack_group, timetracker_group, vault_group,
 };
 
 use crate::state::AppState;
@@ -74,6 +73,7 @@ async fn slack_facts(app: &AppHandle) -> SlackFacts {
     }
 }
 
+/// Settings → Status's groups, read now.
 #[tauri::command]
 pub async fn diagnostics_get(app: AppHandle) -> Diagnostics {
     let slack = slack_facts(&app).await;

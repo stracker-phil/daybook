@@ -203,7 +203,8 @@ fn runnable(commands: &dyn CommandStatus, id: &str) -> bool {
     commands.knows(id) && commands.is_enabled(id)
 }
 
-/// Every tool's commands, wherever Settings → General → Tools shows it, each once and only those that can run now.
+/// Every tool's commands, wherever Settings → General → Tools places the tool, each once and only those
+/// that can run now.
 pub fn palette_entries(
     state: &ToolState,
     hotkeys: &Hotkeys,

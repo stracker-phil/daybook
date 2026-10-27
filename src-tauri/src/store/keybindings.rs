@@ -1,10 +1,11 @@
 //! User shortcut overrides (`keybindings.json`): `{ "commandId": "Mod+Shift+X" | null }` for the
 //! keys the page resolves.
 
-use super::json_store::JsonStore;
-use crate::error::AppResult;
 use std::collections::BTreeMap;
 use std::path::Path;
+
+use super::json_store::JsonStore;
+use crate::error::AppResult;
 
 /// `None` means the user unbound the command.
 pub type Keybindings = BTreeMap<String, Option<String>>;

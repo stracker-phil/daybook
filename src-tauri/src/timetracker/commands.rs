@@ -9,7 +9,9 @@ use super::day::TimeTrackerDay;
 use super::reply::TtProject;
 use super::{Tracking, TtState, blocking, client, tracking};
 use crate::bus::{Command, CommandBus};
-use crate::error::{AppError, AppResult};
+use crate::clock::{iso_day, parse_day};
+use crate::error::AppResult;
+use crate::locale::DateLocale;
 use crate::window;
 
 /// `timetracker:show:<day>` shows a day.
@@ -76,8 +78,9 @@ pub struct TimeTrackerLink {
     pub label: String,
 }
 
-/// "Open in TimeTracker" today, "Show 26 October 2026 in TimeTracker" on another day.
-pub fn show_link(day: NaiveDate, is_today: bool) -> TimeTrackerLink {
+/// "Open in TimeTracker" today, "Show 26 October 2026 in TimeTracker" (the date in `locale`) on another
+/// day.
+pub fn show_link(day: NaiveDate, is_today: bool, locale: DateLocale) -> TimeTrackerLink {
     if is_today {
         return TimeTrackerLink {
             command: "timetracker:show".into(),
@@ -85,15 +88,9 @@ pub fn show_link(day: NaiveDate, is_today: bool) -> TimeTrackerLink {
         };
     }
     TimeTrackerLink {
-        command: format!("{SHOW_PREFIX}{}", day.format("%Y-%m-%d")),
-        label: format!("Show {} in TimeTracker", day.format("%-d %B %Y")),
+        command: format!("{SHOW_PREFIX}{}", iso_day(day)),
+        label: format!("Show {} in TimeTracker", locale.long_date(day)),
     }
-}
-
-/// `YYYY-MM-DD`.
-pub fn parse_day(argument: &str) -> AppResult<NaiveDate> {
-    NaiveDate::parse_from_str(argument.trim(), "%Y-%m-%d")
-        .map_err(|_| AppError::InvalidInput(format!("Not a day: {argument} (YYYY-MM-DD)")))
 }
 
 async fn show(app: AppHandle, day: Option<NaiveDate>) -> AppResult<()> {
@@ -131,7 +128,7 @@ mod tests {
     fn today_links_to_the_plain_show_command() {
         let day = NaiveDate::from_ymd_opt(2026, 10, 27).unwrap();
         assert_eq!(
-            show_link(day, true),
+            show_link(day, true, DateLocale::parse("en_GB")),
             TimeTrackerLink {
                 command: "timetracker:show".into(),
                 label: "Open in TimeTracker".into(),
@@ -143,7 +140,7 @@ mod tests {
     fn another_day_links_to_that_day_with_a_dated_label() {
         let day = NaiveDate::from_ymd_opt(2026, 10, 26).unwrap();
         assert_eq!(
-            show_link(day, false),
+            show_link(day, false, DateLocale::parse("en_GB")),
             TimeTrackerLink {
                 command: "timetracker:show:2026-10-26".into(),
                 label: "Show 26 October 2026 in TimeTracker".into(),
@@ -152,10 +149,19 @@ mod tests {
     }
 
     #[test]
+    fn the_dated_label_names_the_day_in_the_locale() {
+        let day = NaiveDate::from_ymd_opt(2026, 10, 26).unwrap();
+        assert_eq!(
+            show_link(day, false, DateLocale::parse("de_DE")).label,
+            "Show 26. Oktober 2026 in TimeTracker"
+        );
+    }
+
+    #[test]
     fn the_link_and_the_info_serialize_with_camel_case_fields() {
         let day = NaiveDate::from_ymd_opt(2026, 10, 26).unwrap();
         assert_eq!(
-            serde_json::to_value(show_link(day, true)).unwrap(),
+            serde_json::to_value(show_link(day, true, DateLocale::parse("en_GB"))).unwrap(),
             serde_json::json!({ "command": "timetracker:show", "label": "Open in TimeTracker" })
         );
         let info = TimeTrackerInfo {

@@ -15,6 +15,7 @@ pub use groups::{OpenTodo, TodoGroup, group_by_date};
 pub use index::{DatedNote, NotesIndex};
 
 use crate::action_log;
+use crate::clock::iso_day;
 use crate::error::{AppError, AppResult};
 use crate::locale::{self, DateLocale};
 use crate::state::AppState;
@@ -83,7 +84,7 @@ pub fn open_todos(app: &AppHandle, settings: &Settings, today: NaiveDate) -> Vec
             let open = OpenTodo {
                 detail: detail(note.date, &todo.section, today, locale),
                 text: todo.text,
-                date: note.date.format("%Y-%m-%d").to_string(),
+                date: iso_day(note.date),
                 file: relative(&vault, &note.file),
                 line: u32::try_from(todo.line).unwrap_or(u32::MAX),
             };

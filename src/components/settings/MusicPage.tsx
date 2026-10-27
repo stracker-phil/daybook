@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { api, toAppError, type ArtistMatch, type ArtistSearch, type MusicEntry, type MusicKind } from "../../api";
 import type { SettingsPageProps } from "../../registry/settingsPages";
 import { Checkbox, ControlRow, EntryFooter, Group } from "./controls";
-import { CommitInput, ItemActions, moveItem, replaceItem } from "./fields";
+import { CommitInput } from "./fields";
+import { listEditor } from "./listEditor";
 
 const NEW_ENTRY: MusicEntry = { id: "", name: "New entry", kind: "playlist", source: "", shuffle: true, artistId: "", storefront: "" };
 
@@ -86,17 +87,7 @@ function SourceField({ entry, playlists, onChange }: { entry: MusicEntry; playli
   return <CommitInput label="Apple Music link" className="music-source-input" placeholder="https://music.apple.com/…" value={entry.source} onCommit={(source) => onChange({ source })} />;
 }
 
-interface EntryRowProps {
-  entry: MusicEntry;
-  index: number;
-  count: number;
-  playlists: string[] | null;
-  onChange: (patch: Partial<MusicEntry>) => void;
-  onMove: (from: number, to: number) => void;
-  onRemove: () => void;
-}
-
-function EntryRow({ entry, index, count, playlists, onChange, onMove, onRemove }: EntryRowProps) {
+function EntryRow({ entry, playlists, actions, onChange }: { entry: MusicEntry; playlists: string[] | null; actions: ReactNode; onChange: (patch: Partial<MusicEntry>) => void }) {
   return (
     <ControlRow>
       <div className="item-line music-line">
@@ -117,7 +108,7 @@ function EntryRow({ entry, index, count, playlists, onChange, onMove, onRemove }
         {entry.kind === "playlist" && (
           <Checkbox label="Shuffle" checked={entry.shuffle} onChange={(shuffle) => onChange({ shuffle })} />
         )}
-        <ItemActions index={index} count={count} onMove={onMove} onRemove={onRemove} removeLabel="Remove Entry" />
+        {actions}
       </div>
     </ControlRow>
   );
@@ -129,7 +120,7 @@ export function MusicPage({ s, set }: SettingsPageProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const entries = s.music;
-  const save = (music: MusicEntry[]) => set({ music });
+  const edit = listEditor(entries, (music) => set({ music }));
 
   const loadPlaylists = () => {
     setLoading(true);
@@ -146,39 +137,34 @@ export function MusicPage({ s, set }: SettingsPageProps) {
   };
 
   return (
-    <>
-      <Group
-        title="Playlists and stations"
-        description="Offered in the rail, the menu-bar menu and the Music overlay. A playlist is one from your library; artist radio is the station Apple Music builds around an artist (“… & Similar Artists”); a link is anything else from Apple Music (in Music: Share → Copy Link). What happens during calls and breaks is set per context, at Contexts."
-      >
-        <div className="item-list">
-          {entries.map((entry, i) => (
-            <EntryRow
-              key={entry.id || i}
-              entry={entry}
-              index={i}
-              count={entries.length}
-              playlists={playlists}
-              onChange={(patch) => save(replaceItem(entries, i, patch))}
-              onMove={(from, to) => save(moveItem(entries, from, to))}
-              onRemove={() => save(entries.filter((_, j) => j !== i))}
-            />
-          ))}
-        </div>
-        <EntryFooter>
-          <button type="button" className="btn" onClick={() => save([...entries, NEW_ENTRY])}>
-            Add Entry
-          </button>
-          <button type="button" className="btn btn-quiet" disabled={loading} onClick={loadPlaylists}>
-            {loading ? "Asking Music…" : playlists ? "Reload My Playlists" : "Load My Playlists"}
-          </button>
-          {error && (
-            <span className="form-field-error music-error" role="alert">
-              {error}
-            </span>
-          )}
-        </EntryFooter>
-      </Group>
-    </>
+    <Group
+      title="Playlists and stations"
+      description="Offered in the rail, the menu-bar menu and the Music overlay. A playlist is one from your library; artist radio is the station Apple Music builds around an artist (“… & Similar Artists”); a link is anything else from Apple Music (in Music: Share → Copy Link). What happens during calls and breaks is set per context, at Contexts."
+    >
+      <div className="item-list">
+        {entries.map((entry, i) => (
+          <EntryRow
+            key={entry.id || i}
+            entry={entry}
+            playlists={playlists}
+            actions={edit.actions(i, "Remove Entry")}
+            onChange={(patch) => edit.change(i, patch)}
+          />
+        ))}
+      </div>
+      <EntryFooter>
+        <button type="button" className="btn" onClick={() => edit.add(NEW_ENTRY)}>
+          Add Entry
+        </button>
+        <button type="button" className="btn btn-quiet" disabled={loading} onClick={loadPlaylists}>
+          {loading ? "Asking Music…" : playlists ? "Reload My Playlists" : "Load My Playlists"}
+        </button>
+        {error && (
+          <span className="form-field-error music-error" role="alert">
+            {error}
+          </span>
+        )}
+      </EntryFooter>
+    </Group>
   );
 }

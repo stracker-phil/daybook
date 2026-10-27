@@ -55,7 +55,7 @@ Every AppKit call runs on the main thread: window events already do; async code 
 One window, created hidden at startup (`panel::build`), whose page (`src/windows/panel/`) renders the current
 view. Every opening is a new session; the page answers per session.
 
-**Opening** (`panel::open(view, args)`, command `panel_open`):
+**Opening** (`panel::open(view, args)`, called by the bus commands that open overlays):
 
 1. `PanelState::request` decides: a repeat within 250 ms is ignored; the view that is open already closes
    (the same request toggles); anything else becomes a new `PanelSession { session, view, args }`.
@@ -194,14 +194,13 @@ quick-notes topic picker; [vault.md](vault.md#quick-notes)), `music` (`MusicView
 (`OfferOffView`) ([status.md](status.md#the-overlay)), and the sample view (`sample`, `sample-sticky`: a text field, a list and a
 button; opened in debug builds by `sample:open` and `sample:sticky`).
 
-`scripts/dev/overlay.sh [sticky] [delay]` opens the sample overlay in the debug app after a delay, so you can
+`scripts/dev/overlay.sh [sticky] [delay]` runs `sample:open` (or `sample:sticky`) in the debug app after a delay, so you can
 switch to another app or Space first.
 
 ## Commands and events
 
 | Command | Args | Returns |
 |---|---|---|
-| `panel_open` | `view: string`, `args: unknown \| null` | – (opens, replaces or toggles the overlay) |
 | `panel_close` | – | – |
 | `panel_session` | – | `PanelSession \| null` |
 | `panel_ready` | `session`, `height` | – |

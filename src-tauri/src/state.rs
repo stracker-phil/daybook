@@ -1,3 +1,5 @@
+//! `AppState`: the stores and feature state Tauri manages, opened from the config folder.
+
 use std::path::Path;
 use std::sync::Arc;
 
@@ -54,7 +56,7 @@ impl AppState {
             contexts: Contexts::open(config_dir),
             statuses: Statuses::open(config_dir),
             slack: SlackFiles::open(config_dir),
-            music_held: JsonStore::open(config_dir.join(crate::music::rules::HELD_FILE)),
+            music_held: JsonStore::open(config_dir.join(crate::music::HELD_FILE)),
             fired: Fired::open(config_dir),
             todos: NotesIndex::default(),
             quick_notes: QuickNotes::open(config_dir),

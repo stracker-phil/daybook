@@ -113,19 +113,16 @@ unsafe fn swap_to(ns_window: *mut c_void, panel: &AnyClass, what: &str) -> bool 
     true
 }
 
-/// Turns the window into the panel; false when its class has an unexpected layout, so the overlay
-/// stays a plain window.
+/// Turns the window into the panel; one whose class has an unexpected layout stays a plain window.
 ///
 /// # Safety
 /// `ns_window` is a live `NSWindow`, on the main thread.
-pub unsafe fn make_panel(ns_window: *mut c_void) -> bool {
+pub unsafe fn make_panel(ns_window: *mut c_void) {
     // SAFETY: as the caller promises.
-    let swapped = unsafe { swap_to(ns_window, panel_class(), "The overlay") };
-    if swapped {
+    if unsafe { swap_to(ns_window, panel_class(), "The overlay") } {
         // SAFETY: as above.
         unsafe { set_alpha(ns_window, 0.0) };
     }
-    swapped
 }
 
 /// Turns the window into a panel that never becomes key, so clicking it never activates Daybook.

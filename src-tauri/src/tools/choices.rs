@@ -6,7 +6,6 @@ use ts_rs::TS;
 
 use super::state::{LinkItem, Progress, Status, TimerView, ToolState};
 use crate::activity::prefill::{Prefill, prefill_command};
-use crate::contexts::context_title;
 use crate::launcher::open_command;
 use crate::store::settings::{Feature, ToolId};
 
@@ -42,12 +41,7 @@ pub struct Step {
 }
 
 fn item(label: impl Into<String>, command: impl Into<String>) -> Choice {
-    Choice::Item {
-        label: label.into(),
-        command: command.into(),
-        detail: None,
-        checked: None,
-    }
+    item_with_detail(label, command, None)
 }
 
 fn heading(label: impl Into<String>) -> Choice {
@@ -265,7 +259,7 @@ fn context_choices(state: &ToolState) -> Vec<Choice> {
         .iter()
         .map(|context| {
             radio(
-                context_title(&context.label, &context.name),
+                context.title(),
                 format!("mode:{}", context.id),
                 state.context.as_deref() == Some(context.id.as_str()),
             )

@@ -1,3 +1,6 @@
+//! The core Tauri commands: settings, keybindings and UI state, and the small OS helpers (links,
+//! folders, the log folder) the page calls.
+
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
@@ -41,6 +44,7 @@ fn changed<T: PartialEq>(
         .then(|| field(saved))
 }
 
+/// Applies a saved change outside the store; at startup (`previous` is `None`) everything.
 pub fn apply_settings(app: &AppHandle, previous: Option<&Settings>, saved: &Settings) {
     let effects = settings_effects(previous, saved);
     // At startup this reconciles a LaunchAgent that went missing (a moved or reinstalled bundle).
@@ -171,14 +175,6 @@ pub async fn choose_folder(app: AppHandle) -> AppResult<Option<String>> {
         .into_path()
         .map_err(|e| AppError::Io(format!("The chosen folder is not a file path: {e}")))?;
     Ok(Some(path.to_string_lossy().into_owned()))
-}
-
-/// Opens the folder containing `path` in Finder, with `path` selected.
-#[tauri::command]
-pub fn reveal_path(app: AppHandle, path: String) -> AppResult<()> {
-    app.opener()
-        .reveal_item_in_dir(path)
-        .map_err(|e| AppError::Io(e.to_string()))
 }
 
 /// The page listens: it takes what waited for it, and links waiting for it run.

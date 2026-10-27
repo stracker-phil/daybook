@@ -196,7 +196,8 @@ async fn read_head(stream: &mut TcpStream) -> Result<(Head, Vec<u8>), Automation
     Ok((parse_head(&buffer[..end])?, buffer.split_off(end)))
 }
 
-/// The body after `leftover`, as long as the head says; a client that waits is told to go on.
+/// The body, from the bytes read after the head, as long as the head says; a client that waits is
+/// told to go on.
 async fn read_body(
     stream: &mut TcpStream,
     head: &Head,

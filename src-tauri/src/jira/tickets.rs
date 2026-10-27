@@ -8,6 +8,7 @@ use chrono::{Days, NaiveDate};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
+use crate::clock::iso_day;
 use crate::error::AppResult;
 use crate::store::json_store::JsonStore;
 
@@ -42,20 +43,16 @@ impl<'de> Deserialize<'de> for TicketDays {
     }
 }
 
-fn iso(day: NaiveDate) -> String {
-    day.format("%Y-%m-%d").to_string()
-}
-
 impl TicketDays {
     fn on(&self, day: NaiveDate) -> Vec<String> {
-        self.0.get(&iso(day)).cloned().unwrap_or_default()
+        self.0.get(&iso_day(day)).cloned().unwrap_or_default()
     }
 
     /// Adds `key` to `day` once; days before `cutoff` go.
     fn add(&mut self, day: NaiveDate, key: &str, cutoff: NaiveDate) {
-        let cutoff = iso(cutoff);
+        let cutoff = iso_day(cutoff);
         self.0.retain(|date, _| *date >= cutoff);
-        let keys = self.0.entry(iso(day)).or_default();
+        let keys = self.0.entry(iso_day(day)).or_default();
         if !keys.iter().any(|known| known == key) {
             keys.push(key.to_string());
         }

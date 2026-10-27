@@ -33,6 +33,7 @@ impl ArgChoice {
     }
 }
 
+/// What help, menus and the palette know about a command.
 pub struct Info<H> {
     pub title: &'static str,
     /// One line for `daybook help`.
@@ -44,13 +45,6 @@ pub struct Info<H> {
     /// The app is gone once it ran, so a caller answers first.
     pub quits: bool,
     pub(super) enabled: Option<Check<H>>,
-}
-
-impl<H> Info<H> {
-    /// The first word of the id: `hub` for `hub:open`.
-    pub fn group<'a>(&self, id: &'a str) -> &'a str {
-        id.split(':').next().unwrap_or(id)
-    }
 }
 
 /// A command before it gets its `run`.
@@ -165,7 +159,7 @@ impl<H: Host> FamilySpec<H> {
     }
 
     /// The argument from the command line's words, when it isn't simply the words.
-    pub fn from_words(mut self, from_words: FromWords) -> Self {
+    pub fn argument_from_words(mut self, from_words: FromWords) -> Self {
         self.from_words = Some(from_words);
         self
     }

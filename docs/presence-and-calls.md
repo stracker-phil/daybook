@@ -17,8 +17,8 @@ automation, the wizard and TimeTracker's call suggestion. Daybook does not log c
 | `calls/access.rs` | Accessibility: trusted, the prompt, the privacy panes |
 | `calls/join.rs` | joining a call: `open_args`, `join` |
 | `calls/pick.rs` | `app_ref`: an app chosen in Settings, its name and bundle id (`plutil`) |
-| `calls/watch.rs` | the check: the 15 s tick, `check_soon`, `check_now`, `woke`, `first_check`, announcing changes |
-| `calls/mod.rs` | `Calls` (managed state), `active`, `subscribe`, `settings_changed`, the commands, `meetings:check` |
+| `calls/watch.rs` | the check (`Watch` holds the `MacProbe` and the `EventTitles`): the 15 s tick, `check_soon`, `check_now`, `woke`, `first_check`, announcing changes |
+| `calls/mod.rs` | `Calls` (managed state), `active`, `subscribe`, `follow`, `settings_changed`, the commands, `meetings:check` |
 
 ## Presence
 
@@ -91,12 +91,13 @@ a call at once.
 
 **A failing detector.** While the active call's own detector fails, the call keeps running; after 4 failed
 checks in a row (about a minute) it ends at its first miss or first failure (`EndReason::Failing`), with a log
-line, an action-log line under "Call ended: <app>" and one notification. Another trigger failing never ends or
+line, an action-log line under "Call ended: <app>" and one notification; their detail is the active call's own
+check error (`check_error`), not another trigger's. Another trigger failing never ends or
 holds the call.
 
 **Signals.** Every change goes to `calls::subscribe` (a broadcast of `Announced`: the `CallEvent` and its
 action-log trigger: "Call started", "Call moved: Zoom → Teams", "Call ended") for the features that follow
-calls, refreshes the menu bar and emits `call_changed` (no payload); the Daybook window reloads its view.
+calls (`calls::follow(app, on_event)` runs a follower within each event's trigger), refreshes the menu bar and emits `call_changed` (no payload); the Daybook window reloads its view.
 `calls::first_check` returns once the first check since the start ran (Slack and music restore what a quit
 mid-call left). `calls::active` is the call now; the tool state carries its start and app (`meeting_since`,
 `meeting_app`): the menu shows "In a meeting since 10:15", the sidebar's Call row the same with the app.

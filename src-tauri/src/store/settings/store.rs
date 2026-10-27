@@ -1,3 +1,5 @@
+//! `settings.json` on disk: loaded and saved sanitized.
+
 use std::path::Path;
 
 use super::Settings;

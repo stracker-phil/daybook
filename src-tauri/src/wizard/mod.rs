@@ -13,6 +13,7 @@ use tokio::sync::broadcast::error::RecvError;
 
 use prompts::{Prompt, Reason, Target, Waiting, first_to_open};
 
+use crate::bus::Host;
 use crate::calls::{self, Announced, CallEvent};
 use crate::events::{CONTEXT_CHANGED_EVENT, STATUS_CHANGED_EVENT};
 use crate::lock::MutexExt;
@@ -133,13 +134,9 @@ pub async fn fire(app: &AppHandle, reason: Reason, now: NaiveDateTime) {
     }
 }
 
-fn has_vault(app: &AppHandle) -> bool {
-    app.state::<AppState>().settings.get().vault.path.is_some()
-}
-
 /// Tries the waiting events, then the due times. Runs on the scheduler's tick.
 pub async fn tick(app: &AppHandle) {
-    if !has_vault(app) {
+    if !app.has_vault() {
         return;
     }
     loop {
@@ -160,7 +157,7 @@ pub async fn tick(app: &AppHandle) {
 
 /// `event` happened: it waits for the overlay that caused it to close, then gets its chance.
 fn happened(app: &AppHandle, event: OpenEvent) {
-    if !has_vault(app) {
+    if !app.has_vault() {
         return;
     }
     wizard(app).waiting.lock_unpoisoned().push(event);

@@ -9,7 +9,7 @@ pub enum Surface {
     Window,
 }
 
-pub fn is_separator(id: ToolId) -> bool {
+fn is_separator(id: ToolId) -> bool {
     matches!(id, ToolId::Separator1 | ToolId::Separator2)
 }
 

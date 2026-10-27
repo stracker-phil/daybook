@@ -1,10 +1,11 @@
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import type { CalendarInfo, Context, Feature, MusicEntry, WorkHours } from "../../api";
 import type { SettingsPageProps } from "../../registry/settingsPages";
 import { ContextCalendars } from "./ContextCalendars";
 import { ContextMusicFields } from "./ContextMusicFields";
-import { Checkbox, EntryFooter, Group, NumberField, Row, Switch, TextField } from "./controls";
-import { CONTEXT_COLORS, ColorField, DaysField, ItemActions, TimeRangeField, moveItem, replaceItem } from "./fields";
+import { AddButton, Checkbox, EntryFooter, Group, NumberField, Row, Switch, TextField } from "./controls";
+import { CONTEXT_COLORS, ColorField, DaysField, TimeRangeField, titleOf } from "./fields";
+import { listEditor } from "./listEditor";
 import { useCalendarInfo } from "./useCalendarInfo";
 
 const FEATURES: { id: Feature; label: string }[] = [
@@ -19,7 +20,6 @@ const MAX_CHECK_IN_MINUTES = 240;
 
 const NEW_WORK_HOURS: WorkHours = { days: [1, 2, 3, 4, 5], from: "09:00", to: "18:00" };
 
-const title = (context: Context) => [context.label.trim(), context.name].filter(Boolean).join(" ");
 
 function WorkHoursRows({ context, onChange }: { context: Context; onChange: (patch: Partial<Context>) => void }) {
   const hours = context.workHours;
@@ -43,9 +43,9 @@ function WorkHoursRows({ context, onChange }: { context: Context; onChange: (pat
             </div>
           </Row>
           <Switch
-          label="Switch automatically during work hours"
-          description="Becomes current when the work hours start; a switch by hand holds until they start again."
-          checked={context.autoSwitch}
+            label="Switch automatically during work hours"
+            description="Becomes current when the work hours start; a switch by hand holds until they start again."
+            checked={context.autoSwitch}
             onChange={(autoSwitch) => onChange({ autoSwitch })}
           />
         </>
@@ -54,20 +54,17 @@ function WorkHoursRows({ context, onChange }: { context: Context; onChange: (pat
   );
 }
 
-function ContextCard({ context, scopes, calendars, music, index, count, onChange, onMove, onRemove }: {
+function ContextCard({ context, scopes, calendars, music, actions, onChange }: {
   context: Context;
   scopes: string[];
   calendars: CalendarInfo | null;
   music: MusicEntry[];
-  index: number;
-  count: number;
+  actions: ReactNode;
   onChange: (patch: Partial<Context>) => void;
-  onMove: (from: number, to: number) => void;
-  onRemove: () => void;
 }) {
   const toggle = (feature: Feature, on: boolean) => onChange({ features: on ? [...context.features, feature] : context.features.filter((f) => f !== feature) });
   return (
-    <Group title={title(context)}>
+    <Group title={titleOf(context)}>
       <TextField label="Name" value={context.name} onCommit={(name) => name.trim() && onChange({ name: name.trim() })} />
       <TextField label="Emoji" description="Before the context's name everywhere, and in the menu bar." value={context.label} onCommit={(label) => onChange({ label })} />
       <Row label="Features" stacked>
@@ -104,9 +101,7 @@ function ContextCard({ context, scopes, calendars, music, index, count, onChange
       <WorkHoursRows context={context} onChange={onChange} />
       {calendars && <ContextCalendars info={calendars} chosen={context.calendars} onChange={(next) => onChange({ calendars: next })} />}
       <ContextMusicFields context={context} entries={music} onChange={onChange} />
-      <EntryFooter>
-        <ItemActions index={index} count={count} onMove={onMove} onRemove={onRemove} removeLabel="Remove Context" />
-      </EntryFooter>
+      <EntryFooter>{actions}</EntryFooter>
     </Group>
   );
 }
@@ -131,7 +126,7 @@ export function ContextsPage({ s, set }: SettingsPageProps) {
   const contexts = s.contexts;
   const scopes = [...new Set(["all", ...s.search.scopes.map((scope) => scope.name)])];
   const calendars = useCalendarInfo().data;
-  const save = (next: Context[]) => set({ contexts: next });
+  const edit = listEditor(contexts, (next) => set({ contexts: next }));
   return (
     <>
       {contexts.map((context, i) => (
@@ -141,18 +136,11 @@ export function ContextsPage({ s, set }: SettingsPageProps) {
           scopes={scopes}
           calendars={calendars}
           music={s.music}
-          index={i}
-          count={contexts.length}
-          onChange={(patch) => save(replaceItem(contexts, i, patch))}
-          onMove={(from, to) => save(moveItem(contexts, from, to))}
-          onRemove={() => save(contexts.filter((_, j) => j !== i))}
+          actions={edit.actions(i, "Remove Context")}
+          onChange={(patch) => edit.change(i, patch)}
         />
       ))}
-      <div>
-        <button type="button" className="btn" onClick={() => save([...contexts, newContext(contexts)])}>
-          Add Context
-        </button>
-      </div>
+      <AddButton label="Add Context" onClick={() => edit.add(newContext(contexts))} />
     </>
   );
 }

@@ -117,7 +117,7 @@ pub fn register(bus: &mut CommandBus<AppHandle>) {
     bus.add_family(
         Command::new("music:volume:", "Set Music’s volume")
             .family("<0-100>")
-            .from_words(|words| volume_argument(words).map(|level| level.to_string()))
+            .argument_from_words(|words| volume_argument(words).map(|level| level.to_string()))
             .run(|app, level| async move {
                 let level = volume_argument(&[level]).map_err(AppError::InvalidInput)?;
                 super::set_volume(&app, f64::from(level)).await

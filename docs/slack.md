@@ -31,7 +31,7 @@ a manual one.
 
 `decide` ranks three sources:
 
-1. **A call** (`calls::subscribe`): `Started` takes the Slack status of the app trigger with the
+1. **A call** (`calls::follow`): `Started` takes the Slack status of the app trigger with the
    call's bundle id (Settings → Workflows → App triggers); `Switched` (the call moved to another app) sends only
    the new trigger's status, nothing when it is the same; `Ended` gives it up. A new title or trigger name for
    the same call changes nothing.

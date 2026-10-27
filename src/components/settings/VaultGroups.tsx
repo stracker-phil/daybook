@@ -2,10 +2,7 @@ import { api } from "../../api";
 import { useApiResult } from "../../lib/useApiResult";
 import type { SettingsPageProps } from "../../registry/settingsPages";
 import { fail } from "../../state/requests";
-import { Group, Row, TextField } from "./controls";
-
-/** `/Users/name/…` → `~/…`. */
-const tildePath = (path: string) => path.replace(/^\/Users\/[^/]+/, "~");
+import { Group, PathText, Row, TextField } from "./controls";
 
 const dailyNotePattern = ({ folder, format }: { folder: string; format: string }) => (folder ? `${folder}/${format}` : format);
 
@@ -30,11 +27,11 @@ export function VaultGroups({ s, set }: SettingsPageProps) {
 
   const dailyNotes = info?.dailyNotes;
   const cliPath = info?.obsidianCli;
-  const cliDescription = cliPath ? <span className="mono selectable">{tildePath(cliPath)}</span> : info ? "Not found." : undefined;
+  const cliDescription = cliPath ? <PathText path={cliPath} /> : info ? "Not found." : undefined;
   return (
     <>
       <Group title="Vault" anchor="vault">
-        <Row label="Vault folder" description={vault.path ? <span className="mono selectable">{tildePath(vault.path)}</span> : "Choose the folder of your Obsidian vault."}>
+        <Row label="Vault folder" description={vault.path ? <PathText path={vault.path} /> : "Choose the folder of your Obsidian vault."}>
           <button type="button" className={vault.path ? "btn" : "btn btn-primary"} onClick={() => void choose()}>
             {vault.path ? "Change…" : "Choose…"}
           </button>
@@ -44,10 +41,9 @@ export function VaultGroups({ s, set }: SettingsPageProps) {
             <TextField
               label="Vault name"
               description="As Obsidian shows it; used for obsidian:// links and the Obsidian CLI."
+              required
               value={vault.name}
-              onCommit={(name) => {
-                if (name.trim()) set({ vault: { ...vault, name: name.trim() } });
-              }}
+              onCommit={(name) => set({ vault: { ...vault, name: name.trim() } })}
             />
             {dailyNotes && (
               <Row
@@ -58,7 +54,7 @@ export function VaultGroups({ s, set }: SettingsPageProps) {
               </Row>
             )}
             {info && (
-              <Row label="Today's note" description={info.todayNote ? <span className="mono selectable">{tildePath(info.todayNote)}</span> : undefined}>
+              <Row label="Today's note" description={info.todayNote ? <PathText path={info.todayNote} /> : undefined}>
                 <State found={info.todayNoteExists} yes="Found" no="Not created yet" />
               </Row>
             )}

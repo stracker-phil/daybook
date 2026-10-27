@@ -1,8 +1,9 @@
 import { api, type Search, type SearchScope } from "../../api";
 import { useApiResult } from "../../lib/useApiResult";
 import type { SettingsPageProps } from "../../registry/settingsPages";
-import { EntryFooter, Group, Row } from "./controls";
-import { CommitInput, ItemActions, joinList, moveItem, parseList, replaceItem } from "./fields";
+import { ControlRow, EntryFooter, Group, Row } from "./controls";
+import { CommitInput, joinList, parseList } from "./fields";
+import { listEditor } from "./listEditor";
 
 /** `scope<n>` from the count up, skipping names in use. */
 function freeScopeName(scopes: SearchScope[]): string {
@@ -17,32 +18,26 @@ export function SearchPage({ s, set }: SettingsPageProps) {
   // Settings arrive here once saved, so the problems are those of the shown scopes.
   const problems = useApiResult(JSON.stringify(scopes), api.searchScopes).data?.problems ?? [];
   const setSearch = (patch: Partial<Search>) => set({ search: { ...s.search, ...patch } });
-  const setScopes = (next: SearchScope[]) => setSearch({ scopes: next });
+  const edit = listEditor(scopes, (next) => setSearch({ scopes: next }));
 
   return (
     <>
       <Group title="Scopes" description="Type @name in search to narrow it. Folders end with / (e.g. 2-Work/); other entries include another scope; / is the whole vault.">
         {scopes.map((scope, i) => (
-          <div key={i} className="settings-row control-row search-scope-row">
-            <CommitInput label="Scope name" className="search-scope-name" required value={scope.name} onCommit={(name) => setScopes(replaceItem(scopes, i, { name }))} />
+          <ControlRow key={i} className="search-scope-row">
+            <CommitInput label="Scope name" className="search-scope-name" required value={scope.name} onCommit={(name) => edit.change(i, { name })} />
             <CommitInput
               label="Folders and scopes"
               className="grow"
               placeholder="2-Work/, journal"
               value={joinList(scope.entries)}
-              onCommit={(text) => setScopes(replaceItem(scopes, i, { entries: parseList(text) }))}
+              onCommit={(text) => edit.change(i, { entries: parseList(text) })}
             />
-            <ItemActions
-              index={i}
-              count={scopes.length}
-              onMove={(from, to) => setScopes(moveItem(scopes, from, to))}
-              onRemove={() => setScopes(scopes.filter((_, j) => j !== i))}
-              removeLabel="Remove Scope"
-            />
-          </div>
+            {edit.actions(i, "Remove Scope")}
+          </ControlRow>
         ))}
         <EntryFooter>
-          <button type="button" className="btn" onClick={() => setScopes([...scopes, { name: freeScopeName(scopes), entries: [] }])}>
+          <button type="button" className="btn" onClick={() => edit.add({ name: freeScopeName(scopes), entries: [] })}>
             Add Scope
           </button>
         </EntryFooter>

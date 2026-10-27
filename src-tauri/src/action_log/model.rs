@@ -74,6 +74,14 @@ fn one() -> u32 {
     1
 }
 
+impl Line {
+    fn set(&mut self, state: ActionState, detail: Option<String>, now: DateTime<Local>) {
+        self.state = state;
+        self.detail = detail;
+        self.at = now;
+    }
+}
+
 impl Event {
     pub fn shown(&self) -> bool {
         !self.lines.is_empty() || self.always
@@ -183,9 +191,7 @@ impl Log {
         let Some(line) = self.line_mut(line) else {
             return false;
         };
-        line.state = state;
-        line.detail = detail;
-        line.at = now;
+        line.set(state, detail, now);
         true
     }
 
@@ -261,10 +267,7 @@ fn upsert_line(
         .position(|line| line.target == target && line.text == text);
     match existing {
         Some(index) => {
-            let line = &mut event.lines[index];
-            line.state = state;
-            line.detail = detail;
-            line.at = now;
+            event.lines[index].set(state, detail, now);
             index
         }
         None => {

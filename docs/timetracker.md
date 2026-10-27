@@ -155,5 +155,7 @@ today. The page also reloads on a day change, on window focus and every minute w
 
 `activity:showTab` ("Day Activity", in the menu-bar menu's Hub tool and the palette) shows the Daybook window and
 emits `show_activity_tab`; the page opens the inspector on the tab. The tab (`inspectorTab`) and its view
-(`activityView`: timeline or byProject) are kept in `ui_state.json`. "Open in TimeTracker" in the tab's toolbar runs
-`timetracker:show`.
+(`activityView`: timeline or byProject) are kept in `ui_state.json`. The tab's toolbar link is
+`HubView.timetracker` (`timetracker/commands.rs` `show_link`): "Open in TimeTracker" (`timetracker:show`) today, "Show <date> in
+TimeTracker" (`timetracker:show:<YYYY-MM-DD>`, the date by `DateLocale::long_date` in the Mac's locale) on
+another day.

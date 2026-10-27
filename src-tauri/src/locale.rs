@@ -1,5 +1,6 @@
 //! Dates as the Daybook window shows them, in the Mac's locale (`AppleLocale`, read once): the names come from
-//! chrono's locales, the order and punctuation from the language. Pure apart from `system` and `apple_locale`.
+//! chrono's locales, the order and punctuation from the language. Pure apart from `system`, `system_async`
+//! and `apple_locale`.
 
 use std::path::Path;
 use std::sync::OnceLock;
@@ -144,12 +145,28 @@ impl DateLocale {
         let other_year = (year != today.year()).then_some(year);
         self.order.short(date.day(), &month, other_year)
     }
+
+    /// `short_date` after the short weekday: "Di 27. Okt.", "Tue 27 Oct", "Tue Oct 27".
+    pub fn short_day(&self, date: NaiveDate, today: NaiveDate) -> String {
+        format!(
+            "{} {}",
+            self.format(date, "%a"),
+            self.short_date(date, today)
+        )
+    }
 }
 
 /// The Mac's locale; US English when it can't be read. Blocking the first time.
 pub fn system() -> DateLocale {
     static SYSTEM: OnceLock<DateLocale> = OnceLock::new();
     *SYSTEM.get_or_init(|| apple_locale().map_or_else(DateLocale::default, DateLocale::parse))
+}
+
+/// `system` off the async workers, for commands that may be the first to ask.
+pub async fn system_async() -> DateLocale {
+    tauri::async_runtime::spawn_blocking(system)
+        .await
+        .unwrap_or_default()
 }
 
 /// `AppleLocale` as macOS stores it (`de_AT`, `en_US@rg=atzzzz`), read once. Blocking the first time.
@@ -241,6 +258,36 @@ mod tests {
         ] {
             assert_eq!(
                 DateLocale::parse(tag).short_date(day(2025, 12, 31), today()),
+                expected,
+                "{tag}"
+            );
+        }
+    }
+
+    #[test]
+    fn short_days_name_the_weekday_before_the_short_date() {
+        for (tag, expected) in [
+            ("de_AT", "Di 27. Okt."),
+            ("en_US", "Tue Oct 27"),
+            ("en_GB", "Tue 27 Oct"),
+        ] {
+            assert_eq!(
+                DateLocale::parse(tag).short_day(today(), today()),
+                expected,
+                "{tag}"
+            );
+        }
+    }
+
+    #[test]
+    fn short_days_add_the_year_when_it_is_not_this_year() {
+        for (tag, expected) in [
+            ("de_AT", "Mi 31. Dez. 2025"),
+            ("en_US", "Wed Dec 31, 2025"),
+            ("en_GB", "Wed 31 Dec 2025"),
+        ] {
+            assert_eq!(
+                DateLocale::parse(tag).short_day(day(2025, 12, 31), today()),
                 expected,
                 "{tag}"
             );

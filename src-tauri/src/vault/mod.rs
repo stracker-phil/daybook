@@ -35,10 +35,8 @@ use crate::store::settings::Settings;
 const NO_VAULT: &str = "Choose your vault in Settings first.";
 const WAITS_FOR_NOTE: &str = "Written once today’s note exists";
 
-/// Today's note as the page shows it.
-#[derive(Serialize, Clone, Debug, PartialEq, TS)]
-#[ts(export, export_to = "src/api/types.gen.ts")]
-#[serde(rename_all = "camelCase")]
+/// Today's note: where it is, whether it exists and what waits for it.
+#[derive(Clone, Debug, PartialEq)]
 pub struct DailyNoteState {
     /// `None` without a vault.
     pub path: Option<String>,

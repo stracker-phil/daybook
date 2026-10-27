@@ -17,7 +17,7 @@ notification (`notify.rs`). The managed `bus::Commands` holds the app's bus, fil
   first), `.enabled_when(check)`; then `.run(async fn)` or `.run_now(fn)` makes the `Command`. `bus.add`
   registers it; the same id again replaces it.
 - **Families.** `Command::new(prefix, title).family("<arg>")` with `.choices(fn)` (what the argument can be
-  now, for the command line) and `.from_words(fn)` (the argument from typed words), then `.run(async fn(host,
+  now, for the command line) and `.argument_from_words(fn)` (the argument from typed words), then `.run(async fn(host,
   argument))`; `bus.add_family`. An id runs the exact command if there is one, else the family with the
   longest matching prefix, with the rest of the id as its argument.
 - **Running.** `start(host, id)` refuses an unknown id (`NotFound`) or a disabled command (`InvalidInput`);
@@ -95,9 +95,9 @@ projects, the status, and the running call with whether detection runs).
 
 ## Menu-bar menu
 
-`menu/model.rs` builds the menu as `MenuEntry` data (`Command` with an optional shown shortcut and
-`enabled`, `Radio`, `Info`, `Submenu`, `Separator`); `tray.rs` turns it into native items whose ids are the
-command ids.
+`menu/model.rs` builds the menu as `MenuEntry` data (`menu/entry.rs`: `Command` with an optional shown shortcut
+and `enabled`, `Radio`, `Info`, `Submenu`, `Separator`); `menu/choices.rs` turns a tool's choices into lines
+(`with_choices`); `tray.rs` turns the menu into native items whose ids are the command ids.
 
 - `build_menu(MenuInput { state, hotkeys, tools })`: without a vault only Choose Vault…, Settings… and Quit.
   Otherwise Create Today's Note (with "N entries waiting for today's note") while the note is missing, the

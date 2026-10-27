@@ -1,6 +1,6 @@
-import { api, type Rail, type RailCallEdge, type RailCallPosition, type RailEdges, type RailHighlight, type RailPosition, type RailShape, type RailSize, type RailSpan, type RailTheme } from "../../api";
+import type { Rail, RailCallEdge, RailCallPosition, RailEdges, RailHighlight, RailPosition, RailShape, RailSize, RailSpan, RailTheme } from "../../api";
 import type { SettingsPageProps } from "../../registry/settingsPages";
-import { fail } from "../../state/requests";
+import { runBusCommand } from "../../state/requests";
 import { Group, Row, Segmented, Switch } from "./controls";
 
 const EDGE_LABELS: Record<RailEdges, string> = { right: "Right", left: "Left", both: "Both" };
@@ -70,7 +70,7 @@ function Preset({ label, description, value, presets, unit, disabled, onChange }
   );
 }
 
-const toggleRail = () => void api.runCommand("rail:toggle").catch((e) => fail(e, "Couldn't show the rail"));
+const toggleRail = () => runBusCommand("rail:toggle", "Couldn't show the rail");
 
 /** Appearance → Rail, Showing the Rail, Rail look and Rail tooltips. */
 export function RailGroups({ s, set }: SettingsPageProps) {

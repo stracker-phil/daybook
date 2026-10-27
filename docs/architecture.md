@@ -24,7 +24,7 @@ no database. The JSON files live in the config dir, `~/Library/Application Suppo
 |---|---|---|
 | `settings.json` | `Settings`: appearance, the vault and daily note, and every feature's configuration ([backend: settings](backend.md#settings)) | `store::settings::SettingsStore` |
 | `keybindings.json` | the owner's shortcut overrides by command id | `store::keybindings::KeybindingsStore` |
-| `ui_state.json` | window layout: `sidebarHidden`, `inspectorHidden`, `sidebarWidth`, `paneSizes`, `hidePastEvents`, `collapsedTodoGroups` | `store::ui_state::UiStateStore` |
+| `ui_state.json` | window layout: `sidebarHidden`, `inspectorHidden`, `hidePastEvents`, `collapsedTodoGroups`, `inspectorTab`, `activityView` | `store::ui_state::UiStateStore` |
 | `pending-entries.json` | note changes waiting for their daily note | `vault::pending::Pending` |
 | `context.json` | the current context | `contexts::Contexts` |
 | `status-memory.json` | today's status: date, status, since, whether you worked today ([status.md](status.md)) | `status::Statuses` |
@@ -178,9 +178,21 @@ src-tauri/
   src/status/                Working, Break, Off: memory, the change rule, status_changed (status.md)
   src/calendar/ reminders/   EventKit, the day's events and meeting links; the reminder rules (calendar.md)
   src/presence/ calls/       away (asleep, locked); call detection, the grace rule, joining (presence-and-calls.md)
+  src/slack/                 Slack status, channel messages, the day's message (slack.md)
+  src/focus/ journal/ routines/ todos/ quick_notes/ search/   the day's vault features (vault.md, routines.md, search.md)
+  src/links/ jira/ launcher/ quick-access links, Jira issues, Project Launcher
+  src/music/                 Apple Music control and automation (music.md)
+  src/timetracker/ activity/ the TimeTracker CLI client; the activity overlay and check-ins (timetracker.md)
+  src/automation/ http_api/  actions shared by the CLI, links and the HTTP API (automation.md)
+  src/stage/                 the Stage presenter hook (stage.md)
+  src/rail/                  the screen-edge rail and its tooltip (windows.md)
+  src/wizard/ status_rules/  routines and journal groups that open by themselves; absence heads-ups
+  src/action_log/ diagnostics/   what Daybook sent where and why; Settings → Status
+  src/scheduler.rs           the clock tick
+  src/net.rs secrets.rs      the only HTTP client; the Keychain
   src/tools/                 the tools and their choices, which tools a surface shows
   src/hub/                   the Daybook window's view model (hub_view) and its sidebar rows
-  src/locale.rs              dates in the Mac's locale (AppleLocale, read once) for the Daybook window
+  src/locale.rs              `DateLocale`: dates in the Mac's locale (AppleLocale, read once; `system`, `system_async`)
   src/palette/               palette entries, ranking, running a pick
   src/shortcuts/             global shortcuts, accelerator names, the Shortcuts page's overview
   src/tray.rs notify.rs      menu-bar item, notifications
@@ -190,7 +202,7 @@ src-tauri/
   src/help.rs                Help menu targets outside the app (the README)
   src/autostart.rs           launch at login
   src/vault/                 daily notes: location, note edits, ops, writer, pending changes, Obsidian CLI, watcher (vault.md)
-  src/clock.rs process.rs    HH:MM and time windows; child processes with a timeout
+  src/clock.rs process.rs    HH:MM, time windows, `iso_day`/`parse_day`; child processes with a timeout
   src/dev.rs                 debug builds only: window frame, background launch, eval
   src/test_support/          test helpers behind cfg(test) / feature test-util
 src/
@@ -202,6 +214,8 @@ src/
   windows/panel/             the overlay page: PanelApp, PaletteView, ContextView, StatusView, OfferOffView, SampleView, search/
   windows/settings/          the Settings window's page: SettingsApp
   windows/quicknotes/        the quick-notes editor's page: QuickNotesApp, useQuickNote, MarkdownEditor, markdown
+  windows/rail/ railtip/     the rail and its tooltip: RailApp, RailTipApp
+  stage/                     the Stage hooks: anchors, actions (stage.md)
   registry/settingsPages.ts
   lib/ styles/ test/
 docs/                        this folder; adr/ holds the decision records

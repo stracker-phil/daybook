@@ -11,13 +11,13 @@ renders and forwards intent; [Rust owns the logic](architecture.md#design-rules)
    then the command registry).
 3. `applyInitialLook()` (`lib/theme.ts`) sets the default look for the OS appearance (light mode Default, dark
    mode Dark) and the System accent, so the first paint has colors before settings load.
-4. `installNativeMenuGuard()` (`lib/nativeMenu.ts`): a right-click that no app menu handled shows nothing, so
-   the WebView's Reload and Inspect Element never appear; text fields keep Cut, Copy and Paste.
-5. `installInputModality()` (`lib/inputModality.ts`), see [Input modality](#input-modality).
-6. `main.tsx` assigns the store to `window.daybook` only when `import.meta.env.VITE_DEV_HOOKS` is `"1"` (the
+4. `installStageHooks("hub")` ([stage.md](stage.md)), then `installNativeMenuGuard()` (`lib/nativeMenu.ts`): a
+   right-click that no app menu handled shows nothing, so the WebView's Reload and Inspect Element never appear;
+   text fields keep Cut, Copy and Paste.
+5. `main.tsx` assigns the store to `window.daybook` only when `import.meta.env.VITE_DEV_HOOKS` is `"1"` (the
    debug bundle of `bun run build:app`, driven by `scripts/dev/js.sh`), then renders
    `<ErrorBoundary><App/></ErrorBoundary>`.
-7. `App.tsx` imports the stylesheets (`styles/index.ts`) and runs `useBackendEvents()` once:
+6. `App.tsx` imports the stylesheets (`styles/index.ts`) and runs `useBackendEvents()` once:
    1. `loadSettings()` loads settings and keybindings; then `installCommands()` runs again to apply the
       user's bindings, and `drainLaunches()` pulls the queued launch events (`api.takeLaunchEvents`): `error`
       shows an error toast, `notice` an info toast; `activate` is Rust's and needs nothing from the page.
@@ -91,17 +91,17 @@ after creation, so a module can register its slice late. `resetStore(patch)` run
 its members with `declare module "../state/store" { interface Store { … } }`.
 
 `state/requests.ts` has `fail(e, context)`: an error toast `<context>: <message>` (which also logs it), returning
-the `AppError`. The store re-exports it with `flushUiState` and the `Dialog` and `Toast` types.
+the `AppError`; `runBusCommand(id, failure)` runs a bus command and toasts `<failure>: <reason>` when it fails.
+The store re-exports `fail` with `flushUiState` and the `Dialog` and `Toast` types.
 
 | Slice | Holds |
 |---|---|
 | `settings` | `settings` (`null` until loaded), `keybindings`, `loadSettings` (settings and keybindings in parallel; keybindings fall back to `{}`), `applySettings(settings)` (settings Rust saved elsewhere, from `settings_changed`), `saveSettings(settings, { quiet? })` (stores what `api.updateSettings` returns, toasts "Settings saved" unless `quiet`), `saveKeybindings(bindings)` (stores Rust's answer and calls `setOverrides`), `applyKeybindings(bindings)` (the same for bindings saved in the other window), `setLaunchAtLogin(enabled)` (`api.autostartSet`, then patches `settings.launchAtLogin` so a later save keeps it; resolves whether it is on now, `null` on a toasted failure) |
 | `ui` | `toasts`, `toast(kind, message, action?)`, `dismissToast(id)`, `dialog` (a `Dialog` or `null`), `openDialog`, `closeDialog` |
-| `viewState` | `uiState` (`UiState` from Rust: `sidebarHidden`, `inspectorHidden`, `sidebarWidth`, `paneSizes`, `hidePastEvents`, `collapsedTodoGroups`; `EMPTY_UI_STATE` until it loads), `loadUiState`, `setPaneSize(pane, px)`, `toggleSidebar`, `toggleInspector`, `toggleHidePastEvents`, `toggleTodoGroup(label)` |
+| `viewState` | `uiState` (`UiState` from Rust: `sidebarHidden`, `inspectorHidden`, `hidePastEvents`, `collapsedTodoGroups`, `inspectorTab`, `activityView`; `EMPTY_UI_STATE` until it loads), `loadUiState`, `toggleSidebar`, `toggleInspector`, `toggleHidePastEvents`, `toggleTodoGroup(label)`, `setInspectorTab(tab)`, `setActivityView(view)`, `showActivityTab` |
 | `hub` | `hub` (the `HubView`, `null` until loaded), `shownDay` (`null`: today, so the window follows midnight), `loadHub` (`api.hubView(shownDay)`; a stale answer for a day no longer shown is dropped, and an answer that is today resets `shownDay`), `showDay(day)` |
 
-Every `viewState` change is written through `api.setUiState` 500 ms after the last one (drags fire
-constantly); `flushUiState` writes a pending change at once.
+Every `viewState` change is written through `api.setUiState` 500 ms after the last one; `flushUiState` writes a pending change at once.
 
 Components select narrowly (`useStore((s) => s.uiState.sidebarHidden)`), never the whole store.
 `lib/useApiResult` loads a value from `api` for a key: `useApiResult(key, fetcher, { onError?, keepData?,
@@ -121,7 +121,7 @@ it. `src/api/index.ts` exports `api`, a flat object of thin `invoke` wrappers fo
   `settings.launchAtLogin` mirrors);
 - the app: `runCommand(id)` (a Rust command, [commands.md](commands.md)), `takeLaunchEvents`,
   `remoteReply(id, result, error)`, `openLogFolder`, `openUrl` (http(s) only), `chooseFolder` (`null` on
-  cancel), `revealPath`, `logError`, `shortcutsPause(paused)`;
+  cancel), `logError`, `shortcutsPause(paused)`;
 - the palette: `paletteQuery(query)`, `paletteRun(command)`; the vault's and the overlay's calls
   ([vault.md](vault.md#commands), [windows.md](windows.md#commands-and-events));
 - the subscriptions `onLaunch`, `onWindowOpened`, `onOpenSettings`, `onRemote`, `onNoteChanged`, `onPanelSession` and `onSettingsChanged` (the saved settings, from any window; `App` hands them to `applySettings`), each resolving to its unlisten
@@ -232,8 +232,6 @@ key cap (`shortcutKeys`).
 | Dialog | Renders |
 |---|---|
 | `shortcuts { scopes }` | `ShortcutsDialog`: the bound commands of the scopes active when it opened, most specific scope first, each with its `KeyCap`; only the list scrolls |
-| `confirm { title, message, confirmLabel, cancelLabel?, onConfirm }` | a sheet whose confirm button (danger, focused) closes it, then runs `onConfirm` |
-| `prompt { title, label, initial, confirmLabel, onSubmit }` | `PromptDialog`: one line; the confirm button stays disabled while blank, and `onSubmit` gets the text trimmed |
 
 `Modal` (`components/Modal.tsx`) is every overlay's frame, portaled to `document.body`: `variant` `sheet` (a
 padded dialog over a scrim), `panel` (the overlay surface laid out by its content), `popover` (placed by
@@ -270,12 +268,11 @@ Shell components in `components/`:
   toast when the write is refused; a group it empties goes, and the count follows.
 - `hub/TodaysNotes.tsx`: the board's last section, `hub.notes` as rows that open the day's note at the topic
   (`api.dailyNoteOpen(day, heading)`).
-- `Toolbar`: the unified toolbar a view renders first: `title`, an optional `detail`, the actions as children;
+- `Toolbar`: the unified toolbar a view renders first: `title`, the actions as children;
   its empty space drags the window.
 - `Field.tsx`: `KeyCap` (renders nothing for an unbound command), `ShortcutCap` (a Settings-notation
   shortcut as a key cap, through `shortcutKeys` in `lib/shortcuts.ts`), `InsetField` (the macOS field frame: icon,
-  control, optional key cap; a click anywhere focuses the input) and `FormField` (a labelled field with its
-  `AppError.field` error under it).
+  control, optional key cap; a click anywhere focuses the input).
 - `SegmentedControl`: mutually exclusive buttons (`aria-pressed`) with optional `labels`.
 - `Accent.tsx`: `AccentSwatches` (one swatch per `ACCENTS` hue, after a System swatch with `withSystem`).
 - `ErrorBoundary`: a render crash shows the message with Try again and Open log folder, and logs it with the
@@ -293,7 +290,7 @@ holds it, and `SectionTarget` tells the page's `Group anchor="<id>"` to scroll i
 `controls.tsx` holds the shared rows: `Group` (with an optional `description` and `anchor`), `Row` (`stacked`,
 `nested`), `Switch`, `Segmented`, `BufferedInput` (commits on blur or Enter; number spinner steps debounced),
 `TextField` (a row with a `BufferedInput`) and `NumberField`; `fields.tsx` the card-per-item fields (`ColorField`,
-`ToggleChips` (a few options picked as chips, the chosen ones filled; `contextChoices` titles the contexts), `DaysField` (weekday chips), `TimeRangeField`, `CommitInput` (trimmed, on blur or Enter), `ItemActions` (↑ ↓ and an optional trash icon, named Move Up, Move Down and the remove label), `moveItem`, `replaceItem`); `controls.tsx` also has `ControlRow` (controls without a label: a repeating item's lines, or a value right under its switch) and `EntryFooter` (an item card's last row: Add on the left, its `ItemActions` at the end);
+`ToggleChips` (a few options picked as chips, the chosen ones filled; `contextChoices` titles the contexts), `DaysField` (weekday chips), `TimeRangeField`, `CommitInput` (trimmed, on blur or Enter), `ItemActions` (↑ ↓ when given `onMove`, and a trash icon when given `onRemove`, named Move Up, Move Down and the remove label), `moveItem`, `replaceItem`); `listEditor.tsx` `listEditor(list, save)` gives a list's `change`, `move`, `remove`, `add` and `actions(index, removeLabel?)`, each saving the whole list; `controls.tsx` also has `ControlRow` (controls without a label: a repeating item's lines, or a value right under its switch), `EntryFooter` (an item card's last row: Add on the left, its `ItemActions` at the end), `AddButton` (adds an item below a list of cards), `PathText` (a path with `~/`, selectable) and `SwitchInput` (a bare switch labelled by the caller);
 `SlackStatusField.tsx` `SlackStatusEditor`, a Slack status to set: a Slack-like bar (`aria-label` Edit Slack
 status) that opens Emoji, Status text and Presence on one line and the Keep the status checkbox below (emoji and
 text disabled while it is checked). `controls.tsx` `LeadSwitch` (a workflow block: switch, name or `title`,
@@ -324,10 +321,12 @@ text to the right (a `FormRow` control) and `Checkbox` a checkbox with its label
 
 The CSS is plain and global, imported by `styles/index.ts` in cascade order: the four palettes
 `styles/palettes/{content,sidebar}-{light,dark}.css`, `theme.css` (derived tokens, the sidebar's token
-mapping, the accents), then one stylesheet per layer: `base.css` (reset, focus, scrollbars, text utilities),
-`controls.css` (the AppKit-sized controls of [ux.md](ux.md#controls)), `shell.css` (the grid, the toolbar,
-the empty view, the crash screen), `sidebar.css`, `overlays.css` (dialogs, menus, toasts, palette, shortcut
-overview), `forms.css` and `settings.css`. Icons come from `lucide-react`. Token names and roles are in
+mapping, the accents), `context.css` (a context's colour as `--context`), then one stylesheet per layer:
+`base.css` (reset, focus, scrollbars, text utilities), `controls.css` (the AppKit-sized controls of
+[ux.md](ux.md#controls)), `shell.css` (the grid, the toolbar, the empty view, the crash screen; the Daybook
+window's `--hairline`, `--wash` and `--wash-strong`), `sidebar.css`, `board.css` (the board's sections),
+`activity.css` (the Activity tab), `overlays.css` (dialogs, menus, toasts, palette, shortcut overview) and
+`settings.css`. Icons come from `lucide-react`. Token names and roles are in
 [ux.md](ux.md#appearance-and-tokens).
 
 - **Appearance.** `applyAppearance` picks `lightScheme` or `darkScheme` by `prefers-color-scheme` through
@@ -350,13 +349,6 @@ overview), `forms.css` and `settings.css`. Icons come from `lucide-react`. Token
   draggable areas; `user-select: none` applies globally, inputs and `.selectable` opt back in. The body is
   transparent; `sidebar.css` makes the sidebar transparent where its tone matches `prefers-color-scheme`, so
   the window's vibrancy shows through; the Default scheme's dark sidebar in light mode stays opaque.
-
-### Input modality
-
-`installInputModality()` sets `<html data-input="keyboard">` on a key press outside a text field (or Tab in
-one; bare modifiers do not count) and removes it on a pointer press, both in the capture phase. Key focus
-styles meant only for the keyboard select on it, so a click draws no outline; `base.css` draws the focus ring
-with `:focus-visible`. `isEditable` (`lib/nativeMenu.ts`) decides what counts as a text field for both guards.
 
 ## Tests
 

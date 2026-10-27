@@ -1,5 +1,5 @@
 //! `act`: run a command, reveal, click, type into, scroll or wait for an anchor, or press keys.
-//! Parameters are checked (400) before any page is asked, as the prototype does.
+//! Parameters are checked (400) before any page is asked.
 
 use serde::Serialize;
 use serde_json::{Map, Value};

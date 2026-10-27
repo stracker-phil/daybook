@@ -2,7 +2,12 @@
 
 ## Status
 
-Accepted (2026-10-24), implemented. Inherited from TimeTracker ADR 0021.
+Accepted (2026-10-24), implemented. Inherited from TimeTracker ADR 0021. Partly superseded by
+[ADR 0026](0026-the-daybook-window-follows-the-prototypes-look.md).
+
+Amended (2026-10-27): the sidebar no longer has its own accent hues, and the hues are no longer tuned per
+palette: both tones use Apple's system colours, and a sidebar takes the hues of its tone (ADR 0026). The three
+schemes and four palettes stand.
 
 ## Context
 

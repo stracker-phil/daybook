@@ -79,7 +79,7 @@ pub fn page_param(params: &Params) -> StageResult<StagePage> {
 }
 
 /// A `window` request: without `action`, bounds mean place and none mean show. `section` only goes
-/// with showing Settings and is checked before the action (as the prototype does).
+/// with showing Settings and is checked before the action.
 #[derive(Debug, Clone, PartialEq)]
 pub struct WindowRequest {
     pub page: StagePage,

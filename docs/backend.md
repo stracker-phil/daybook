@@ -15,11 +15,13 @@ the binary `daybook`. There is no database: the data is small JSON files in the 
    ([ADR 0014](adr/0014-debug-build-has-its-own-data.md)). `APP_NAME` is `Daybook`, or `Daybook (Debug)` in debug
    builds; the app menu and the tray tooltip use it.
 2. **CLI.** `cli::parse(std::env::args_os())` returns:
-   - `Exit { message }`: `--help` or `--version`; printed, exit 0.
-   - `Run { hidden, log_level }`: becomes `IpcMessage::Activate { hidden }`.
-   - `Remote { message, json, starts_app }`: a subcommand; `instance::ask` sends it to the running app and
-     exits with the code it returns. With no app running, a subcommand with `starts_app` (`show`, `focus`)
-     continues with its message as the launch message; any other exits 2 with `Daybook is not running`.
+   - `Exit { message }`: `--version`; printed, exit 0.
+   - `Run { hidden, log_level }`: no words; becomes `IpcMessage::Activate { hidden }`.
+   - `Remote { message, json }`: a lone `show` or `focus`; `instance::ask` sends it to the running app and
+     exits with the code it returns. With no app running it continues with its message as the launch message.
+   - `Ask { message, json }`: a lone `hide`, `quit` or `status`; without a running app it exits 2 with
+     `Daybook isn't running`.
+   - `Words { words, json }`: anything else, for the running app ([Command tree](#command-tree)).
    - an error: printed to stderr. With `in_app` it is turned into `IpcMessage::Error`, the exit code after
      forwarding is 2, and a newly started app shows it; without (a subcommand's error) the process exits 2.
 3. **Single-instance handoff.** `instance::forward_or_lock` (`instance.rs`) sends the message with
@@ -134,7 +136,6 @@ its module.
 | `log_frontend_error` | `message: String` | – | – |
 | `take_launch_events` | – | `LaunchEvent[]` (`error`, `notice`, `activate`) | – |
 | `choose_folder` | – | `string \| null` (the folder panel, which can create a folder; `null` when cancelled) | `io` |
-| `reveal_path` | `path: String` | – (Finder shows the enclosing folder with `path` selected) | `io` |
 | `context_state` (`contexts/mod.rs`) | – | `ContextState` | – |
 | `hub_view` (`hub/mod.rs`) | `day: string \| null` (`YYYY-MM-DD`, today when null) | `HubView`: the day, its weekday and date, the board's title (a greeting today), the closest days with a note (`hub/days.rs` `adjacent_days`; today always counts), the sidebar's tool rows, today's status, the reminder (today only), the day's events ([calendar.md](calendar.md#the-day-model)), focus, routines and journal, the note's topics and every open todo ([vault.md](vault.md#open-todos); `hub/index.rs`) | `invalid_input` for a malformed day |
 | `calendar_info`, `calendar_request_access`, `calendar_join` (`calendar/mod.rs`) | – / – / `url` | `CalendarInfo` / `CalendarAccess` / – ([calendar.md](calendar.md)); `calendar_join` joins through `calls::join` ([presence-and-calls.md](presence-and-calls.md#joining)) | `calendar_request_access`: `io` when the privacy settings don't open; `calendar_join`: `invalid_input` unless a join link |
@@ -145,10 +146,10 @@ its module.
 | `palette_query`, `palette_run` (`palette/mod.rs`) | `query` / `command` | `PaletteResults` / – ([commands.md](commands.md#palette)) | `palette_run`: `not_found` |
 | `shortcuts_pause` (`shortcuts/mod.rs`) | `paused: bool` | – (global shortcuts and the app menu's keys step aside) | – |
 | `remote_reply` (`remote.rs`) | `id, result, error` | – | – |
-| `daily_note_state`, `daily_note_open`, `daily_note_create`, `vault_info` (`vault/commands.rs`) | see [vault.md](vault.md#commands) | | |
+| `daily_note_open`, `vault_info` (`vault/commands.rs`) | see [vault.md](vault.md#commands) | | |
 | `status_set` (`status/mod.rs`) | `status, message, endOfDay: "done" \| "incomplete" \| null, endOfDayList: string \| null` | – (posts the end-of-day list going Off, sets today's status, closes the status overlay) | `io`, `network` |
 | `focus_info`, `focus_save`, `focus_send` (`focus/mod.rs`) | – / `body` / `body` | `FocusInfo` / – / – ([slack.md](slack.md#the-days-message)) | `invalid_input` (over 8000 characters; `focus_send` when not shared or already sent), `not_found` (Slack not connected), `network`, `io` |
-| `panel_open`, `panel_close`, `panel_session`, `panel_ready`, `panel_painted`, `panel_set_height`, `panel_keep_open` (`window/panel/commands.rs`) | see [windows.md](windows.md#commands-and-events) | | |
+| `panel_close`, `panel_session`, `panel_ready`, `panel_painted`, `panel_set_height`, `panel_keep_open` (`window/panel/commands.rs`) | see [windows.md](windows.md#commands-and-events) | | |
 | `dev_edit_today_note` (`dev.rs`, debug builds only) | `op: NoteOp` | `WriteOutcome` | as `edit_today` |
 
 **Adding a command:** write it in its module (or `commands.rs` for app-wide ones), register it in
@@ -202,7 +203,7 @@ one; every subcommand is a second process that sends one request over the socket
 <error|warn|info|debug|trace>`, `--json`, `-h/--help`, `--version`. Everything else is a list of words
 (`CliOutcome::Words { words, json }`) that the running app parses, because only it knows every command and its
 choices: the binary sends `IpcMessage::Cli { words, json }` (`instance::ask_words`, 30 s) and prints the
-`CliReply { code, stdout, stderr }` it gets back. A lone `show` or `focus` stays `Remote { starts_app: true }` and
+`CliReply { code, stdout, stderr }` it gets back. A lone `show` or `focus` stays `Remote` and
 starts Daybook when none runs; any other word without a running app prints "Daybook isn't running" and exits 2,
 and `help` then prints the own words offline (`help_without_app`). The grammar, the help and the action words are
 in [automation.md](automation.md#the-cli).
@@ -290,7 +291,8 @@ value wins) and runs `automation::run`. Links wait in `PendingLinks` until the p
 
 **Contexts** (`contexts/`). The contexts themselves are in the settings; `context.json` (`Active { id, setAt }`,
 imported from the prototype's `mode.json`) says which is current. `contexts::current` is the stored one, else the
-first; `Contexts` (in `AppState`) reads and sets it and gives the current context's features.
+first; `Contexts` (in `AppState`) reads and sets it and gives the current context's features and
+`current_projects(settings)`.
 
 - **Switching.** `mode:<id>` (a family, needs a vault) switches by hand and closes the switcher if it made the
   switch; `context:switch` opens the switcher overlay (`context` view). A switch saves `context.json`, logs,
@@ -303,7 +305,7 @@ first; `Contexts` (in `AppState`) reads and sets it and gives the current contex
   that started after the last switch still win. Hours whose end is before their start run past midnight. An
   automatic switch shows a notification ("Switched to Nexo", "Was Personal.").
 - `context_state` returns the switcher's `ContextState { contexts: [{ id, title, color }], current }`;
-  `context_title` is "🐈 Personal".
+  `context_title` (and `Context::title`) is "🐈 Personal".
 
 **Projects** (`projects/`, pure). `current_projects(projects, context)`: the active projects with no contexts or
 with the current one. It is the only source for offering, picking or matching a project. `meeting_project(title,
@@ -337,7 +339,7 @@ context with the Jira feature the key is remembered in `JiraTickets` (`jira-tick
 the overlay.
 
 **Project Launcher** (`launcher/`). Each Daybook project lists Launcher projects (`launcherProjects`).
-`Launcher` runs the `plaunch` command line tool, found in `~/.local/bin`, `/usr/local/bin` or
+`Launcher` (`launcher/tool.rs`) runs the `plaunch` command line tool, found in `~/.local/bin`, `/usr/local/bin` or
 `/opt/homebrew/bin` (an app doesn't get the login PATH): `list --json` (parsed by `parse::parse_projects`,
 cached for 60 s, only for Settings because it may start Project Launcher) and `open <id>`. Without the tool,
 `launcher_projects` answers `found: false` and Settings shows how to install it.
@@ -378,7 +380,7 @@ failed save leaves memory unchanged. `JsonStore::open_with` normalizes the loade
 |---|---|
 | `settings.json` | `Settings` ([Settings](#settings)) |
 | `keybindings.json` | `{ "commandId": "Mod+Shift+X" \| null }` overrides; `null` unbinds ([Key bindings](#key-bindings)) |
-| `ui_state.json` | `UiState` (`store/ui_state.rs`): `sidebarHidden`, `inspectorHidden`, `sidebarWidth` (px, default 200), `paneSizes` (splitter positions in px by pane id), `hidePastEvents`, `collapsedTodoGroups` (the folded todo groups); missing keys take the defaults, unknown keys are ignored |
+| `ui_state.json` | `UiState` (`store/ui_state.rs`): `sidebarHidden`, `inspectorHidden`, `hidePastEvents`, `collapsedTodoGroups` (the folded todo groups), `inspectorTab` (`todos`, `activity`), `activityView` (`timeline`, `byProject`); missing keys take the defaults, unknown keys are ignored |
 | `daybook.sock`, `daybook.lock` | single instance |
 | `context.json` | `Active { id, setAt }`, the current context (`contexts::Contexts`) |
 | `status-memory.json` | `StatusMemory { date, status, since, workedToday }`, today's status (`status::Statuses`, [status.md](status.md)) |
@@ -495,8 +497,9 @@ in [ux.md](ux.md#menu-bar).
   and messages (failures also kept as `slack::last_error`), TimeTracker writes (`timetracker/logged.rs`; a debug
   dry run is `skipped`), status, contexts, routines, journal, quick notes, Jira, calls, status rules, automation
   and music automation.
-- `view.rs` (pure): `action_log_get`'s `ActionLog`, newest first, with `dayLabel` ("Today", "Yesterday",
-  "Mon 26 Oct") and HH:MM times. `action_log_clear` empties it.
+- `view.rs` (pure): the `ActionLog` that `action_log_get` (async, no args) returns, newest first, with `dayLabel`
+  ("Today", "Yesterday", else `DateLocale::short_day` in the Mac's locale) and HH:MM times. `action_log_clear`
+  empties it.
 
 `diagnostics/` (`diagnostics_get`): groups of rows for Settings → Status, built in `groups.rs` (pure) from the
 existing info functions: Vault, Slack (connected user, last error), TimeTracker (running, version, the `watch`

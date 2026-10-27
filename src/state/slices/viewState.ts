@@ -3,11 +3,9 @@ import { fail } from "../requests";
 import type { Slice } from "../store";
 
 export interface ViewStateSlice {
-  /** Window layout that survives a restart (sidebar, inspector, pane sizes). */
+  /** Window layout that survives a restart (sidebar, inspector, the board's and inspector's choices). */
   uiState: UiState;
   loadUiState: () => Promise<void>;
-  /** Stores a splitter position (px) under its pane id. */
-  setPaneSize: (pane: string, px: number) => void;
   toggleSidebar: () => void;
   toggleInspector: () => void;
   /** The board's events list: only today's events that aren't over, or all. */
@@ -39,10 +37,6 @@ export const viewStateSlice: Slice<ViewStateSlice> = {
         } catch (e) {
           fail(e, "Could not load the window layout");
         }
-      },
-
-      setPaneSize(pane, px) {
-        patchUiState((current) => ({ paneSizes: { ...current.paneSizes, [pane]: Math.round(px) } }));
       },
 
       toggleSidebar() {
@@ -80,7 +74,7 @@ export const viewStateSlice: Slice<ViewStateSlice> = {
 
 let pending: { ui: UiState; timer: ReturnType<typeof setTimeout> } | null = null;
 
-/** Debounces layout writes (drags fire constantly): a write lands 500 ms after the last change. */
+/** Debounces layout writes: a write lands 500 ms after the last change. */
 function persistUiState(ui: UiState) {
   if (pending) clearTimeout(pending.timer);
   pending = { ui, timer: setTimeout(writeUiState, 500) };

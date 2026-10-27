@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Check, Minus, Plus, type LucideIcon } from "lucide-react";
 import { api, type FocusLine, type FocusMark, type ReminderAction, type ReminderLine } from "../../api";
-import { fail } from "../../state/requests";
+import { fail, runBusCommand } from "../../state/requests";
 import { ShortcutCap } from "../Field";
 
 function run(action: ReminderAction) {
@@ -63,7 +63,7 @@ function FocusItem({ line }: { line: FocusLine }) {
 /** The day's focus list as the note holds it; a click opens the focus overlay, which edits today's only. */
 function Focus({ lines, isToday, shortcut }: { lines: FocusLine[]; isToday: boolean; shortcut: string | null }) {
   const empty = lines.length === 0;
-  const open = () => void api.runCommand("focus:open").catch((e) => fail(e, "Couldn't open the focus list"));
+  const open = () => runBusCommand("focus:open", "Couldn't open the focus list");
   return (
     <section className="board-section focus-section" aria-label="Focus">
       <header className="board-section-head">

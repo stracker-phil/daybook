@@ -1,8 +1,7 @@
 import { Fragment, useEffect, useRef, useState, type KeyboardEvent, type Ref } from "react";
 import { Command, FolderOpen, Layers, Link2, Music, type LucideIcon } from "lucide-react";
 import { api, toAppError, type PaletteEntry, type PaletteKind, type PalettePrefix, type PaletteResults } from "../../api";
-import { KeyCap } from "../../components/Field";
-import { shortcutKeys } from "../../lib/shortcuts";
+import { ShortcutCap } from "../../components/Field";
 
 const ICONS: Record<PaletteKind, LucideIcon> = {
   command: Command,
@@ -38,7 +37,7 @@ function PaletteRow({ entry, icon: Icon, active, activeRef, onHover, onRun }: Ro
       <Icon size="1.077rem" className="o3" aria-hidden="true" />
       <span className="grow-text">{entry.label}</span>
       {entry.detail && <span className="o3 palette-detail">{entry.detail}</span>}
-      <KeyCap keys={shortcutKeys(entry.shortcut)?.join("") ?? ""} />
+      <ShortcutCap shortcut={entry.shortcut} />
     </li>
   );
 }

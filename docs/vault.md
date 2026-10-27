@@ -11,16 +11,16 @@ with `invalid_input` ("Choose your vault in Settings first.").
 | `mod.rs` | `DailyNotes`, the service in `AppState.notes`: paths, reading, `edit_today`, draining, the watcher |
 | `location.rs` | where a day's note is: `FormatCache`, `DailyNoteFormat`, `format_moment` |
 | `note.rs` | pure line edits: `Note`, headings, sections |
-| `ops/` | `NoteOp` and the pure writer of each kind: `plan.rs`, `focus.rs`, `journal.rs`, `notes.rs` |
+| `ops/` | `NoteOp` and the pure writer of each kind: `plan.rs`, `focus.rs`, `journal/`, `notes.rs`, `todo.rs` |
 | `writer.rs` | `NoteWriter`: the one write path |
-| `pending.rs` | `Pending`: changes waiting in `pending-entries.json` |
+| `pending/` | `Pending`: changes waiting in `pending-entries.json`; `report.rs` their action-log lines |
 | `create.rs` | `DailyNotes::create_today` through the Obsidian CLI, `Timings` |
 | `obsidian.rs` | `ObsidianCli` (lookup, run) and `open_url` (`obsidian://open`) |
 | `watch.rs` | `FolderWatch`: a debounced `notify` watcher |
 | `commands.rs` | the Tauri commands, the `note_changed` event and `install` (startup) |
 
 Child processes run through `process.rs` (`run` with a timeout and the Homebrew folders on the `PATH`,
-`run_in_login_shell`), wall-clock helpers are in `clock.rs`.
+`run_in_login_shell`), wall-clock helpers are in `clock.rs` (`iso_day` and `parse_day` write and read `YYYY-MM-DD`).
 
 ## Location
 
@@ -132,7 +132,7 @@ It returns whether the file changed. `WriteError::Edit` (the op can't apply) and
 `unchanged`, or `queued`:
 
 - While today's note doesn't exist, or changes for it wait already (to keep their order), the op is queued in
-  `pending.rs` and Obsidian is asked to create the note in the background (`create_today`). A note that exists
+  `pending/` and Obsidian is asked to create the note in the background (`create_today`). A note that exists
   gets the queue drained at once.
 - A `Conflict` queues the op too.
 
@@ -224,10 +224,8 @@ around it.
 
 | Command | Args | Returns | Errors |
 |---|---|---|---|
-| `daily_note_state` | – | `DailyNoteState` | – |
 | `daily_note_open` | `day: string \| null` (`YYYY-MM-DD`, default today), `heading: string \| null` | – (opens the note in Obsidian through `obsidian://open`, at `heading` when given; today's missing note is created instead) | `invalid_input` (no vault, not a day), `not_found` (no note that day), `io` |
 | `todo_open` | `file` (vault-relative) | – (opens the todo's note in Obsidian) | `invalid_input` (no vault, outside the vault), `io` |
-| `daily_note_create` | – | `bool`: whether today's note exists afterwards | `invalid_input`, `io` |
 | `quick_notes_list` | `query` | `QuickNoteTopics`: the picker's rows, whether today has any topic, the notes heading | `invalid_input` (no vault), `io` |
 | `quick_notes_open` | `topic: NoteSectionRef`, `create: bool` | – (closes the picker, writes a new topic, opens the editor on it) | `invalid_input` (bad topic) |
 | `quick_note_get` | – | `QuickNote \| null`: the editor's topic and its text | `invalid_input`, `io` |

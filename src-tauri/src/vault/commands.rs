@@ -9,7 +9,8 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_opener::OpenerExt;
 use ts_rs::TS;
 
-use super::{DailyNoteState, DailyNotes, NoteEvent, VaultInfo, obsidian};
+use super::{DailyNotes, NoteEvent, VaultInfo, obsidian};
+use crate::clock::{iso_day, parse_day};
 use crate::error::{AppError, AppResult};
 use crate::events::NOTE_CHANGED_EVENT;
 use crate::state::AppState;
@@ -21,18 +22,6 @@ use crate::store::settings::Settings;
 pub struct NoteChanged {
     /// The day whose note changed (`YYYY-MM-DD`); `None` for another note in the daily-notes folder.
     pub day: Option<String>,
-}
-
-fn iso(day: NaiveDate) -> String {
-    day.format("%Y-%m-%d").to_string()
-}
-
-fn parse_day(day: Option<&str>, notes: &DailyNotes) -> AppResult<NaiveDate> {
-    match day {
-        None => Ok(notes.today()),
-        Some(day) => NaiveDate::parse_from_str(day, "%Y-%m-%d")
-            .map_err(|_| AppError::InvalidInput(format!("Not a day: {day}"))),
-    }
 }
 
 /// The watcher reports the paths the system knows (`/private/var/…` for `/var/…`).
@@ -87,7 +76,12 @@ fn on_note_event(app: &AppHandle, event: NoteEvent) {
         state.todos.changed(paths);
     }
     let day = changed_day(&event, &notes, &settings);
-    if let Err(e) = app.emit(NOTE_CHANGED_EVENT, NoteChanged { day: day.map(iso) }) {
+    if let Err(e) = app.emit(
+        NOTE_CHANGED_EVENT,
+        NoteChanged {
+            day: day.map(iso_day),
+        },
+    ) {
         log::warn!("Couldn't announce a note change: {e}");
     }
     crate::tray::refresh(app);
@@ -101,11 +95,6 @@ pub async fn vault_info(state: State<'_, AppState>) -> AppResult<VaultInfo> {
     let notes = Arc::clone(&state.notes);
     let settings = state.settings.get();
     blocking(move || Ok(notes.info(&settings))).await
-}
-
-#[tauri::command]
-pub fn daily_note_state(state: State<'_, AppState>) -> DailyNoteState {
-    state.notes.state(&state.settings.get())
 }
 
 fn obsidian_url(settings: &Settings, file: &Path, heading: Option<&str>) -> AppResult<String> {
@@ -152,13 +141,13 @@ pub async fn open_day(
     let state = app.state::<AppState>();
     let notes = Arc::clone(&state.notes);
     let settings = state.settings.get();
-    let day = parse_day(day, &notes)?;
+    let day = day.map_or_else(|| Ok(notes.today()), parse_day)?;
     let url = blocking(move || {
         let Some(file) = notes.find_note(&settings, day)? else {
             if day != notes.today() {
                 return Err(AppError::NotFound(format!(
                     "No daily note for {}",
-                    iso(day)
+                    iso_day(day)
                 )));
             }
             notes.create_today(&settings)?;
@@ -171,12 +160,6 @@ pub async fn open_day(
         return Ok(());
     };
     open_url(app, url)
-}
-
-/// Creates today's note and reports whether it exists afterwards.
-#[tauri::command]
-pub async fn daily_note_create(app: AppHandle) -> AppResult<bool> {
-    create_today(&app).await
 }
 
 pub async fn create_today(app: &AppHandle) -> AppResult<bool> {

@@ -62,7 +62,7 @@ pub fn submit_pick(
     Ok(plan)
 }
 
-/// ↵: starts TimeTracker's timer on the pick (Working first, during a break or after the day), or keeps
+/// ↵: starts TimeTracker's timer on the pick (then Working, during a break or after the day), or keeps
 /// it for an unchanged check-in; then the overlay closes. An error leaves the overlay open.
 #[tauri::command]
 pub async fn activity_submit(

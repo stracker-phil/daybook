@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { BookOpen, Check, ListChecks } from "lucide-react";
-import { api, type HubView, type JournalProgress } from "../../api";
-import { fail } from "../../state/requests";
+import type { HubView, JournalProgress } from "../../api";
+import { runBusCommand } from "../../state/requests";
 import { ShortcutCap } from "../Field";
 
 /** One dot per question or item, filled when done; a check once all are. */
@@ -32,7 +32,7 @@ function ChipRow({ label, shortcut, children }: { label: string; shortcut?: stri
     <section className="chip-row" aria-label={label}>
       <h2 className="chip-row-title">
         {label}
-        {shortcut && <ShortcutCap shortcut={shortcut} />}
+        <ShortcutCap shortcut={shortcut} />
       </h2>
       <div className="chip-list">{children}</div>
     </section>
@@ -44,9 +44,7 @@ function JournalTrailing({ group }: { group: JournalProgress }) {
   return group.hasNote ? <Progress done={1} total={1} /> : null;
 }
 
-function runOrFail(command: string, failure: string) {
-  return () => void api.runCommand(command).catch((e) => fail(e, failure));
-}
+const runOrFail = (command: string, failure: string) => () => runBusCommand(command, failure);
 
 function shortcutOf(hub: HubView, command: string): string | null {
   for (const tool of hub.tools) if (tool.kind === "tool" && tool.command === command) return tool.shortcut;

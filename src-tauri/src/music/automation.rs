@@ -4,12 +4,11 @@
 use std::sync::Mutex;
 
 use tauri::{AppHandle, Listener, Manager};
-use tokio::sync::broadcast::error::RecvError;
 
 use super::rules::{self, Action, Held, Lowered, Moment, Step};
 use super::state::entry_label;
 use crate::action_log::{self, ActionState, ActionTarget};
-use crate::calls::{self, Announced, CallEvent};
+use crate::calls::{self, CallEvent};
 use crate::error::AppResult;
 use crate::events::STATUS_CHANGED_EVENT;
 use crate::lock::MutexExt;
@@ -37,7 +36,7 @@ fn has_status_feature(context: Option<&Context>) -> bool {
     context.is_some_and(|context| context.features.contains(&Feature::Status))
 }
 
-/// Break and Done for today.
+/// On Break or Off.
 fn is_away(status: Status) -> bool {
     status != Status::Working
 }
@@ -57,14 +56,13 @@ fn context_music(app: &AppHandle) -> ContextMusic {
 async fn run(app: &AppHandle, step: &Step) -> AppResult<Option<String>> {
     let now = super::read(app).await?;
     let settings = app.state::<AppState>().settings.get();
-    let (action, changed, lowered) = {
+    let (action, lowered_before, lowered) = {
         let mut inner = automation(app).inner.lock_unpoisoned();
         let before = inner.held.lowered;
         let action = rules::action(step, &now, &mut inner.held, &settings.music);
-        let lowered = inner.held.lowered;
-        (action, lowered != before, lowered)
+        (action, before, inner.held.lowered)
     };
-    if changed {
+    if lowered != lowered_before {
         remember_lowered(app, lowered);
     }
     let Some(action) = action else {
@@ -195,25 +193,13 @@ fn listen_status(app: &AppHandle) {
     );
 }
 
-fn watch_calls(app: &AppHandle) {
-    let handle = app.clone();
-    let mut calls = calls::subscribe(app);
-    tauri::async_runtime::spawn(async move {
-        loop {
-            match calls.recv().await {
-                Ok(Announced { event, trigger }) => {
-                    let _entered = trigger.as_ref().map(action_log::Trigger::enter);
-                    match event {
-                        CallEvent::Started(_) => call_changed(&handle, true),
-                        CallEvent::Ended { .. } => call_changed(&handle, false),
-                        CallEvent::Changed(_) | CallEvent::Switched { .. } => {}
-                    }
-                }
-                Err(RecvError::Lagged(_)) => continue,
-                Err(RecvError::Closed) => break,
-            }
-        }
-    });
+/// A call that moves to another app keeps the music where it is.
+fn follow_call(app: &AppHandle, event: CallEvent) {
+    match event {
+        CallEvent::Started(_) => call_changed(app, true),
+        CallEvent::Ended { .. } => call_changed(app, false),
+        CallEvent::Changed(_) | CallEvent::Switched { .. } => {}
+    }
 }
 
 fn has_lowered(app: &AppHandle) -> bool {
@@ -229,7 +215,7 @@ async fn restore_volume(app: &AppHandle) {
     run_steps(app, "Music", vec![Step::Restore]).await;
 }
 
-/// Waits for the first check to find no call.
+/// After a restart, once the first call check found no call, a volume a call lowered goes back.
 fn restore_after_restart(app: &AppHandle) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
@@ -260,6 +246,6 @@ pub fn install(app: &AppHandle) {
         inner.held.lowered = lowered;
     }
     listen_status(app);
-    watch_calls(app);
+    calls::follow(app, follow_call);
     restore_after_restart(app);
 }

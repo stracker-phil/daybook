@@ -6,7 +6,7 @@ use std::path::Path;
 use chrono::{NaiveDate, NaiveDateTime};
 use serde::{Deserialize, Serialize};
 
-use crate::clock::{format_clock, minute_of_day};
+use crate::clock::{format_clock, iso_day, minute_of_day};
 use crate::error::AppResult;
 use crate::store::json_store::JsonStore;
 use crate::store::settings::Status;
@@ -24,14 +24,10 @@ pub struct StatusMemory {
     pub worked_today: bool,
 }
 
-fn day_key(day: NaiveDate) -> String {
-    day.format("%Y-%m-%d").to_string()
-}
-
 impl StatusMemory {
     /// What holds on `day`: another day's memory doesn't.
     pub fn on(&self, day: NaiveDate) -> Self {
-        let date = day_key(day);
+        let date = iso_day(day);
         if self.date == date {
             self.clone()
         } else {

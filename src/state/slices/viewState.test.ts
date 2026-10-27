@@ -21,9 +21,9 @@ describe("view state slice", () => {
 
   describe("loadUiState", () => {
     it("takes the layout Rust stored", async () => {
-      mocked.getUiState.mockResolvedValueOnce({ ...EMPTY_UI_STATE, sidebarHidden: true, paneSizes: { list: 300 } });
+      mocked.getUiState.mockResolvedValueOnce({ ...EMPTY_UI_STATE, sidebarHidden: true, inspectorHidden: true });
       await useStore.getState().loadUiState();
-      expect(useStore.getState().uiState).toMatchObject({ sidebarHidden: true, paneSizes: { list: 300 } });
+      expect(useStore.getState().uiState).toMatchObject({ sidebarHidden: true, inspectorHidden: true });
     });
 
     it("toasts and keeps the empty layout when loading fails", async () => {
@@ -47,22 +47,6 @@ describe("view state slice", () => {
       useStore.getState().toggleSidebar();
       useStore.getState().toggleSidebar();
       expect(useStore.getState().uiState.sidebarHidden).toBe(false);
-    });
-  });
-
-  describe("setPaneSize", () => {
-    it("stores the rounded size under the pane id and keeps the other panes", () => {
-      useStore.getState().setPaneSize("list", 240.6);
-      useStore.getState().setPaneSize("detail", 120);
-      expect(useStore.getState().uiState.paneSizes).toEqual({ list: 241, detail: 120 });
-    });
-
-    it("writes only the last of several quick changes", () => {
-      useStore.getState().setPaneSize("list", 100);
-      useStore.getState().setPaneSize("list", 200);
-      vi.advanceTimersByTime(500);
-      expect(mocked.setUiState).toHaveBeenCalledTimes(1);
-      expect(mocked.setUiState).toHaveBeenCalledWith(expect.objectContaining({ paneSizes: { list: 200 } }));
     });
   });
 

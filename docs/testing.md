@@ -38,7 +38,7 @@ launch and commit at the end of every step.
 - **Helpers** are in `src/test_support/` (`fixtures.rs`): `temp_config_dir`, a fresh 0700 temp dir standing
   in for the config dir. They compile with `cfg(test)` or the `test-util` feature
   ([ADR 0006](adr/0006-test-doubles-behind-test-util.md)); the crate lists itself as a dev-dependency with
-  `test-util`, so integration tests in `src-tauri/tests/` (none yet) see them.
+  `test-util`, so integration tests in `src-tauri/tests/` (none yet) would see them.
 - **Prototype oracles:** when a step ports a prototype module, its Vitest tests (`P/tests/`) become Rust tests
   of the ported module and are its acceptance test.
 - **Socket tests** (`ipc.rs`) bind a socket in a temp dir, serve it with a handler that answers or records

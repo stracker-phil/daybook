@@ -4,6 +4,11 @@
 
 Accepted (2026-10-24), implemented. Inherited from TimeTracker ADR 0003.
 
+Amended (2026-10-27): later steps added the kinds `network` ([ADR 0020](0020-network-only-to-listed-hosts.md))
+and `timetracker_not_running`, `timetracker_refused`, `timetracker_missing`
+([ADR 0022](0022-daybook-drives-timetracker-through-its-cli.md)); the page's known kinds are `ERROR_KINDS` in
+`src/api/index.ts`.
+
 ## Context
 
 The page reacts to classes of errors: a cancelled panel is no failure, a missing note offers to create it, an

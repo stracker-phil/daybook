@@ -1,22 +1,21 @@
+import type { ReactNode } from "react";
 import type { Project } from "../../api";
 import type { SettingsPageProps } from "../../registry/settingsPages";
-import { EntryFooter, Group, Row, Switch, TextField } from "./controls";
-import { ItemActions, ToggleChips, contextChoices, joinList, moveItem, parseList, replaceItem, type Choice } from "./fields";
+import { AddButton, EntryFooter, Group, Row, Switch, TextField } from "./controls";
+import { ToggleChips, contextChoices, joinList, parseList, type Choice } from "./fields";
+import { listEditor } from "./listEditor";
 import { LauncherProjectsField, useLauncherProjects, type Launcher } from "./LauncherProjectsField";
 import { TimeTrackerProjectsField } from "./TimeTrackerProjectsField";
 import { useTimetrackerProjects, type TimeTrackerProjectsResult } from "./useTimeTracker";
 
-function ProjectCard({ project, projects, contexts, launcher, timetracker, index, count, onChange, onMove, onRemove }: {
+function ProjectCard({ project, projects, contexts, launcher, timetracker, actions, onChange }: {
   project: Project;
   projects: Project[];
   contexts: Choice[];
   launcher: Launcher;
   timetracker: TimeTrackerProjectsResult;
-  index: number;
-  count: number;
+  actions: ReactNode;
   onChange: (patch: Partial<Project>) => void;
-  onMove: (from: number, to: number) => void;
-  onRemove: () => void;
 }) {
   return (
     <Group title={project.active ? project.name : `${project.name} (inactive)`}>
@@ -41,9 +40,7 @@ function ProjectCard({ project, projects, contexts, launcher, timetracker, index
         <TimeTrackerProjectsField project={project} projects={projects} timetracker={timetracker} onChange={(timetrackerProjects) => onChange({ timetrackerProjects })} />
       </Row>
       <TextField label="Slack emoji" description="Starts the project's lines in the focus list, e.g. :oscorp:." placeholder=":emoji:" value={project.slackEmoji} onCommit={(slackEmoji) => onChange({ slackEmoji: slackEmoji.trim() })} />
-      <EntryFooter>
-        <ItemActions index={index} count={count} onMove={onMove} onRemove={onRemove} removeLabel="Remove Project" />
-      </EntryFooter>
+      <EntryFooter>{actions}</EntryFooter>
     </Group>
   );
 }
@@ -54,7 +51,7 @@ const newProject = (): Project => ({ name: "New project", slackEmoji: "", active
 export function ProjectsPage({ s, set }: SettingsPageProps) {
   const projects = s.projects;
   const contexts = contextChoices(s.contexts);
-  const save = (next: Project[]) => set({ projects: next });
+  const edit = listEditor(projects, (next) => set({ projects: next }));
   const launcher = useLauncherProjects();
   const timetracker = useTimetrackerProjects();
   return (
@@ -67,18 +64,11 @@ export function ProjectsPage({ s, set }: SettingsPageProps) {
           contexts={contexts}
           launcher={launcher}
           timetracker={timetracker}
-          index={i}
-          count={projects.length}
-          onChange={(patch) => save(replaceItem(projects, i, patch))}
-          onMove={(from, to) => save(moveItem(projects, from, to))}
-          onRemove={() => save(projects.filter((_, j) => j !== i))}
+          actions={edit.actions(i, "Remove Project")}
+          onChange={(patch) => edit.change(i, patch)}
         />
       ))}
-      <div>
-        <button type="button" className="btn" onClick={() => save([...projects, newProject()])}>
-          Add Project
-        </button>
-      </div>
+      <AddButton label="Add Project" onClick={() => edit.add(newProject())} />
     </>
   );
 }

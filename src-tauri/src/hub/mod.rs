@@ -19,7 +19,8 @@ pub use tools::{HubInput, HubTool, ToolRow, hub_tools, shortcut_for};
 
 use crate::bus;
 use crate::calendar;
-use crate::error::{AppError, AppResult};
+use crate::clock::{iso_day, parse_day};
+use crate::error::AppResult;
 use crate::focus::{self, FocusLine, focus_lines};
 use crate::journal::{self, JournalProgress};
 use crate::locale::{self, DateLocale};
@@ -101,7 +102,7 @@ pub fn hub_view_at(
     let day = day.unwrap_or(today);
     let is_today = day == today;
     HubView {
-        day: day.format("%Y-%m-%d").to_string(),
+        day: iso_day(day),
         is_today,
         weekday: locale.weekday(day),
         date: locale.long_date(day),
@@ -124,23 +125,15 @@ pub fn hub_view_at(
         focus_shortcut: None,
         notes_shortcut: None,
         todos: Vec::new(),
-        timetracker: show_link(day, is_today),
+        timetracker: show_link(day, is_today, locale),
         activity_tab: false,
     }
-}
-
-fn parse_day(day: Option<&str>) -> AppResult<Option<NaiveDate>> {
-    day.map(|day| {
-        NaiveDate::parse_from_str(day, "%Y-%m-%d")
-            .map_err(|_| AppError::InvalidInput(format!("Not a day: {day}")))
-    })
-    .transpose()
 }
 
 /// The Daybook window's content for `day` (`YYYY-MM-DD`, today when absent).
 #[tauri::command]
 pub async fn hub_view(app: AppHandle, day: Option<String>) -> AppResult<HubView> {
-    let day = parse_day(day.as_deref())?;
+    let day = day.as_deref().map(parse_day).transpose()?;
     let now = Local::now().naive_local();
     let shown = day.unwrap_or(now.date());
     let events = calendar::events_on(&app, shown, now.date()).await;
@@ -155,7 +148,7 @@ pub async fn hub_view(app: AppHandle, day: Option<String>) -> AppResult<HubView>
         hotkeys: &hotkeys,
         commands: &commands.available(&app),
     });
-    let locale = blocking(|| Ok(locale::system())).await.unwrap_or_default();
+    let locale = locale::system_async().await;
     let mut view = hub_view_at(day, now, locale, tools, state.status);
     view.activity_tab = state.offers_day_activity();
     let set = |shortcut: &String| (!shortcut.is_empty()).then(|| shortcut.clone());
@@ -163,18 +156,25 @@ pub async fn hub_view(app: AppHandle, day: Option<String>) -> AppResult<HubView>
     view.notes_shortcut = set(&hotkeys.quick_notes);
     view.slack = slack::shown_now(&app).await;
     if settings.focus.enabled {
-        let handle = app.clone();
-        let reading = settings.clone();
-        let body = blocking(move || focus::read_day(&handle, &reading, shown))
-            .await
-            .unwrap_or_else(|e| {
-                log::warn!("Couldn't read the focus list of {shown}: {e}");
-                String::new()
-            });
+        let body = read_off_thread(&app, &settings, shown, "the focus list", focus::read_day).await;
         view.focus = Some(focus_lines(&body, &settings.projects));
     }
-    view.journal = read_journal(&app, &settings, shown).await;
-    view.routines = read_routines(&app, &settings, shown).await;
+    view.journal = read_off_thread(
+        &app,
+        &settings,
+        shown,
+        "the journal",
+        |app, settings, day| Ok(journal::progress_of(app, settings, day)),
+    )
+    .await;
+    view.routines = read_off_thread(
+        &app,
+        &settings,
+        shown,
+        "the routines",
+        |app, settings, day| Ok(routines::progress_of(app, settings, day)),
+    )
+    .await;
     let index = read_index(&app, &settings, shown, now.date()).await;
     view.previous_day = index.previous.map(|day| day.to_string());
     view.next_day = index.next.map(|day| day.to_string());
@@ -202,33 +202,20 @@ pub async fn hub_view(app: AppHandle, day: Option<String>) -> AppResult<HubView>
     Ok(view)
 }
 
-async fn read_journal(
+/// `read` of `day` on a blocking thread; empty when it fails.
+async fn read_off_thread<T: Default + Send + 'static>(
     app: &AppHandle,
     settings: &Settings,
     day: NaiveDate,
-) -> Vec<JournalProgress> {
-    let handle = app.clone();
-    let reading = settings.clone();
-    blocking(move || Ok(journal::progress_of(&handle, &reading, day)))
+    what: &str,
+    read: fn(&AppHandle, &Settings, NaiveDate) -> AppResult<T>,
+) -> T {
+    let (handle, reading) = (app.clone(), settings.clone());
+    blocking(move || read(&handle, &reading, day))
         .await
         .unwrap_or_else(|e| {
-            log::warn!("Couldn't read the journal of {day}: {e}");
-            Vec::new()
-        })
-}
-
-async fn read_routines(
-    app: &AppHandle,
-    settings: &Settings,
-    day: NaiveDate,
-) -> Vec<RoutineProgress> {
-    let handle = app.clone();
-    let reading = settings.clone();
-    blocking(move || Ok(routines::progress_of(&handle, &reading, day)))
-        .await
-        .unwrap_or_else(|e| {
-            log::warn!("Couldn't read the routines of {day}: {e}");
-            Vec::new()
+            log::warn!("Couldn't read {what} of {day}: {e}");
+            T::default()
         })
 }
 

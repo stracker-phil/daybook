@@ -12,5 +12,4 @@ import "./sidebar.css";
 import "./board.css";
 import "./activity.css";
 import "./overlays.css";
-import "./forms.css";
 import "./settings.css";

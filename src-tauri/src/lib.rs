@@ -1,3 +1,6 @@
+//! Daybook's library: the modules and `run`, which reads the command line, hands off to a running
+//! Daybook or starts the app.
+
 pub mod action_log;
 pub mod activity;
 mod app;

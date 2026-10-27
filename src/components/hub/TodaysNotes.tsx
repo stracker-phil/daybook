@@ -1,13 +1,13 @@
 import { NotebookText, PenLine } from "lucide-react";
 import { api, type HubView, type NoteSectionRef } from "../../api";
-import { fail } from "../../state/requests";
+import { fail, runBusCommand } from "../../state/requests";
 import { ShortcutCap } from "../Field";
 
 /** Today's topics open in the quick-notes editor; another day's open in Obsidian, as the editor only writes today. */
 export function TodaysNotes({ hub }: { hub: HubView }) {
   const title = hub.isToday ? "Today’s notes" : "Notes";
   const openNote = (heading?: string) => void api.dailyNoteOpen(hub.day, heading).catch((e) => fail(e, "Couldn't open the note"));
-  const writeNote = () => void api.runCommand("notes:quick").catch((e) => fail(e, "Couldn't open quick notes"));
+  const writeNote = () => runBusCommand("notes:quick", "Couldn't open quick notes");
   const editTopic = (topic: NoteSectionRef) => void api.quickNotesOpen(topic, false).catch((e) => fail(e, "Couldn't open quick notes"));
   const openTopic = (topic: NoteSectionRef) => (hub.isToday ? editTopic(topic) : openNote(topic.title));
   return (

@@ -200,6 +200,15 @@ impl Controller {
         )
     }
 
+    /// A rail placed for a call sits on the call's edge, else on `side`.
+    fn side_for_call(&self, side: Side, call: bool) -> Side {
+        if call {
+            call_side(self.settings.call_edge)
+        } else {
+            side
+        }
+    }
+
     fn placed(&self) -> Option<Frame> {
         self.on
             .map(|on| self.frame_on(&on, self.side, self.pointer_y, self.call))
@@ -239,11 +248,7 @@ impl Controller {
         self.visible = true;
         self.on = Some(screen);
         self.call = self.in_call();
-        self.side = if self.call {
-            call_side(self.settings.call_edge)
-        } else {
-            side
-        };
+        self.side = self.side_for_call(side, self.call);
         self.pointer_y = pointer_y;
         self.timers = IDLE;
         out.extend(self.placed().map(Action::Place));
@@ -262,11 +267,7 @@ impl Controller {
     ) {
         self.on = Some(screen);
         self.call = call;
-        self.side = if call {
-            call_side(self.settings.call_edge)
-        } else {
-            side
-        };
+        self.side = self.side_for_call(side, call);
         out.push(Action::HideTip);
         out.extend(self.placed().map(Action::Place));
         self.announce(out);

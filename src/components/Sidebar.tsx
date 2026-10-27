@@ -1,15 +1,13 @@
 import type { ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Settings } from "lucide-react";
 import { api, type HubTool, type HubView, type Status, type ToolRow } from "../api";
-import { fail } from "../state/requests";
+import { fail, runBusCommand } from "../state/requests";
 import { useStore } from "../state/store";
 import { ShortcutCap } from "./Field";
 import { SlackBadge } from "./SlackStatus";
 import { TOOL_INFO } from "./settings/toolInfo";
 
-function run(command: string) {
-  void api.runCommand(command).catch((e) => fail(e, "Could not run the command"));
-}
+const run = (command: string) => runBusCommand(command, "Could not run the command");
 
 /** The weekday and date of the day shown; a click opens its note in Obsidian. ‹ › step to the days with a note. */
 function DayHeader({ hub }: { hub: HubView }) {

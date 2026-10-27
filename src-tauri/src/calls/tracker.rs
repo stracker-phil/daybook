@@ -122,7 +122,7 @@ impl Tracker {
                     found: Found::Call(title),
                     ..
                 },
-            ) => self.seen(check, title),
+            ) => self.seen(active, check, title),
             Some(RuleCheck {
                 found: Found::Unknown(_),
                 ..
@@ -138,11 +138,16 @@ impl Tracker {
             title: title.to_string(),
             since,
         };
+        self.reset_to(call.clone());
+        call
+    }
+
+    /// `call` runs, with no miss, failure or candidate.
+    fn reset_to(&mut self, call: ActiveCall) {
         *self = Self {
-            active: Some(call.clone()),
+            active: Some(call),
             ..Self::default()
         };
-        call
     }
 
     fn close(&mut self, end: NaiveDateTime, reason: EndReason) -> Option<CallEvent> {
@@ -150,16 +155,13 @@ impl Tracker {
         Some(CallEvent::Ended { call, end, reason })
     }
 
-    fn seen(&mut self, check: &RuleCheck, title: &str) -> Vec<CallEvent> {
-        let Some(active) = std::mem::take(self).active else {
-            return Vec::new();
-        };
+    fn seen(&mut self, active: ActiveCall, check: &RuleCheck, title: &str) -> Vec<CallEvent> {
         let next = ActiveCall {
             app: check.app.clone(),
             title: title.to_string(),
             ..active.clone()
         };
-        self.active = Some(next.clone());
+        self.reset_to(next.clone());
         if next == active {
             Vec::new()
         } else {

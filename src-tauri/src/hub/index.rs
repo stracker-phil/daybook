@@ -5,6 +5,7 @@ use chrono::NaiveDate;
 use tauri::{AppHandle, Manager};
 
 use super::adjacent_days;
+use crate::clock::parse_day;
 use crate::error::AppResult;
 use crate::state::AppState;
 use crate::store::settings::Settings;
@@ -33,7 +34,7 @@ pub fn todo_dates(groups: &[TodoGroup]) -> Vec<NaiveDate> {
     groups
         .iter()
         .flat_map(|group| &group.todos)
-        .filter_map(|todo| NaiveDate::parse_from_str(&todo.date, "%Y-%m-%d").ok())
+        .filter_map(|todo| parse_day(&todo.date).ok())
         .collect()
 }
 

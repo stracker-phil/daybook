@@ -1,3 +1,5 @@
+//! The look: schemes, text sizes and accents.
+
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 

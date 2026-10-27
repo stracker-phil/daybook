@@ -24,7 +24,8 @@ export function PresenceDot({ presence }: { presence: Presence }) {
   return <span className="presence-dot" data-presence={presence} aria-hidden="true" />;
 }
 
-function SlackLine({ emoji, text }: { emoji: string; text: string }) {
+/** The emoji and the text, or "No status". */
+export function SlackLine({ emoji, text }: { emoji: string; text: string }) {
   return (
     <>
       <EmojiGlyph code={emoji} />

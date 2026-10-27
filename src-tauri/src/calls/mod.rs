@@ -7,8 +7,8 @@ pub mod detect;
 mod join;
 mod pick;
 mod probe;
-pub mod titles;
-pub mod tracker;
+mod titles;
+mod tracker;
 mod watch;
 
 use std::sync::Mutex;
@@ -21,14 +21,13 @@ use tauri_plugin_opener::OpenerExt;
 use tokio::sync::broadcast;
 use ts_rs::TS;
 
-pub use join::{join, open_args};
+pub use join::join;
 pub use tracker::{ActiveCall, CallEvent};
-pub use watch::{check_now, check_soon, first_check, start, woke};
+pub use watch::{check_now, first_check, start, woke};
 
 use self::detect::Missing;
-use self::probe::MacProbe;
-use self::titles::EventTitles;
 use self::tracker::Tracker;
+use self::watch::check_soon;
 use crate::action_log;
 use crate::bus::{Command, CommandBus};
 use crate::error::{AppError, AppResult};
@@ -39,10 +38,9 @@ use crate::store::settings::{AppRef, MeetingRule, Settings, built_in_call_apps};
 pub struct Calls {
     tracker: Mutex<Tracker>,
     watch: watch::Watch,
-    probe: MacProbe,
+    /// Whether macOS's Accessibility prompt was shown this run.
     prompted: AtomicBool,
     events: broadcast::Sender<Announced>,
-    titles: Mutex<EventTitles>,
 }
 
 /// A call event with its action-log trigger ("Call started: Zoom"), which the followers' actions join.
@@ -57,10 +55,8 @@ impl Default for Calls {
         Self {
             tracker: Mutex::default(),
             watch: watch::Watch::default(),
-            probe: MacProbe::default(),
             prompted: AtomicBool::new(false),
             events: broadcast::channel(16).0,
-            titles: Mutex::default(),
         }
     }
 }
@@ -79,6 +75,25 @@ pub fn subscribe(app: &AppHandle) -> broadcast::Receiver<Announced> {
     calls(app).events.subscribe()
 }
 
+/// Runs `on_event` for every call event within its action-log trigger, for as long as the app runs.
+/// Install before `start`, like `subscribe`.
+pub fn follow(app: &AppHandle, on_event: impl Fn(&AppHandle, CallEvent) + Send + 'static) {
+    let handle = app.clone();
+    let mut events = subscribe(app);
+    tauri::async_runtime::spawn(async move {
+        loop {
+            match events.recv().await {
+                Ok(Announced { event, trigger }) => {
+                    let _entered = trigger.as_ref().map(action_log::Trigger::enter);
+                    on_event(&handle, event);
+                }
+                Err(broadcast::error::RecvError::Lagged(_)) => continue,
+                Err(broadcast::error::RecvError::Closed) => break,
+            }
+        }
+    });
+}
+
 /// Detection runs with a vault and the switch in Settings on.
 pub fn detecting(settings: &Settings) -> bool {
     settings.meetings.detection && settings.vault.path.is_some()
@@ -86,8 +101,16 @@ pub fn detecting(settings: &Settings) -> bool {
 
 /// Re-checks when a setting detection reads (the switch, the rules, the vault) changes.
 pub fn settings_changed(app: &AppHandle, previous: &Settings, saved: &Settings) {
-    let affects = |s: &Settings| (detecting(s), s.meetings.rules.clone());
-    if affects(previous) != affects(saved) || previous.vault.path != saved.vault.path {
+    fn reads(
+        s: &Settings,
+    ) -> (
+        bool,
+        &[crate::store::settings::MeetingRule],
+        &Option<String>,
+    ) {
+        (detecting(s), &s.meetings.rules, &s.vault.path)
+    }
+    if reads(previous) != reads(saved) {
         check_soon(app);
     }
 }

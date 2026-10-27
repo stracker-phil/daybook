@@ -23,7 +23,7 @@ second app with their own name, identifier, data, socket and URL scheme, so they
 | URL scheme | `daybook://` | `daybook-debug://` | `tauri.conf.json` and `tauri.debug.conf.json` `plugins.deep-link.desktop.schemes` (the bundler writes them into `Info.plist`); `lib.rs` `LINK_SCHEME` (a test compares it with both files); `deep_link.rs` runs the automation actions `state`, `show`, `status`, `slack`, `command` ([automation.md](automation.md#links)) |
 | Socket, lock | `daybook.sock`, `daybook.lock` in the config dir | the same names in the debug config dir | `lib.rs` `SOCKET_NAME`, `instance.rs` `LOCK_NAME`; `scripts/dev/js.sh`, `scripts/dev/smoke.sh` (the socket) |
 | Config dir | `~/Library/Application Support/com.philippstracker.daybook/` | `….daybook.debug/` | `lib.rs` `config_dir()` |
-| Data files | in the config dir: `settings.json`, `keybindings.json`, `ui_state.json`, `context.json`, `status-memory.json`, `pending-entries.json`, `routines.json`, `day-message.json`, `slack-shown.json`, `music-held.json`, `jira-tickets.json`, `checkins.json`, `quick_notes.json` | the same in the debug config dir | `store/settings/store.rs`, `store/keybindings.rs`, `store/ui_state.rs`, `contexts/mod.rs`, `status/memory.rs`, `vault/pending.rs`, `routines/fired.rs`, `slack/day_message.rs`, `slack/shown.rs`, `state.rs` (`music_held`), `jira/tickets.rs`, `activity/pause.rs`, `quick_notes/mod.rs` |
+| Data files | in the config dir: `settings.json`, `keybindings.json`, `ui_state.json`, `context.json`, `status-memory.json`, `pending-entries.json`, `routines.json`, `day-message.json`, `slack-shown.json`, `music-held.json`, `jira-tickets.json`, `checkins.json`, `quick_notes.json` | the same in the debug config dir | `store/settings/store.rs`, `store/keybindings.rs`, `store/ui_state.rs`, `contexts/mod.rs`, `status/memory.rs`, `vault/pending/mod.rs`, `routines/fired.rs`, `slack/day_message.rs`, `slack/shown.rs`, `state.rs` (`music_held`), `jira/tickets.rs`, `activity/pause.rs`, `quick_notes/mod.rs` |
 | Logs dir | `~/Library/Logs/com.philippstracker.daybook/` | `….daybook.debug/` | Tauri's `app_log_dir`, from the identifier |
 | LaunchAgent | `~/Library/LaunchAgents/Daybook.plist`, written by `tauri-plugin-autostart` and named after `productName` | named after the debug `productName` | `app.rs` (`MacosLauncher::LaunchAgent`, `--hidden`), `autostart.rs` |
 | Keychain | generic passwords, service = the bundle identifier: accounts `slack-token` and `api-token` (the HTTP API) | the debug identifier | `secrets.rs`, `slack/token.rs`, `http_api/token.rs` |
@@ -58,7 +58,7 @@ launchd has a short one; `process.rs` `EXTRA_PATH` adds the Homebrew folders).
 |---|---|---|
 | `timetracker` (TimeTracker's CLI) | the timer, projects, recordings, suggestions, `show` | see [TimeTracker](#timetracker) |
 | `obsidian` (the Obsidian CLI) | creating today's note | `vault/obsidian.rs` `CANDIDATES` |
-| `plaunch` (Project Launcher) | the Projects overlay, `projects:open:<id>` | `launcher/mod.rs` `TOOL`, `Launcher::default` (`~/.local/bin`, `/usr/local/bin`, `/opt/homebrew/bin`) |
+| `plaunch` (Project Launcher) | the Projects overlay, `projects:open:<id>` | `launcher/tool.rs` `TOOL`, `Launcher::default` (`~/.local/bin`, `/usr/local/bin`, `/opt/homebrew/bin`) |
 | `osascript` | Music (JXA), Chrome's tabs for call detection | `music/script.rs`, `calls/probe.rs` |
 | `lsappinfo`, `pgrep`, `pmset`, `ps`, `ioreg` | call detection, the lock state | `calls/probe.rs`, `presence/native.rs` |
 | `open -b` | starting call apps before joining | `calls/join.rs` |
@@ -108,7 +108,7 @@ Owner-specific: delete the module and its calls in `lib.rs` and `app.rs` (`repor
 | **Time zone label**: `localtime_r`'s `tm_zone` | `status_rules/mod.rs` `zone_of` | Works | No `tm_zone`: format the zone from the Windows API |
 | **Joining**: `open -b`, a Chrome web app through `--app-id` | `calls/join.rs` | `xdg-open`; Chrome's `--app-id` works the same | `start`; same for Chrome |
 | **Launch at login**: `MacosLauncher::LaunchAgent` with `--hidden` | `app.rs` (autostart plugin), `autostart.rs` | The plugin writes an XDG autostart entry | The plugin writes a registry key |
-| **Shortcuts**: `Mod` is ⌘, labels use ⌘⌥⇧ glyphs | `src/commands/registry.ts`, `store/keybindings.rs` `key_label`, `menu/mod.rs` | Map `Mod` to Ctrl | Same |
+| **Shortcuts**: `Mod` is ⌘, labels use ⌘⌥⇧ glyphs | `src/commands/registry.ts`, `store/keybindings.rs`, `src/lib/shortcuts.ts` `shortcutKeys`, `menu/mod.rs` | Map `Mod` to Ctrl | Same |
 | **Config dir** hard-coded to `~/Library/Application Support/<id>` | `lib.rs` `config_dir()`, `scripts/dev/js.sh` | `dirs::config_dir()`; it must resolve before Tauri starts, because the CLI and socket run first | `dirs::config_dir()` (`%APPDATA%\<id>`) |
 | **Unix socket** for the single-instance handoff and the CLI, with a peer-uid check (`libc::getuid`) | `ipc.rs` | Works as is; mind the ~108-byte path limit | A named pipe (`tokio::net::windows::named_pipe`) with the same line protocol |
 | **File permissions** (0600 files, 0700 dirs) | `ipc.rs`, `store/json_file.rs` | Works | Gate with `#[cfg(unix)]` |

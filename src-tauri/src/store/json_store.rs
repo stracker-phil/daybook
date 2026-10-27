@@ -1,3 +1,5 @@
+//! A JSON file with its value kept in memory, saved before each change takes effect.
+
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};
 
@@ -8,8 +10,8 @@ use super::json_file::JsonFile;
 use crate::error::{AppError, AppResult};
 use crate::lock::{MutexExt, RwLockExt};
 
-/// A JSON file with its parsed value kept in memory. Changes are saved before they are
-/// committed to memory, so a failed save never leaves a change that vanishes on restart.
+/// Changes are saved before they are committed to memory, so a failed save never leaves a change
+/// that vanishes on restart.
 pub struct JsonStore<T> {
     inner: Arc<Inner<T>>,
 }

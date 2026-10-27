@@ -60,10 +60,10 @@ impl StagePage {
     /// Its Tauri window label.
     pub fn label(self) -> &'static str {
         match self {
-            StagePage::Hub => "main",
+            StagePage::Hub => crate::window::MAIN,
             StagePage::Settings => crate::window::settings::LABEL,
             StagePage::Panel => crate::window::panel::LABEL,
-            StagePage::Rail => "rail",
+            StagePage::Rail => crate::rail::RAIL,
             StagePage::QuickNotes => crate::window::quick_notes::LABEL,
         }
     }

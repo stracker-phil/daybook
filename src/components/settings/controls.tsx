@@ -62,15 +62,36 @@ export function Row({ label, icon, description, htmlFor, stacked, nested, disabl
   );
 }
 
+/** A file path, `/Users/name/…` shortened to `~/…`, selectable for copying. */
+export function PathText({ path }: { path: string }) {
+  return <span className="mono selectable">{path.replace(/^\/Users\/[^/]+/, "~")}</span>;
+}
+
 /** Controls without a label: one line of a repeating item, or a value right under the switch it depends on. */
-export function ControlRow({ nested, stacked, children }: { nested?: boolean; stacked?: boolean; children: ReactNode }) {
-  const className = ["settings-row", "control-row", nested && "nested", stacked && "stacked"].filter(Boolean).join(" ");
-  return <div className={className}>{children}</div>;
+export function ControlRow({ nested, stacked, className, children }: { nested?: boolean; stacked?: boolean; className?: string; children: ReactNode }) {
+  const classes = ["settings-row", "control-row", nested && "nested", stacked && "stacked", className].filter(Boolean).join(" ");
+  return <div className={classes}>{children}</div>;
+}
+
+/** Adds an item below a list of cards. */
+export function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <div>
+      <button type="button" className="btn" onClick={onClick}>
+        {label}
+      </button>
+    </div>
+  );
 }
 
 /** The last row of an item's card: what adds to it on the left, the item's own move and remove on the right. */
 export function EntryFooter({ children }: { children: ReactNode }) {
   return <div className="settings-row entry-footer">{children}</div>;
+}
+
+/** A bare switch; its label comes from the caller (a `<label>`, `htmlFor` or `aria-label`). */
+export function SwitchInput({ checked, onChange, ...input }: { id?: string; "aria-label"?: string; disabled?: boolean; checked: boolean; onChange: (on: boolean) => void }) {
+  return <input {...input} className="switch" type="checkbox" role="switch" checked={checked} onChange={(e) => onChange(e.target.checked)} />;
 }
 
 /** The switch that gates the block below it, with an optional accessory at the end. */
@@ -87,7 +108,7 @@ export function LeadSwitch({ label, title, checked, onChange, accessory, childre
   return (
     <div className="lead-block">
       <div className="lead-switch">
-        <input id={id} className="switch" type="checkbox" role="switch" aria-label={title ? label : undefined} checked={checked} onChange={(e) => onChange(e.target.checked)} />
+        <SwitchInput id={id} aria-label={title ? label : undefined} checked={checked} onChange={onChange} />
         {title ? <div className="lead-title">{title}</div> : <label htmlFor={id}>{label}</label>}
         {accessory}
       </div>
@@ -115,6 +136,7 @@ export function FormRow({ label, htmlFor, hint, children }: { label: string; htm
   );
 }
 
+/** A text field as one line of a LeadSwitch block. */
 export function FormText({ label, value, placeholder, hint, onCommit }: { label: string; value: string; placeholder?: string; hint?: ReactNode; onCommit: (v: string) => void }) {
   const id = useId();
   return (
@@ -128,7 +150,7 @@ export function FormText({ label, value, placeholder, hint, onCommit }: { label:
 export function InlineSwitch({ label, text, checked, onChange }: { label: string; text: ReactNode; checked: boolean; onChange: (on: boolean) => void }) {
   return (
     <label className="inline-switch">
-      <input className="switch" type="checkbox" role="switch" aria-label={label} checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <SwitchInput aria-label={label} checked={checked} onChange={onChange} />
       <span className="o2">{text}</span>
     </label>
   );
@@ -149,7 +171,7 @@ export function Switch({ label, description, checked, onChange, nested }: { labe
   const id = useId();
   return (
     <Row label={label} description={description} htmlFor={id} nested={nested}>
-      <input id={id} className="switch" type="checkbox" role="switch" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <SwitchInput id={id} checked={checked} onChange={onChange} />
     </Row>
   );
 }
@@ -251,6 +273,7 @@ export function TextField({ label, description, value, onCommit, type = "text", 
   );
 }
 
+/** BufferedInput only commits a number within `min` and `max`. */
 export function NumberField({ value, onCommit, ...rest }: {
   label: string;
   description?: ReactNode;
@@ -266,10 +289,7 @@ export function NumberField({ value, onCommit, ...rest }: {
       {...rest}
       type="number"
       value={String(value)}
-      onCommit={(t) => {
-        const n = Number(t);
-        if (t.trim() !== "" && Number.isFinite(n)) onCommit(n);
-      }}
+      onCommit={(text) => onCommit(Number(text))}
     />
   );
 }

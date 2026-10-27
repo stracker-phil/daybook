@@ -5,6 +5,7 @@ use std::path::Path;
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
+use crate::clock::iso_day;
 use crate::error::AppResult;
 use crate::store::json_store::JsonStore;
 
@@ -31,7 +32,7 @@ impl Fired {
 
     /// Remembers `key` as fired on `day`; `false` when it already fired that day.
     pub fn mark(&self, key: &str, day: NaiveDate) -> AppResult<bool> {
-        let date = day.format("%Y-%m-%d").to_string();
+        let date = iso_day(day);
         self.store.update(|current| {
             if current.date != date {
                 *current = FiredDay {

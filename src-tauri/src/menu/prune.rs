@@ -1,6 +1,7 @@
 //! Fitting the menu to the commands that exist now. Pure.
 
-use super::model::{CommandStatus, MenuEntry};
+use super::entry::MenuEntry;
+use crate::bus::CommandStatus;
 
 /// Drops separators at the start, at the end and in a row, and empty submenus.
 pub(super) fn tidy(entries: Vec<MenuEntry>) -> Vec<MenuEntry> {
