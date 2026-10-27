@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../api", async (orig) => ({ ...(await orig<object>()), api: (await import("../../test/apiMock")).createApiMock() }));
 
 import { api, type QuickNote } from "../../api";
+import { installCommands } from "../../commands";
 import { QuickNotesApp } from "./QuickNotesApp";
 
 const mocked = vi.mocked(api, true);
@@ -221,6 +222,78 @@ describe("QuickNotesApp", () => {
       });
       await vi.waitFor(() => expect(mocked.quickNotesClose).toHaveBeenCalled());
       expect(mocked.quickNoteSave).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("presenting", () => {
+    const present = (presenting: boolean) => fire(mocked.onQuickNotePresentation, { presenting });
+
+    it("shows only the editable text, without the title and the save status", async () => {
+      await renderEditor();
+      await present(true);
+      expect(screen.queryByRole("textbox", { name: "Topic title" })).not.toBeInTheDocument();
+      expect(screen.queryByText("Saved to today’s note")).not.toBeInTheDocument();
+      expect(editor()).toHaveTextContent("Hello");
+    });
+
+    it("starts presenting when Rust already presents on load", async () => {
+      mocked.quickNotesPresentation.mockResolvedValue({ presenting: true });
+      await renderEditor();
+      await vi.waitFor(() => expect(screen.queryByRole("textbox", { name: "Topic title" })).not.toBeInTheDocument());
+      expect(editor()).toHaveTextContent("Hello");
+    });
+
+    it("saves exactly the typed text", async () => {
+      await renderEditor();
+      await present(true);
+      typeBody(" world");
+      await advance(SAVE_DELAY);
+      expect(mocked.quickNoteSave).toHaveBeenCalledWith(TOPIC, "Planning", "Hello world", "Hello");
+    });
+
+    it("brings the title back when the presentation ends", async () => {
+      await renderEditor();
+      await present(true);
+      await present(false);
+      expect(titleInput()).toHaveValue("Planning");
+      expect(screen.getByText("Saved to today’s note")).toBeInTheDocument();
+    });
+
+    it("shows a failed save", async () => {
+      mocked.quickNoteSave.mockRejectedValue({ kind: "io", message: "Disk full", code: null });
+      await renderEditor();
+      await present(true);
+      typeBody(" more");
+      await advance(SAVE_DELAY);
+      expect(screen.getByText("Not saved: Disk full")).toBeInTheDocument();
+      expect(screen.queryByRole("textbox", { name: "Topic title" })).not.toBeInTheDocument();
+    });
+
+    it("shows the notice and Load the note when the note changed meanwhile", async () => {
+      mocked.quickNoteSave.mockResolvedValue({ kind: "changed", note: { ...PLANNING, body: "Edited in Obsidian" } });
+      await renderEditor();
+      await present(true);
+      typeBody(" typed");
+      await advance(SAVE_DELAY);
+      expect(screen.getByText("Changed in the note meanwhile: your text isn’t saved.")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Load the note" })).toBeInTheDocument();
+    });
+
+    it("ends the presentation on Escape instead of closing the window", async () => {
+      await renderEditor();
+      await present(true);
+      await act(async () => {
+        await userEvent.setup({ advanceTimers: vi.advanceTimersByTime }).keyboard("{Escape}");
+      });
+      expect(mocked.runCommand).toHaveBeenCalledWith("notes:endPresentation");
+      expect(mocked.quickNotesClose).not.toHaveBeenCalled();
+    });
+
+    it("starts the presentation on ⌘⌥P", async () => {
+      installCommands("quicknotes");
+      await renderEditor();
+      fireEvent.keyDown(editor(), { key: "π", code: "KeyP", metaKey: true, altKey: true });
+      expect(mocked.runCommand).toHaveBeenCalledWith("notes:present");
     });
   });
 

@@ -88,6 +88,7 @@ pub fn start(
             status_rules::start(app.handle());
             notify::install(app.handle());
             window::panel::build(app.handle())?;
+            window::presentation::install(app.handle());
             rail::install(app.handle());
             #[cfg(debug_assertions)]
             apply_dev_frame(app);

@@ -37,7 +37,9 @@ events and running code on the main thread. objc2 (`native.rs`, `panel/native.rs
 - `NSScreen` frames and `NSEvent.mouseLocation` (the pointer's screen), `NSWindow` frames in Cocoa
   coordinates;
 - `NSWorkspace.frontmostApplication`, `NSRunningApplication` activation, `NSApp isActive` / `hide:`, and the
-  on-screen window list (`CGWindowListCopyWindowInfo`) to tell whether an app has a window on the current Space.
+  on-screen window list (`CGWindowListCopyWindowInfo`) to tell whether an app has a window on the current Space;
+- the quick notes editor's presentation: its level above the menu bar, hiding the window buttons, turning
+  resizing off, and `NSApplicationDidChangeScreenParametersNotification`.
 
 The class swap only works while `DaybookPanel` has the same memory layout as tao's `TaoWindow`: the same size
 and the `focusable` ivar at the same offset (`same_layout`, which looks through the key-value-observing
@@ -140,6 +142,16 @@ saves the old topic and loads the new one, while `focus` (⌘F3 while it is open
 Closing (Esc in the page, ⌘W, the close button) keeps the frame and hides it; with no other Daybook window left,
 Daybook hides, so the app it came from comes back. Unlike the overlay, it stays open when it loses focus, and
 hiding the Daybook window doesn't hide Daybook while the editor is on screen.
+
+**Presentation** (`window/presentation.rs`, [ADR 0025](adr/0025-quick-note-presentation-covers-one-screen.md)):
+`notes:present` toggles it, `notes:endPresentation` ends it. Entering remembers the window's frame and screen
+(`display::Presentation`, in `QuickNotes`, never saved), puts the window over that screen's whole frame
+(`screen_holding`, `presentation_frame`: menu bar strip and Dock included) at `NSMainMenuWindowLevel + 1`, hides
+the window buttons and turns resizing off; the other screens stay as they are, and overlays still open above it.
+Leaving restores the frame (`exit_frame`: moved onto a remaining screen when that one is gone) and the floating
+level. A screen change refits it (`refit`). Closing ends presentation first, so `quick_notes.json` never holds
+the full-screen frame (`frame_to_remember`); switching topics keeps presenting. The page hears
+`quick_note_presentation` and asks `quick_notes_presentation` when it loads.
 
 ## The rail
 

@@ -44,6 +44,7 @@ pub fn handlers() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         quick_notes::quick_note_get,
         quick_notes::quick_note_save,
         quick_notes::quick_notes_close,
+        quick_notes::presentation::quick_notes_presentation,
         routines::routine_view_today,
         routines::routine_step,
         routines::routine_open_link,

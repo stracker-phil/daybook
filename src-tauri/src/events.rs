@@ -39,6 +39,8 @@ pub const TOGGLE_INSPECTOR_EVENT: &str = "toggle_inspector";
 pub const SHOW_ACTIVITY_TAB_EVENT: &str = "show_activity_tab";
 /// To the quick-notes editor. No payload; another topic was chosen, so the page saves and reloads.
 pub const QUICK_NOTE_TARGET_EVENT: &str = "quick_note_target";
+/// To the quick-notes editor. Payload: a `QuickNotePresentation`; presenting started or ended.
+pub const QUICK_NOTE_PRESENTATION_EVENT: &str = "quick_note_presentation";
 /// To the rail window. Payload: the `RailModel` to draw.
 pub const RAIL_MODEL_EVENT: &str = "rail_model";
 /// To the rail window. Payload: a `RailShown`; the rail slid in or out, changed sides or became sticky.

@@ -70,6 +70,77 @@ pub fn screen_at(screens: &[Screen], x: f64, y: f64) -> Option<Screen> {
         .copied()
 }
 
+fn overlap(a: Rect, b: Rect) -> f64 {
+    let width = (a.x + a.width).min(b.x + b.width) - a.x.max(b.x);
+    let height = (a.y + a.height).min(b.y + b.height) - a.y.max(b.y);
+    width.max(0.0) * height.max(0.0)
+}
+
+/// The screen a window is on, as AppKit's `NSWindow.screen`: the one it overlaps most, else the one at
+/// its centre, else the first.
+pub fn screen_holding(screens: &[Screen], frame: Rect) -> Option<Screen> {
+    let best = screens
+        .iter()
+        .map(|screen| (screen, overlap(screen.frame, frame)))
+        .filter(|(_, area)| *area > 0.0)
+        .max_by(|a, b| a.1.total_cmp(&b.1));
+    match best {
+        Some((screen, _)) => Some(*screen),
+        None => screen_at(
+            screens,
+            frame.x + frame.width / 2.0,
+            frame.y + frame.height / 2.0,
+        ),
+    }
+}
+
+/// The quick-notes editor while it presents: the frame to return to and the screen it covers.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Presentation {
+    pub normal: Rect,
+    pub screen: Screen,
+}
+
+/// The whole screen, its menu bar strip and Dock included.
+pub fn presentation_frame(screen: Screen) -> Rect {
+    screen.frame
+}
+
+/// `normal` carried from the presented screen to `to`, unchanged when it is the same screen.
+fn normal_on(presentation: &Presentation, to: Screen) -> Rect {
+    if to == presentation.screen {
+        presentation.normal
+    } else {
+        frame_on_display(presentation.normal, presentation.screen.visible, to.visible)
+    }
+}
+
+/// The frame to return to: `normal` while its screen still exists, else `normal` moved onto the screen
+/// holding it now, shrunk to fit.
+pub fn exit_frame(presentation: &Presentation, screens: &[Screen]) -> Rect {
+    if screens.contains(&presentation.screen) {
+        return presentation.normal;
+    }
+    match screen_holding(screens, presentation.normal) {
+        Some(screen) => normal_on(presentation, screen),
+        None => presentation.normal,
+    }
+}
+
+/// After a screen change: the presentation on the screen now holding the window (`current`), with
+/// `normal` carried over. `None` without screens.
+pub fn refit(
+    presentation: &Presentation,
+    screens: &[Screen],
+    current: Rect,
+) -> Option<Presentation> {
+    let screen = screen_holding(screens, current)?;
+    Some(Presentation {
+        normal: normal_on(presentation, screen),
+        screen,
+    })
+}
+
 /// How far down its screen an overlay's top edge sits, as a share of the screen's height (like
 /// Spotlight).
 const TOP_SHARE: f64 = 0.2;
@@ -218,6 +289,145 @@ mod tests {
             top_center(visible, 600.0, 800.0),
             Rect::new(420.0, 0.0, 600.0, 800.0)
         );
+    }
+
+    const LEFT: Rect = Rect::new(0.0, 0.0, 1000.0, 800.0);
+    const RIGHT: Rect = Rect::new(1000.0, 0.0, 1000.0, 800.0);
+    const SMALL: Rect = Rect::new(0.0, 0.0, 500.0, 400.0);
+
+    fn presenting_on(on: Rect, normal: Rect) -> Presentation {
+        Presentation {
+            normal,
+            screen: screen(on),
+        }
+    }
+
+    #[test]
+    fn a_window_holds_the_screen_it_overlaps_most() {
+        let screens = [screen(LEFT), screen(RIGHT)];
+        for (frame, index) in [
+            (Rect::new(100.0, 100.0, 300.0, 200.0), 0),
+            (Rect::new(1100.0, 100.0, 300.0, 200.0), 1),
+            (Rect::new(900.0, 100.0, 300.0, 200.0), 1),
+            (Rect::new(700.0, 100.0, 300.0, 200.0), 0),
+        ] {
+            assert_eq!(
+                screen_holding(&screens, frame),
+                Some(screens[index]),
+                "{frame:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_window_off_every_screen_falls_back_to_the_first() {
+        let screens = [screen(LEFT), screen(RIGHT)];
+        assert_eq!(
+            screen_holding(&screens, Rect::new(5000.0, 5000.0, 300.0, 200.0)),
+            Some(screens[0])
+        );
+    }
+
+    #[test]
+    fn a_window_without_area_is_held_by_the_screen_at_its_centre() {
+        let screens = [screen(LEFT), screen(RIGHT)];
+        assert_eq!(
+            screen_holding(&screens, Rect::new(1500.0, 100.0, 0.0, 0.0)),
+            Some(screens[1])
+        );
+    }
+
+    #[test]
+    fn no_screens_hold_no_window() {
+        assert_eq!(screen_holding(&[], LEFT), None);
+    }
+
+    #[test]
+    fn a_presentation_covers_the_whole_frame_not_the_visible_area() {
+        let with_menu_bar = Screen {
+            frame: Rect::new(0.0, 0.0, 1440.0, 900.0),
+            visible: Rect::new(0.0, 0.0, 1440.0, 875.0),
+        };
+        assert_eq!(presentation_frame(with_menu_bar), with_menu_bar.frame);
+    }
+
+    #[test]
+    fn leaving_a_presentation_on_a_present_screen_restores_the_normal_frame_exactly() {
+        let normal = Rect::new(123.5, 45.25, 601.0, 333.0);
+        let presentation = presenting_on(RIGHT, normal);
+        let screens = [screen(LEFT), screen(RIGHT)];
+        assert_eq!(exit_frame(&presentation, &screens), normal);
+    }
+
+    #[test]
+    fn leaving_a_presentation_whose_screen_is_gone_moves_the_frame_onto_the_remaining_one() {
+        let presentation = presenting_on(RIGHT, Rect::new(1100.0, 100.0, 600.0, 400.0));
+        assert_eq!(
+            exit_frame(&presentation, &[screen(LEFT)]),
+            Rect::new(100.0, 100.0, 600.0, 400.0)
+        );
+    }
+
+    #[test]
+    fn leaving_a_presentation_whose_screen_is_gone_shrinks_the_frame_to_the_remaining_one() {
+        let presentation = presenting_on(RIGHT, Rect::new(1100.0, 100.0, 600.0, 400.0));
+        assert_eq!(exit_frame(&presentation, &[screen(SMALL)]), SMALL);
+    }
+
+    #[test]
+    fn leaving_a_presentation_without_screens_keeps_the_normal_frame() {
+        let normal = Rect::new(1100.0, 100.0, 600.0, 400.0);
+        assert_eq!(exit_frame(&presenting_on(RIGHT, normal), &[]), normal);
+    }
+
+    #[test]
+    fn a_refit_on_the_same_screen_changes_nothing() {
+        let presentation = presenting_on(LEFT, Rect::new(100.0, 100.0, 600.0, 400.0));
+        let screens = [screen(LEFT), screen(RIGHT)];
+        assert_eq!(refit(&presentation, &screens, LEFT), Some(presentation));
+    }
+
+    #[test]
+    fn a_larger_resolution_carries_the_normal_frame_to_the_new_screen() {
+        let presentation = presenting_on(LEFT, Rect::new(100.0, 100.0, 600.0, 400.0));
+        let bigger = Rect::new(0.0, 0.0, 2000.0, 1600.0);
+        assert_eq!(
+            refit(&presentation, &[screen(bigger)], LEFT),
+            Some(Presentation {
+                normal: Rect::new(350.0, 300.0, 600.0, 400.0),
+                screen: screen(bigger),
+            })
+        );
+    }
+
+    #[test]
+    fn a_smaller_resolution_shrinks_the_normal_frame_to_the_new_screen() {
+        let presentation = presenting_on(LEFT, Rect::new(100.0, 100.0, 600.0, 400.0));
+        assert_eq!(
+            refit(&presentation, &[screen(SMALL)], LEFT),
+            Some(Presentation {
+                normal: SMALL,
+                screen: screen(SMALL),
+            })
+        );
+    }
+
+    #[test]
+    fn a_refit_after_the_screen_is_gone_moves_to_the_remaining_screen() {
+        let presentation = presenting_on(RIGHT, Rect::new(1100.0, 100.0, 600.0, 400.0));
+        assert_eq!(
+            refit(&presentation, &[screen(LEFT)], RIGHT),
+            Some(Presentation {
+                normal: Rect::new(100.0, 100.0, 600.0, 400.0),
+                screen: screen(LEFT),
+            })
+        );
+    }
+
+    #[test]
+    fn a_refit_without_screens_ends_with_nothing() {
+        let presentation = presenting_on(LEFT, Rect::new(100.0, 100.0, 600.0, 400.0));
+        assert_eq!(refit(&presentation, &[], LEFT), None);
     }
 
     #[test]

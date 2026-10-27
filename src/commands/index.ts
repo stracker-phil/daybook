@@ -18,8 +18,8 @@ import { activeScopes, registerScope } from "./scopes";
 export * from "./registry";
 export * from "./scopes";
 
-/** The window this page runs in: the Daybook window (`main`) or Settings. */
-export type WindowName = "main" | "settings";
+/** The window this page runs in: the Daybook window (`main`), Settings or the quick-notes editor. */
+export type WindowName = "main" | "settings" | "quicknotes";
 
 let currentWindow: WindowName = "main";
 
@@ -28,6 +28,7 @@ export function registerCoreScopes() {
   registerScope({ id: "global", parent: null, label: "Every window", isActive: () => true });
   // Settings lists the Daybook window's keys without running them.
   registerScope({ id: "hub", parent: "global", label: "Daybook window", isActive: () => currentWindow === "main" });
+  registerScope({ id: "quickNotes", parent: "global", label: "Quick notes editor", isActive: () => currentWindow === "quicknotes" });
 }
 
 function saveTextSize(textSize: TextSize) {
@@ -59,6 +60,17 @@ function closeWindow() {
 
 const notTyping = () => !isTextInput(document.activeElement);
 
+let quickNoteLoaded = false;
+
+/** The quick-notes editor reports whether a note is open, which `quickNotes.present` needs. */
+export function setQuickNoteLoaded(loaded: boolean) {
+  quickNoteLoaded = loaded;
+}
+
+function presentQuickNote() {
+  void api.runCommand("notes:present").catch((e) => fail(e, "Could not present the note"));
+}
+
 /** The day before or after the shown one that has a note; nothing at either end. */
 function stepDay(direction: "previousDay" | "nextDay") {
   const { hub, showDay } = useStore.getState();
@@ -74,6 +86,7 @@ const APP_COMMANDS: Command[] = [
   { id: "day.next", title: "Next day with a note", scope: "hub", defaultBinding: "N", when: notTyping, run: () => stepDay("nextDay") },
   { id: "day.today", title: "Back to today", scope: "hub", defaultBinding: "O", when: notTyping, run: () => useStore.getState().showDay(null) },
   { id: "inspector.toggle", title: "Toggle inspector", scope: "hub", defaultBinding: "Mod+Ctrl+I", run: () => useStore.getState().toggleInspector() },
+  { id: "quickNotes.present", title: "Present quick note", scope: "quickNotes", defaultBinding: "Mod+Alt+P", when: () => quickNoteLoaded, run: presentQuickNote },
   { id: "window.close", title: "Close window", scope: "global", defaultBinding: "Escape", when: notTyping, run: closeWindow },
   { id: "zoom.in", title: "Larger text", scope: "global", defaultBinding: "Mod+=", run: () => zoomText(1) },
   { id: "zoom.out", title: "Smaller text", scope: "global", defaultBinding: "Mod+-", run: () => zoomText(-1) },

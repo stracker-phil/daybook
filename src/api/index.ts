@@ -33,6 +33,7 @@ import type {
   NotePreview,
   PanelSession,
   QuickNote,
+  QuickNotePresentation,
   QuickNoteSaved,
   QuickNoteTopics,
   RailPoint,
@@ -172,6 +173,8 @@ export const api = {
   quickNoteSave: (topic: NoteSectionRef, newTitle: string, body: string, base: string) =>
     invoke<QuickNoteSaved>("quick_note_save", { topic, newTitle, body, base }),
   quickNotesClose: () => invoke<void>("quick_notes_close"),
+  /** Whether the editor is presenting now, for a page that (re)loads. */
+  quickNotesPresentation: () => invoke<QuickNotePresentation>("quick_notes_presentation"),
   /** Search results for `text` (words, "phrases", `@scope`) within the chosen scopes; empty without words. */
   searchQuery: (text: string, scopes: string[]) => invoke<SearchResponse>("search_query", { text, scopes }),
   /** The scope names search knows (settings order, then `all`) and what is wrong with the settings' scopes. */
@@ -287,6 +290,9 @@ export const api = {
     listen<PanelSession | null>("panel_session", (e) => handler(e.payload)),
   /** To the quick-notes editor: another topic was chosen. */
   onQuickNoteTarget: (handler: () => void): Promise<UnlistenFn> => listen("quick_note_target", handler),
+  /** To the quick-notes editor: presentation started or ended. */
+  onQuickNotePresentation: (handler: (presentation: QuickNotePresentation) => void): Promise<UnlistenFn> =>
+    listen<QuickNotePresentation>("quick_note_presentation", (e) => handler(e.payload)),
   /** To the rail page: its buttons, the status or the rail settings changed. */
   onRailModel: (handler: (model: RailModel) => void): Promise<UnlistenFn> => listen<RailModel>("rail_model", (e) => handler(e.payload)),
   /** To the rail page: it slid in or out, changed sides or became sticky. */

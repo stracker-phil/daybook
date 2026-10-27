@@ -1,11 +1,12 @@
 //! The quick-notes editor window: small, floating, its own page. Built on first use and hidden on close;
-//! unlike the overlay it stays open when it loses focus. Closing keeps its frame for the next start.
+//! unlike the overlay it stays open when it loses focus. Closing ends a presentation and keeps the
+//! normal frame for the next start.
 
 use tauri::{
     AppHandle, Emitter, LogicalPosition, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
 };
 
-use super::native;
+use super::{native, presentation};
 use crate::events::QUICK_NOTE_TARGET_EVENT;
 use crate::quick_notes::Frame;
 use crate::state::AppState;
@@ -50,14 +51,26 @@ fn current_frame(window: &WebviewWindow) -> Option<Frame> {
     })
 }
 
+/// The main screen's height in points, which turns Cocoa frames into top-left ones.
+fn main_height(window: &WebviewWindow) -> Option<f64> {
+    let monitor = window.primary_monitor().ok()??;
+    Some(f64::from(monitor.size().height) / monitor.scale_factor())
+}
+
 fn remember_frame(app: &AppHandle) {
-    if let Some(frame) = app
-        .get_webview_window(LABEL)
-        .as_ref()
-        .and_then(current_frame)
-    {
-        app.state::<AppState>().quick_notes.set_frame(frame);
-    }
+    let Some(window) = app.get_webview_window(LABEL) else {
+        return;
+    };
+    let Some(current) = current_frame(&window) else {
+        return;
+    };
+    let quick_notes = &app.state::<AppState>().quick_notes;
+    let frame = match main_height(&window) {
+        Some(height) => quick_notes.frame_to_remember(current, height),
+        None if quick_notes.presenting() => return,
+        None => current,
+    };
+    quick_notes.set_frame(frame);
 }
 
 fn find_or_build(app: &AppHandle) -> Option<WebviewWindow> {
@@ -88,12 +101,17 @@ pub fn focus(app: &AppHandle) {
 
 fn show(app: &AppHandle, window: WebviewWindow) {
     let shown = app.run_on_main_thread(move || {
-        if let Ok(ns_window) = window.ns_window() {
+        let ns_window = window.ns_window().ok();
+        if let Some(ns_window) = ns_window {
             // SAFETY: run_on_main_thread runs this on the main thread; the window is alive.
             unsafe { native::move_to_active_space(ns_window) };
         }
         // Failing only means the window is gone.
         let _ = window.show();
+        if let Some(ns_window) = ns_window {
+            // SAFETY: as above.
+            unsafe { presentation::reassert(&window, ns_window) };
+        }
         super::bring_to_front(&window);
     });
     if let Err(e) = shown {
@@ -105,7 +123,17 @@ pub fn visible(app: &AppHandle) -> bool {
     super::is_visible(app, LABEL)
 }
 
+/// `notes:present`: brings the open editor forward, then starts or ends presenting.
+pub fn toggle_presentation(app: &AppHandle) {
+    if !visible(app) {
+        return;
+    }
+    focus(app);
+    presentation::toggle(app);
+}
+
 pub fn hide(app: &AppHandle) {
+    presentation::end(app);
     remember_frame(app);
     super::hide_regular(app, LABEL);
 }

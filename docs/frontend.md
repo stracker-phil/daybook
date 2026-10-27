@@ -161,13 +161,15 @@ title, scope, defaultBinding?, when?, run }`; `when` false means the command doe
 
 The core's are `APP_COMMANDS` (`commands/index.ts`). Every window registers all of them, so Settings can list
 them; the scope keeps a key to its window: `global` (label "Every window") is active everywhere, `hub`
-("Daybook window", a child of `global`) only in the Daybook window (`installCommands("main")`).
+("Daybook window", a child of `global`) only in the Daybook window (`installCommands("main")`), `quickNotes`
+("Quick notes editor", a child of `global`) only in the editor (`installCommands("quicknotes")`).
 
 | Id | Title | Scope | Default |
 |---|---|---|---|
 | `shortcuts.show` | Keyboard shortcuts (opens the overview of the active scopes; pressed again it closes it) | hub | ⇧? |
 | `sidebar.toggle` | Toggle sidebar (`toggleSidebar`) | hub | ⌘⌃S |
 | `inspector.toggle` | Toggle inspector (`toggleInspector`) | hub | ⌘⌃I |
+| `quickNotes.present` | Present quick note (runs `notes:present`; while a note is loaded, `setQuickNoteLoaded`) | quickNotes | ⌘⌥P |
 | `day.previous`, `day.next`, `day.today` | Previous / next day with a note, back to today (`showDay`; not while typing) | hub | P N O |
 | `window.close` | Close window (runs `window:close`; not while a text field has the focus) | global | Escape |
 | `zoom.in`, `zoom.out` | Larger text, Smaller text (step through `TEXT_SIZES`, saved quietly; past either end nothing changes) | global | ⌘= ⌘- |

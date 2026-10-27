@@ -227,6 +227,7 @@ around it.
 | `quick_note_get` | – | `QuickNote \| null`: the editor's topic and its text | `invalid_input`, `io` |
 | `quick_note_save` | `topic`, `newTitle` (empty keeps it), `body`, `base` | `QuickNoteSaved`: `saved { topic }` (its heading now) or `changed { note }` | `invalid_input` (bad topic or title, over 200 000 characters, no vault), `io` |
 | `quick_notes_close` | – | – (hides the editor, keeping its frame) | – |
+| `quick_notes_presentation` | – | `QuickNotePresentation { presenting }` (the event `quick_note_presentation` carries the same on every change; [windows.md](windows.md#quick-notes-editor)) | – |
 | `vault_info` | – | `VaultInfo` (`DailyNotes::info`, for Settings → Vault): the `DailyNoteFormat` in use (`null` without a vault), today's note path and whether it exists, the Obsidian CLI's path | – |
 | `dev_edit_today_note` (debug builds, `dev.rs`) | `op: NoteOp` | `WriteOutcome` | as `edit_today` |
 

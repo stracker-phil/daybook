@@ -386,6 +386,12 @@ instead ("Changed in the note meanwhile: your text isn't saved.") and the text s
 copies it to the clipboard and shows the note's text. Neither side is overwritten. Esc saves and closes; it
 stays open when another app takes focus.
 
+**Presentation** (⌘⌥P in the editor, again or Esc to leave): the editor fills the screen it is on, without title
+strip or window buttons, the text in the sans font, `--text-strong` on `--bg`, every line centred and the block
+centred vertically. The text starts at 156 pt and shrinks as it grows, down to 42 pt, then scrolls
+(`DEFAULT_PRESENTATION_FONT` in `presentation.ts`; `fitFontSize` measures a hidden copy of the text). Typing
+saves as before; only an error or the "changed" notice shows, small at the bottom. Nothing animates.
+
 **Other days.** ‹ › (or P, N) show the closest day with a daily note, O and "Back to Today" return; today always
 counts. Another day is read-only: its title is the day's name, there is no reminder, the focus list and the
 chips don't open overlays, and the date and note topics open that day's note. Commands, keys and overlays always

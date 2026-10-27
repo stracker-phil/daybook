@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { api, toAppError } from "../../api";
+import { installCommands } from "../../commands";
 import { ErrorBoundary } from "../../components/ErrorBoundary";
 import { installNativeMenuGuard } from "../../lib/nativeMenu";
 import { applyInitialLook } from "../../lib/theme";
@@ -9,6 +10,7 @@ import "./quicknotes.css";
 import { QuickNotesApp } from "./QuickNotesApp";
 import { installStageHooks } from "../../stage/hooks";
 
+installCommands("quicknotes");
 applyInitialLook();
 void installStageHooks("quick-notes");
 installNativeMenuGuard();

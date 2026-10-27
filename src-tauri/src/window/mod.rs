@@ -1,11 +1,12 @@
 //! The app's windows: the Daybook window here, Settings in `settings`, the overlay panel in `panel`, the
-//! quick-notes editor in `quick_notes`, and the native window behaviour they share (`display`,
-//! `front_app`, `native`).
+//! quick-notes editor in `quick_notes` (presenting in `presentation`), and the native window behaviour
+//! they share (`display`, `front_app`, `native`).
 
 pub mod display;
 pub mod front_app;
 pub(crate) mod native;
 pub mod panel;
+pub mod presentation;
 pub mod quick_notes;
 pub mod settings;
 

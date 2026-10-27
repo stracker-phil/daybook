@@ -52,6 +52,8 @@ notification (`notify.rs`). The managed `bus::Commands` holds the app's bus, fil
 | `routine:<routine>` | Open a routine | family; needs a vault; choices: the current context's routines; adds the day's items to the note and shows the wizard overlay ([routines.md](routines.md)) |
 | `notes:quick` | Quick Notes… | needs a vault; the topic picker overlay, or brings an open editor forward ([vault.md](vault.md#quick-notes)) |
 | `notes:topic:<level>:<title>` | Write a topic of today's notes | family; needs a vault; choices: today's topics; opens the editor on it |
+| `notes:present` | Present Quick Note | while the editor is open; brings it forward and toggles presentation (⌘⌥P in the editor; `COMMAND_SHORTCUTS` `alt+cmd+p` for Stage) |
+| `notes:endPresentation` | End Quick Note Presentation | hidden; Esc while presenting; nothing when not presenting |
 | `search:open` | Search Vault… | needs a vault; the `search` overlay with the context's default scope ([search.md](search.md)) |
 | `search:scope:<scope>` | Search Vault… in one scope | family; needs a vault; choices: the resolved scopes (`Search Vault: <scope>`) |
 | `links:open` | Links… | the `links` overlay |

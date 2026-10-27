@@ -98,6 +98,8 @@ const BASE_EXTENSIONS: Extension[] = [
 
 export interface MarkdownEditorHandle {
   focus: () => void;
+  /** Re-reads the text's size after a CSS change, such as the presentation font size. */
+  requestMeasure: () => void;
 }
 
 /**
@@ -141,7 +143,7 @@ export function MarkdownEditor({ value, documentKey, onChange, ref }: { value: s
     editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: value }, annotations: external.of(true) });
   }, [value]);
 
-  useImperativeHandle(ref, () => ({ focus: () => view.current?.focus() }), []);
+  useImperativeHandle(ref, () => ({ focus: () => view.current?.focus(), requestMeasure: () => view.current?.requestMeasure() }), []);
 
   return <div ref={parent} className="quick-note-editor" data-stage="quick-notes:editor" data-stage-label="Quick notes editor" />;
 }

@@ -20,6 +20,8 @@ pub const DAYBOOK: MenuKey = key("hub:open", "cmd+0");
 pub const CLOSE: MenuKey = key("window:close", "cmd+w");
 /// The Daybook window's own key (its page binds `inspector.toggle`); not in the app menu.
 pub const INSPECTOR: MenuKey = key("view:toggleInspector", "ctrl+cmd+i");
+/// The quick-notes editor's own key (its page binds `quickNotes.present`); not in the app menu.
+pub const PRESENT_QUICK_NOTE: MenuKey = key("notes:present", "alt+cmd+p");
 
 pub const MENU_KEYS: [&MenuKey; 7] = [
     &SETTINGS,
@@ -31,9 +33,10 @@ pub const MENU_KEYS: [&MenuKey; 7] = [
     &CLOSE,
 ];
 
-/// Every key that runs a command while a Daybook window is in front: the menu's and the inspector's.
+/// Every key that runs a command while a Daybook window is in front: the menu's, the inspector's and
+/// the quick-notes editor's.
 /// Stage presses them by running the command, since a synthetic key press never reaches the menu.
-pub const COMMAND_SHORTCUTS: [&MenuKey; 8] = [
+pub const COMMAND_SHORTCUTS: [&MenuKey; 9] = [
     &SETTINGS,
     &CLOSE_WITH_Q,
     &PALETTE,
@@ -42,4 +45,5 @@ pub const COMMAND_SHORTCUTS: [&MenuKey; 8] = [
     &DAYBOOK,
     &CLOSE,
     &INSPECTOR,
+    &PRESENT_QUICK_NOTE,
 ];

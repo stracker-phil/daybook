@@ -1,6 +1,7 @@
 //! Quick notes (docs/ux.md#quick-notes): pick or name a topic below the notes heading of today's note,
 //! then write it in the editor window. A save never overwrites a change made in the note meanwhile.
 
+pub mod presentation;
 pub mod topic;
 
 use std::path::Path;
@@ -24,6 +25,7 @@ use crate::vault::ops::notes::{
 };
 use crate::vault::ops::{NoteLayout, NoteOp};
 use crate::window;
+use crate::window::display::Presentation;
 use topic::TopicRow;
 
 const PICKER: &str = "quicknotes";
@@ -44,10 +46,12 @@ struct Stored {
     frame: Option<Frame>,
 }
 
-/// The topic the editor shows, and the editor's frame (`quick_notes.json`).
+/// The topic the editor shows, the editor's frame (`quick_notes.json`) and, in memory only, its
+/// presentation.
 pub struct QuickNotes {
     target: Mutex<Option<NoteSectionRef>>,
     stored: JsonStore<Stored>,
+    presentation: Mutex<Option<Presentation>>,
 }
 
 impl QuickNotes {
@@ -55,6 +59,7 @@ impl QuickNotes {
         Self {
             target: Mutex::default(),
             stored: JsonStore::open(config_dir.join("quick_notes.json")),
+            presentation: Mutex::default(),
         }
     }
 
@@ -302,6 +307,7 @@ pub fn register(bus: &mut CommandBus<AppHandle>) {
                 Ok(())
             }),
     );
+    presentation::register(bus);
     bus.add_family(
         Command::new("notes:topic:", "Write a topic of today's notes")
             .needs_vault()

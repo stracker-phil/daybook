@@ -1,7 +1,11 @@
 //! AppKit calls the window layer needs and Tauri doesn't offer: screens and the pointer, window frames,
-//! the app in front, and activating or hiding apps. Every function runs on the main thread.
+//! levels and buttons, screen changes, the app in front, and activating or hiding apps. Every function
+//! runs on the main thread.
 
 use std::ffi::c_void;
+use std::ptr::NonNull;
+
+use block2::RcBlock;
 
 use objc2::rc::Retained;
 use objc2::runtime::AnyObject;
@@ -9,7 +13,7 @@ use objc2::{class, msg_send};
 use objc2_app_kit::{NSApplicationActivationOptions, NSRunningApplication, NSWorkspace};
 use objc2_core_foundation::CFArray;
 use objc2_core_graphics::{CGWindowListCopyWindowInfo, CGWindowListOption, kCGNullWindowID};
-use objc2_foundation::{NSPoint, NSRect, NSSize, NSString};
+use objc2_foundation::{NSNotification, NSNotificationCenter, NSPoint, NSRect, NSSize, NSString};
 
 use super::display::{Rect, Screen, frame_on_display, screen_at};
 use super::front_app::FrontApp;
@@ -108,6 +112,72 @@ pub unsafe fn move_to_pointer_screen(ns_window: *mut c_void) {
     let moved = frame_on_display(current, from.visible, target.visible);
     // SAFETY: as above.
     unsafe { set_frame(ns_window, moved) };
+}
+
+/// Above the menu bar and Dock of its screen (`NSMainMenuWindowLevel + 1`), else floating.
+///
+/// # Safety
+/// `ns_window` is a live `NSWindow`, on the main thread.
+pub unsafe fn set_above_menu_bar(ns_window: *mut c_void, above: bool) {
+    const FLOATING: isize = 3;
+    const MAIN_MENU: isize = 24;
+    let level = if above { MAIN_MENU + 1 } else { FLOATING };
+    // SAFETY: plain NSWindow setter.
+    unsafe {
+        let _: () = msg_send![window(ns_window), setLevel: level];
+    }
+}
+
+/// Hides or shows the close, minimize and zoom buttons.
+///
+/// # Safety
+/// `ns_window` is a live `NSWindow`, on the main thread.
+pub unsafe fn set_window_buttons_hidden(ns_window: *mut c_void, hidden: bool) {
+    const CLOSE: usize = 0;
+    const MINIATURIZE: usize = 1;
+    const ZOOM: usize = 2;
+    for kind in [CLOSE, MINIATURIZE, ZOOM] {
+        // SAFETY: `standardWindowButton:` takes an NSWindowButton and may return nil.
+        unsafe {
+            let button: Option<Retained<AnyObject>> =
+                msg_send![window(ns_window), standardWindowButton: kind];
+            if let Some(button) = button {
+                let _: () = msg_send![&button, setHidden: hidden];
+            }
+        }
+    }
+}
+
+/// Turns resizing by the window edges on or off.
+///
+/// # Safety
+/// `ns_window` is a live `NSWindow`, on the main thread.
+pub unsafe fn set_resizable(ns_window: *mut c_void, resizable: bool) {
+    const RESIZABLE: usize = 1 << 3;
+    // SAFETY: plain NSWindow getter and setter of the style mask.
+    unsafe {
+        let mask: usize = msg_send![window(ns_window), styleMask];
+        let mask = if resizable {
+            mask | RESIZABLE
+        } else {
+            mask & !RESIZABLE
+        };
+        let _: () = msg_send![window(ns_window), setStyleMask: mask];
+    }
+}
+
+/// Calls `on_change` on the main thread whenever screens are added, removed or rearranged, or change
+/// resolution; for the app's lifetime.
+pub fn on_screen_change(on_change: impl Fn() + 'static) {
+    let center = NSNotificationCenter::defaultCenter();
+    let name = NSString::from_str("NSApplicationDidChangeScreenParametersNotification");
+    let block = RcBlock::new(move |_: NonNull<NSNotification>| on_change());
+    // SAFETY: the block lives as long as the observer, which is never removed.
+    let observer = unsafe {
+        center.addObserverForName_object_queue_usingBlock(Some(&name), None, None, &block)
+    };
+    // Kept for the app's lifetime.
+    std::mem::forget(observer);
 }
 
 fn shared_application() -> Retained<AnyObject> {

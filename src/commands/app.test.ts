@@ -1,12 +1,12 @@
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../api", async (orig) => ({ ...(await orig<object>()), api: (await import("../test/apiMock")).createApiMock() }));
 
 import { api, DEFAULT_TEXT_SIZE, type HubView } from "../api";
 import { resetStore, useStore } from "../state/store";
 import { settings } from "../test/settings";
-import { handleKeydown, installCommands, runCommand } from "./index";
+import { handleKeydown, installCommands, runCommand, setQuickNoteLoaded } from "./index";
 import { allCommands, bindingFor } from "./registry";
 
 const mocked = vi.mocked(api, true);
@@ -30,7 +30,7 @@ describe("app commands", () => {
   });
 
   it("registers only the window's own commands", () => {
-    expect(allCommands().map((c) => c.id).sort()).toEqual(["day.next", "day.previous", "day.today", "inspector.toggle", "shortcuts.show", "sidebar.toggle", "window.close", "zoom.in", "zoom.out", "zoom.reset"]);
+    expect(allCommands().map((c) => c.id).sort()).toEqual(["day.next", "day.previous", "day.today", "inspector.toggle", "quickNotes.present", "shortcuts.show", "sidebar.toggle", "window.close", "zoom.in", "zoom.out", "zoom.reset"]);
   });
 
   it.each(["app.settings", "palette.toggle", "app.background", "app.quit", "settings.toggle"])("has no %s command", (id) => {
@@ -130,6 +130,55 @@ describe("app commands", () => {
       await press("p");
       input.remove();
       expect(mocked.hubView).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("quickNotes.present", () => {
+    const PRESENT_KEYS = { key: "π", code: "KeyP", metaKey: true, altKey: true, bubbles: true };
+
+    function pressPresent() {
+      window.addEventListener("keydown", handleKeydown, true);
+      try {
+        window.dispatchEvent(new KeyboardEvent("keydown", PRESENT_KEYS));
+      } finally {
+        window.removeEventListener("keydown", handleKeydown, true);
+      }
+    }
+
+    afterEach(() => {
+      setQuickNoteLoaded(false);
+      installCommands("main");
+    });
+
+    it("is bound to ⌘⌥P", () => {
+      expect(bindingFor("quickNotes.present")).toBe("Mod+Alt+P");
+    });
+
+    it("asks Rust to present the note on ⌘⌥P in the quick-notes editor", () => {
+      installCommands("quicknotes");
+      setQuickNoteLoaded(true);
+      pressPresent();
+      expect(mocked.runCommand).toHaveBeenCalledWith("notes:present");
+    });
+
+    it("does nothing on ⌘⌥P while no note is loaded", () => {
+      installCommands("quicknotes");
+      pressPresent();
+      expect(mocked.runCommand).not.toHaveBeenCalled();
+    });
+
+    it("does nothing on ⌘⌥P in the Daybook window, even with a note loaded", () => {
+      setQuickNoteLoaded(true);
+      pressPresent();
+      expect(mocked.runCommand).not.toHaveBeenCalled();
+    });
+
+    it("toasts when Rust cannot present the note", async () => {
+      installCommands("quicknotes");
+      setQuickNoteLoaded(true);
+      mocked.runCommand.mockRejectedValueOnce({ kind: "io", message: "No window", code: null });
+      pressPresent();
+      await vi.waitFor(() => expect(useStore.getState().toasts.map((t) => t.message).join()).toContain("No window"));
     });
   });
 
