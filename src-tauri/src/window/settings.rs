@@ -11,7 +11,7 @@ pub const LABEL: &str = "settings";
 
 /// Every Settings page, in the page list's order: the ids `settings:<page>` opens and the palette lists.
 /// The page registers its body under the same id (`src/components/settings/pages.tsx`).
-pub const PAGES: [(&str, &str); 19] = [
+pub const PAGES: [(&str, &str); 20] = [
     ("vault", "Vault"),
     ("calendar", "Calendar"),
     ("slack", "Slack"),
@@ -29,6 +29,7 @@ pub const PAGES: [(&str, &str); 19] = [
     ("music", "Music"),
     ("general", "General"),
     ("tools", "Tools"),
+    ("rail", "Rail"),
     ("shortcuts", "Shortcuts"),
     ("appearance", "Appearance"),
 ];

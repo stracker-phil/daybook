@@ -1,13 +1,18 @@
 //! What each tool lets you pick directly, as plain data.
 
 use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, percent_decode_str, utf8_percent_encode};
+use serde::Serialize;
+use ts_rs::TS;
 
 use super::state::{LinkItem, Progress, Status, ToolState};
 use crate::contexts::context_title;
 use crate::launcher::open_command;
 use crate::store::settings::{Feature, ToolId};
 
-#[derive(Clone, Debug, PartialEq)]
+/// The rail's tooltip lists them as they serialize.
+#[derive(Serialize, Clone, Debug, PartialEq, TS)]
+#[ts(export, export_to = "src/api/types.gen.ts")]
+#[serde(tag = "kind", rename_all = "camelCase")]
 pub enum Choice {
     Item {
         label: String,
@@ -16,7 +21,9 @@ pub enum Choice {
         /// Some for a pick among several (a radio item); `true` marks the current one.
         checked: Option<bool>,
     },
-    Heading(String),
+    Heading {
+        label: String,
+    },
     Separator,
     /// A scale such as the volume: one step is active.
     Steps {
@@ -25,7 +32,8 @@ pub enum Choice {
     },
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Serialize, Clone, Debug, PartialEq, TS)]
+#[ts(export, export_to = "src/api/types.gen.ts", rename = "ChoiceStep")]
 pub struct Step {
     pub label: String,
     pub command: String,
@@ -38,6 +46,12 @@ fn item(label: impl Into<String>, command: impl Into<String>) -> Choice {
         command: command.into(),
         detail: None,
         checked: None,
+    }
+}
+
+fn heading(label: impl Into<String>) -> Choice {
+    Choice::Heading {
+        label: label.into(),
     }
 }
 
@@ -64,12 +78,9 @@ fn sections(
     if first.is_empty() || second.is_empty() {
         return [first, second].concat();
     }
-    let mut choices: Vec<Choice> = first_heading
-        .map(|h| Choice::Heading(h.into()))
-        .into_iter()
-        .collect();
+    let mut choices: Vec<Choice> = first_heading.map(heading).into_iter().collect();
     choices.extend(first);
-    choices.push(Choice::Heading(second_heading.into()));
+    choices.push(heading(second_heading));
     choices.extend(second);
     choices
 }
@@ -169,7 +180,7 @@ fn project_choices(state: &ToolState) -> Vec<Choice> {
         .projects
         .iter()
         .flat_map(|group| {
-            std::iter::once(Choice::Heading(group.project.clone()))
+            std::iter::once(heading(&group.project))
                 .chain(group.projects.iter().map(|p| open(&p.id, &p.name)))
         })
         .collect()
@@ -341,7 +352,7 @@ mod tests {
             .iter()
             .map(|choice| match choice {
                 Choice::Separator => "—".to_string(),
-                Choice::Heading(label) => format!("[{label}]"),
+                Choice::Heading { label } => format!("[{label}]"),
                 Choice::Item { label, .. } | Choice::Steps { label, .. } => label.clone(),
             })
             .collect()
@@ -470,7 +481,7 @@ mod tests {
                 picked("Dawn", "journal:open:Dawn", Some("Done"), None),
                 picked("Notiz", "journal:open:Notiz", None, None),
                 picked("Dusk", "journal:open:Dusk", Some("1/4"), None),
-                Choice::Heading("Routines".into()),
+                heading("Routines"),
                 picked("Wrap-up", "routine:wrap", Some("1/3"), None),
             ]
         );
@@ -546,9 +557,9 @@ mod tests {
         assert_eq!(
             choices,
             vec![
-                Choice::Heading("Now".into()),
+                heading("Now"),
                 picked("Board", "link:https%3A%2F%2Fboard", None, None),
-                Choice::Heading("More".into()),
+                heading("More"),
                 picked("Wiki", "link:https%3A%2F%2Fwiki", Some("Oscorp"), None),
             ]
         );
@@ -714,7 +725,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            choice_commands(&[Choice::Heading("x".into()), Choice::Separator]),
+            choice_commands(&[heading("x"), Choice::Separator]),
             Vec::<String>::new()
         );
     }
@@ -797,6 +808,58 @@ mod tests {
         assert_eq!(
             choice_commands(&tool_choices(ToolId::QuickNotes, &state)),
             ["notes:topic:3:Daily", "notes:topic:2:Ideas"]
+        );
+    }
+
+    #[test]
+    fn choices_serialize_with_their_kind_as_tag() {
+        let choices = vec![
+            heading("Now"),
+            picked("Pause", "music:toggle", Some("Playing"), Some(true)),
+            Choice::Separator,
+            Choice::Steps {
+                label: "Volume: 50 %".into(),
+                steps: vec![Step {
+                    label: "50".into(),
+                    command: "music:volume:50".into(),
+                    active: true,
+                }],
+            },
+        ];
+        assert_eq!(
+            serde_json::to_value(&choices).expect("serializes"),
+            serde_json::json!([
+                { "kind": "heading", "label": "Now" },
+                {
+                    "kind": "item",
+                    "label": "Pause",
+                    "command": "music:toggle",
+                    "detail": "Playing",
+                    "checked": true,
+                },
+                { "kind": "separator" },
+                {
+                    "kind": "steps",
+                    "label": "Volume: 50 %",
+                    "steps": [
+                        { "label": "50", "command": "music:volume:50", "active": true },
+                    ],
+                },
+            ])
+        );
+    }
+
+    #[test]
+    fn an_item_without_detail_or_pick_state_serializes_them_as_null() {
+        assert_eq!(
+            serde_json::to_value(item("Board", "link:x")).expect("serializes"),
+            serde_json::json!({
+                "kind": "item",
+                "label": "Board",
+                "command": "link:x",
+                "detail": null,
+                "checked": null,
+            })
         );
     }
 }

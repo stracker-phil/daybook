@@ -385,6 +385,18 @@ work on today; the open todos are the same on every day. The board's last sectio
 ("Today's notes", or "Notes") with "Open in Obsidian" in its header: today a row opens its topic in the quick
 notes editor ("Write a note…" while there is none), another day's opens the note at it.
 
+## The rail
+
+A slim bar at the screen edge (`src/windows/rail/`) shows when the pointer rests at the edge for the show delay,
+or on `rail:toggle`, and hides after the pointer leaves; it never takes focus. From the top: the context's badge,
+the status dot (break minutes as its caption), then the tools in their order with short captions (journal "0/6",
+the link count), the call button when a call runs. Shapes: pill (a rounded bar with one gliding hover
+highlight), docked (flush with the edge) or floating (round buttons that grow on hover); sizes compact, regular
+and large; light, dark or the system look. Hovering shows a tooltip card beside the bar (`src/windows/railtip/`):
+the label, the key caps, a detail line and, for tools with choices, a menu (contexts, playlists, links) that can
+be clicked while the pointer stays on the card. Settings → Rail holds the edges, trigger, delays, look and
+tooltips; Settings → Tools chooses which tools it shows.
+
 ## Contexts
 
 Each context has a colour (Settings → Contexts). `styles/context.css` turns `data-context="<colour>"` on any

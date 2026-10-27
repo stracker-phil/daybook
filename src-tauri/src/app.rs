@@ -13,7 +13,7 @@ use crate::state::AppState;
 use crate::store::import::Import;
 use crate::{
     bus, calendar, calls, commands, contexts, deep_link, focus, ipc, jira, journal, launcher,
-    links, menu, music, notify, presence, quick_notes, remote, routines, scheduler, search,
+    links, menu, music, notify, presence, quick_notes, rail, remote, routines, scheduler, search,
     shortcuts, slack, status, status_rules, tray, vault, window, wizard,
 };
 
@@ -36,6 +36,7 @@ pub fn start(
         .manage(presence::Presence::default())
         .manage(slack::Slack::default())
         .manage(music::Music::default())
+        .manage(rail::RailState::default())
         .manage(commands_bus())
         .manage(shortcuts::Pause::default())
         .manage(tray::Shown::default())
@@ -80,6 +81,7 @@ pub fn start(
             status_rules::start(app.handle());
             notify::install(app.handle());
             window::panel::build(app.handle())?;
+            rail::install(app.handle());
             #[cfg(debug_assertions)]
             apply_dev_frame(app);
             start_ipc(app.handle().clone(), &socket);
@@ -119,6 +121,7 @@ fn commands_bus() -> bus::Commands {
     jira::register(&mut commands);
     launcher::register(&mut commands);
     music::register(&mut commands);
+    rail::register(&mut commands);
     bus::Commands(commands)
 }
 

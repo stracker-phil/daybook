@@ -1,5 +1,5 @@
 /** The core settings pages. Modules register their own pages from their install function. */
-import { BellRing, BookOpen, CalendarDays, FolderKanban, FolderOpen, Keyboard, Layers, LayoutList, Link2, ListChecks, MessageSquare, Music, NotebookPen, Palette, Power, Search, Ticket, Video, Workflow } from "lucide-react";
+import { BellRing, BookOpen, CalendarDays, FolderKanban, FolderOpen, Keyboard, Layers, LayoutList, Link2, ListChecks, MessageSquare, Music, NotebookPen, Palette, PanelRight, Power, Search, Ticket, Video, Workflow } from "lucide-react";
 import { TEXT_SIZES, type Scheme } from "../../api";
 import { schemeLook } from "../../lib/theme";
 import { registerSettingsPage, type SettingsPageProps } from "../../registry/settingsPages";
@@ -15,6 +15,7 @@ import { JournalPage } from "./JournalPage";
 import { LinksPage } from "./LinksPage";
 import { MusicPage } from "./MusicPage";
 import { ProjectsPage } from "./ProjectsPage";
+import { RailPage } from "./RailPage";
 import { RemindersPage } from "./RemindersPage";
 import { RoutinesPage } from "./RoutinesPage";
 import { SearchPage } from "./SearchPage";
@@ -177,6 +178,7 @@ export function registerCoreSettingsPages() {
   });
   registerSettingsPage({ id: "general", group: "System", label: "General", icon: Power, order: 0, intro: "How Daybook starts.", Body: GeneralPage });
   registerSettingsPage({ id: "tools", group: "System", label: "Tools", icon: LayoutList, order: 10, Body: ToolsPage });
+  registerSettingsPage({ id: "rail", group: "System", label: "Rail", icon: PanelRight, order: 15, Body: RailPage });
   registerSettingsPage({ id: "shortcuts", group: "System", label: "Shortcuts", icon: Keyboard, order: 20, Body: ShortcutsPage });
   registerSettingsPage({ id: "appearance", group: "System", label: "Appearance", icon: Palette, order: 30, intro: "How Daybook looks. Changes apply right away.", Body: AppearancePage });
 }

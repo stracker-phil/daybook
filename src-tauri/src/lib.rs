@@ -34,6 +34,7 @@ pub mod presence;
 pub mod process;
 pub mod projects;
 pub mod quick_notes;
+pub mod rail;
 pub mod reminders;
 pub mod remote;
 pub mod routines;

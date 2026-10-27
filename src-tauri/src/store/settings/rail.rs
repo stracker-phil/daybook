@@ -191,3 +191,70 @@ impl Rail {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn missing_or_broken_values_fall_back_to_the_defaults() {
+        assert_eq!(Rail::read(None), Rail::default());
+        let broken = json!({ "shape": "hexagon", "triggerWidth": "wide" });
+        assert_eq!(Rail::read(Some(&broken)), Rail::default());
+    }
+
+    #[test]
+    fn an_older_file_keeps_its_edge_and_look() {
+        let old = json!({ "enabled": false, "side": "left", "shape": "slim" });
+        let rail = Rail::read(Some(&old));
+        assert!(!rail.enabled);
+        assert_eq!(rail.edges, RailEdges::Left);
+        assert_eq!(rail.shape, RailShape::Pill);
+        assert_eq!(rail.size, RailSize::Compact);
+        assert!(!rail.captions);
+
+        let borderless = json!({ "shape": "borderless" });
+        assert_eq!(Rail::read(Some(&borderless)).shape, RailShape::Floating);
+    }
+
+    #[test]
+    fn a_call_has_its_own_edge_and_place_right_and_centered_unless_set() {
+        let rail = Rail::read(None);
+        assert_eq!(rail.call_edge, RailCallEdge::Right);
+        assert_eq!(rail.call_position, RailCallPosition::Center);
+
+        let set = json!({
+            "edges": "both",
+            "position": "pointer",
+            "callEdge": "left",
+            "callPosition": "top",
+        });
+        let rail = Rail::read(Some(&set));
+        assert_eq!(rail.edges, RailEdges::Both);
+        assert_eq!(rail.position, RailPosition::Pointer);
+        assert_eq!(rail.call_edge, RailCallEdge::Left);
+        assert_eq!(rail.call_position, RailCallPosition::Top);
+
+        let invalid = json!({ "callEdge": "both", "callPosition": "pointer" });
+        let rail = Rail::read(Some(&invalid));
+        assert_eq!(rail.call_edge, RailCallEdge::Right);
+        assert_eq!(rail.call_position, RailCallPosition::Center);
+    }
+
+    #[test]
+    fn numbers_stay_in_range() {
+        let raw = json!({
+            "triggerWidth": 500,
+            "showDelay": -10,
+            "hideDelay": 20,
+            "tooltipDelay": 12.6,
+        });
+        let rail = Rail::read(Some(&raw));
+        assert_eq!(rail.trigger_width, 40);
+        assert_eq!(rail.show_delay, 0);
+        assert_eq!(rail.hide_delay, 100);
+        assert_eq!(rail.tooltip_delay, 13);
+    }
+}

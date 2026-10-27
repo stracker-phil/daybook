@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the app's windows",
-  "windows": ["main", "panel", "settings", "quicknotes"],
+  "windows": ["main", "panel", "settings", "quicknotes", "rail", "railtip"],
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging",

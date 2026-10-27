@@ -15,7 +15,7 @@ use ts_rs::TS;
 pub use day::{DayEvents, DayInput, day_events};
 pub use days::adjacent_days;
 pub use reminder::{ReminderLine, reminder_line};
-pub use tools::{HubInput, HubTool, ToolRow, hub_tools};
+pub use tools::{HubInput, HubTool, ToolRow, hub_tools, shortcut_for};
 
 use crate::bus;
 use crate::calendar;

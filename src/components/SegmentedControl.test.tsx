@@ -25,6 +25,19 @@ describe("SegmentedControl", () => {
     for (const button of screen.getAllByRole("button")) expect(button).toHaveAttribute("aria-pressed", "false");
   });
 
+  it("disables every button and reports no click when disabled", async () => {
+    const onChange = vi.fn();
+    render(<SegmentedControl label="Mode" options={OPTIONS} value="light" onChange={onChange} disabled />);
+    for (const button of screen.getAllByRole("button")) expect(button).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "Dark" }));
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("enables the buttons by default", () => {
+    render(<SegmentedControl label="Mode" options={OPTIONS} value="light" onChange={() => {}} />);
+    for (const button of screen.getAllByRole("button")) expect(button).toBeEnabled();
+  });
+
   it("reports the option of the clicked button", async () => {
     const onChange = vi.fn();
     render(<SegmentedControl label="Mode" options={OPTIONS} value="light" onChange={onChange} />);

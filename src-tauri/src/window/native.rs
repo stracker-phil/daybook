@@ -51,10 +51,16 @@ pub fn screens() -> Vec<Screen> {
     }
 }
 
-fn pointer_on(screens: &[Screen]) -> Option<Screen> {
+/// The pointer in Cocoa coordinates.
+pub fn pointer() -> (f64, f64) {
     // SAFETY: `+[NSEvent mouseLocation]` takes no arguments.
     let point: NSPoint = unsafe { msg_send![class!(NSEvent), mouseLocation] };
-    screen_at(screens, point.x, point.y)
+    (point.x, point.y)
+}
+
+fn pointer_on(screens: &[Screen]) -> Option<Screen> {
+    let (x, y) = pointer();
+    screen_at(screens, x, y)
 }
 
 /// The screen with the pointer.

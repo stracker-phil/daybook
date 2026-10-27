@@ -31,6 +31,11 @@ import type {
   QuickNote,
   QuickNoteSaved,
   QuickNoteTopics,
+  RailPoint,
+  RailRect,
+  RailShown,
+  RailTipContent,
+  RailModel,
   RemoteEvent,
   RoutineView,
   SearchResponse,
@@ -40,6 +45,7 @@ import type {
   SlackIdentity,
   SlackInfo,
   Status,
+  ToolId,
   StatusChanged,
   UiState,
   VaultInfo,
@@ -192,6 +198,22 @@ export const api = {
   panelSetHeight: (height: number) => invoke<void>("panel_set_height", { height }),
   /** The open overlay stays while focus is elsewhere, e.g. while a link it opened is checked. */
   panelKeepOpen: (keep: boolean) => invoke<void>("panel_keep_open", { keep }),
+  /** The rail's buttons in order, today's status and the rail settings; later changes come as `rail_model`. */
+  railModel: () => invoke<RailModel>("rail_model"),
+  /** Whether the rail is (being) shown, on which edge, and whether it stays. */
+  railShownState: () => invoke<RailShown>("rail_shown_state"),
+  /** The bar's measured height; the rail window is as tall. */
+  railSetHeight: (height: number) => invoke<void>("rail_set_height", { height }),
+  /** Button `tool` is hovered; `center` is its middle, from the rail window's top. */
+  railShowTip: (tool: ToolId, center: number) => invoke<void>("rail_show_tip", { tool, center }),
+  /** No button is hovered any more. */
+  railHideTip: () => invoke<void>("rail_hide_tip"),
+  /** Pops up the menu-bar menu at the pointer. */
+  railContextMenu: () => invoke<void>("rail_context_menu"),
+  /** The tooltip page drew card `sequence` at `card`, in its window's coordinates. */
+  railTipRendered: (sequence: number, card: RailRect) => invoke<void>("rail_tip_rendered", { sequence, card }),
+  /** Runs a choice of the tooltip card; Rust runs only the choices on show. */
+  railTipRun: (command: string) => invoke<void>("rail_tip_run", { command }),
 
   onLaunch: (handler: () => void): Promise<UnlistenFn> => listen("launch", handler),
   /** The hidden main window was shown again (the Dock icon came back). */
@@ -223,6 +245,22 @@ export const api = {
     listen<PanelSession | null>("panel_session", (e) => handler(e.payload)),
   /** To the quick-notes editor: another topic was chosen. */
   onQuickNoteTarget: (handler: () => void): Promise<UnlistenFn> => listen("quick_note_target", handler),
+  /** To the rail page: its buttons, the status or the rail settings changed. */
+  onRailModel: (handler: (model: RailModel) => void): Promise<UnlistenFn> => listen<RailModel>("rail_model", (e) => handler(e.payload)),
+  /** To the rail page: it slid in or out, changed sides or became sticky. */
+  onRailShown: (handler: (shown: RailShown) => void): Promise<UnlistenFn> => listen<RailShown>("rail_shown", (e) => handler(e.payload)),
+  /** To the rail page: the pointer in window coordinates while it is on the rail, `null` once it left. */
+  onRailPointer: (handler: (point: RailPoint | null) => void): Promise<UnlistenFn> => listen<RailPoint | null>("rail_pointer", (e) => handler(e.payload)),
+  /** To the tooltip page: the card to draw. */
+  onRailTipContent: (handler: (content: RailTipContent) => void): Promise<UnlistenFn> =>
+    listen<RailTipContent>("rail_tip_content", (e) => handler(e.payload)),
+  /** To the tooltip page: card `sequence` is on screen, so it may fade in. */
+  onRailTipPlaced: (handler: (sequence: number) => void): Promise<UnlistenFn> => listen<number>("rail_tip_placed", (e) => handler(e.payload)),
+  /** To the tooltip page: the card fades out. */
+  onRailTipHidden: (handler: () => void): Promise<UnlistenFn> => listen("rail_tip_hidden", handler),
+  /** To the tooltip page: the pointer in window coordinates while it is on the card's choices, `null` off them. */
+  onRailTipPointer: (handler: (point: RailPoint | null) => void): Promise<UnlistenFn> =>
+    listen<RailPoint | null>("rail_tip_pointer", (e) => handler(e.payload)),
   /** Requests from other processes; answer each with `remoteReply`. */
   onRemote: (handler: (event: RemoteEvent) => void): Promise<UnlistenFn> => listen<RemoteEvent>("remote", (e) => handler(e.payload)),
 };

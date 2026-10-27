@@ -21,12 +21,14 @@ interface RowProps {
   stacked?: boolean;
   /** Indented under the row above it, the switch it depends on. */
   nested?: boolean;
+  /** Dimmed: it has no effect with the current settings. */
+  disabled?: boolean;
   children?: ReactNode;
 }
 
 /** One card row: label and description on the left, the control on the right. */
-export function Row({ label, icon, description, htmlFor, stacked, nested, children }: RowProps) {
-  const className = ["settings-row", stacked && "stacked", nested && "nested"].filter(Boolean).join(" ");
+export function Row({ label, icon, description, htmlFor, stacked, nested, disabled, children }: RowProps) {
+  const className = ["settings-row", stacked && "stacked", nested && "nested", disabled && "disabled"].filter(Boolean).join(" ");
   return (
     <div className={className}>
       <div className="settings-row-text">
@@ -62,7 +64,7 @@ export function Switch({ label, description, checked, onChange, nested }: { labe
 
 export function Segmented<T extends string>({ label, description, nested, ...buttons }: SegmentedControlProps<T> & { description?: ReactNode; nested?: boolean }) {
   return (
-    <Row label={label} description={description} nested={nested}>
+    <Row label={label} description={description} nested={nested} disabled={buttons.disabled}>
       <SegmentedControl label={label} {...buttons} />
     </Row>
   );

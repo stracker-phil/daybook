@@ -4,7 +4,7 @@
 
 pub mod display;
 pub mod front_app;
-mod native;
+pub(crate) mod native;
 pub mod panel;
 pub mod quick_notes;
 pub mod settings;

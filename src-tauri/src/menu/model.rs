@@ -144,7 +144,7 @@ fn choices_to_menu(choices: Vec<Choice>) -> Vec<MenuEntry> {
         .into_iter()
         .map(|choice| match choice {
             Choice::Separator => MenuEntry::Separator,
-            Choice::Heading(label) => MenuEntry::Info(label),
+            Choice::Heading { label } => MenuEntry::Info(label),
             Choice::Steps { label, steps } => steps_submenu(label, steps),
             Choice::Item {
                 label,

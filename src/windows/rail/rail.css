@@ -1,0 +1,104 @@
+/* The rail: a bar of tools at the screen edge in a transparent window (docs/ux.md). In px: the window's width is
+   the bar's (Rust's rail geometry), whatever the text size. */
+.rail-page { height: 100%; }
+.rail-wrapper { padding: 6px; }
+.rail-wrapper[data-shape="docked"][data-side="right"] { padding: 6px 0 6px 6px; }
+.rail-wrapper[data-shape="docked"][data-side="left"] { padding: 6px 6px 6px 0; }
+
+.rail-bar {
+  --bar-w: 40px; --btn: 32px; --icon: 18px; --cap-w: 36px; --btn-r: 8px; --div-w: 24px; --label-w: 32px;
+  --rail-shadow: 0 0 0 0.5px color-mix(in srgb, var(--shade) 8%, transparent), 0 2px 5px color-mix(in srgb, var(--shade) 16%, transparent);
+  position: relative; isolation: isolate; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  width: var(--bar-w); color: var(--text);
+}
+.rail-bar[data-size="compact"] { --bar-w: 32px; --btn: 28px; --icon: 16px; --cap-w: 28px; --btn-r: 6px; --div-w: 20px; --label-w: 28px; }
+.rail-bar[data-size="large"] { --bar-w: 48px; --btn: 40px; --icon: 22px; --cap-w: 44px; --btn-r: 12px; --div-w: 32px; --label-w: 40px; }
+
+.rail-bar[data-shape="pill"], .rail-bar[data-shape="docked"] {
+  padding: 8px 0; border: 1px solid var(--line); border-radius: 16px; background: var(--pop); box-shadow: var(--rail-shadow);
+}
+.rail-bar[data-shape="docked"][data-side="right"] { border-right: none; border-radius: 16px 0 0 16px; }
+.rail-bar[data-shape="docked"][data-side="left"] { border-left: none; border-radius: 0 16px 16px 0; }
+.rail-bar[data-shape="floating"] { gap: 6px; padding: 4px 0; }
+
+/* Sliding: hidden beyond its edge; a side switch first jumps there unseen. */
+.rail-bar[data-side="right"] { --away: translate3d(calc(100% + 8px), 0, 0); }
+.rail-bar[data-side="left"] { --away: translate3d(calc(-100% - 8px), 0, 0); }
+.rail-bar[data-motion="placing"] { opacity: 0; transform: var(--away); transition: none; }
+.rail-bar[data-motion="hidden"] { opacity: 0; transform: var(--away); transition: transform 150ms ease-in, opacity 150ms ease-in; }
+.rail-bar[data-motion="shown"] { opacity: 1; transform: translate3d(0, 0, 0); transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 200ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.rail-bar[data-motion="idle"] { opacity: 0.45; transform: translate3d(0, 0, 0); transition: transform 500ms ease-out, opacity 500ms ease-out; }
+
+.rail-cell { display: flex; flex-direction: column; align-items: center; }
+
+.rail-btn {
+  display: flex; flex: none; align-items: center; justify-content: center; width: var(--btn); height: var(--btn); padding: 0;
+  border: none; border-radius: var(--btn-r); background: none; color: var(--text);
+  transition: color 150ms ease-out, background-color 150ms ease-out, box-shadow 150ms ease-out, transform 150ms ease-out;
+}
+.rail-btn:focus-visible { outline: none; }
+.rail-btn:active { transform: scale(0.9); }
+.rail-icon { width: var(--icon); height: var(--icon); }
+.rail-btn[data-active] { color: var(--accent); }
+.rail-btn[data-filled] { background: var(--accent); color: var(--on-accent); }
+
+.rail-label { width: auto; min-width: var(--label-w); height: 20px; padding: 0 4px; border-radius: 6px; color: var(--o3); }
+.rail-text { font-size: 11px; font-weight: 600; line-height: 1; white-space: nowrap; }
+
+.rail-status-dot { width: 10px; height: 10px; border-radius: 50%; }
+.rail-status-dot[data-status="working"] { background: var(--style-green); }
+.rail-status-dot[data-status="break"] { background: var(--a-orange); }
+.rail-status-dot[data-status="off"] { background: var(--o3); }
+.rail-status-dot[data-status="none"] { border: 1.5px solid var(--o3); }
+
+.rail-caption {
+  max-width: var(--cap-w); overflow: hidden; color: var(--o3); font-size: 10px; font-weight: 600; line-height: 13px;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+
+.rail-divider { flex: none; width: var(--div-w); height: 1px; margin: 4px 0; background: var(--line); }
+
+/* Pill and docked: one highlight glides behind the hovered button; the button's icon matches it. */
+.rail-highlight {
+  position: absolute; top: 0; left: 0; z-index: -1; border-radius: var(--btn-r); pointer-events: none;
+  transition: opacity 150ms ease-out, transform 150ms ease-out, width 150ms ease-out, height 150ms ease-out;
+}
+.rail-highlight[data-appearing] { transition: opacity 100ms ease-out; }
+.rail-bar[data-highlight="tinted"] .rail-highlight {
+  background: color-mix(in srgb, var(--accent) 15%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.rail-bar[data-highlight="filled"] .rail-highlight { background: var(--accent); box-shadow: var(--shadow-small); }
+.rail-bar[data-highlight="gray"] .rail-highlight {
+  background: color-mix(in srgb, currentColor 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 12%, transparent);
+}
+.rail-bar[data-highlight="tinted"] .rail-btn[data-hover] { color: var(--accent); }
+.rail-bar[data-highlight="filled"] .rail-btn[data-hover] { color: var(--on-accent); }
+.rail-bar[data-highlight="gray"] .rail-btn[data-hover] { color: var(--text-strong); }
+.rail-bar .rail-btn[data-filled][data-hover] { background: var(--accent); color: var(--on-accent); }
+
+/* Floating icons: no bar; each tool is a round button that lights up and grows itself. */
+.rail-bar[data-shape="floating"] .rail-btn {
+  border: 1px solid var(--line); border-radius: 50%; background: var(--pop);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--shade) 22%, transparent);
+}
+.rail-bar[data-shape="floating"] .rail-label { height: 24px; border-radius: 12px; }
+.rail-bar[data-shape="floating"] .rail-btn[data-filled] { border-color: transparent; background: var(--accent); }
+.rail-bar[data-shape="floating"] .rail-btn[data-hover] { transform: scale(1.1); }
+.rail-bar[data-shape="floating"] .rail-btn[data-hover]:active { transform: scale(0.9); }
+.rail-bar[data-shape="floating"][data-highlight="tinted"] .rail-btn[data-hover] {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 60%, transparent), 0 1px 4px color-mix(in srgb, var(--shade) 22%, transparent);
+}
+.rail-bar[data-shape="floating"][data-highlight="filled"] .rail-btn[data-hover] { border-color: transparent; background: var(--accent); }
+.rail-bar[data-shape="floating"][data-highlight="gray"] .rail-btn[data-hover] {
+  background: color-mix(in srgb, var(--text) 8%, var(--pop));
+  box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 25%, transparent), 0 1px 4px color-mix(in srgb, var(--shade) 22%, transparent);
+}
+.rail-bar[data-shape="floating"] .rail-divider { height: 6px; margin: 0; background: none; }
+.rail-bar[data-shape="floating"] .rail-caption {
+  margin-top: 2px; padding: 0 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--pop); color: var(--o2);
+  box-shadow: var(--shadow-small);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rail-bar, .rail-bar[data-motion], .rail-btn, .rail-highlight { transition: none; }
+}

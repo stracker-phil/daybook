@@ -1,6 +1,7 @@
 //! The overlay window as a non-activating `NSPanel`, like Spotlight: it takes the keyboard without
 //! activating Daybook, so the app in front stays in front and closing never switches Spaces. Every
-//! function runs on the main thread with a live `NSWindow`.
+//! function runs on the main thread with a live `NSWindow`. The rail's windows use the same class swap
+//! with a panel that never becomes key (`make_inert_panel`).
 
 use std::ffi::{CStr, c_void};
 use std::sync::OnceLock;
@@ -28,26 +29,36 @@ extern "C-unwind" fn no(_: &AnyObject, _: Sel) -> Bool {
     Bool::NO
 }
 
+fn declare_panel(name: &CStr, takes_keyboard: bool) -> &'static AnyClass {
+    let mut builder =
+        ClassBuilder::new(name, class!(NSPanel)).expect("each panel class is declared once");
+    builder.add_ivar::<Bool>(FOCUSABLE);
+    let can_become_key = if takes_keyboard {
+        yes as extern "C-unwind" fn(_, _) -> _
+    } else {
+        no as extern "C-unwind" fn(_, _) -> _
+    };
+    // SAFETY: both selectors take no arguments and return BOOL.
+    unsafe {
+        builder.add_method(sel!(canBecomeKeyWindow), can_become_key);
+        builder.add_method(
+            sel!(canBecomeMainWindow),
+            no as extern "C-unwind" fn(_, _) -> _,
+        );
+    }
+    builder.register()
+}
+
 /// An `NSPanel` that takes the keyboard although it has no title bar.
 fn panel_class() -> &'static AnyClass {
     static CLASS: OnceLock<&'static AnyClass> = OnceLock::new();
-    CLASS.get_or_init(|| {
-        let mut builder = ClassBuilder::new(c"DaybookPanel", class!(NSPanel))
-            .expect("the panel class is declared once");
-        builder.add_ivar::<Bool>(FOCUSABLE);
-        // SAFETY: both selectors take no arguments and return BOOL.
-        unsafe {
-            builder.add_method(
-                sel!(canBecomeKeyWindow),
-                yes as extern "C-unwind" fn(_, _) -> _,
-            );
-            builder.add_method(
-                sel!(canBecomeMainWindow),
-                no as extern "C-unwind" fn(_, _) -> _,
-            );
-        }
-        builder.register()
-    })
+    CLASS.get_or_init(|| declare_panel(c"DaybookPanel", true))
+}
+
+/// An `NSPanel` that never takes the keyboard: clicks reach it, the app in front keeps the focus.
+fn inert_panel_class() -> &'static AnyClass {
+    static CLASS: OnceLock<&'static AnyClass> = OnceLock::new();
+    CLASS.get_or_init(|| declare_panel(c"DaybookInertPanel", false))
 }
 
 /// Where `class` or one of its superclasses keeps the `FOCUSABLE` ivar. A window macOS observes has
@@ -73,21 +84,20 @@ unsafe fn window<'a>(ns_window: *mut c_void) -> &'a AnyObject {
     unsafe { &*ns_window.cast::<AnyObject>() }
 }
 
-/// Turns the window into the panel; false (and nothing changes) when its class has an unexpected
-/// layout, so the overlay stays a plain window.
+/// Swaps the window's class to `panel`, non-activating; false (and nothing changes) when its class has
+/// an unexpected layout.
 ///
 /// # Safety
 /// `ns_window` is a live `NSWindow`, on the main thread.
-pub unsafe fn make_panel(ns_window: *mut c_void) -> bool {
+unsafe fn swap_to(ns_window: *mut c_void, panel: &AnyClass, what: &str) -> bool {
     // SAFETY: the caller passes a live window.
     let window = unsafe { window(ns_window) };
-    let panel = panel_class();
     if window.class() == panel {
         return true;
     }
     if !same_layout(window.class(), panel) {
         log::warn!(
-            "The overlay stays a plain window: {:?} has an unexpected layout",
+            "{what} stays a plain window: {:?} has an unexpected layout",
             window.class().name()
         );
         return false;
@@ -99,9 +109,32 @@ pub unsafe fn make_panel(ns_window: *mut c_void) -> bool {
         let mask: usize = msg_send![window, styleMask];
         let _: () = msg_send![window, setStyleMask: mask | NONACTIVATING_PANEL];
         let _: () = msg_send![window, setHidesOnDeactivate: false];
-        let _: () = msg_send![window, setAlphaValue: 0.0f64];
     }
     true
+}
+
+/// Turns the window into the panel; false when its class has an unexpected layout, so the overlay
+/// stays a plain window.
+///
+/// # Safety
+/// `ns_window` is a live `NSWindow`, on the main thread.
+pub unsafe fn make_panel(ns_window: *mut c_void) -> bool {
+    // SAFETY: as the caller promises.
+    let swapped = unsafe { swap_to(ns_window, panel_class(), "The overlay") };
+    if swapped {
+        // SAFETY: as above.
+        unsafe { set_alpha(ns_window, 0.0) };
+    }
+    swapped
+}
+
+/// Turns the window into a panel that never becomes key, so clicking it never activates Daybook.
+///
+/// # Safety
+/// `ns_window` is a live `NSWindow`, on the main thread.
+pub unsafe fn make_inert_panel(ns_window: *mut c_void, what: &str) -> bool {
+    // SAFETY: as the caller promises.
+    unsafe { swap_to(ns_window, inert_panel_class(), what) }
 }
 
 /// Sticky: on every Space above normal windows. Otherwise it appears on the active Space (also over

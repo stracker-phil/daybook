@@ -12,12 +12,12 @@ use tauri::menu::{
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager, Wry};
 
-use crate::bus;
 use crate::lock::MutexExt;
 use crate::menu::model::{MenuEntry, MenuInput, build_menu, menu_bar_title, prune};
 use crate::shortcuts::{self, accelerator};
 use crate::state::AppState;
 use crate::tools::{self, ToolState};
+use crate::{bus, rail};
 
 const TRAY_ID: &str = "main";
 
@@ -57,9 +57,10 @@ fn entries(app: &AppHandle, state: &ToolState) -> Vec<MenuEntry> {
     prune(menu, &commands.available(app))
 }
 
-/// Rebuilds the title and menu from the current state.
+/// Rebuilds the title and menu from the current state; the rail follows the same state.
 pub fn refresh(app: &AppHandle) {
     let state = tools::snapshot(app);
+    rail::state_changed(app, &state);
     let next = Showing {
         title: menu_bar_title(&state, Local::now().naive_local()),
         entries: entries(app, &state),
@@ -87,14 +88,23 @@ fn apply(app: &AppHandle, showing: Showing) -> tauri::Result<()> {
     let Some(tray) = app.tray_by_id(TRAY_ID) else {
         return Ok(());
     };
-    let items = showing
-        .entries
+    tray.set_menu(Some(menu_of(app, &showing.entries)?))?;
+    tray.set_title(Some(showing.title))
+}
+
+fn menu_of(app: &AppHandle, entries: &[MenuEntry]) -> tauri::Result<Menu<Wry>> {
+    let items = entries
         .iter()
         .map(|entry| build_entry(app, entry))
         .collect::<tauri::Result<Vec<_>>>()?;
     let refs: Vec<&dyn IsMenuItem<Wry>> = items.iter().map(|item| item as _).collect();
-    tray.set_menu(Some(Menu::with_items(app, &refs)?))?;
-    tray.set_title(Some(showing.title))
+    Menu::with_items(app, &refs)
+}
+
+/// The menu-bar menu as it is now, e.g. for the rail's right-click.
+pub fn context_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
+    let state = tools::snapshot(app);
+    menu_of(app, &entries(app, &state))
 }
 
 fn build_entry(app: &AppHandle, entry: &MenuEntry) -> tauri::Result<MenuItemKind<Wry>> {

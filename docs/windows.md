@@ -1,7 +1,7 @@
 # Windows
 
 `src-tauri/src/window/`. Daybook lives in the menu bar; its windows come and go over whatever the owner works
-in. Four windows exist so far; the rail and its tooltip come with their step.
+in.
 
 | Window | Label | Kind | Level | Focus |
 |---|---|---|---|---|
@@ -9,6 +9,8 @@ in. Four windows exist so far; the rail and its tooltip come with their step.
 | Settings | `settings` | regular window (`window/settings.rs`), built on first use | normal | takes focus and activates Daybook; brings the Dock icon |
 | Overlay | `panel` | non-activating `NSPanel` (`window/panel/`) | pop-up menu (101), sticky views floating (3) | takes the keyboard without activating Daybook |
 | Quick notes editor | `quicknotes` | regular window (`window/quick_notes.rs`), built on first use | floating | takes focus and activates Daybook; no Dock icon; stays open on blur |
+| Rail | `rail` | inert `NSPanel` (`rail/`), built hidden at start | floating (3), on every Space and over full-screen apps | never takes focus; clicks land without activating Daybook |
+| Rail tooltip | `railtip` | inert `NSPanel` beside the rail, ignores the pointer except over a menu card | floating (3) | never takes focus |
 
 | File | Holds |
 |---|---|
@@ -138,6 +140,30 @@ saves the old topic and loads the new one, while `focus` (⌘F3 while it is open
 Closing (Esc in the page, ⌘W, the close button) keeps the frame and hides it; with no other Daybook window left,
 Daybook hides, so the app it came from comes back. Unlike the overlay, it stays open when it loses focus, and
 hiding the Daybook window doesn't hide Daybook while the editor is on screen.
+
+## The rail
+
+`src-tauri/src/rail/` puts a slim bar of tools at the screen edge ([ux.md](ux.md#the-rail)). The windows are
+`DaybookInertPanel`s (`rail/native.rs`, a class swap like the overlay's whose `canBecomeKeyWindow` answers NO):
+non-activating, on every Space including full screen (`canJoinAllSpaces`, `stationary`, `fullScreenAuxiliary`,
+`ignoresCycle`), floating, `setCanHide:NO` so hiding Daybook leaves them up, and accepting the first mouse.
+
+| File | Holds |
+|---|---|
+| `geometry.rs` | pure, y-down as on screen: `rail_frame` (edge, position, size), `bar_inner_edge`, `edge_at` (is the pointer in a trigger zone), `side_for`, `flip` (to Cocoa's y-up) |
+| `visibility.rs` | pure: `next_rail_step(view, timers, now, delays)`: show after resting at the edge (`showDelay`), hide after leaving (`hideDelay`); held while hovered or a menu is open; `is_inside` |
+| `controller.rs` | pure state machine: `poll` (pointer, screen, call), `toggle` (pins a rail the edge showed, hides a pinned one), the call's own edge and position, handing a pinned rail to the pointer's screen; returns `Action`s |
+| `tip.rs` | pure: the tooltip card's state, `column_for` (a column as tall as the work area beside the bar), the menu card holding while the pointer is near it, picks limited to offered commands |
+| `model.rs` | pure: `rail_model` turns `ToolState` and the rail settings into `RailModel` (buttons in tool order with captions, the status dot, the call button) |
+| `mod.rs`, `window.rs` | the adapter: the pointer poll (50 ms near the rail, in the trigger zone or on a menu; 150 ms elsewhere), applying actions to the windows, events to the pages |
+| `commands.rs` | the Tauri commands and `rail:toggle` |
+
+The rail never becomes key, so WebKit sends it no hover: Rust relays the pointer (`rail_pointer`,
+`rail_tip_pointer`) and the pages hit-test it. A button click runs its command through `run_command`; a right
+click opens the menu-bar menu (`rail_context_menu`). Hovering a button asks Rust for its tooltip
+(`rail_show_tip`); Rust fills the card from its own model (`rail_tip_content`), the page reports the card's rect
+(`rail_tip_rendered`), Rust places the window (`rail_tip_placed`) and fades it in. A pick runs only a command the
+card offers (`rail_tip_run`) and hides the card, except for context and music choices.
 
 ## Page side
 

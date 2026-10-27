@@ -32,3 +32,19 @@ pub const OPEN_SETTINGS_EVENT: &str = "open_settings";
 pub const TOGGLE_INSPECTOR_EVENT: &str = "toggle_inspector";
 /// To the quick-notes editor. No payload; another topic was chosen, so the page saves and reloads.
 pub const QUICK_NOTE_TARGET_EVENT: &str = "quick_note_target";
+/// To the rail window. Payload: the `RailModel` to draw.
+pub const RAIL_MODEL_EVENT: &str = "rail_model";
+/// To the rail window. Payload: a `RailShown`; the rail slid in or out, changed sides or became sticky.
+pub const RAIL_SHOWN_EVENT: &str = "rail_shown";
+/// To the rail window. Payload: a `RailPoint` in window coordinates while the pointer is on the rail,
+/// `null` once it left.
+pub const RAIL_POINTER_EVENT: &str = "rail_pointer";
+/// To the tooltip window. Payload: the `RailTipContent` to draw.
+pub const RAIL_TIP_CONTENT_EVENT: &str = "rail_tip_content";
+/// To the tooltip window. Payload: the sequence of the card now on screen; it may fade in.
+pub const RAIL_TIP_PLACED_EVENT: &str = "rail_tip_placed";
+/// To the tooltip window. Payload: a sequence; the card fades out.
+pub const RAIL_TIP_HIDDEN_EVENT: &str = "rail_tip_hidden";
+/// To the tooltip window. Payload: a `RailPoint` in window coordinates while the pointer is on the
+/// card's choices, `null` once it left.
+pub const RAIL_TIP_POINTER_EVENT: &str = "rail_tip_pointer";

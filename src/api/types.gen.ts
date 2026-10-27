@@ -90,6 +90,17 @@ missing: Array<Missing>,
  */
 error: string | null, builtIns: Array<BuiltInCall>, };
 
+/**
+ * The rail's tooltip lists them as they serialize.
+ */
+export type Choice = { "kind": "item", label: string, command: string, detail: string | null, 
+/**
+ * Some for a pick among several (a radio item); `true` marks the current one.
+ */
+checked: boolean | null, } | { "kind": "heading", label: string, } | { "kind": "separator" } | { "kind": "steps", label: string, steps: Array<ChoiceStep>, };
+
+export type ChoiceStep = { label: string, command: string, active: boolean, };
+
 export type Context = { id: string, 
 /**
  * The label in the menu bar, e.g. `[W]` or an emoji.
@@ -779,6 +790,8 @@ tooltipDelay: number,
  */
 hoverMenus: boolean, };
 
+export type RailButton = { "kind": "tool" } & RailTool | { "kind": "separator" };
+
 /**
  * During a call the rail sits on one edge.
  */
@@ -797,14 +810,42 @@ export type RailEdges = "right" | "left" | "both";
 export type RailHighlight = "tinted" | "filled" | "gray";
 
 /**
+ * Payload of `rail_model` and the answer of `rail_model`.
+ */
+export type RailModel = { buttons: Array<RailButton>, 
+/**
+ * Today's status for the status dot; `None` before the day's first draws a hollow ring.
+ */
+status: Status | null, 
+/**
+ * The look, the delays and the tooltip settings.
+ */
+settings: Rail, };
+
+export type RailPoint = { x: number, y: number, };
+
+/**
  * Where on the edge the rail appears; `Pointer` centres it on where the pointer was.
  */
 export type RailPosition = "center" | "top" | "bottom" | "pointer";
+
+export type RailRect = { x: number, y: number, width: number, height: number, };
 
 /**
  * A pill floats beside the edge, docked sits flush against it, floating has no bar.
  */
 export type RailShape = "pill" | "docked" | "floating";
+
+/**
+ * Payload of `rail_shown` and the answer of `rail_shown_state`.
+ */
+export type RailShown = { visible: boolean, side: RailSide, 
+/**
+ * Kept by the shortcut or a call: it may fade back while the pointer is away.
+ */
+sticky: boolean, };
+
+export type RailSide = "left" | "right";
 
 export type RailSize = "compact" | "regular" | "large";
 
@@ -814,6 +855,75 @@ export type RailSize = "compact" | "regular" | "large";
 export type RailSpan = "full" | "rail";
 
 export type RailTheme = "system" | "light" | "dark";
+
+export type RailTip = { label: string, detail: string | null, 
+/**
+ * In Settings notation (`ctrl+alt+cmd+f`).
+ */
+shortcut: string | null, };
+
+/**
+ * Payload of `rail_tip_content`.
+ */
+export type RailTipContent = { tip: RailTip, side: RailSide, theme: RailTheme, highlight: RailHighlight, 
+/**
+ * Reported back with `rail_tip_rendered`; matches `rail_tip_placed` and `rail_tip_hidden`.
+ */
+sequence: number, 
+/**
+ * Empty for a plain tooltip.
+ */
+choices: Array<Choice>, 
+/**
+ * The hovered button's centre, from the window's top.
+ */
+anchor: number, 
+/**
+ * Between the card and the window's rail side.
+ */
+inset: number, maxWidth: number, 
+/**
+ * The window's height.
+ */
+height: number, };
+
+export type RailTool = { id: ToolId, 
+/**
+ * The tooltip's first line.
+ */
+label: string, detail: string | null, 
+/**
+ * For screen readers.
+ */
+ariaLabel: string, 
+/**
+ * The short line under the icon; the page hides it when captions are off.
+ */
+caption: string | null, 
+/**
+ * The global shortcut, in Settings notation (`ctrl+alt+cmd+f`).
+ */
+shortcut: string | null, 
+/**
+ * The tool whose choices the tooltip lists.
+ */
+menu: ToolId | null, 
+/**
+ * What a click runs through the bus.
+ */
+command: string, 
+/**
+ * The context's short label, drawn instead of an icon.
+ */
+badge: string | null, 
+/**
+ * A button filled with the accent colour (the call).
+ */
+filled: boolean, 
+/**
+ * The icon in the accent colour (music while it plays).
+ */
+accent: boolean, };
 
 /**
  * What a click or ↵ on the line does: a bus command, or joining an event's call.

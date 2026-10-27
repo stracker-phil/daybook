@@ -94,7 +94,8 @@ fn entry(id: ToolId, state: &ToolState) -> Entry {
     }
 }
 
-fn shortcut_for(id: ToolId, hotkeys: &Hotkeys) -> Option<&str> {
+/// The global shortcut of a tool, in Settings notation; the rail shows it too.
+pub fn shortcut_for(id: ToolId, hotkeys: &Hotkeys) -> Option<&str> {
     let shortcut = match id {
         ToolId::Context => &hotkeys.switch_context,
         ToolId::Status => &hotkeys.toggle_status,

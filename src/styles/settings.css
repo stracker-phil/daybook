@@ -44,6 +44,9 @@
 /* The same alert where a view failed to load. */
 .settings-row-control { flex: none; display: flex; align-items: center; gap: var(--space-2); }
 .settings-row-control select.input { width: 9rem; }
+.settings-row-control select.input.preset { width: 13.538rem; }
+/* A row with no effect under the current settings. */
+.settings-row.disabled :is(.settings-row-text, .settings-row-control) { opacity: 0.45; }
 .settings-input { display: flex; align-items: center; gap: var(--space-2); }
 .settings-input .input { width: 12rem; }
 .settings-input .input.wide { width: 20rem; }

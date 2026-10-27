@@ -4,8 +4,8 @@ use tauri::ipc::Invoke;
 
 use crate::{
     autostart, bus, calendar, calls, commands, contexts, focus, hub, jira, journal, launcher,
-    links, music, palette, quick_notes, remote, routines, search, shortcuts, slack, status, todos,
-    vault, window,
+    links, music, palette, quick_notes, rail, remote, routines, search, shortcuts, slack, status,
+    todos, vault, window,
 };
 
 pub fn handlers() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
@@ -86,6 +86,14 @@ pub fn handlers() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         window::panel::commands::panel_painted,
         window::panel::commands::panel_set_height,
         window::panel::commands::panel_keep_open,
+        rail::commands::rail_model,
+        rail::commands::rail_shown_state,
+        rail::commands::rail_set_height,
+        rail::commands::rail_show_tip,
+        rail::commands::rail_hide_tip,
+        rail::commands::rail_tip_rendered,
+        rail::commands::rail_tip_run,
+        rail::commands::rail_context_menu,
         #[cfg(debug_assertions)]
         crate::dev::dev_edit_today_note,
         #[cfg(debug_assertions)]

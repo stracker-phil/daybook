@@ -4,7 +4,7 @@
 
 pub mod commands;
 mod handshake;
-mod native;
+pub(crate) mod native;
 pub mod session;
 
 use std::ffi::c_void;

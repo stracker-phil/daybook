@@ -1,0 +1,52 @@
+/* The rail's tooltip: one card in a transparent, click-through column beside the rail (docs/ux.md). */
+.railtip-card {
+  position: absolute; top: 0; display: flex; flex-direction: column; width: max-content; max-width: var(--tip-width);
+  overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--pop); color: var(--text);
+  box-shadow: 0 0 0 0.5px color-mix(in srgb, var(--shade) 6%, transparent), 0 4px 12px color-mix(in srgb, var(--shade) 18%, transparent);
+  opacity: 0;
+  transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.railtip-card[data-menu] { width: var(--tip-width); }
+.railtip-card[data-phase="entering"] { transition: none; }
+.railtip-card[data-phase="open"] { opacity: 1; }
+
+.railtip-header { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; }
+.railtip-title { display: flex; align-items: center; gap: 12px; }
+.railtip-label { flex: 1; min-width: 0; font-weight: 600; }
+.railtip-keys { display: flex; flex: none; gap: 2px; }
+.railtip-detail {
+  display: -webkit-box; overflow: hidden; color: var(--o2); font-size: var(--fs-meta); line-height: 1.35;
+  -webkit-box-orient: vertical; -webkit-line-clamp: 3;
+}
+
+.railtip-choices { display: flex; flex-direction: column; padding: 4px; overflow-y: auto; border-top: 1px solid var(--line); }
+.railtip-item {
+  display: flex; flex: none; align-items: center; gap: 8px; width: 100%; height: 28px; padding: 0 8px;
+  border: none; border-radius: 6px; background: none; color: var(--text); text-align: left; transition: background-color 100ms, color 100ms;
+}
+.railtip-check { display: flex; flex: none; align-items: center; justify-content: center; width: 14px; height: 14px; color: var(--accent); }
+.railtip-check svg { width: 14px; height: 14px; }
+.railtip-item-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.railtip-item-detail {
+  flex: none; max-width: 45%; overflow: hidden; color: var(--o3); font-size: var(--fs-meta); text-overflow: ellipsis; white-space: nowrap;
+}
+.railtip-heading { padding: 6px 8px 2px; color: var(--o3); font-size: var(--fs-meta); font-weight: 600; }
+.railtip-separator { flex: none; height: 1px; margin: 4px 8px; background: var(--line); }
+.railtip-steps { display: flex; align-items: center; gap: 4px; padding: 2px 8px 4px; }
+.railtip-steps-icon { flex: none; width: 14px; height: 14px; margin-right: auto; color: var(--o3); }
+.railtip-step {
+  min-width: 28px; height: 24px; padding: 0 4px; border: none; border-radius: 6px; background: none; color: var(--o2);
+  font-size: var(--fs-meta); transition: background-color 100ms, color 100ms;
+}
+.railtip-step[aria-pressed="true"] { background: color-mix(in srgb, currentColor 12%, transparent); color: var(--text-strong); font-weight: 500; }
+.railtip-item:focus-visible, .railtip-step:focus-visible { outline: none; }
+
+/* Rows under the relayed pointer, like the rail's hover. */
+.railtip-card[data-highlight="tinted"] [data-hover] { background: color-mix(in srgb, var(--accent) 15%, transparent); }
+.railtip-card[data-highlight="filled"] [data-hover] { background: var(--accent); color: var(--on-accent); }
+.railtip-card[data-highlight="gray"] [data-hover] { background: color-mix(in srgb, currentColor 12%, transparent); }
+.railtip-card[data-highlight="filled"] [data-hover] :is(.railtip-check, .railtip-item-detail) { color: inherit; }
+
+@media (prefers-reduced-motion: reduce) {
+  .railtip-card, .railtip-item, .railtip-step { transition: none; }
+}
