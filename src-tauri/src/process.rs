@@ -15,7 +15,8 @@ const EXTRA_PATH: &[&str] = &[
     "/usr/sbin",
     "/sbin",
 ];
-const MAX_OUTPUT: u64 = 512 * 1024;
+/// `lsappinfo list` and `pmset -g assertions` grow with every running app.
+const MAX_OUTPUT: u64 = 4 * 1024 * 1024;
 const POLL: Duration = Duration::from_millis(20);
 
 #[derive(Debug, Clone, PartialEq)]
@@ -49,8 +50,10 @@ pub(crate) fn path_with_tools() -> String {
 fn read_capped(pipe: Option<impl Read + Send + 'static>) -> thread::JoinHandle<String> {
     thread::spawn(move || {
         let mut text = String::new();
-        if let Some(pipe) = pipe {
-            let _ = pipe.take(MAX_OUTPUT).read_to_string(&mut text);
+        if let Some(mut pipe) = pipe {
+            let _ = (&mut pipe).take(MAX_OUTPUT).read_to_string(&mut text);
+            // The rest is drained, so a chatty program never blocks on a full pipe.
+            let _ = io::copy(&mut pipe, &mut io::sink());
         }
         text
     })

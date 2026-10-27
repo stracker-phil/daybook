@@ -13,7 +13,8 @@ function State({ found, yes, no }: { found: boolean; yes: string; no: string }) 
   return <span className={`settings-state ${found ? "found" : "missing"}`}>{found ? yes : no}</span>;
 }
 
-export function VaultPage({ s, set }: SettingsPageProps) {
+/** Connections → Vault and Obsidian CLI. */
+export function VaultGroups({ s, set }: SettingsPageProps) {
   const vault = s.vault;
   const vaultInfoKey = JSON.stringify([vault.path, vault.obsidianCliPath, s.dailyNote]);
   const info = useApiResult(vaultInfoKey, api.vaultInfo, { keepData: true }).data;
@@ -32,7 +33,7 @@ export function VaultPage({ s, set }: SettingsPageProps) {
   const cliDescription = cliPath ? <span className="mono selectable">{tildePath(cliPath)}</span> : info ? "Not found." : undefined;
   return (
     <>
-      <Group>
+      <Group title="Vault" anchor="vault">
         <Row label="Vault folder" description={vault.path ? <span className="mono selectable">{tildePath(vault.path)}</span> : "Choose the folder of your Obsidian vault."}>
           <button type="button" className={vault.path ? "btn" : "btn btn-primary"} onClick={() => void choose()}>
             {vault.path ? "Change…" : "Choose…"}

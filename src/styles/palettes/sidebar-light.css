@@ -7,4 +7,11 @@
   --sidebar-hover: rgba(0, 0, 0, 0.04);
   --sidebar-selected: rgba(0, 0, 0, 0.09);
   --sidebar-line: rgba(0, 0, 0, 0.1);
+  /* the Slack status pill, drawn as Slack draws it in either tone */
+  --slack-pill-bg: #1a1d21;
+  --slack-pill-line: rgba(255, 255, 255, 0.15);
+  --slack-pill-text: #d1d2d3;
+  --slack-pill-strong: #ffffff;
+  --slack-pill-empty: rgba(255, 255, 255, 0.5);
+  --slack-active: #59d499;
 }

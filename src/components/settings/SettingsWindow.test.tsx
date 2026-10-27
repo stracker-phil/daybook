@@ -26,6 +26,13 @@ function renderWindow(page?: string, patch: Parameters<typeof settings>[0] = {})
 
 const nav = () => screen.getByRole("navigation", { name: "Settings pages" });
 const openPage = (name: string) => userEvent.click(within(nav()).getByRole("button", { name }));
+const heading = (name: string) => screen.getByRole("heading", { name, level: 2 });
+const searchField = () => screen.getByRole("searchbox", { name: "Search Settings" });
+const navLabels = () => within(nav()).getAllByRole("button").map((b) => b.textContent?.trim());
+
+const scrollIntoView = vi.fn();
+Element.prototype.scrollIntoView = scrollIntoView;
+const scrolledTo = () => (scrollIntoView.mock.contexts.at(-1) as Element | undefined)?.getAttribute("data-section");
 
 describe("SettingsWindow", () => {
   beforeEach(() => {
@@ -35,48 +42,72 @@ describe("SettingsWindow", () => {
 
   it("renders nothing until the settings arrived", () => {
     resetStore({ settings: null });
-    render(<SettingsWindow page="vault" onPage={() => {}} />);
+    render(<SettingsWindow page="connections" onPage={() => {}} />);
     expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
   });
 
   it("opens on the page it is given", () => {
     renderWindow("appearance");
-    expect(screen.getByRole("heading", { name: "Appearance", level: 2 })).toBeInTheDocument();
+    expect(heading("Appearance")).toBeInTheDocument();
   });
 
-  it.each([undefined, "no-such-page"])("opens on the first page for %s", (page) => {
+  it.each([undefined, "no-such-page"])("opens on the first page, Connections, for %s", (page) => {
     renderWindow(page);
-    expect(screen.getByRole("heading", { name: "Vault", level: 2 })).toBeInTheDocument();
+    expect(heading("Connections")).toBeInTheDocument();
   });
 
   it("switches the shown page from the navigation", async () => {
-    renderWindow("vault");
+    renderWindow("connections");
     await openPage("Appearance");
-    expect(screen.getByRole("heading", { name: "Appearance", level: 2 })).toBeInTheDocument();
+    expect(heading("Appearance")).toBeInTheDocument();
   });
 
   it("shows a page registered by a module", async () => {
-    renderWindow("vault");
+    renderWindow("connections");
     await openPage("Demo flow");
     expect(screen.getByText("Demo body")).toBeInTheDocument();
   });
 
-  describe("navigation", () => {
-    it("marks the shown page as current", async () => {
-      renderWindow("vault");
-      await openPage("Tools");
-      expect(within(nav()).getByRole("button", { name: "Tools" })).toHaveAttribute("aria-current", "page");
-      expect(within(nav()).getByRole("button", { name: "Vault" })).not.toHaveAttribute("aria-current");
+  describe("former pages", () => {
+    it.each([
+      ["vault", "Connections"],
+      ["calendar", "Connections"],
+      ["slack", "Connections"],
+      ["jira", "Connections"],
+      ["timetracker", "Connections"],
+      ["calls", "Workflows"],
+      ["tools", "General"],
+      ["rail", "Appearance"],
+    ])("opens %s on the %s page, scrolled to its group", (id, page) => {
+      renderWindow(id);
+      expect(heading(page)).toBeInTheDocument();
+      expect(scrolledTo()).toBe(id);
     });
 
-    it("lists the pages in order", () => {
+    it("marks the page holding the section as current", () => {
+      renderWindow("rail");
+      expect(within(nav()).getByRole("button", { name: "Appearance" })).toHaveAttribute("aria-current", "page");
+    });
+
+    it("scrolls to the section the navigation was asked for again", () => {
+      const { rerender } = renderWindow("vault");
+      rerender(<SettingsWindow page="jira" onPage={() => {}} />);
+      expect(scrolledTo()).toBe("jira");
+    });
+  });
+
+  describe("navigation", () => {
+    it("marks the shown page as current", async () => {
+      renderWindow("connections");
+      await openPage("General");
+      expect(within(nav()).getByRole("button", { name: "General" })).toHaveAttribute("aria-current", "page");
+      expect(within(nav()).getByRole("button", { name: "Connections" })).not.toHaveAttribute("aria-current");
+    });
+
+    it("lists the 16 pages in order, plus a page a module registered", () => {
       renderWindow();
-      expect(within(nav()).getAllByRole("button").map((b) => b.textContent?.trim())).toEqual([
-        "Vault",
-        "Calendar",
-        "Slack",
-        "Jira",
-        "TimeTracker",
+      expect(navLabels()).toEqual([
+        "Connections",
         "Contexts",
         "Projects",
         "Daily Note",
@@ -85,16 +116,13 @@ describe("SettingsWindow", () => {
         "Search",
         "Workflows",
         "Reminders",
-        "Calls",
         "Links",
         "Music",
         "Demo flow",
         "General",
-        "Tools",
-        "Rail",
-        "Automation",
-        "Shortcuts",
         "Appearance",
+        "Shortcuts",
+        "Automation",
         "Status",
       ]);
     });
@@ -102,7 +130,61 @@ describe("SettingsWindow", () => {
     it("groups them under Setup, Obsidian, Workflows and System, in that order", () => {
       renderWindow();
       const text = nav().textContent.replace(/\s+/g, "");
-      expect(text).toBe("SetupVaultCalendarSlackJiraTimeTrackerContextsProjectsObsidianDailyNoteRoutinesJournalSearchWorkflowsWorkflowsRemindersCallsLinksMusicDemoflowSystemGeneralToolsRailAutomationShortcutsAppearanceStatus");
+      expect(text).toBe("SetupConnectionsContextsProjectsObsidianDailyNoteRoutinesJournalSearchWorkflowsWorkflowsRemindersLinksMusicDemoflowSystemGeneralAppearanceShortcutsAutomationStatus");
+    });
+
+    describe("search", () => {
+      it("finds a section's page and shows the section as a hint", async () => {
+        renderWindow();
+        await userEvent.type(searchField(), "jira");
+        expect(navLabels()).toEqual(["Connections Jira"]);
+      });
+
+      it("opens the page at the section when its hit is clicked", async () => {
+        renderWindow("general");
+        await userEvent.type(searchField(), "jira");
+        await userEvent.click(within(nav()).getByRole("button", { name: "Connections Jira" }));
+        expect(heading("Connections")).toBeInTheDocument();
+        expect(scrolledTo()).toBe("jira");
+      });
+
+      it("lists the pages of a nav group by its name", async () => {
+        renderWindow();
+        await userEvent.type(searchField(), "system");
+        expect(navLabels()).toEqual(["General", "Appearance", "Shortcuts", "Automation", "Status"]);
+      });
+
+      it("finds a page by its label, ignoring case", async () => {
+        renderWindow();
+        await userEvent.type(searchField(), "REMIND");
+        expect(navLabels()).toEqual(["Reminders"]);
+      });
+
+      it("says No Results when nothing matches", async () => {
+        renderWindow();
+        await userEvent.type(searchField(), "zzzzz");
+        expect(screen.getByText("No Results")).toBeInTheDocument();
+        expect(within(nav()).queryAllByRole("button")).toHaveLength(0);
+      });
+
+      it("opens the first hit on Enter", async () => {
+        renderWindow("general");
+        await userEvent.type(searchField(), "jira{Enter}");
+        expect(heading("Connections")).toBeInTheDocument();
+        expect(scrolledTo()).toBe("jira");
+      });
+
+      it("opens the first page of a group on Enter", async () => {
+        renderWindow();
+        await userEvent.type(searchField(), "system{Enter}");
+        expect(heading("General")).toBeInTheDocument();
+      });
+
+      it("opens nothing on Enter without a hit", async () => {
+        renderWindow("general");
+        await userEvent.type(searchField(), "zzzzz{Enter}");
+        expect(heading("General")).toBeInTheDocument();
+      });
     });
   });
 
@@ -231,22 +313,9 @@ describe("SettingsWindow", () => {
       await vi.waitFor(() => expect(screen.getByRole("switch", { name: "Launch at login" })).toBeChecked());
     });
 
-    it("shows Accessibility as Allowed when access is granted", async () => {
+    it("has no Accessibility row", () => {
       renderWindow("general");
-      expect(await screen.findByText("Allowed")).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Allow Access…" })).not.toBeInTheDocument();
-    });
-
-    it("offers to allow Accessibility access when it is missing", async () => {
-      const granted = await mocked.callsInfo();
-      mocked.callsInfo.mockResolvedValue({ ...granted, accessibility: false });
-      try {
-        renderWindow("general");
-        expect(await screen.findByRole("button", { name: "Allow Access…" })).toBeInTheDocument();
-        expect(screen.queryByText("Allowed")).not.toBeInTheDocument();
-      } finally {
-        mocked.callsInfo.mockResolvedValue(granted);
-      }
+      expect(screen.queryByText("Accessibility")).not.toBeInTheDocument();
     });
   });
 });

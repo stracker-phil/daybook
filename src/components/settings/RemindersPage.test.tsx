@@ -20,24 +20,20 @@ const withTodosOn = (patch: Partial<Extract<ReminderRule, { kind: "todos" }>> = 
   reminders: settings().reminders.map((rule) => (rule.kind === "todos" ? { ...rule, enabled: true, ...patch } : rule)),
 });
 
-const group = (title: string) => within(screen.getByRole("heading", { name: title }).closest("section")!);
+const group = (title: string) => within(screen.getByRole("switch", { name: title }).closest(".lead-block") as HTMLElement);
+const switchOf = (title: string) => screen.getByRole("switch", { name: title });
 const saved = () => mocked.updateSettings.mock.lastCall![0].reminders;
 
 describe("RemindersPage", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("titles one group per rule", () => {
-    renderPage();
-    expect(screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual([
-      "Upcoming meeting",
-      "Routine: Morning",
-      "Routine: Evening",
-      "Journal: Dawn",
-      "Journal: Dusk",
-      "Journal: Health",
-      "Open todos",
-    ]);
-  });
+  it.each(["Upcoming meeting", "Routine: Morning", "Routine: Evening", "Journal: Dawn", "Journal: Dusk", "Journal: Health", "Open todos"])(
+    "has a block with a switch named %s",
+    (title) => {
+      renderPage();
+      expect(switchOf(title)).toBeInTheDocument();
+    },
+  );
 
   describe("due text", () => {
     it.each([
@@ -60,8 +56,8 @@ describe("RemindersPage", () => {
   describe("switch", () => {
     it("reflects whether the rule is enabled", () => {
       renderPage();
-      expect(group("Upcoming meeting").getByRole("switch", { name: "Remind" })).toBeChecked();
-      expect(group("Open todos").getByRole("switch", { name: "Remind" })).not.toBeChecked();
+      expect(switchOf("Upcoming meeting")).toBeChecked();
+      expect(switchOf("Open todos")).not.toBeChecked();
     });
 
     it("hides the fields of a disabled rule", () => {
@@ -72,14 +68,14 @@ describe("RemindersPage", () => {
 
     it("saves the rule enabled and shows its fields", async () => {
       renderPage();
-      await userEvent.click(group("Open todos").getByRole("switch", { name: "Remind" }));
+      await userEvent.click(switchOf("Open todos"));
       expect(saved().at(-1)).toEqual({ kind: "todos", enabled: true, span: "today", from: "16:00", to: "" });
       expect(await group("Open todos").findByLabelText("Reminder from")).toHaveValue("16:00");
     });
 
     it("saves the rule disabled and hides its fields", async () => {
       renderPage();
-      await userEvent.click(group("Upcoming meeting").getByRole("switch", { name: "Remind" }));
+      await userEvent.click(switchOf("Upcoming meeting"));
       expect(saved()[0]).toEqual({ kind: "meeting", enabled: false, minutesBefore: 60 });
       await vi.waitFor(() => expect(group("Upcoming meeting").queryByRole("spinbutton", { name: "Minutes before" })).not.toBeInTheDocument());
     });

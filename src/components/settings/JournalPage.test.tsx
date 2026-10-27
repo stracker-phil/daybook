@@ -138,6 +138,14 @@ describe("JournalPage", () => {
       expect(morgen().getAllByRole("textbox", { name: "Hint" })[1]).toHaveValue("Where do I want to be in a year?");
     });
 
+    it("gives each question line its answer select and Move Up, Move Down and Remove Question icons", () => {
+      renderPage();
+      expect(morgen().getAllByRole("textbox", { name: "Question" })).toHaveLength(3);
+      expect(morgen().getAllByRole("combobox", { name: "Answer" })).toHaveLength(3);
+      expect(morgen().getAllByRole("button", { name: "Remove Question" })).toHaveLength(3);
+      expect(morgen().getAllByRole("button", { name: "Move Up" })).toHaveLength(4);
+    });
+
     it("saves an edited question text", async () => {
       renderPage();
       const input = morgen().getAllByRole("textbox", { name: "Question" })[1];

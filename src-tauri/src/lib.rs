@@ -28,6 +28,7 @@ pub mod journal;
 pub mod launch;
 pub mod launcher;
 pub mod links;
+pub mod locale;
 pub mod lock;
 pub mod menu;
 pub mod music;

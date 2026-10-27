@@ -2,8 +2,8 @@ import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import type { QuickLink } from "../../api";
 import type { SettingsPageProps } from "../../registry/settingsPages";
-import { Group, Row, Switch } from "./controls";
-import { ChoiceList, CommitInput, DaysField, ItemActions, moveItem, replaceItem, type Choice } from "./fields";
+import { EntryFooter, Group, Row, Switch } from "./controls";
+import { CommitInput, DaysField, ItemActions, ToggleChips, contextChoices, moveItem, replaceItem, type Choice } from "./fields";
 import { clockTime, LinkMeetingFields, LinkTimeFields } from "./LinkRuleFields";
 
 const NEW_LINK: QuickLink = {
@@ -39,7 +39,7 @@ function summary(link: QuickLink, contexts: Choice[]): string {
   return link.pinned ? "Always" : "Only under More";
 }
 
-interface LinkCardProps {
+interface LinkEntryProps {
   link: QuickLink;
   contexts: Choice[];
   projects: string[];
@@ -52,10 +52,10 @@ interface LinkCardProps {
   onRemove: () => void;
 }
 
-function LinkCard({ link, contexts, projects, index, count, open, onToggle, onChange, onMove, onRemove }: LinkCardProps) {
+function LinkEntry({ link, contexts, projects, index, count, open, onToggle, onChange, onMove, onRemove }: LinkEntryProps) {
   const Chevron = open ? ChevronDown : ChevronRight;
   return (
-    <Group>
+    <>
       <div className="settings-row link-head">
         <button type="button" className="icon-btn tiny" aria-label={open ? "Hide Details" : "Show Details"} aria-expanded={open} onClick={onToggle}>
           <Chevron size="0.923rem" aria-hidden="true" />
@@ -77,18 +77,17 @@ function LinkCard({ link, contexts, projects, index, count, open, onToggle, onCh
             />
           </Row>
           {contexts.length > 1 && (
-            <Row label="Context" description="Only while one of these is current." stacked>
-              <ChoiceList label="Context" choices={contexts} chosen={link.contexts ?? []} onChange={(ids) => onChange({ contexts: orNull(ids) })} placeholder="Add: type part of a context's name, ↵ adds it" />
+            <Row label="Context" description="Only while one of these is current.">
+              <ToggleChips label="Context" choices={contexts} chosen={link.contexts ?? []} onChange={(ids) => onChange({ contexts: orNull(ids) })} />
             </Row>
           )}
           {projects.length > 0 && (
             <Row label="Project" description="Only while you work for one of these." stacked>
-              <ChoiceList
+              <ToggleChips
                 label="Project"
                 choices={projects.map((name) => ({ id: name, title: name }))}
                 chosen={link.projects ?? []}
                 onChange={(names) => onChange({ projects: orNull(projects.filter((name) => names.includes(name))) })}
-                placeholder="Add: type part of a project's name, ↵ adds it"
               />
             </Row>
           )}
@@ -105,17 +104,17 @@ function LinkCard({ link, contexts, projects, index, count, open, onToggle, onCh
           />
         </>
       )}
-    </Group>
+    </>
   );
 }
 
-/** One card per link, collapsed to its title and when it shows; the details open below. */
+/** One line per link, collapsed to its title and when it shows. */
 export function LinksPage({ s, set }: SettingsPageProps) {
   // Which cards show their details, by position; they start collapsed.
   const [open, setOpen] = useState<boolean[]>([]);
   const links = s.links;
   const flags = links.map((_, i) => open[i] === true);
-  const contexts = s.contexts.map((context) => ({ id: context.id, title: [context.label.trim(), context.name].filter(Boolean).join(" ") }));
+  const contexts = contextChoices(s.contexts);
   const projects = s.projects.map((project) => project.name);
   const save = (next: QuickLink[]) => set({ links: next.filter((link) => link.target || link.title) });
   // A card's open flag follows its link.
@@ -133,13 +132,12 @@ export function LinksPage({ s, set }: SettingsPageProps) {
   };
 
   return (
-    <>
-      <p className="settings-group-desc">
-        A link shows while everything you set for it applies: the context, the project of your current activity, the days and times, and a meeting in
-        today’s calendar.
-      </p>
+    <Group
+      title="Quick access"
+      description="A link shows while everything you set for it applies: the context, the project of your current activity, the days and times, and a meeting in today’s calendar."
+    >
       {links.map((link, i) => (
-        <LinkCard
+        <LinkEntry
           key={i}
           link={link}
           contexts={contexts}
@@ -153,11 +151,11 @@ export function LinksPage({ s, set }: SettingsPageProps) {
           onRemove={() => removeAt(i)}
         />
       ))}
-      <div>
+      <EntryFooter>
         <button type="button" className="btn" onClick={() => appendOpen(NEW_LINK)}>
           Add Link
         </button>
-      </div>
-    </>
+      </EntryFooter>
+    </Group>
   );
 }

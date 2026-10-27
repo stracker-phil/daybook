@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Check, Minus, Plus, type LucideIcon } from "lucide-react";
 import { api, type FocusLine, type FocusMark, type ReminderAction, type ReminderLine } from "../../api";
 import { fail } from "../../state/requests";
+import { ShortcutCap } from "../Field";
 
 function run(action: ReminderAction) {
   const done = action.kind === "join" ? api.calendarJoin(action.url) : api.runCommand(action.command);
@@ -43,7 +44,7 @@ function FocusCheckbox({ mark }: { mark: FocusMark }) {
   const Icon = MARK_ICONS[mark];
   return (
     <span className="focus-box" data-mark={mark} aria-hidden="true">
-      {Icon && <Icon size="0.769rem" strokeWidth={3} />}
+      {Icon && <Icon size={12} strokeWidth={3} />}
     </span>
   );
 }
@@ -60,17 +61,22 @@ function FocusItem({ line }: { line: FocusLine }) {
 }
 
 /** The day's focus list as the note holds it; a click opens the focus overlay, which edits today's only. */
-function Focus({ lines, isToday }: { lines: FocusLine[]; isToday: boolean }) {
+function Focus({ lines, isToday, shortcut }: { lines: FocusLine[]; isToday: boolean; shortcut: string | null }) {
   const empty = lines.length === 0;
   const open = () => void api.runCommand("focus:open").catch((e) => fail(e, "Couldn't open the focus list"));
   return (
-    <section className="focus-section" aria-label="Focus">
-      <div className="focus-title o3">Focus</div>
+    <section className="board-section focus-section" aria-label="Focus">
+      <header className="board-section-head">
+        <h2 className="board-section-title">
+          Focus
+          {isToday && <ShortcutCap shortcut={shortcut} />}
+        </h2>
+      </header>
       <button type="button" className="focus-list" data-stage="hub:focus" disabled={!isToday} aria-label={empty ? "Set Today's Focus" : "Edit Today's Focus"} onClick={open}>
         {empty && !isToday && <span className="o3">No focus list.</span>}
         {empty && isToday && (
           <span className="focus-add">
-            <Plus size="1.077rem" aria-hidden="true" />
+            <Plus size={16} aria-hidden="true" />
             Set today's focus…
           </span>
         )}
@@ -82,13 +88,24 @@ function Focus({ lines, isToday }: { lines: FocusLine[]; isToday: boolean }) {
   );
 }
 
-export function TodayCard({ reminder, focus, isToday }: { reminder: ReminderLine | null; focus: FocusLine[] | null; isToday: boolean }) {
+export function TodayCard({
+  reminder,
+  focus,
+  isToday,
+  focusShortcut = null,
+}: {
+  reminder: ReminderLine | null;
+  focus: FocusLine[] | null;
+  isToday: boolean;
+  /** The global shortcut that opens the focus list, shown beside its title. */
+  focusShortcut?: string | null;
+}) {
   if (!reminder && !focus) return null;
   return (
     <div className="today-card">
       {reminder && <Reminder reminder={reminder} />}
       {reminder && focus && <div role="separator" className="today-separator" />}
-      {focus && <Focus lines={focus} isToday={isToday} />}
+      {focus && <Focus lines={focus} isToday={isToday} shortcut={focusShortcut} />}
     </div>
   );
 }

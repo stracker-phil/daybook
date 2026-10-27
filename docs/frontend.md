@@ -23,19 +23,22 @@ renders and forwards intent; [Rust owns the logic](architecture.md#design-rules)
       shows an error toast, `notice` an info toast; `activate` is Rust's and needs nothing from the page.
       `loadUiState()` loads the window layout.
    2. `loadHub()` loads the Daybook window's view model, again every minute and on `settings_changed`,
-      `context_changed`, `status_changed`, `note_changed` and `window_opened`.
+      `context_changed`, `status_changed`, `note_changed`, `music_changed` and `window_opened`.
    3. It subscribes to `launch` (drain again), `remote` (to `answerRemote`), `settings_changed`,
       `keybindings_changed` (`applyKeybindings`) and `toggle_inspector` (`toggleInspector`).
    4. It adds a capture-phase `keydown` to `handleKeydown`, `error` and `unhandledrejection` to an error
       toast ("Unexpected error: …"), and `beforeunload` to `flushUiState`.
 8. `applyAppearance(settings, systemDark)` runs whenever the settings or the OS appearance change.
+9. `trackWindowFocus()` (`lib/windowFocus.ts`) keeps `window-blurred` on `<html>` while the window isn't key;
+   `shell.css` dims titles, toolbar buttons and the sidebar to 40% and turns accent fills grey then, as Glaze
+   does.
 
 ```
 App
 ├─ .app
 │  └─ Workspace     (.workspace grid; .no-sidebar, .no-inspector from uiState)
 │     ├─ Sidebar    the day (weekday, date, ‹ ›), the tool rows (the status with its dot and time), the Settings gear (not rendered while hidden)
-│     ├─ main       Board: the toolbar with the greeting and the inspector toggle, the board's column
+│     ├─ main       Board: the toolbar with the greeting, the board's column, the inspector toggle (fixed, lower right)
 │     └─ Inspector  the right column: the Todos toolbar (not rendered while hidden)
 ├─ Dialogs          shortcuts, confirm, prompt
 └─ Toasts
@@ -64,7 +67,7 @@ no toasts; errors go to the log.
 ## The Daybook window
 
 Rust builds what the window shows (`hub_view`, [backend](backend.md#tauri-commands)); the page renders the
-`HubView` of the `hub` slice. Its `tools` are the sidebar's rows in Settings → Tools order: `{ kind: "tool",
+`HubView` of the `hub` slice. Its `tools` are the sidebar's rows in Settings → General → Tools order: `{ kind: "tool",
 id, title, command, shortcut, accent, enabled }` or `{ kind: "separator" }`. Rust leaves out tools switched
 off for the window, tools with nothing to offer and tools whose command no feature registered yet, and greys
 a command that can't run now; `shortcut` is the global shortcut that works in this build, in Settings
@@ -144,12 +147,14 @@ function called from `installModules(window)`. Removing a module is deleting its
 never imports a module. Daybook has no module yet.
 
 `registry/settingsPages.ts` holds the Settings pages by id. `registerSettingsPage({ id, group, label, icon,
-intro?, Body, order? })` adds or replaces one; `Body` gets `SettingsPageProps` (`s`, the settings, and
-`set(patch)`), and a page that keeps its own state ignores them. `settingsPages()` returns them in nav order:
+intro?, Body, order?, sections? })` adds or replaces one; `Body` gets `SettingsPageProps` (`s`, the settings, and
+`set(patch)`), and a page that keeps its own state ignores them. `sections` (`{ id, title }`) are former pages
+that are now a group of this one, each a `Group anchor` on the page. `settingsPages()` returns them in nav order:
 by group (`GROUP_ORDER`: Setup, Obsidian, Workflows, System; other groups follow by name), then `order`,
-then label. A page's id is also in Rust's `window::settings::PAGES`, which `settings:<page>` and the palette
-read.
-`settingsGroups()` groups them for the nav, `resolveSettingsPage(id)` returns the named page or the first one,
+then label. A page's id is also in Rust's `window::settings::PAGES` and a section's in `SECTIONS`, which
+`settings:<page>` and the palette read.
+`settingsGroups(query?)` groups them for the nav, only those whose label, nav group or a section title contains
+`query`; `resolveSettingsPage(id)` returns the named page, the page holding the named section, or the first one;
 and `useSettingsPagesVersion()` re-renders a caller when a page registers, so a module may register after the
 window opened.
 
@@ -254,11 +259,15 @@ Shell components in `components/`:
   its `TOOL_INFO` icon, title and `ShortcutCap`, running its command; separators as hairlines), and the
   footer: what Slack shows (`SlackBadge` from `SlackStatus.tsx`, when `hub.slack` is set) and the Settings gear
   (runs `app:settings`; its tooltip names ⌘,).
-- `hub/Board.tsx`: the toolbar titled `hub.title` with the inspector toggle (its tooltip names the key), over
-  the board. Its sections come with their steps, in the prototype's order: the Today card,
-  events and the timeline, the routine and journal chips, today's notes.
-- `hub/Inspector.tsx`: the right column: the toolbar ("N open"), then `hub.todos` as foldable groups
-  (`uiState.collapsedTodoGroups`), each todo opening its note through `api.todoOpen`.
+- `hub/Board.tsx`: the toolbar titled `hub.title`, over the board, and the inspector toggle (`.inspector-toggle`,
+  fixed in the window's lower right corner; its tooltip names the key). Its sections come with their steps, in
+  the prototype's order: the Today card (the focus title with `hub.focusShortcut`), events and the timeline, a
+  hairline, the routine and journal chips, a hairline, today's notes (the title with `hub.notesShortcut`).
+- `hub/Inspector.tsx`: the right column: the toolbar ("N open"; the Todos | Activity switch only when
+  `hub.activityTab`), then `hub/TodoList.tsx`: `hub.todos` as foldable groups (`uiState.collapsedTodoGroups`),
+  each todo a checkbox (`role="checkbox"`, runs `api.todoComplete`, then `loadHub`) and its text, which opens its
+  note through `api.todoOpen`. `useOpenTodos` hides a todo while its tick is written and brings it back with a
+  toast when the write is refused; a group it empties goes, and the count follows.
 - `hub/TodaysNotes.tsx`: the board's last section, `hub.notes` as rows that open the day's note at the topic
   (`api.dailyNoteOpen(day, heading)`).
 - `Toolbar`: the unified toolbar a view renders first: `title`, an optional `detail`, the actions as children;
@@ -274,39 +283,42 @@ Shell components in `components/`:
 
 ## Settings
 
-`components/settings/SettingsWindow.tsx` fills the Settings window: a nav of `settingsGroups()` under a drag
-strip for the window buttons, and the shown page's title (a drag region), `intro` and `Body`. `set(patch)`
-saves the current settings with the patch through `saveSettings` quietly, so every change applies at once.
-`controls.tsx` holds the shared rows: `Group` (with an optional `description`), `Row` (`stacked`, `nested`),
-`Switch`, `Segmented`, `TextField` and `NumberField`; `fields.tsx` the card-per-item fields (`ColorField`,
-`DaysField`, `TimeRangeField`, `ChoiceList`, `ItemActions` with optional remove, `moveItem`, `replaceItem`);
-`SlackStatusField.tsx` a Slack status to set: a preview row whose Edit… opens keep, emoji, text and presence.
+`components/settings/SettingsWindow.tsx` fills the Settings window: a nav of `settingsGroups(query)` under a drag
+strip for the window buttons, with a search field on top (`SettingsNav`: it keeps the pages whose label, nav group
+or section title contains the text; a page found by a section shows the section's title and opens at it; Enter
+opens the first), and the shown page's title (a drag region), `intro` and `Body`. `set(patch)` saves the current
+settings with the patch through `saveSettings` quietly, so every change applies at once. The window's `page` may
+name a section (a former page, `sections` of `registerSettingsPage`): `resolveSettingsPage` returns the page that
+holds it, and `SectionTarget` tells the page's `Group anchor="<id>"` to scroll into view.
+`controls.tsx` holds the shared rows: `Group` (with an optional `description` and `anchor`), `Row` (`stacked`,
+`nested`), `Switch`, `Segmented`, `BufferedInput` (commits on blur or Enter; number spinner steps debounced),
+`TextField` (a row with a `BufferedInput`) and `NumberField`; `fields.tsx` the card-per-item fields (`ColorField`,
+`ToggleChips` (a few options picked as chips, the chosen ones filled; `contextChoices` titles the contexts), `DaysField` (weekday chips), `TimeRangeField`, `CommitInput` (trimmed, on blur or Enter), `ItemActions` (↑ ↓ and an optional trash icon, named Move Up, Move Down and the remove label), `moveItem`, `replaceItem`); `controls.tsx` also has `ControlRow` (controls without a label: a repeating item's lines, or a value right under its switch) and `EntryFooter` (an item card's last row: Add on the left, its `ItemActions` at the end);
+`SlackStatusField.tsx` `SlackStatusEditor`, a Slack status to set: a Slack-like bar (`aria-label` Edit Slack
+status) that opens Emoji, Status text and Presence on one line and the Keep the status checkbox below (emoji and
+text disabled while it is checked). `controls.tsx` `LeadSwitch` (a workflow block: switch, name or `title`,
+`accessory`, then a `.form-grid`), `FormRow` (a small label and a left-aligned control with an optional `hint`)
+and `FormText` lay out Workflows, app triggers, absence rules and reminders; `InlineSwitch` is a switch with its
+text to the right (a `FormRow` control) and `Checkbox` a checkbox with its label (`.check`).
 `pages.tsx` registers the core pages (`registerCoreSettingsPages`):
 
-| Group | Page (id) | Holds |
+| Group | Page (id; sections) | Holds |
 |---|---|---|
-| Setup | Vault (`vault`) | `VaultPage`: the vault folder (`api.chooseFolder`), its name, the daily notes' folder and format and today's note from `api.vaultInfo`; the Obsidian CLI's state and a custom path |
-| Setup | Calendar (`calendar`) | `CalendarPage`: the calendar access with Allow Access… or Open Privacy Settings (`useCalendarInfo`: `api.calendarInfo`, read again on `calendar_changed`) |
-| Setup | Slack (`slack`) | `SlackPage`: not connected, the user token field and Connect (`api.slackConnect`); connected, the identity, Test Connection (`api.slackTest`) and Remove Token (`api.slackDisconnect`); `api.slackInfo`, read again on `slack_changed` ([slack.md](slack.md)) |
-| Setup | Jira (`jira`) | `JiraPage`: Issue URL (with an example of where 6805 opens) and Default project; Rust validates both on save |
-| Setup | TimeTracker (`timetracker`) | `TimeTrackerPage`: the command line tool (state, version, path; Open TimeTracker when it isn't running). The project card adds `TimeTrackerProjectsField` (linked TimeTracker projects with a colour dot and client, type-to-add through the shared `LinkAdder`, matching project or client names) |
+| Setup | Connections (`connections`; `vault`, `calendar`, `slack`, `jira`, `timetracker`) | `ConnectionsPage`, a group each. `VaultGroups`: Vault (the folder through `api.chooseFolder`, its name, the daily notes' folder and format and today's note from `api.vaultInfo`) and Obsidian CLI (its state and a custom path). `CalendarGroup`: the calendar access with Allow Access… or Open Privacy Settings (`useCalendarInfo`: `api.calendarInfo`, read again on `calendar_changed`). `SlackGroup`: not connected, the user token field and Connect (`api.slackConnect`); connected, the identity, Test Connection (`api.slackTest`) and Remove Token (`api.slackDisconnect`); `api.slackInfo`, read again on `slack_changed` ([slack.md](slack.md)). `JiraGroup`: Issue URL (with an example of where 6805 opens) and Default project; Rust validates both on save. `TimeTrackerGroup`: the command line tool (state, version, path; Open TimeTracker when it isn't running); the project card adds `TimeTrackerProjectsField` (linked TimeTracker projects with a colour dot and client, type-to-add through the shared `LinkAdder`, matching project or client names) |
 | Setup | Contexts (`contexts`), Projects (`projects`) | one card per item (`ContextsPage`, `ProjectsPage`); a context's calendars are checkboxes of this Mac's calendars (`ContextCalendars`), a chosen one missing here stays listed |
-| Obsidian | Journal (`journal`) | `JournalPage`: a card per group (Name, Callout type, Folded, `TimingFields`: the due switch and window, "Opens by itself"; then its questions with Question, Answer kind and Hint, Move Up/Down, Remove Question; Add Question, Move Up/Down, Remove Group); Add Group. A renamed group keeps its reminder rule (`journal::follow_renamed_groups` on save) |
+| Obsidian | Journal (`journal`) | `JournalPage`: a card per group (Name, Callout type, Folded, `TimingFields`: the due switch and window, "Opens by itself"; then one line per question: Question, Answer kind and its `ItemActions`, the Hint below; an `EntryFooter` with Add Question and the group's `ItemActions`); Add Group. A renamed group keeps its reminder rule (`journal::follow_renamed_groups` on save) |
 | Obsidian | Search (`search`) | `SearchPage`: one row per scope (Scope name, Folders and scopes as a comma list, Move Up/Down, Remove Scope), Add Scope (the first free `scope<n>`), the problems from `api.searchScopes()`; Never search: Excluded folders as a comma list |
-| Obsidian | Routines (`routines`) | `RoutinesPage`: a card per routine (Name, Contexts with two or more contexts, `TimingFields`; then its items with Item, Link and the weekdays, Move Up/Down, Remove Item; Add Item, Move Up/Down, Remove Routine); Add Routine. A new routine gets its id from its name in Rust on save ([routines.md](routines.md)) |
+| Obsidian | Routines (`routines`) | `RoutinesPage`: a card per routine (Name, with two or more contexts the Contexts as `ToggleChips`, `TimingFields`; then one line per item: Item and its `ItemActions`, Link and the weekday chips below; an `EntryFooter` with Add Item and the routine's `ItemActions`); Add Routine. A new routine gets its id from its name in Rust on save ([routines.md](routines.md)) |
 | Obsidian | Daily Note (`daily-note`) | `DailyNotePage`: the fallback folder and format; the sections in `dailyNote.order`, each with its heading level and text, moved up and down (the notes heading is one line, `dailyNote.notes`) |
-| Workflows | Workflows (`workflows`) | `WorkflowsPage`: "When you pick a status" (each status's workflow switch in `slack.manualWorkflows`, its suggested channel message in `statusMessages`, the first Working's, Off's "Ask first" = `endOfDay.enabled`) and "End-of-day check" (reminder, question, link, the messages for yes and not yet; the required ones ignore an empty value) ([status.md](status.md#settings)); the Slack channel and each status's Slack status (`SlackStatusField`); "Before an absence" and a card per rule (`AbsenceWorkflows`); "Daily focus" (`focus.enabled`, `focus.endOfDayTitle`) |
-| Workflows | Reminders (`reminders`) | `RemindersPage`: a card per rule in order with its Remind switch: the meeting's minutes before, the todos' span and time range (`TimeRangeField openEnd`), the due time of a routine or journal group; Move Up/Down, Remove for meeting and todo rules, Add Upcoming meeting / Open todos |
-| Workflows | Calls (`calls`) | `CallsPage` (`useCallsInfo`: `api.callsInfo`, read again on `call_changed` and window focus): App triggers (Watch apps = `meetings.detection`; Now with Check Now running `meetings:check`; Accessibility while an enabled trigger without a built-in check exists, Automation after a refusal), a card per trigger (Recognize calls, its Slack status, Name, the built-in check's text or the macOS app with Choose… and the window title; Move Up/Down, Remove App), Add <missing built-in> and Add Other App… (`api.callsPickApp`); Joining a Call (`joining`: Start first with remove buttons and Add App…, the app per service with Use Default and Choose…) ([presence-and-calls.md](presence-and-calls.md)) |
-| Workflows | Links (`links`) | `LinksPage`: a card per link (title; collapsed to a summary of its rules; details: URL, Context and Project lists, `LinkRuleFields`: weekdays, time window, meeting with its window and lead minutes; Pinned), Move Up/Down, Remove Link, Add Link |
-| Workflows | Music (`music`) | `MusicPage`: a card per entry (Name, Kind; a playlist from the library or by name with Shuffle, an artist found with the search, or an Apple Music link), Move Up/Down, Remove Entry, Add Entry. The context card adds `ContextMusicFields` (during a call, pause on Break and Done for today, start with the workday, resume) |
-| System | Rail (`rail`) | `RailPage`: Rail (show at the edge, edges, during meetings), Showing the Rail (trigger zone, delays, position), Look (appearance, shape, size, highlight, captions, fade when idle), Tooltips (delay, choices); "Show or Hide the Rail" runs `rail:toggle` |
+| Workflows | Workflows (`workflows`; `calls`) | `WorkflowsPage`, in this order: "When you pick a status" (the Slack channel, then a `LeadSwitch` block per status: its workflow switch in `slack.manualWorkflows`, its suggested channel message in `statusMessages`, the first Working's, Off's "Ask first" = `endOfDay.enabled`; the Slack channel and each status's Slack status, `SlackStatusField`) and "End-of-day check" (reminder, question, link, the messages for yes and not yet; the required ones ignore an empty value) ([status.md](status.md#settings)); "Daily focus" (`focus.enabled`, `focus.endOfDayTitle`); `CallWorkflows` (`useCallsInfo`: `api.callsInfo`, read again on `call_changed` and window focus): App triggers, the `calls` section (Watch apps = `meetings.detection`; Now with Check Now running `meetings:check`; Accessibility, Allowed or Allow Access…, warning while an enabled trigger without a built-in check can't read titles; Automation after a refusal), then a `LeadSwitch` block per trigger in the same card (its switch, "During a [name] call" or "While [name] is running", ↑ ↓ and trash; the built-in check's text or the macOS app with Choose… and the window title; its Slack status), Add <missing built-in> and Add Other App… (`api.callsPickApp`), then Joining a Call (`joining`: Start first with remove buttons and Add App…, the app per service with Use Default and Choose…) ([presence-and-calls.md](presence-and-calls.md)); `AbsenceWorkflows`: "Before an absence", a `LeadSwitch` block per rule ("Absence starts within [N] hours", trash; its Slack status) and Add Rule, then "Absences" (titles, busy blocks, time zone label) |
+| Workflows | Reminders (`reminders`) | `RemindersPage`: one card, a `LeadSwitch` block per rule in order (its switch and title, ↑ ↓ and trash for meeting and todo rules): the meeting's minutes before, the todos' span and time range (`TimeRangeField openEnd`), the due time of a routine or journal group; Move Up/Down, Remove for meeting and todo rules, Add Upcoming meeting / Open todos |
+| Workflows | Links (`links`) | `LinksPage`: one card "Quick access", a line per link (title; collapsed to a summary of its rules; details: URL, Context and Project `ToggleChips`, `LinkRuleFields`: weekdays, time window, meeting with its window and lead minutes; Pinned), Move Up/Down, Remove Link, Add Link |
+| Workflows | Music (`music`) | `MusicPage`: one card "Playlists and stations", one line per entry (Name, Kind, the source: a playlist from the library or by name, an artist found with the search, or an Apple Music link; Shuffle for a playlist; ↑ ↓ and trash), then Add Entry and Load My Playlists. The context card adds `ContextMusicFields` (during a call, pause on Break and Done for today, start with the workday, resume) |
+| System | General (`general`; `tools`) | `LaunchAtLoginSwitch`: checked from `api.autostartStatus()` through `useApiResult` (the LaunchAgent, not the stored setting), changed through `setLaunchAtLogin`; `ToolsGroup`, the `tools` section: every tool in order with its `TOOL_INFO` (`toolInfo.ts`: label, description, icon), Rail and Window switches (Window off for the Daybook tool), Move Up and Move Down |
+| System | Appearance (`appearance`; `rail`) | `AppearancePage`: Look: "Light mode scheme" and "Dark mode scheme", stacked rows of three tiles each (`SchemePicker`, a miniature window per scheme drawn with `schemeLook`, pressed for `lightScheme` or `darkScheme`), Accent (`AccentSwatches withSystem`); Text: Text size (`Segmented` over `TEXT_SIZES`); Day timeline: Starts at and Ends at (`timeline.firstHour`, `lastHour`); then `RailGroups`: Rail, the `rail` section ("Show or Hide the Rail" runs `rail:toggle`), Showing the Rail (show at the edge, edges, trigger zone and span, delays, during meetings with the call's edge and position), Rail look (appearance, shape, size, highlight, position, captions, fade when idle), Rail tooltips (delay, choices) |
 | System | Automation (`automation`) | `AutomationPage`: the `daybook` command (path, linked), the HTTP API (switch, state, port, the token with Copy and New Token, curl examples); `api.automationInfo()` polled every 3 s while open |
-| System | General (`general`) | `LaunchAtLoginSwitch`: checked from `api.autostartStatus()` through `useApiResult` (the LaunchAgent, not the stored setting), changed through `setLaunchAtLogin`; Permissions: the Accessibility state (`AccessibilityRow`) |
-| System | Tools (`tools`) | `ToolsPage`: every tool in order with its `TOOL_INFO` (`toolInfo.ts`: label, description, icon), Rail and Window switches (Window off for the Daybook tool), Move Up and Move Down |
 | System | Shortcuts (`shortcuts`) | `ShortcutsPage`: Global shortcuts from `api.shortcutOverview()` (`GlobalShortcuts`: each marked Global, recorded in Settings notation by `shortcutFromKeyEvent`, saved into `settings.hotkeys`, a conflict with macOS, another global shortcut or a menu key shown as "Also used by …"; a note when this build registers none), the app menu's keys read-only (`MenuShortcuts`), then the page commands of every window with their scope (a search field, the conflicts; recorded in page notation, an X removes, a reset arrow drops an override; saved through `saveKeybindings`). Both use `ShortcutRecorder` (`data-recording`; shortcuts pause meanwhile; ⌫ clears, Escape cancels) |
 | System | Status (`status`) | `StatusPage`: diagnostics from `api.diagnosticsGet()` (a card per group, each row's tone icon and optional command button; reloaded on show and focus), then the action log from `api.actionLogGet()` (`ActionLogSection`: day headers, an article per event with its lines, target and state icons, ×N, Clear Log; reloaded on `action_log_changed`) |
-| System | Appearance (`appearance`) | Look: "Light mode scheme" and "Dark mode scheme", stacked rows of three tiles each (`SchemePicker`, a miniature window per scheme drawn with `schemeLook`, pressed for `lightScheme` or `darkScheme`), Accent (`AccentSwatches withSystem`); Text: Text size (`Segmented` over `TEXT_SIZES`); Day timeline: Starts at and Ends at (`timeline.firstHour`, `lastHour`) |
 
 ## Styling
 

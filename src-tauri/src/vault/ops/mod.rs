@@ -5,6 +5,7 @@ pub mod focus;
 pub mod journal;
 pub mod notes;
 pub mod plan;
+pub mod todo;
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -44,6 +45,8 @@ pub enum NoteOp {
         #[ts(optional)]
         expected: Option<String>,
     },
+    /// Ticks the open todo `text` on `line` (0-based) of any daily note; fails when that line holds another.
+    TodoDone { line: u32, text: String },
 }
 
 /// Where the ops write: the section headings and the order that places a missing one.
@@ -110,6 +113,7 @@ impl NoteOp {
                     "#".repeat((*level).into())
                 )
             }
+            Self::TodoDone { text, .. } => format!("Todo: - [x] {text}"),
         }
     }
 
@@ -146,6 +150,10 @@ impl NoteOp {
                     return Err(notes::SECTION_CHANGED.into());
                 }
                 notes::write_note_section(note, &layout.notes, order, &section, new_title, body);
+            }
+            Self::TodoDone { line, text } => {
+                let line = usize::try_from(*line).map_err(|_| todo::TODO_CHANGED.to_string())?;
+                todo::tick_todo(&mut note.lines, line, text)?;
             }
         }
         Ok(())

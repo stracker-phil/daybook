@@ -7,13 +7,19 @@
 [data-context="red"], [data-context="red"] .sidebar { --context: var(--a-red); }
 [data-context="orange"], [data-context="orange"] .sidebar { --context: var(--a-orange); }
 [data-context="yellow"], [data-context="yellow"] .sidebar { --context: var(--a-gold); }
-[data-context="green"], [data-context="green"] .sidebar { --context: var(--style-green); }
+[data-context="green"], [data-context="green"] .sidebar { --context: var(--a-green); }
 [data-context="teal"], [data-context="teal"] .sidebar { --context: var(--a-teal); }
 [data-context="graphite"], [data-context="graphite"] .sidebar { --context: var(--a-graphite); }
-[data-context], [data-context] .sidebar { --context-tint: color-mix(in srgb, var(--context) 16%, transparent); }
+/* `--context-text` caps the lightness like `--accent-text`, so yellow stays readable on light surfaces; `--on-context`
+   is the text on a context fill, as `--on-accent` is on the accent. */
+[data-context], [data-context] .sidebar {
+  --context-tint: color-mix(in srgb, var(--context) 16%, transparent);
+  --context-text: oklch(from var(--context) min(l, var(--accent-text-max-l)) c h);
+  --on-context: oklch(from var(--context) clamp(0.2, (0.69 - l) * 1000, 1) 0 0);
+}
 
 /* The current item in a list, e.g. the current context in the switcher. */
 .context-pill {
   flex: none; padding: 0.077rem var(--space-2); border-radius: 999px; font-size: var(--fs-meta); font-weight: 600;
-  background: var(--context-tint); color: var(--context);
+  background: var(--context-tint); color: var(--context-text);
 }

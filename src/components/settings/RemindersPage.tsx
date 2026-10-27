@@ -1,6 +1,6 @@
 import type { ReminderRule, Settings, TimeWindow, TodoSpan } from "../../api";
 import type { SettingsPageProps } from "../../registry/settingsPages";
-import { Group, NumberField, Row, Switch } from "./controls";
+import { BufferedInput, ControlRow, EntryFooter, FormRow, Group, LeadSwitch } from "./controls";
 import { ItemActions, TimeRangeField, moveItem } from "./fields";
 
 type AddableRule = Extract<ReminderRule, { kind: "meeting" | "todos" }>;
@@ -41,20 +41,23 @@ function RuleFields({ rule, s, onChange }: { rule: ReminderRule; s: Settings; on
   switch (rule.kind) {
     case "meeting":
       return (
-        <NumberField
-          label="Minutes before"
-          description="Then while it runs; a running meeting wins over the next."
-          min={0}
-          max={240}
-          suffix="min"
-          value={rule.minutesBefore}
-          onCommit={(minutes) => onChange({ ...rule, minutesBefore: Math.round(minutes) })}
-        />
+        <FormRow label="Minutes before" hint="Minutes before the meeting starts, then while it runs.">
+          <BufferedInput
+            className="input number"
+            type="number"
+            aria-label="Minutes before"
+            min={0}
+            max={240}
+            value={String(rule.minutesBefore)}
+            onCommit={(minutes) => onChange({ ...rule, minutesBefore: Math.round(Number(minutes)) })}
+          />
+          <span className="muted">min</span>
+        </FormRow>
       );
     case "todos":
       return (
         <>
-          <Row label="Todos" nested>
+          <FormRow label="Todos">
             <select className="input" aria-label="Todos from" value={rule.span} onChange={(e) => onChange({ ...rule, span: e.target.value as TodoSpan })}>
               {SPANS.map(({ span, label }) => (
                 <option key={span} value={span}>
@@ -62,47 +65,54 @@ function RuleFields({ rule, s, onChange }: { rule: ReminderRule; s: Settings; on
                 </option>
               ))}
             </select>
-          </Row>
-          <Row label="Between" description="An empty end runs to the end of the day." nested>
+          </FormRow>
+          <FormRow label="Between" hint="An empty end runs to the end of the day.">
             <TimeRangeField label="Reminder" from={rule.from} to={rule.to} openEnd onChange={(range) => onChange({ ...rule, ...range })} />
-          </Row>
+          </FormRow>
         </>
       );
     case "routine":
-      return <Row label="Due" description={dueText(s.routines.find((routine) => routine.id === rule.routine)?.timing.due, "Settings → Routines")} nested />;
+      return <FormRow label="Due" hint={dueText(s.routines.find((routine) => routine.id === rule.routine)?.timing.due, "Settings → Routines")} />;
     case "journal":
-      return <Row label="Due" description={dueText(s.journal.find((group) => group.title === rule.group)?.timing.due, "Settings → Journal")} nested />;
+      return <FormRow label="Due" hint={dueText(s.journal.find((group) => group.title === rule.group)?.timing.due, "Settings → Journal")} />;
   }
 }
 
+/** The first enabled rule that applies wins, so the list order is the precedence. */
 export function RemindersPage({ s, set }: SettingsPageProps) {
   const rules = s.reminders;
   const save = (reminders: ReminderRule[]) => set({ reminders });
   const replace = (index: number, rule: ReminderRule) => save(rules.map((entry, i) => (i === index ? rule : entry)));
   return (
-    <>
-      {rules.map((rule, i) => (
-        <Group key={i} title={title(rule, s)}>
-          <Switch label="Remind" checked={rule.enabled} onChange={(enabled) => replace(i, { ...rule, enabled })} />
-          {rule.enabled && <RuleFields rule={rule} s={s} onChange={(next) => replace(i, next)} />}
-          <Row label="">
-            <ItemActions
-              index={i}
-              count={rules.length}
-              onMove={(from, to) => save(moveItem(rules, from, to))}
-              onRemove={isAddable(rule) ? () => save(rules.filter((_, j) => j !== i)) : undefined}
-              removeLabel="Remove Reminder"
-            />
-          </Row>
-        </Group>
-      ))}
-      <div className="button-row">
+    <Group>
+      <ControlRow stacked>
+        {rules.map((rule, i) => (
+          <LeadSwitch
+            key={i}
+            label={title(rule, s)}
+            checked={rule.enabled}
+            onChange={(enabled) => replace(i, { ...rule, enabled })}
+            accessory={
+              <ItemActions
+                index={i}
+                count={rules.length}
+                onMove={(from, to) => save(moveItem(rules, from, to))}
+                onRemove={isAddable(rule) ? () => save(rules.filter((_, j) => j !== i)) : undefined}
+                removeLabel="Remove Reminder"
+              />
+            }
+          >
+            {rule.enabled && <RuleFields rule={rule} s={s} onChange={(next) => replace(i, next)} />}
+          </LeadSwitch>
+        ))}
+      </ControlRow>
+      <EntryFooter>
         {(Object.keys(ADDABLE) as AddableRule["kind"][]).map((kind) => (
           <button key={kind} type="button" className="btn" onClick={() => save([...rules, newRule(kind)])}>
             Add {ADDABLE[kind]}
           </button>
         ))}
-      </div>
-    </>
+      </EntryFooter>
+    </Group>
   );
 }

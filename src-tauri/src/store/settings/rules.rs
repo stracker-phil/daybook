@@ -1225,6 +1225,58 @@ mod calls {
     }
 
     #[test]
+    fn a_meeting_rule_needs_the_microphone_only_when_stored_as_true() {
+        for (stored, expected) in [
+            (Some(json!(true)), true),
+            (Some(json!(false)), false),
+            (Some(json!("true")), false),
+            (Some(json!(1)), false),
+            (Some(json!(null)), false),
+            (None, false),
+        ] {
+            let mut rule = json!({ "app": "Webex", "bundleId": "com.webex" });
+            if let Some(stored) = stored.clone() {
+                rule["needsMicrophone"] = stored;
+            }
+
+            let meetings = load(json!({ "meetings": { "rules": [rule] } })).meetings;
+
+            assert_eq!(meetings.rules[0].needs_microphone, expected, "{stored:?}");
+        }
+    }
+
+    #[test]
+    fn a_meeting_rule_writes_needs_microphone_only_while_it_is_on() {
+        let mut rule = load(json!({
+            "meetings": { "rules": [{ "app": "Webex", "bundleId": "com.webex" }] }
+        }))
+        .meetings
+        .rules
+        .remove(0);
+
+        assert!(
+            serde_json::to_value(&rule)
+                .unwrap()
+                .get("needsMicrophone")
+                .is_none()
+        );
+
+        rule.needs_microphone = true;
+
+        assert_eq!(
+            serde_json::to_value(&rule).unwrap()["needsMicrophone"],
+            json!(true)
+        );
+    }
+
+    #[test]
+    fn the_built_in_meeting_rules_do_not_need_the_microphone() {
+        for rule in Meetings::default().rules {
+            assert!(!rule.needs_microphone, "{}", rule.app);
+        }
+    }
+
+    #[test]
     fn removed_meeting_rules_stay_removed() {
         assert!(
             load(json!({ "meetings": { "rules": [] } }))

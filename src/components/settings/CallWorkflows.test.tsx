@@ -7,28 +7,17 @@ vi.mock("../../api", async (orig) => ({ ...(await orig<object>()), api: (await i
 import { api, type AppRef, type CallsInfo, type Joining, type MeetingRule, type Settings } from "../../api";
 import { resetStore, useStore } from "../../state/store";
 import { settings } from "../../test/settings";
-import { AccessibilityRow, CallsPage } from "./CallsPage";
+import { CallWorkflows } from "./CallWorkflows";
 
 const mocked = vi.mocked(api, true);
 
 const SLACK: AppRef = { app: "Slack", bundleId: "com.tinyspeck.slackmacgap" };
+const DISCORD: AppRef = { app: "Discord", bundleId: "com.hnc.Discord" };
+const MIC = "Only while it records from the microphone";
 
 function customRule(patch: Partial<MeetingRule> = {}): MeetingRule {
   return { enabled: true, app: "Slack", bundleId: SLACK.bundleId, windowTitle: null, slack: { keepStatus: false, emoji: ":speech_balloon:", text: "Huddling", presence: "auto" }, ...patch };
 }
-
-async function renderPage({ meetings = {}, joining = {}, info = {} }: { meetings?: Partial<Settings["meetings"]>; joining?: Partial<Joining>; info?: Partial<CallsInfo> } = {}) {
-  const base = settings();
-  const s = settings({ meetings: { ...base.meetings, ...meetings }, joining: { ...base.joining, ...joining } });
-  mocked.callsInfo.mockResolvedValue({ ...DEFAULT_INFO, ...info });
-  const set = vi.fn();
-  render(<CallsPage s={s} set={set} />);
-  await screen.findByRole("switch", { name: "Watch apps" });
-  return { s, set };
-}
-
-const group = (title: string) => within(screen.getByRole("heading", { name: title }).closest("section")!);
-const row = (label: string) => within(screen.getByText(label).closest(".settings-row") as HTMLElement);
 
 const DEFAULT_INFO: CallsInfo = {
   detecting: true,
@@ -39,16 +28,28 @@ const DEFAULT_INFO: CallsInfo = {
   builtIns: settings().meetings.rules.map((rule) => ({ rule, check: `Recognizes ${rule.app} calls.` })),
 };
 
-function resetMocks() {
-  vi.clearAllMocks();
-  resetStore({ settings: settings() });
-  mocked.callsInfo.mockResolvedValue(DEFAULT_INFO);
-  mocked.callsPickApp.mockResolvedValue(null);
-  mocked.callsRequestAccess.mockResolvedValue(true);
+async function renderPage({ meetings = {}, joining = {}, info = {} }: { meetings?: Partial<Settings["meetings"]>; joining?: Partial<Joining>; info?: Partial<CallsInfo> } = {}) {
+  const base = settings();
+  const s = settings({ meetings: { ...base.meetings, ...meetings }, joining: { ...base.joining, ...joining } });
+  mocked.callsInfo.mockResolvedValue({ ...DEFAULT_INFO, ...info });
+  const set = vi.fn();
+  render(<CallWorkflows s={s} set={set} />);
+  await screen.findByRole("switch", { name: "Watch apps" });
+  return { s, set };
 }
 
-describe("CallsPage", () => {
-  beforeEach(resetMocks);
+const blockOf = (app: string) => within(screen.getByRole("switch", { name: `Recognize ${app} calls` }).closest(".lead-block") as HTMLElement);
+const row = (label: string) => within(screen.getByText(label).closest(".settings-row") as HTMLElement);
+const TITLES_BLOCKED = /apps with a window title can’t be recognized yet/;
+
+describe("CallWorkflows", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetStore({ settings: settings() });
+    mocked.callsInfo.mockResolvedValue(DEFAULT_INFO);
+    mocked.callsPickApp.mockResolvedValue(null);
+    mocked.callsRequestAccess.mockResolvedValue(true);
+  });
 
   describe("Watch apps", () => {
     it.each([true, false])("reflects detection %s and saves the flipped value", async (detection) => {
@@ -89,32 +90,50 @@ describe("CallsPage", () => {
     });
   });
 
-  describe("app cards", () => {
-    it("titles one card per rule by its app", async () => {
-      await renderPage({ meetings: { rules: [...settings().meetings.rules, customRule()] } });
-      expect(screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(expect.arrayContaining(["Zoom", "Teams", "Meet", "Slack"]));
-    });
-
-    it("shows a built-in rule's check text instead of the app and window title fields", async () => {
+  describe("rule blocks", () => {
+    it("titles a built-in rule 'During a [Name] call' with its check text and no app fields", async () => {
       await renderPage();
-      const zoom = group("Zoom");
+      const zoom = blockOf("Zoom");
+      expect(zoom.getByText("During a")).toBeInTheDocument();
+      expect(zoom.getByRole("textbox", { name: "Name" })).toHaveValue("Zoom");
       expect(zoom.getByText("Recognizes Zoom calls.")).toBeInTheDocument();
       expect(zoom.queryByText("macOS app")).not.toBeInTheDocument();
-      expect(zoom.queryByLabelText("Window title")).not.toBeInTheDocument();
+      expect(zoom.queryByRole("textbox", { name: "Window title" })).not.toBeInTheDocument();
     });
 
-    it("shows a custom rule's bundle id and window title field", async () => {
+    it("titles a custom rule 'While [Name] is running' with its bundle id and window title", async () => {
       await renderPage({ meetings: { rules: [customRule({ windowTitle: "Huddle" })] } });
-      const slack = group("Slack");
+      const slack = blockOf("Slack");
+      expect(slack.getByText("While")).toBeInTheDocument();
+      expect(slack.getByText("is running")).toBeInTheDocument();
       expect(slack.getByText(SLACK.bundleId)).toBeInTheDocument();
-      expect(slack.getByLabelText("Window title")).toHaveValue("Huddle");
+      expect(slack.getByRole("textbox", { name: "Window title" })).toHaveValue("Huddle");
+    });
+
+    it("explains that only windows on the current Space count", async () => {
+      await renderPage({ meetings: { rules: [customRule()] } });
+      expect(blockOf("Slack").getByText("Only windows on the current Space count.")).toBeInTheDocument();
+    });
+
+    it("saves the flipped enabled state from the Recognize switch of that rule only", async () => {
+      const { s, set } = await renderPage();
+      await userEvent.click(screen.getByRole("switch", { name: "Recognize Teams calls" }));
+      expect(set).toHaveBeenCalledWith({ meetings: { ...s.meetings, rules: s.meetings.rules.map((r) => (r.app === "Teams" ? { ...r, enabled: false } : r)) } });
+    });
+
+    it("saves a trimmed name", async () => {
+      const { s, set } = await renderPage();
+      const name = blockOf("Zoom").getByRole("textbox", { name: "Name" });
+      await userEvent.clear(name);
+      await userEvent.type(name, "  Zoom Work  {Enter}");
+      expect(set).toHaveBeenCalledWith({ meetings: { ...s.meetings, rules: s.meetings.rules.map((r) => (r.app === "Zoom" ? { ...r, app: "Zoom Work" } : r)) } });
     });
 
     it("saves the Slack status shown during a call on that rule only", async () => {
       const { s, set } = await renderPage();
-      const teams = group("Teams");
+      const teams = blockOf("Teams");
       await userEvent.click(teams.getByRole("button", { name: "Edit Slack status" }));
-      const text = teams.getByLabelText("Text");
+      const text = teams.getByRole("textbox", { name: "Status text" });
       await userEvent.clear(text);
       await userEvent.type(text, "Calling{Enter}");
       expect(set).toHaveBeenLastCalledWith({
@@ -122,31 +141,17 @@ describe("CallsPage", () => {
       });
     });
 
-    it("saves the flipped enabled state from Recognize calls", async () => {
-      const { s, set } = await renderPage();
-      await userEvent.click(group("Teams").getByRole("switch", { name: "Recognize calls" }));
-      expect(set).toHaveBeenCalledWith({ meetings: { ...s.meetings, rules: s.meetings.rules.map((r) => (r.app === "Teams" ? { ...r, enabled: false } : r)) } });
-    });
-
-    it("saves a trimmed name", async () => {
-      const { s, set } = await renderPage();
-      const name = group("Zoom").getByLabelText("Name");
-      await userEvent.clear(name);
-      await userEvent.type(name, "  Zoom Work  {Enter}");
-      expect(set).toHaveBeenCalledWith({ meetings: { ...s.meetings, rules: s.meetings.rules.map((r) => (r.app === "Zoom" ? { ...r, app: "Zoom Work" } : r)) } });
-    });
-
     it("replaces the bundle id with the app chosen by Choose…", async () => {
-      mocked.callsPickApp.mockResolvedValue({ app: "Discord", bundleId: "com.hnc.Discord" });
+      mocked.callsPickApp.mockResolvedValue(DISCORD);
       const { set } = await renderPage({ meetings: { rules: [customRule()] } });
-      await userEvent.click(group("Slack").getByRole("button", { name: "Choose…" }));
+      await userEvent.click(blockOf("Slack").getByRole("button", { name: "Choose…" }));
       await vi.waitFor(() => expect(set).toHaveBeenCalled());
-      expect(set.mock.lastCall![0].meetings.rules).toEqual([customRule({ bundleId: "com.hnc.Discord" })]);
+      expect(set.mock.lastCall![0].meetings.rules).toEqual([customRule({ bundleId: DISCORD.bundleId })]);
     });
 
     it("saves the window title, and null when it is emptied", async () => {
       const { set } = await renderPage({ meetings: { rules: [customRule({ windowTitle: "Huddle" })] } });
-      const field = group("Slack").getByLabelText("Window title");
+      const field = blockOf("Slack").getByRole("textbox", { name: "Window title" });
       await userEvent.clear(field);
       await userEvent.tab();
       expect(set.mock.lastCall![0].meetings.rules).toEqual([customRule({ windowTitle: null })]);
@@ -159,16 +164,39 @@ describe("CallsPage", () => {
     it("moves a rule down and up", async () => {
       const { s, set } = await renderPage();
       const [zoom, teams, meet] = s.meetings.rules;
-      await userEvent.click(group("Zoom").getByRole("button", { name: "Move Down" }));
+      await userEvent.click(blockOf("Zoom").getByRole("button", { name: "Move Down" }));
       expect(set.mock.lastCall![0].meetings.rules).toEqual([teams, zoom, meet]);
-      await userEvent.click(group("Meet").getByRole("button", { name: "Move Up" }));
+      await userEvent.click(blockOf("Meet").getByRole("button", { name: "Move Up" }));
       expect(set.mock.lastCall![0].meetings.rules).toEqual([zoom, meet, teams]);
     });
 
     it("removes a rule with Remove App", async () => {
       const { s, set } = await renderPage();
-      await userEvent.click(group("Teams").getByRole("button", { name: "Remove App" }));
+      await userEvent.click(blockOf("Teams").getByRole("button", { name: "Remove App" }));
       expect(set.mock.lastCall![0].meetings.rules).toEqual(s.meetings.rules.filter((r) => r.app !== "Teams"));
+    });
+  });
+
+  describe("microphone", () => {
+    it("offers the checkbox only on custom rules", async () => {
+      await renderPage({ meetings: { rules: [...settings().meetings.rules, customRule()] } });
+      expect(blockOf("Slack").getByRole("checkbox", { name: MIC })).not.toBeChecked();
+      expect(blockOf("Zoom").queryByRole("checkbox", { name: MIC })).not.toBeInTheDocument();
+    });
+
+    it("saves needsMicrophone true on that rule only", async () => {
+      const other = customRule({ app: "Discord", bundleId: DISCORD.bundleId });
+      const { set } = await renderPage({ meetings: { rules: [customRule(), other] } });
+      await userEvent.click(blockOf("Slack").getByRole("checkbox", { name: MIC }));
+      expect(set.mock.lastCall![0].meetings.rules).toEqual([customRule({ needsMicrophone: true }), other]);
+    });
+
+    it("saves needsMicrophone false when the checkbox is cleared", async () => {
+      const other = customRule({ app: "Discord", bundleId: DISCORD.bundleId, needsMicrophone: true });
+      const { set } = await renderPage({ meetings: { rules: [customRule({ needsMicrophone: true }), other] } });
+      expect(blockOf("Slack").getByRole("checkbox", { name: MIC })).toBeChecked();
+      await userEvent.click(blockOf("Slack").getByRole("checkbox", { name: MIC }));
+      expect(set.mock.lastCall![0].meetings.rules).toEqual([customRule({ needsMicrophone: false }), other]);
     });
   });
 
@@ -191,13 +219,12 @@ describe("CallsPage", () => {
       const { s, set } = await renderPage();
       await userEvent.click(screen.getByRole("button", { name: "Add Other App…" }));
       await vi.waitFor(() => expect(set).toHaveBeenCalled());
-      const added = set.mock.lastCall![0].meetings.rules.at(-1);
-      expect(set.mock.lastCall![0].meetings.rules).toHaveLength(s.meetings.rules.length + 1);
-      expect(added).toMatchObject({ enabled: true, app: "Slack", bundleId: SLACK.bundleId, windowTitle: null, slack: { text: "In a Slack call" } });
+      const rules = set.mock.lastCall![0].meetings.rules;
+      expect(rules).toHaveLength(s.meetings.rules.length + 1);
+      expect(rules.at(-1)).toMatchObject({ enabled: true, app: "Slack", bundleId: SLACK.bundleId, windowTitle: null, slack: { text: "In a Slack call" } });
     });
 
     it("changes nothing when the pick is cancelled", async () => {
-      mocked.callsPickApp.mockResolvedValue(null);
       const { set } = await renderPage();
       await userEvent.click(screen.getByRole("button", { name: "Add Other App…" }));
       await vi.waitFor(() => expect(mocked.callsPickApp).toHaveBeenCalled());
@@ -213,39 +240,48 @@ describe("CallsPage", () => {
     });
   });
 
-  describe("permissions", () => {
-    it("offers Allow Access… for an enabled custom rule without Accessibility", async () => {
-      await renderPage({ meetings: { rules: [customRule()] }, info: { accessibility: false } });
-      await userEvent.click(await screen.findByRole("button", { name: "Allow Access…" }));
+  describe("Accessibility", () => {
+    it("shows Allowed when Accessibility is granted", async () => {
+      await renderPage();
+      expect(screen.getByText("Allowed")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Allow Access…" })).not.toBeInTheDocument();
+    });
+
+    it("requests Accessibility from Allow Access… when it is missing", async () => {
+      await renderPage({ info: { accessibility: false } });
+      await userEvent.click(screen.getByRole("button", { name: "Allow Access…" }));
       expect(mocked.callsRequestAccess).toHaveBeenCalledWith("accessibility");
+    });
+
+    it("warns that window titles can't be recognized when an enabled custom rule lacks access", async () => {
+      await renderPage({ meetings: { rules: [customRule()] }, info: { accessibility: false } });
+      expect(screen.getByText(TITLES_BLOCKED)).toBeInTheDocument();
     });
 
     it.each([
       ["only built-in rules exist", { accessibility: false }, undefined],
       ["the custom rule is disabled", { accessibility: false }, [customRule({ enabled: false })]],
       ["Accessibility is allowed", { accessibility: true }, [customRule()]],
-    ] as const)("hides Allow Access… when %s", async (_, info, rules) => {
+    ] as const)("shows no warning when %s", async (_, info, rules) => {
       await renderPage({ meetings: rules ? { rules: [...rules] } : {}, info });
-      await screen.findByText("No call");
-      expect(screen.queryByRole("button", { name: "Allow Access…" })).not.toBeInTheDocument();
+      expect(screen.queryByText(TITLES_BLOCKED)).not.toBeInTheDocument();
     });
 
     it("offers Open Privacy Settings when Automation is missing", async () => {
       await renderPage({ info: { missing: ["automation"] } });
-      await userEvent.click(await screen.findByRole("button", { name: "Open Privacy Settings" }));
+      await userEvent.click(screen.getByRole("button", { name: "Open Privacy Settings" }));
       expect(mocked.callsRequestAccess).toHaveBeenCalledWith("automation");
     });
 
     it("hides Open Privacy Settings when nothing is missing", async () => {
       await renderPage();
-      await screen.findByText("No call");
       expect(screen.queryByRole("button", { name: "Open Privacy Settings" })).not.toBeInTheDocument();
     });
 
     it("shows an error toast when the request fails", async () => {
       mocked.callsRequestAccess.mockRejectedValue({ kind: "io", message: "No prompt", code: null });
       await renderPage({ info: { missing: ["automation"] } });
-      await userEvent.click(await screen.findByRole("button", { name: "Open Privacy Settings" }));
+      await userEvent.click(screen.getByRole("button", { name: "Open Privacy Settings" }));
       await vi.waitFor(() => expect(useStore.getState().toasts[0]?.message).toContain("Couldn't ask for access"));
     });
   });
@@ -306,22 +342,5 @@ describe("CallsPage", () => {
       await vi.waitFor(() => expect(useStore.getState().toasts[0]?.message).toContain("Couldn't use this app"));
       expect(set).not.toHaveBeenCalled();
     });
-  });
-});
-
-describe("AccessibilityRow", () => {
-  beforeEach(resetMocks);
-
-  it("shows Allowed when Accessibility is granted", async () => {
-    render(<AccessibilityRow />);
-    expect(await screen.findByText("Allowed")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Allow Access…" })).not.toBeInTheDocument();
-  });
-
-  it("requests Accessibility from Allow Access… when it is missing", async () => {
-    mocked.callsInfo.mockResolvedValue({ ...DEFAULT_INFO, accessibility: false });
-    render(<AccessibilityRow />);
-    await userEvent.click(await screen.findByRole("button", { name: "Allow Access…" }));
-    expect(mocked.callsRequestAccess).toHaveBeenCalledWith("accessibility");
   });
 });

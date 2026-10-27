@@ -1,4 +1,4 @@
-//! Settings → Slack: connecting a token, testing and removing it. The token never goes back to the page.
+//! Settings → Connections → Slack: connecting a token, testing and removing it. The token never goes back to the page.
 
 use serde::Serialize;
 use tauri::AppHandle;

@@ -6,7 +6,7 @@ import { ShortcutCap } from "../Field";
 
 /** One dot per question or item, filled when done; a check once all are. */
 function Progress({ done, total }: { done: number; total: number }) {
-  if (total > 0 && done >= total) return <Check className="chip-done" size="1.077rem" aria-label="Done" />;
+  if (total > 0 && done >= total) return <Check className="chip-done" size={16} aria-label="Done" />;
   return (
     <span className="chip-dots" aria-label={`${done} of ${total}`}>
       {Array.from({ length: total }, (_, i) => (
@@ -61,7 +61,7 @@ export function RoutinesRow({ hub }: { hub: HubView }) {
       {hub.routines.map((routine) => (
         <Chip
           key={routine.id}
-          icon={<ListChecks size="1.077rem" aria-hidden="true" />}
+          icon={<ListChecks size={16} aria-hidden="true" />}
           title={routine.name}
           trailing={routine.total > 0 ? <Progress done={routine.done} total={routine.total} /> : null}
           onClick={hub.isToday ? runOrFail(`routine:${routine.id}`, "Couldn't open the routine") : undefined}
@@ -79,7 +79,7 @@ export function JournalRow({ hub }: { hub: HubView }) {
       {hub.journal.map((group) => (
         <Chip
           key={group.title}
-          icon={<BookOpen size="1.077rem" aria-hidden="true" />}
+          icon={<BookOpen size={16} aria-hidden="true" />}
           title={group.title}
           trailing={<JournalTrailing group={group} />}
           onClick={hub.isToday ? runOrFail(`journal:open:${group.title}`, "Couldn't open the journal") : undefined}

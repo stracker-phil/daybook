@@ -2,8 +2,13 @@
 //! break or comes back (`steps`), and with the day's first Working (`first_working_steps`); and what
 //! each step does to Music as it is now (`action`).
 
+use serde::{Deserialize, Serialize};
+
 use super::state::{Player, PlayerState};
 use crate::store::settings::{ContextMusic, MusicEntry, OnCall};
+
+/// The volume a call lowered, kept across a quit or crash mid-call.
+pub const HELD_FILE: &str = "music-held.json";
 
 /// Within this many points of the lowered volume, the volume counts as untouched since the call began.
 const UNTOUCHED_TOLERANCE: u8 = 1;
@@ -26,7 +31,7 @@ pub enum Step {
 }
 
 /// The volume before a call and the one it was lowered to.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Lowered {
     pub from: u8,
     pub to: u8,
@@ -401,6 +406,55 @@ mod tests {
             );
             assert_eq!(held.lowered, None, "{now:?}");
         }
+    }
+
+    #[test]
+    fn staying_in_a_call_changes_nothing_even_with_a_lowered_volume() {
+        let lowered = Held {
+            paused: true,
+            lowered: Some(Lowered { from: 60, to: 2 }),
+        };
+        for held in [&UNTOUCHED, &PAUSED, &lowered] {
+            assert_eq!(
+                steps(IN_CALL, IN_CALL, held, &settings()),
+                Vec::<Step>::new(),
+                "{held:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_volume_lowered_before_a_restart_is_restored_unless_changed_by_hand() {
+        let persisted: Lowered =
+            serde_json::from_value(serde_json::json!({ "from": 60, "to": 2 })).unwrap();
+        assert_eq!(persisted, Lowered { from: 60, to: 2 });
+        let restored = Held {
+            paused: false,
+            lowered: Some(persisted),
+        };
+
+        for (volume, expected) in [(2, Some(Action::Volume(60))), (40, None)] {
+            let mut held = restored;
+            assert_eq!(
+                action(
+                    &Step::Restore,
+                    &player(PlayerState::Playing, Some(volume)),
+                    &mut held,
+                    &[]
+                ),
+                expected,
+                "{volume}"
+            );
+            assert_eq!(held.lowered, None, "{volume}");
+        }
+    }
+
+    #[test]
+    fn the_lowered_volume_is_stored_as_from_and_to() {
+        assert_eq!(
+            serde_json::to_value(Lowered { from: 60, to: 2 }).unwrap(),
+            serde_json::json!({ "from": 60, "to": 2 })
+        );
     }
 
     #[test]

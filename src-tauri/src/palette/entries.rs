@@ -10,7 +10,7 @@ use crate::bus::CommandStatus;
 use crate::menu::model::{MenuEntry, MenuInput, build_menu, prune};
 use crate::store::settings::{Hotkeys, default_tools};
 use crate::tools::ToolState;
-use crate::window::settings::PAGES;
+use crate::window::settings::{PAGES, SECTIONS};
 
 #[derive(Serialize, Clone, Copy, Debug, PartialEq, Eq, TS)]
 #[ts(export, export_to = "src/api/types.gen.ts")]
@@ -184,7 +184,8 @@ fn direct(state: &ToolState, hotkeys: &Hotkeys) -> Vec<PaletteEntry> {
     }
     entries.push(command("Install Command Line Tool", "cli:install", ""));
     entries.push(command("Open Log Folder", "app:logs", ""));
-    for (page, title) in PAGES {
+    let sections = SECTIONS.iter().map(|&(id, _, title)| (id, title));
+    for (page, title) in PAGES.into_iter().chain(sections) {
         entries.push(command(
             &format!("Settings: {title}"),
             &format!("settings:{page}"),
@@ -202,7 +203,7 @@ fn runnable(commands: &dyn CommandStatus, id: &str) -> bool {
     commands.knows(id) && commands.is_enabled(id)
 }
 
-/// Every tool's commands, wherever Settings → Tools shows it, each once and only those that can run now.
+/// Every tool's commands, wherever Settings → General → Tools shows it, each once and only those that can run now.
 pub fn palette_entries(
     state: &ToolState,
     hotkeys: &Hotkeys,
@@ -537,6 +538,29 @@ mod tests {
                 find(&entries, &command).map(|e| e.label.clone()),
                 Some(format!("Settings: {title}")),
                 "{page}"
+            );
+        }
+    }
+
+    #[test]
+    fn every_settings_section_has_a_direct_entry() {
+        let entries = list(&fixture());
+        assert_eq!(
+            find(&entries, "settings:calendar"),
+            Some(&entry(
+                PaletteKind::Command,
+                "Settings: Calendar",
+                "",
+                None,
+                "settings:calendar"
+            ))
+        );
+        for (id, _, title) in SECTIONS {
+            let command = format!("settings:{id}");
+            assert_eq!(
+                find(&entries, &command).map(|e| e.label.clone()),
+                Some(format!("Settings: {title}")),
+                "{id}"
             );
         }
     }

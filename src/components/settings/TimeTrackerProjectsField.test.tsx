@@ -142,7 +142,7 @@ describe("TimeTrackerProjectsField", () => {
     it("points to the settings when TimeTracker is not installed and asks again on Try Again", async () => {
       mocked.timetrackerProjects.mockResolvedValue(answer([], "missing"));
       renderPage();
-      expect(await card("Oscorp").findByText("TimeTracker isn't installed: check its command in Settings → TimeTracker.")).toBeInTheDocument();
+      expect(await card("Oscorp").findByText("TimeTracker isn't installed: check its command in Settings → Connections.")).toBeInTheDocument();
       await userEvent.click(card("Oscorp").getByRole("button", { name: "Try Again" }));
       await vi.waitFor(() => expect(mocked.timetrackerProjects).toHaveBeenLastCalledWith(true));
     });

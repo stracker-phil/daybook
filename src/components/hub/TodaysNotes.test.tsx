@@ -26,6 +26,16 @@ describe("TodaysNotes", () => {
     expect(screen.getByRole("heading", { name: title })).toBeInTheDocument();
   });
 
+  it("shows the quick-notes shortcut as a key cap beside the title today", async () => {
+    await renderNotes({ isToday: true, notesShortcut: "ctrl+alt+cmd+n" });
+    expect(screen.getByRole("heading", { name: /Today’s notes/ })).toHaveTextContent("⌃⌥⌘N");
+  });
+
+  it("shows no key cap on another day", async () => {
+    await renderNotes({ isToday: false, notesShortcut: "ctrl+alt+cmd+n" });
+    expect(screen.queryByText("⌃⌥⌘N")).not.toBeInTheDocument();
+  });
+
   it("lists a row per topic of the note", async () => {
     await renderNotes({ notes: [{ title: "Planning", level: 2 }, { title: "Ideas", level: 2 }] });
     expect(screen.getByRole("button", { name: "Planning" })).toBeInTheDocument();

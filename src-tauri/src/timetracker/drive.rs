@@ -1,11 +1,15 @@
 //! The status drives TimeTracker's timer and a finished call goes to TimeTracker as a suggestion
-//! (docs/timetracker.md#status-and-calls). The decisions are in `status_timer` and `call_suggestion`.
+//! (docs/timetracker.md#status-and-calls). The decisions are in `status_timer`, `call_suggestion` and
+//! `split_calls` (a call that restarts within `split_calls::RESTART_WITHIN` is one suggestion).
+
+use std::sync::{Arc, Mutex};
 
 use chrono::{Local, NaiveDateTime};
 use tauri::{AppHandle, Listener, Manager};
 use tokio::sync::broadcast::error::RecvError;
 
 use super::call_suggestion::{CallSuggestion, FinishedCall, call_suggestion};
+use super::split_calls::{EndedCall, SplitCalls};
 use super::status_timer::{TimerKnown, TimerStep, needs_last_timer, timer_step};
 use super::{blocking, client, tracking};
 use crate::action_log;
@@ -13,6 +17,7 @@ use crate::activity::{self, session::ActivityMode};
 use crate::calls::{self, ActiveCall, Announced, CallEvent};
 use crate::error::{AppError, ErrorKind};
 use crate::events::STATUS_CHANGED_EVENT;
+use crate::lock::MutexExt;
 use crate::state::AppState;
 use crate::status::{self, StatusChanged};
 use crate::store::settings::{Feature, Project, Settings};
@@ -127,7 +132,8 @@ async fn send(app: &AppHandle, suggestion: CallSuggestion) {
     }
 }
 
-async fn call_ended(app: &AppHandle, call: ActiveCall, end: NaiveDateTime) {
+async fn call_ended(app: &AppHandle, ended: EndedCall) {
+    let EndedCall { call, end, status } = ended;
     let settings = app.state::<AppState>().settings.get();
     let (offered, status_feature) = context(app, &settings);
     let today = Local::now().date_naive();
@@ -135,7 +141,7 @@ async fn call_ended(app: &AppHandle, call: ActiveCall, end: NaiveDateTime) {
     let finished = FinishedCall {
         call: &call,
         end,
-        status: status::today(app).status,
+        status,
         status_feature,
         events: &events,
         offered: &offered,
@@ -165,17 +171,65 @@ fn listen_status(app: &AppHandle) {
     );
 }
 
+type Split = Arc<Mutex<SplitCalls>>;
+
+/// The call waits for a restart of its app; once it is final it is suggested.
+fn settle(
+    app: &AppHandle,
+    split: &Split,
+    call: ActiveCall,
+    end: NaiveDateTime,
+) -> Option<EndedCall> {
+    let status = status::today(app).status;
+    let (ready, due_at) = {
+        let mut split = split.lock_unpoisoned();
+        let ready = split.ended(EndedCall { call, end, status });
+        (ready, split.due_at())
+    };
+    let Some(due_at) = due_at else {
+        return ready;
+    };
+    let wait = (due_at - Local::now().naive_local())
+        .to_std()
+        .unwrap_or_default();
+    let (app, split) = (app.clone(), Arc::clone(split));
+    action_log::spawn(async move {
+        tokio::time::sleep(wait).await;
+        let due = split.lock_unpoisoned().due(Local::now().naive_local());
+        if let Some(call) = due {
+            call_ended(&app, call).await;
+        }
+    });
+    ready
+}
+
+async fn follow(app: &AppHandle, split: &Split, event: CallEvent) {
+    let mut done = Vec::new();
+    match event {
+        CallEvent::Started(call) => done.extend(split.lock_unpoisoned().started(&call)),
+        CallEvent::Switched { from, to, end } => {
+            done.extend(settle(app, split, from, end));
+            done.extend(split.lock_unpoisoned().started(&to));
+        }
+        CallEvent::Ended { call, end, .. } => done.extend(settle(app, split, call, end)),
+        CallEvent::Changed(_) => {}
+    }
+    for call in done {
+        call_ended(app, call).await;
+    }
+}
+
 fn follow_calls(app: &AppHandle) {
     let handle = app.clone();
+    let split = Split::default();
     let mut rx = calls::subscribe(app);
     tauri::async_runtime::spawn(async move {
         loop {
             match rx.recv().await {
-                Ok(Announced {
-                    event: CallEvent::Ended { call, end },
-                    trigger,
-                }) => action_log::within(trigger, call_ended(&handle, call, end)).await,
-                Ok(_) | Err(RecvError::Lagged(_)) => continue,
+                Ok(Announced { event, trigger }) => {
+                    action_log::within(trigger, follow(&handle, &split, event)).await;
+                }
+                Err(RecvError::Lagged(_)) => continue,
                 Err(RecvError::Closed) => break,
             }
         }

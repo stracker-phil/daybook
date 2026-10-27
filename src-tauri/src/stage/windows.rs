@@ -10,7 +10,7 @@ use ts_rs::TS;
 use super::page::{PageAnchor, PageMeta, PanelState, Role};
 use super::protocol::{ScreenRect, to_screen_rect};
 use crate::automation::AutomationError;
-use crate::window::settings::PAGES;
+use crate::window::settings::{PAGES, page_of};
 
 /// A window as the host sees it, in screen points.
 #[derive(Debug, Clone, PartialEq)]
@@ -123,8 +123,9 @@ pub fn sections() -> Vec<Section> {
         .collect()
 }
 
+/// A page, or a former page that is now a group of one (`window::settings::SECTIONS`).
 pub fn is_section(id: &str) -> bool {
-    PAGES.iter().any(|(page, _)| *page == id)
+    page_of(id).is_some()
 }
 
 /// One window in `describe` and the `window` verb's answer.
@@ -249,6 +250,7 @@ mod tests {
 
     use super::*;
     use crate::stage::protocol::PageRect;
+    use crate::window::settings::SECTIONS;
 
     fn screen(x: i64, y: i64, width: i64, height: i64) -> ScreenRect {
         ScreenRect {
@@ -376,17 +378,24 @@ mod tests {
         assert_eq!(
             sections[0],
             Section {
-                id: "vault",
-                title: "Vault",
+                id: "connections",
+                title: "Connections",
             }
         );
         assert_eq!(
             serde_json::to_value(&sections[0]).unwrap(),
-            json!({ "id": "vault", "title": "Vault" })
+            json!({ "id": "connections", "title": "Connections" })
         );
         assert!(is_section("automation"));
         assert!(!is_section("nope"));
-        assert!(!is_section("Vault"));
+        assert!(!is_section("Connections"));
+    }
+
+    #[test]
+    fn a_settings_section_id_is_a_section() {
+        for (id, ..) in SECTIONS {
+            assert!(is_section(id), "{id}");
+        }
     }
 
     #[test]
@@ -550,7 +559,7 @@ mod tests {
         assert_eq!(shown["section"], json!("slack"));
         assert_eq!(
             shown["sections"][0],
-            json!({ "id": "vault", "title": "Vault" })
+            json!({ "id": "connections", "title": "Connections" })
         );
         assert_eq!(shown["sections"].as_array().unwrap().len(), PAGES.len());
         assert_eq!(shown["view"], json!(null));

@@ -1,6 +1,6 @@
 import type { AnswerKind, JournalGroup, JournalQuestion } from "../../api";
 import type { SettingsPageProps } from "../../registry/settingsPages";
-import { Group, Row, Switch, TextField } from "./controls";
+import { ControlRow, EntryFooter, Group, Switch, TextField } from "./controls";
 import { CommitInput, ItemActions, moveItem, replaceItem } from "./fields";
 import { TimingFields } from "./TimingFields";
 
@@ -19,22 +19,20 @@ function QuestionRow({ question, index, count, onChange, onMove, onRemove }: {
   onRemove: () => void;
 }) {
   return (
-    <Row label={`Question ${index + 1}`} stacked>
-      <div className="journal-question-fields">
-        <div className="journal-question-line">
-          <CommitInput label="Question" className="grow" required value={question.question} onCommit={(text) => onChange({ question: text })} />
-          <select className="input" aria-label="Answer" value={question.kind} onChange={(e) => onChange({ kind: e.target.value as AnswerKind })}>
-            {KINDS.map((kind) => (
-              <option key={kind.value} value={kind.value}>
-                {kind.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <CommitInput label="Hint" placeholder="Hint (optional), shown in italics" value={question.hint} onCommit={(hint) => onChange({ hint })} />
+    <ControlRow stacked>
+      <div className="item-line">
+        <CommitInput label="Question" className="grow" placeholder="Question" required value={question.question} onCommit={(text) => onChange({ question: text })} />
+        <select className="input" aria-label="Answer" value={question.kind} onChange={(e) => onChange({ kind: e.target.value as AnswerKind })}>
+          {KINDS.map((kind) => (
+            <option key={kind.value} value={kind.value}>
+              {kind.label}
+            </option>
+          ))}
+        </select>
         <ItemActions index={index} count={count} onMove={onMove} onRemove={onRemove} removeLabel="Remove Question" />
       </div>
-    </Row>
+      <CommitInput label="Hint" placeholder="Hint (optional), shown in italics" value={question.hint} onCommit={(hint) => onChange({ hint })} />
+    </ControlRow>
   );
 }
 
@@ -65,14 +63,12 @@ function GroupCard({ group, index, count, onChange, onMove, onRemove }: {
           onRemove={() => setQuestions(questions.filter((_, j) => j !== i))}
         />
       ))}
-      <Row label="">
-        <div className="journal-group-actions">
-          <button type="button" className="btn" onClick={() => setQuestions([...questions, { question: "New question", hint: "", kind: "text" }])}>
-            Add Question
-          </button>
-          <ItemActions index={index} count={count} onMove={onMove} onRemove={onRemove} removeLabel="Remove Group" />
-        </div>
-      </Row>
+      <EntryFooter>
+        <button type="button" className="btn" onClick={() => setQuestions([...questions, { question: "New question", hint: "", kind: "text" }])}>
+          Add Question
+        </button>
+        <ItemActions index={index} count={count} onMove={onMove} onRemove={onRemove} removeLabel="Remove Group" />
+      </EntryFooter>
     </Group>
   );
 }

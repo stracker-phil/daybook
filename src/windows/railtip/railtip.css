@@ -1,5 +1,8 @@
 /* The rail's tooltip: one card in a transparent, click-through column beside the rail (docs/ux.md). */
 .railtip-card {
+  /* The rail's surface (rail.css). */
+  --text: var(--rail-text); --text-strong: var(--rail-text); --pop: var(--rail-bg); --line: var(--rail-line);
+  --o2: color-mix(in srgb, var(--rail-text) 60%, transparent); --o3: color-mix(in srgb, var(--rail-text) 40%, transparent);
   position: absolute; top: 0; display: flex; flex-direction: column; width: max-content; max-width: var(--tip-width);
   overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--pop); color: var(--text);
   box-shadow: 0 0 0 0.5px color-mix(in srgb, var(--shade) 6%, transparent), 0 4px 12px color-mix(in srgb, var(--shade) 18%, transparent);

@@ -8,7 +8,7 @@ vi.mock("../../api", async (orig) => ({ ...(await orig<object>()), api: (await i
 import { api, type Rail, type Settings } from "../../api";
 import { resetStore, useStore } from "../../state/store";
 import { settings } from "../../test/settings";
-import { RailPage } from "./RailPage";
+import { RailGroups } from "./RailGroups";
 
 const mocked = vi.mocked(api, true);
 const save = vi.fn<(patch: Partial<Settings>) => void>();
@@ -16,7 +16,7 @@ const save = vi.fn<(patch: Partial<Settings>) => void>();
 function Harness({ initial }: { initial: Settings }) {
   const [s, setS] = useState(initial);
   return (
-    <RailPage
+    <RailGroups
       s={s}
       set={(patch) => {
         save(patch);
@@ -26,7 +26,7 @@ function Harness({ initial }: { initial: Settings }) {
   );
 }
 
-function renderPage(patch: Partial<Rail> = {}) {
+function renderGroups(patch: Partial<Rail> = {}) {
   const base = settings();
   const initial = settings({ rail: { ...base.rail, ...patch } });
   render(<Harness initial={initial} />);
@@ -37,10 +37,17 @@ const savedRail = () => save.mock.lastCall![0].rail!;
 const group = (name: string) => within(screen.getByRole("group", { name }));
 const optionTexts = (name: string) => within(screen.getByRole("combobox", { name })).getAllByRole("option").map((o) => o.textContent);
 
-describe("RailPage", () => {
+describe("RailGroups", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetStore({ settings: settings() });
+  });
+
+  it("renders the Rail, Showing the Rail, Rail look and Rail tooltips groups", () => {
+    renderGroups();
+    for (const title of ["Rail", "Showing the Rail", "Rail look", "Rail tooltips"]) {
+      expect(screen.getByRole("heading", { name: title })).toBeInTheDocument();
+    }
   });
 
   describe("saving", () => {
@@ -51,7 +58,7 @@ describe("RailPage", () => {
       ["Fade when idle", { fadeWhenIdle: true }],
       ["Show choices in tooltips", { hoverMenus: false }],
     ] as [string, Partial<Rail>][])("saves the rail with %s toggled", async (label, patch) => {
-      const rail = renderPage({ captions: false });
+      const rail = renderGroups({ captions: false });
       await userEvent.click(screen.getByRole("switch", { name: label }));
       expect(savedRail()).toEqual({ ...rail, ...patch });
     });
@@ -67,7 +74,7 @@ describe("RailPage", () => {
       ["Hover highlight", "Gray", { highlight: "gray" }],
       ["Position", "Top", { position: "top" }],
     ] as [string, string, Partial<Rail>][])("saves the rail when %s is set to %s", async (label, button, patch) => {
-      const rail = renderPage();
+      const rail = renderGroups();
       await userEvent.click(group(label).getByRole("button", { name: button }));
       expect(savedRail()).toEqual({ ...rail, ...patch });
     });
@@ -78,13 +85,13 @@ describe("RailPage", () => {
       ["Hide after", "3 s", { hideDelay: 3000 }],
       ["First tooltip after", "Long", { tooltipDelay: 600 }],
     ] as [string, string, Partial<Rail>][])("saves %s as a number when %s is picked", async (label, option, patch) => {
-      const rail = renderPage();
+      const rail = renderGroups();
       await userEvent.selectOptions(screen.getByRole("combobox", { name: label }), option);
       expect(savedRail()).toEqual({ ...rail, ...patch });
     });
 
     it("presses the saved value in a segmented control", () => {
-      renderPage({ shape: "docked" });
+      renderGroups({ shape: "docked" });
       expect(group("Shape").getByRole("button", { name: "Docked" })).toHaveAttribute("aria-pressed", "true");
       expect(group("Shape").getByRole("button", { name: "Pill" })).toHaveAttribute("aria-pressed", "false");
     });
@@ -97,27 +104,27 @@ describe("RailPage", () => {
       ["Hide after", { hideDelay: 1000 }, "1000 ms"],
       ["First tooltip after", { tooltipDelay: 450 }, "450 ms"],
     ] as [string, Partial<Rail>, string][])("shows the %s value as its own selected option", (label, patch, text) => {
-      renderPage(patch);
+      renderGroups(patch);
       expect(optionTexts(label)).toContain(text);
       expect(screen.getByRole("combobox", { name: label })).toHaveDisplayValue(text);
     });
 
     it("lists no extra option for a value that is a preset", () => {
-      renderPage({ triggerWidth: 6 });
+      renderGroups({ triggerWidth: 6 });
       expect(optionTexts("Trigger zone")).toEqual(["Very edge (1 pt)", "Narrow (2 pt)", "Medium (6 pt)", "Wide (12 pt)", "Extra wide (24 pt)"]);
     });
   });
 
   describe("controls that depend on others", () => {
     it("enables the edge triggers while Show at the screen edge is on", () => {
-      renderPage();
+      renderGroups();
       expect(screen.getByRole("combobox", { name: "Trigger zone" })).toBeEnabled();
       expect(screen.getByRole("combobox", { name: "Show after" })).toBeEnabled();
       for (const button of group("Trigger along").getAllByRole("button")) expect(button).toBeEnabled();
     });
 
     it("disables Trigger zone, Show after and Trigger along while Show at the screen edge is off", async () => {
-      renderPage();
+      renderGroups();
       await userEvent.click(screen.getByRole("switch", { name: "Show at the screen edge" }));
       expect(screen.getByRole("combobox", { name: "Trigger zone" })).toBeDisabled();
       expect(screen.getByRole("combobox", { name: "Show after" })).toBeDisabled();
@@ -125,13 +132,13 @@ describe("RailPage", () => {
     });
 
     it("keeps Hide after and the tooltip delay enabled while Show at the screen edge is off", () => {
-      renderPage({ enabled: false });
+      renderGroups({ enabled: false });
       expect(screen.getByRole("combobox", { name: "Hide after" })).toBeEnabled();
       expect(screen.getByRole("combobox", { name: "First tooltip after" })).toBeEnabled();
     });
 
     it("disables Trigger along when Position is At the pointer, and enables it again for another position", async () => {
-      renderPage();
+      renderGroups();
       await userEvent.click(group("Position").getByRole("button", { name: "At the pointer" }));
       for (const button of group("Trigger along").getAllByRole("button")) expect(button).toBeDisabled();
       await userEvent.click(group("Position").getByRole("button", { name: "Top" }));
@@ -139,7 +146,7 @@ describe("RailPage", () => {
     });
 
     it("disables the call edge and position when Keep it visible during meetings is off", async () => {
-      renderPage();
+      renderGroups();
       for (const name of ["Edge during a call", "Position during a call"]) {
         for (const button of group(name).getAllByRole("button")) expect(button).toBeEnabled();
       }
@@ -152,14 +159,14 @@ describe("RailPage", () => {
 
   describe("Show or Hide the Rail", () => {
     it("runs the rail toggle command", async () => {
-      renderPage();
+      renderGroups();
       await userEvent.click(screen.getByRole("button", { name: "Show or Hide the Rail" }));
       expect(mocked.runCommand).toHaveBeenCalledWith("rail:toggle");
     });
 
     it("shows an error toast when the command fails", async () => {
       mocked.runCommand.mockRejectedValue({ kind: "io", message: "No screen", code: null });
-      renderPage();
+      renderGroups();
       await userEvent.click(screen.getByRole("button", { name: "Show or Hide the Rail" }));
       await vi.waitFor(() => expect(useStore.getState().toasts[0]?.message).toContain("Couldn't show the rail: No screen"));
     });

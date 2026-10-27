@@ -7,7 +7,7 @@ export interface ToolInfo {
   icon: LucideIcon;
 }
 
-/** Each tool's name, what it does and its icon, in Settings → Tools and the Daybook window's sidebar. */
+/** Each tool's name, what it does and its icon, in Settings → General → Tools and the Daybook window's sidebar. */
 export const TOOL_INFO: Record<ToolId, ToolInfo> = {
   context: { label: "Context", description: "The current context; a click switches it.", icon: Layers },
   status: { label: "Status", description: "Working, Break or Off; a click starts or ends a break.", icon: CircleDot },

@@ -30,11 +30,11 @@ function DayHeader({ hub }: { hub: HubView }) {
         <span className="day-date">{hub.date}</span>
       </button>
       <div className="day-arrows">
-        <button type="button" className="icon-btn tiny" aria-label="Previous Day with a Note" title="Previous Day with a Note (P)" disabled={!hub.previousDay} onClick={() => showDay(hub.previousDay)}>
-          <ChevronLeft size="1.077rem" aria-hidden="true" />
+        <button type="button" aria-label="Previous Day with a Note" title="Previous Day with a Note (P)" disabled={!hub.previousDay} onClick={() => showDay(hub.previousDay)}>
+          <ChevronLeft size={16} aria-hidden="true" />
         </button>
-        <button type="button" className="icon-btn tiny" aria-label="Next Day with a Note" title="Next Day with a Note (N)" disabled={!hub.nextDay} onClick={() => showDay(hub.nextDay)}>
-          <ChevronRight size="1.077rem" aria-hidden="true" />
+        <button type="button" aria-label="Next Day with a Note" title="Next Day with a Note (N)" disabled={!hub.nextDay} onClick={() => showDay(hub.nextDay)}>
+          <ChevronRight size={16} aria-hidden="true" />
         </button>
       </div>
       {!hub.isToday && (
@@ -63,7 +63,7 @@ function ToolButton({ row, icon }: { row: ToolRow; icon?: ReactNode }) {
       data-stage-label={row.title}
       disabled={disabled}
       onClick={() => command && run(command)}>
-      {icon ?? <Icon size="1.077rem" aria-hidden="true" />}
+      {icon ?? <Icon size={16} aria-hidden="true" />}
       <span className="label">{row.title}</span>
       {row.detail && <span className="meta">{row.detail}</span>}
       <ShortcutCap shortcut={row.shortcut} />
@@ -89,9 +89,9 @@ export function Sidebar() {
         </nav>
       </div>
       <footer className="sidebar-footer">
-        {hub?.slack ? <SlackBadge shown={hub.slack} /> : <span className="spacer" />}
+        {hub?.slack && <SlackBadge shown={hub.slack} />}
         <button type="button" className="icon-btn" aria-label="Settings" title="Settings (⌘,)" data-stage="hub:settings" onClick={() => run("app:settings")}>
-          <Settings size="1.077rem" aria-hidden="true" />
+          <Settings size={16} aria-hidden="true" />
         </button>
       </footer>
     </aside>

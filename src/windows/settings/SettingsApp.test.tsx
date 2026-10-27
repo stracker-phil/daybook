@@ -34,7 +34,29 @@ describe("SettingsApp", () => {
 
   it("opens on the first page without a page in the address", async () => {
     await renderSettings();
-    expect(screen.getByRole("heading", { name: "Vault", level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Connections", level: 2 })).toBeInTheDocument();
+  });
+
+  it("opens Connections for the former page calendar in the address", async () => {
+    await renderSettings("?page=calendar");
+    expect(screen.getByRole("heading", { name: "Connections", level: 2 })).toBeInTheDocument();
+  });
+
+  it("opens Connections for an open_settings event naming slack", async () => {
+    await renderSettings("?page=appearance");
+    openSettingsEvent("slack");
+    expect(await screen.findByRole("heading", { name: "Connections", level: 2 })).toBeInTheDocument();
+  });
+
+  it("dims the page while the window is not focused", async () => {
+    await renderSettings();
+    const hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(false);
+    act(() => void window.dispatchEvent(new Event("blur")));
+    expect(document.documentElement).toHaveClass("window-blurred");
+    hasFocus.mockReturnValue(true);
+    act(() => void window.dispatchEvent(new Event("focus")));
+    expect(document.documentElement).not.toHaveClass("window-blurred");
+    hasFocus.mockRestore();
   });
 
   it("opens on the page named in the address", async () => {
@@ -44,11 +66,11 @@ describe("SettingsApp", () => {
 
   it("falls back to the first page for an unknown page in the address", async () => {
     await renderSettings("?page=nonsense");
-    expect(screen.getByRole("heading", { name: "Vault", level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Connections", level: 2 })).toBeInTheDocument();
   });
 
   it("shows the page of an open_settings event", async () => {
-    await renderSettings("?page=vault");
+    await renderSettings("?page=connections");
     openSettingsEvent("contexts");
     expect(await screen.findByRole("heading", { name: "Contexts", level: 2 })).toBeInTheDocument();
   });
@@ -56,8 +78,8 @@ describe("SettingsApp", () => {
   it("follows the navigation after an event moved it", async () => {
     await renderSettings();
     openSettingsEvent("contexts");
-    await userEvent.click(screen.getByRole("button", { name: "Tools" }));
-    expect(await screen.findByRole("heading", { name: "Tools", level: 2 })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "General" }));
+    expect(await screen.findByRole("heading", { name: "General", level: 2 })).toBeInTheDocument();
   });
 
   it("applies the settings the backend announces as saved", async () => {

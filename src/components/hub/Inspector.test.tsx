@@ -10,7 +10,7 @@ import { Inspector } from "./Inspector";
 
 const mocked = vi.mocked(api, true);
 
-const todo = (text: string, patch: Partial<OpenTodo> = {}): OpenTodo => ({ text, detail: "Mon 19 Oct", date: "2026-10-19", file: "Daily/2026-10-19.md", ...patch });
+const todo = (text: string, patch: Partial<OpenTodo> = {}): OpenTodo => ({ text, detail: "Mon 19 Oct", date: "2026-10-19", file: "Daily/2026-10-19.md", line: 4, ...patch });
 const group = (label: string, todos: OpenTodo[]): TodoGroup => ({ label, todos });
 
 async function renderInspector(todos: TodoGroup[] | null, collapsed: string[] = []) {
@@ -64,6 +64,63 @@ describe("Inspector", () => {
     await renderInspector([group("Today", [todo("Write report")])]);
     await userEvent.click(screen.getByRole("button", { name: /Write report/ }));
     await vi.waitFor(() => expect(useStore.getState().toasts.map((t) => t.message).join()).toContain("Obsidian missing"));
+  });
+
+  describe("ticking", () => {
+    const checkbox = (text: string) => screen.getByRole("checkbox", { name: `Mark “${text}” as done` });
+    const reloaded = async (todos: TodoGroup[]) => ({ ...(await api.hubView()), todos });
+
+    it("writes the todo's note, line and text through todoComplete and reloads the hub", async () => {
+      await renderInspector([group("Today", [todo("Write report", { file: "Daily/2026-10-24.md", line: 7 }), todo("Call Sam")])]);
+      mocked.hubView.mockClear();
+      await userEvent.click(checkbox("Write report"));
+      expect(mocked.todoComplete).toHaveBeenCalledWith(expect.objectContaining({ file: "Daily/2026-10-24.md", line: 7, text: "Write report" }));
+      await vi.waitFor(() => expect(mocked.hubView).toHaveBeenCalledTimes(1));
+    });
+
+    it("hides the todo at once and updates the count and the group while the write is pending", async () => {
+      await renderInspector([group("Today", [todo("Write report"), todo("Call Sam")])]);
+      mocked.todoComplete.mockReturnValueOnce(new Promise(() => {}));
+      await userEvent.click(checkbox("Write report"));
+      expect(screen.queryByText("Write report")).not.toBeInTheDocument();
+      expect(screen.getByText("1 open")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Today (1)" })).toBeInTheDocument();
+    });
+
+    it("drops a group its last todo leaves", async () => {
+      await renderInspector([group("Today", [todo("Write report")]), group("Last week", [todo("Pay invoice")])]);
+      mocked.todoComplete.mockReturnValueOnce(new Promise(() => {}));
+      await userEvent.click(checkbox("Write report"));
+      expect(screen.queryByRole("region", { name: "Today" })).not.toBeInTheDocument();
+      expect(screen.getByRole("region", { name: "Last week" })).toBeInTheDocument();
+    });
+
+    it("keeps the todo gone once the reloaded hub no longer has it", async () => {
+      await renderInspector([group("Today", [todo("Write report"), todo("Call Sam")])]);
+      mocked.hubView.mockResolvedValueOnce(await reloaded([group("Today", [todo("Call Sam")])]));
+      await userEvent.click(checkbox("Write report"));
+      await vi.waitFor(() => expect(useStore.getState().hub?.todos[0].todos).toHaveLength(1));
+      expect(await screen.findByText("1 open")).toBeInTheDocument();
+      expect(screen.queryByText("Write report")).not.toBeInTheDocument();
+    });
+
+    it("toasts and brings the row back when the note cannot be written", async () => {
+      const groups = [group("Today", [todo("Write report")])];
+      await renderInspector(groups);
+      mocked.todoComplete.mockRejectedValueOnce({ kind: "io", message: "The line changed", code: null });
+      mocked.hubView.mockResolvedValueOnce(await reloaded(groups));
+      await userEvent.click(checkbox("Write report"));
+      await vi.waitFor(() => expect(useStore.getState().toasts.map((t) => t.message).join()).toContain("Couldn't mark it as done"));
+      expect(await screen.findByText("Write report")).toBeInTheDocument();
+      expect(screen.getByText("1 open")).toBeInTheDocument();
+    });
+
+    it("still opens the note when the text is clicked, without ticking", async () => {
+      await renderInspector([group("Today", [todo("Write report", { file: "Daily/2026-10-24.md" })])]);
+      await userEvent.click(screen.getByRole("button", { name: /Write report/ }));
+      expect(mocked.todoOpen).toHaveBeenCalledWith("Daily/2026-10-24.md");
+      expect(mocked.todoComplete).not.toHaveBeenCalled();
+    });
   });
 
   describe("Activity tab", () => {

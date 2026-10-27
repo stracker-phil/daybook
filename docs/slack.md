@@ -14,15 +14,16 @@ a manual one.
 | `slack/decide.rs` | pure: `decide` (call, then heads-up, then status), `with_project`, `status_text`, `describe_status`, `fill_template` |
 | `slack/status.rs` | pure: `Live`, the state between changes; each change returns the `Step` to take |
 | `slack/sender.rs` | `Sender`: one retry after 30 s, the newest status wins |
-| `slack/shown.rs` | `ShownStatus` (`slack-shown.json`): what Slack shows, as Daybook last set it |
+| `slack/shown.rs` | `ShownStatus` (`slack-shown.json`): what Slack shows, as Daybook last set it; `is_call_status` |
 | `slack/channel.rs` | pure: `status_message`, `end_of_day_message`, `LastMessage` |
 | `slack/day_message.rs` | `DayMessage` (`day-message.json`): the day's first Working message |
 | `slack/day.rs` | the day's message: `update_day_message`, `post_day_reply`, `focus_target` |
 | `focus/mod.rs` | the focus list: `focus_info`, `focus_save`, `focus_send`, `send_end_of_day_list`, `focus:open` |
 | `focus/board.rs` | pure: `focus_lines`, the list as the board shows it |
 | `vault/ops/focus.rs` | pure: reading and writing the Focus section, `focus_to_slack` |
-| `slack/commands.rs` | Settings → Slack: `slack_info`, `slack_connect`, `slack_test`, `slack_disconnect` |
+| `slack/commands.rs` | Settings → Connections → Slack: `slack_info`, `slack_connect`, `slack_test`, `slack_disconnect` |
 | `slack/mod.rs` | `Slack` (managed state), `SlackFiles` (in `AppState`), the listeners, `shown_now` |
+| `slack/lifecycle.rs` | a call status left from a quit or crash: `restore_on_exit`, the restore after a restart |
 | `status_rules/rules.rs` | pure: `is_absence`, `describe_when`, `pick_heads_up` |
 | `status_rules/mod.rs` | the minute check and its triggers |
 
@@ -31,7 +32,9 @@ a manual one.
 `decide` ranks three sources:
 
 1. **A call** (`calls::subscribe`): `Started` takes the Slack status of the app trigger with the
-   call's app name (Settings → Calls); `Ended` gives it up. A new title for the same call changes nothing.
+   call's bundle id (Settings → Workflows → App triggers); `Switched` (the call moved to another app) sends only
+   the new trigger's status, nothing when it is the same; `Ended` gives it up. A new title or trigger name for
+   the same call changes nothing.
 2. **A heads-up** before an absence (below). Its presence "No change" follows the picked status's presence
    (active while Working, away on a break), or stays unchanged when that status's workflow is off.
 3. **The picked status** (`status_changed`): `settings.slack.statuses[status]` with `{note}` filled by the
@@ -43,6 +46,14 @@ a manual one.
 
 - A call's status counts as shown only once Slack took it (`call_sent`). While it shows, a picked status
   waits and comes back when the call ends; an ended call that Slack shows is replaced in every context.
+- A call status still on its way when the call ends (`call_in_flight`) is replaced once Slack took it:
+  `call_sent` then returns the step to what is wanted now. An older call status landing after a newer one was
+  sent changes nothing; one that never reached Slack (`call_not_sent`) needs nothing replaced.
+- Quitting during a call (`RunEvent::Exit`, `slack::restore_on_exit`) sends what is wanted without the call
+  right away, without a retry, within the 3 s `app.rs` gives Slack and music together (`Live::quitting`).
+- After a restart (or a crash) mid-call, once the first call check found no call, a call status Slack still
+  shows (`ShownStatus::is_call_status`: the emoji and text of an app trigger's status in `slack-shown.json`)
+  is replaced by what is wanted now (`Live::restore_after_restart`), in every context.
 - A call that starts outside a Slack context isn't sent; switching to a context with Slack sends it.
 - A heads-up is sent only when it changes, and not over a shown call.
 

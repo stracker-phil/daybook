@@ -10,12 +10,12 @@ function exampleUrl({ baseUrl, defaultPrefix }: Jira): string | null {
   return `${baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`}${defaultPrefix || DEFAULT_PREFIX}-6805`;
 }
 
-/** Rust checks both fields on save; a rejected value shows as the save's error. */
-export function JiraPage({ s, set }: SettingsPageProps) {
+/** Connections → Jira. Rust checks both fields on save; a rejected value shows as the save's error. */
+export function JiraGroup({ s, set }: SettingsPageProps) {
   const jira = s.jira;
   const example = exampleUrl(jira);
   return (
-    <Group>
+    <Group title="Jira" anchor="jira" description="Open Jira Issue opens an issue by number, key or link.">
       <TextField
         label="Issue URL"
         description={example ? `Issue 6805 opens ${example}` : "The part of an issue link before the key."}

@@ -53,6 +53,7 @@ pub fn handlers() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         routines::routine_step,
         routines::routine_open_link,
         todos::todo_open,
+        todos::todo_complete,
         links::links_view,
         jira::jira_open,
         jira::jira_suggestions,

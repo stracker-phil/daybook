@@ -1,7 +1,7 @@
 import { api, type Search, type SearchScope } from "../../api";
 import { useApiResult } from "../../lib/useApiResult";
 import type { SettingsPageProps } from "../../registry/settingsPages";
-import { Group, Row } from "./controls";
+import { EntryFooter, Group, Row } from "./controls";
 import { CommitInput, ItemActions, joinList, moveItem, parseList, replaceItem } from "./fields";
 
 /** `scope<n>` from the count up, skipping names in use. */
@@ -23,7 +23,7 @@ export function SearchPage({ s, set }: SettingsPageProps) {
     <>
       <Group title="Scopes" description="Type @name in search to narrow it. Folders end with / (e.g. 2-Work/); other entries include another scope; / is the whole vault.">
         {scopes.map((scope, i) => (
-          <div key={i} className="settings-row search-scope-row">
+          <div key={i} className="settings-row control-row search-scope-row">
             <CommitInput label="Scope name" className="search-scope-name" required value={scope.name} onCommit={(name) => setScopes(replaceItem(scopes, i, { name }))} />
             <CommitInput
               label="Folders and scopes"
@@ -41,11 +41,11 @@ export function SearchPage({ s, set }: SettingsPageProps) {
             />
           </div>
         ))}
-        <Row label="">
+        <EntryFooter>
           <button type="button" className="btn" onClick={() => setScopes([...scopes, { name: freeScopeName(scopes), entries: [] }])}>
             Add Scope
           </button>
-        </Row>
+        </EntryFooter>
       </Group>
       {problems.length > 0 && <p className="settings-alert" role="alert">{problems.join(" ")}</p>}
       <Group title="Never search">

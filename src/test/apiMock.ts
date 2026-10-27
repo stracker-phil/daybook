@@ -36,6 +36,7 @@ export function createApiMock(): typeof realApi {
     dailyNoteState: vi.fn().mockResolvedValue({ path: null, exists: false, creating: false, waiting: 0 }),
     dailyNoteOpen: vi.fn().mockResolvedValue(undefined),
     todoOpen: vi.fn().mockResolvedValue(undefined),
+    todoComplete: vi.fn().mockResolvedValue(undefined),
     dailyNoteCreate: vi.fn().mockResolvedValue(false),
     shortcutOverview: vi.fn().mockResolvedValue({ registered: true, global: [], menu: [] }),
     hubView: vi.fn().mockResolvedValue({
@@ -54,6 +55,8 @@ export function createApiMock(): typeof realApi {
       journal: [],
       routines: [],
       notes: [],
+      focusShortcut: null,
+      notesShortcut: null,
       todos: [],
       events: { timeline: { hours: [], workHours: null, fullDay: [], blocks: [], now: null }, rows: [] },
       timetracker: { command: "timetracker:show", label: "Open in TimeTracker" },

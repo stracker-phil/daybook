@@ -210,7 +210,11 @@ fn watch_calls(app: &AppHandle) {
             {
                 Ok(CallEvent::Started(_)) => happened(&handle, OpenEvent::MeetingStart),
                 Ok(CallEvent::Ended { .. }) => happened(&handle, OpenEvent::MeetingEnd),
-                Ok(CallEvent::Changed(_)) | Err(RecvError::Lagged(_)) => continue,
+                // A call moving to another app is still the same meeting.
+                Ok(CallEvent::Changed(_) | CallEvent::Switched { .. })
+                | Err(RecvError::Lagged(_)) => {
+                    continue;
+                }
                 Err(RecvError::Closed) => break,
             }
         }

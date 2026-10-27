@@ -369,7 +369,7 @@ describe("ActivityView", () => {
       mocked.activitySubmit.mockRejectedValueOnce(rejection("timetracker_missing", "missing"));
       await renderView();
       await userEvent.keyboard("{Enter}");
-      expect(await screen.findByText("TimeTracker isn't installed (Settings → TimeTracker).")).toBeInTheDocument();
+      expect(await screen.findByText("TimeTracker isn't installed (Settings → Connections → TimeTracker).")).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Open TimeTracker" })).not.toBeInTheDocument();
     });
 

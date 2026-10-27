@@ -1,7 +1,7 @@
 import type { Project } from "../../api";
 import type { SettingsPageProps } from "../../registry/settingsPages";
-import { Group, Row, Switch, TextField } from "./controls";
-import { ChoiceList, ItemActions, joinList, moveItem, parseList, replaceItem } from "./fields";
+import { EntryFooter, Group, Row, Switch, TextField } from "./controls";
+import { ItemActions, ToggleChips, contextChoices, joinList, moveItem, parseList, replaceItem, type Choice } from "./fields";
 import { LauncherProjectsField, useLauncherProjects, type Launcher } from "./LauncherProjectsField";
 import { TimeTrackerProjectsField } from "./TimeTrackerProjectsField";
 import { useTimetrackerProjects, type TimeTrackerProjectsResult } from "./useTimeTracker";
@@ -9,7 +9,7 @@ import { useTimetrackerProjects, type TimeTrackerProjectsResult } from "./useTim
 function ProjectCard({ project, projects, contexts, launcher, timetracker, index, count, onChange, onMove, onRemove }: {
   project: Project;
   projects: Project[];
-  contexts: { id: string; title: string }[];
+  contexts: Choice[];
   launcher: Launcher;
   timetracker: TimeTrackerProjectsResult;
   index: number;
@@ -23,8 +23,8 @@ function ProjectCard({ project, projects, contexts, launcher, timetracker, index
       <TextField label="Name" value={project.name} onCommit={(name) => name.trim() && onChange({ name: name.trim() })} />
       <Switch label="Active" description="Off: no longer offered for new entries." checked={project.active} onChange={(active) => onChange({ active })} />
       {contexts.length > 1 && (
-        <Row label="Contexts" description="Offered only while one of these is current. None: every context." stacked>
-          <ChoiceList label="Contexts" choices={contexts} chosen={project.contexts} onChange={(ids) => onChange({ contexts: ids })} placeholder="Add: type part of a context's name, ↵ adds it" />
+        <Row label="Contexts" description="Offered only while one of these is current. None selected: every context.">
+          <ToggleChips label="Contexts" choices={contexts} chosen={project.contexts} onChange={(ids) => onChange({ contexts: ids })} />
         </Row>
       )}
       <TextField
@@ -41,9 +41,9 @@ function ProjectCard({ project, projects, contexts, launcher, timetracker, index
         <TimeTrackerProjectsField project={project} projects={projects} timetracker={timetracker} onChange={(timetrackerProjects) => onChange({ timetrackerProjects })} />
       </Row>
       <TextField label="Slack emoji" description="Starts the project's lines in the focus list, e.g. :oscorp:." placeholder=":emoji:" value={project.slackEmoji} onCommit={(slackEmoji) => onChange({ slackEmoji: slackEmoji.trim() })} />
-      <Row label="">
+      <EntryFooter>
         <ItemActions index={index} count={count} onMove={onMove} onRemove={onRemove} removeLabel="Remove Project" />
-      </Row>
+      </EntryFooter>
     </Group>
   );
 }
@@ -53,7 +53,7 @@ const newProject = (): Project => ({ name: "New project", slackEmoji: "", active
 /** One card per project. Links bound to a project follow a rename and drop a removed one (Rust does that on save). */
 export function ProjectsPage({ s, set }: SettingsPageProps) {
   const projects = s.projects;
-  const contexts = s.contexts.map((context) => ({ id: context.id, title: [context.label.trim(), context.name].filter(Boolean).join(" ") }));
+  const contexts = contextChoices(s.contexts);
   const save = (next: Project[]) => set({ projects: next });
   const launcher = useLauncherProjects();
   const timetracker = useTimetrackerProjects();

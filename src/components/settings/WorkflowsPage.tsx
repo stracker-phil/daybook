@@ -1,9 +1,9 @@
-import { Fragment } from "react";
 import type { EndOfDay, Status } from "../../api";
 import type { SettingsPageProps } from "../../registry/settingsPages";
 import { AbsenceWorkflows } from "./AbsenceWorkflows";
-import { Group, Row, Switch, TextField } from "./controls";
-import { SlackStatusField } from "./SlackStatusField";
+import { CallWorkflows } from "./CallWorkflows";
+import { ControlRow, FormRow, FormText, Group, InlineSwitch, LeadSwitch, Row, Switch, TextField } from "./controls";
+import { SlackStatusEditor } from "./SlackStatusField";
 
 const STATUSES: { status: Status; label: string }[] = [
   { status: "working", label: "Working and present" },
@@ -34,35 +34,37 @@ function StatusWorkflows({ s, set }: SettingsPageProps) {
   return (
     <Group
       title="When you pick a status"
-      description="The Slack status is what your profile shows ({note} in its text is your channel message). The channel message is a suggestion prefilled in the status overlay: what you confirm there is posted to the channel, nothing if you clear it, never twice in a row. Picking the status you already have does nothing. A status switched off only sets the status."
+      description="Sets your Slack status ({note} in its text is the channel message) and suggests the channel message in the status overlay; only what you confirm is posted."
     >
       <TextField label="Channel" description="Status changes post their message here. Empty: no messages." placeholder="#team-status" value={slack.channel} onCommit={(channel) => set({ slack: { ...slack, channel: channel.trim() } })} />
-      {STATUSES.map(({ status, label }) => (
-        <Fragment key={status}>
-          <Switch label={label} checked={workflows[status]} onChange={(on) => set({ slack: { ...slack, manualWorkflows: { ...workflows, [status]: on } } })} />
-          <SlackStatusField nested value={slack.statuses[status]} onChange={(next) => set({ slack: { ...slack, statuses: { ...slack.statuses, [status]: next } } })} />
-          <TextField nested label="Channel message" value={messages[status]} placeholder="No message" onCommit={(text) => set({ statusMessages: { ...messages, [status]: text } })} />
-          {status === "working" && (
-            <TextField
-              nested
-              label="First of the day"
-              description="Suggested for the day's first Working instead."
-              value={messages.firstWorking}
-              placeholder={messages.working ? `Same as above: ${messages.working}` : "Same as above"}
-              onCommit={(firstWorking) => set({ statusMessages: { ...messages, firstWorking } })}
-            />
-          )}
-          {status === "off" && (
-            <Switch
-              nested
-              label="Ask first"
-              description={s.endOfDay.enabled ? "The end-of-day check (below) comes before Done for today." : "Done for today is set right away."}
-              checked={s.endOfDay.enabled}
-              onChange={(enabled) => set({ endOfDay: { ...s.endOfDay, enabled } })}
-            />
-          )}
-        </Fragment>
-      ))}
+      <ControlRow stacked>
+        {STATUSES.map(({ status, label }) => (
+          <LeadSwitch key={status} label={label} checked={workflows[status]} onChange={(on) => set({ slack: { ...slack, manualWorkflows: { ...workflows, [status]: on } } })}>
+            <FormRow label="Slack status">
+              <SlackStatusEditor value={slack.statuses[status]} onChange={(next) => set({ slack: { ...slack, statuses: { ...slack.statuses, [status]: next } } })} />
+            </FormRow>
+            <FormText label="Channel message" value={messages[status]} placeholder="No message" onCommit={(text) => set({ statusMessages: { ...messages, [status]: text } })} />
+            {status === "working" && (
+              <FormText
+                label="First of the day"
+                value={messages.firstWorking}
+                placeholder={messages.working ? `Same as above: ${messages.working}` : "Same as above"}
+                onCommit={(firstWorking) => set({ statusMessages: { ...messages, firstWorking } })}
+              />
+            )}
+            {status === "off" && (
+              <FormRow label="Ask first">
+                <InlineSwitch
+                  label="Ask first"
+                  text={s.endOfDay.enabled ? "The end-of-day check (below) comes before Done for today." : "Done for today is set right away."}
+                  checked={s.endOfDay.enabled}
+                  onChange={(enabled) => set({ endOfDay: { ...s.endOfDay, enabled } })}
+                />
+              </FormRow>
+            )}
+          </LeadSwitch>
+        ))}
+      </ControlRow>
       <Switch
         label="Start and stop the timer"
         description="Working continues TimeTracker's last timer (or asks what you work on for another context's project). Break and Done for today stop it."
@@ -120,6 +122,7 @@ export function WorkflowsPage(props: SettingsPageProps) {
       <StatusWorkflows {...props} />
       <EndOfDayCheck {...props} />
       <DailyFocus {...props} />
+      <CallWorkflows {...props} />
       <AbsenceWorkflows {...props} />
     </>
   );

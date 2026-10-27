@@ -79,11 +79,20 @@ describe("MusicPage", () => {
       expect(screen.getByRole("textbox", { name: "Apple Music link" })).toHaveValue("");
     });
 
-    it("offers the Shuffle switch for playlists only and saves it", async () => {
-      renderPage([entry(), entry({ id: "b", kind: "link", source: "https://music.apple.com/x" })]);
-      expect(screen.getAllByRole("switch", { name: "Shuffle" })).toHaveLength(1);
-      await userEvent.click(screen.getByRole("switch", { name: "Shuffle" }));
+    it("offers the Shuffle checkbox for playlists only and saves it", async () => {
+      renderPage([entry(), entry({ id: "b", kind: "link", source: "https://music.apple.com/x" }), entry({ id: "c", kind: "artist", source: "Muse" })]);
+      expect(screen.getAllByRole("checkbox", { name: "Shuffle" })).toHaveLength(1);
+      expect(screen.getByRole("checkbox", { name: "Shuffle" })).toBeChecked();
+      await userEvent.click(screen.getByRole("checkbox", { name: "Shuffle" }));
       expect(savedEntry().shuffle).toBe(false);
+    });
+
+    it("shows each entry as one line with name, kind, source and its own actions", () => {
+      renderPage([entry({ id: "a", name: "A" }), entry({ id: "b", name: "B", kind: "link", source: "https://music.apple.com/x" })]);
+      expect(screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(["Playlists and stations"]);
+      expect(screen.getAllByRole("textbox", { name: "Name" }).map((t) => (t as HTMLInputElement).value)).toEqual(["A", "B"]);
+      expect(screen.getAllByRole("combobox", { name: "Kind" }).map((k) => (k as HTMLSelectElement).value)).toEqual(["playlist", "link"]);
+      expect(screen.getAllByRole("button", { name: "Remove Entry" })).toHaveLength(2);
     });
 
     it("saves a link entry's Apple Music link", async () => {
@@ -180,7 +189,7 @@ describe("MusicPage", () => {
 
     it("asks for a name while no artist is picked", () => {
       renderPage([artistEntry()]);
-      expect(screen.getByText("Type a name, then ↵")).toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: "Artist" })).toHaveAttribute("placeholder", "Artist name, then ↵");
     });
 
     it("shows Searching… and takes the first match with its storefront", async () => {
@@ -193,7 +202,6 @@ describe("MusicPage", () => {
       pending.resolve(search([{ id: "7", name: "Muse", genre: "Rock" }], "de"));
       await vi.waitFor(() => expect(savedEntry()).toMatchObject({ source: "Muse", artistId: "7", storefront: "de" }));
       expect(screen.queryByText("Searching…")).not.toBeInTheDocument();
-      expect(screen.queryByText("Type a name, then ↵")).not.toBeInTheDocument();
     });
 
     it("does not search for an emptied name", async () => {

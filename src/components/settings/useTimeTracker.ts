@@ -14,7 +14,7 @@ function useReloadOnTimerChanged(reload: () => void) {
   }, [reload]);
 }
 
-/** Settings → TimeTracker's state; `path` is the setting, so a new path reads again. */
+/** Settings → Connections → TimeTracker's state; `path` is the setting, so a new path reads again. */
 export function useTimetrackerInfo(path: string) {
   const result = useApiResult<TimeTrackerInfo>(`timetracker:${path}`, api.timetrackerInfo, { keepData: true });
   useReloadOnTimerChanged(result.reload);

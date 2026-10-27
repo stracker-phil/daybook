@@ -202,7 +202,7 @@ export type BuiltInCall = { rule: MeetingRule, check: string, };
 export type CalendarAccess = "not-determined" | "restricted" | "denied" | "full-access" | "write-only";
 
 /**
- * Settings → Calendar and the contexts' calendar lists.
+ * Settings → Connections → Calendar and the contexts' calendar lists.
  */
 export type CalendarInfo = { access: CalendarAccess, 
 /**
@@ -617,15 +617,15 @@ export type HubView = {
  */
 day: string, isToday: boolean, 
 /**
- * "Saturday".
+ * "Saturday", in the Mac's locale.
  */
 weekday: string, 
 /**
- * "24 October 2026".
+ * "24. Oktober 2026", in the Mac's locale.
  */
 date: string, 
 /**
- * The board's title: a greeting today, the day's name on another day.
+ * The board's title: a greeting today, the day's name (in the Mac's locale) on another day.
  */
 title: string, 
 /**
@@ -633,7 +633,7 @@ title: string,
  */
 previousDay: string | null, nextDay: string | null, 
 /**
- * The sidebar's tool rows, in Settings → Tools order.
+ * The sidebar's tool rows, in Settings → General → Tools order.
  */
 tools: Array<HubTool>, 
 /**
@@ -668,6 +668,10 @@ routines: Array<RoutineProgress>,
  * The topics of the day's notes section.
  */
 notes: Array<NoteSectionRef>, 
+/**
+ * The global shortcuts beside the Focus and Today's notes titles, in Settings notation.
+ */
+focusShortcut: string | null, notesShortcut: string | null, 
 /**
  * Every open todo in the daily notes, the same on every day.
  */
@@ -789,13 +793,18 @@ export type MeetingLink = { app: CallApp, url: string, };
 
 /**
  * An app is in a meeting while it runs and, with `window_title`, has a window whose title contains
- * it. The first match wins.
+ * it, and with `needs_microphone`, records from the microphone. The first match wins.
  */
 export type MeetingRule = { enabled: boolean, 
 /**
  * Shown in the log and the call status, e.g. Zoom.
  */
-app: string, bundleId: string, windowTitle: string | null, slack: SlackStatus, };
+app: string, bundleId: string, windowTitle: string | null, 
+/**
+ * Only while the app records from the microphone; built-in checks ignore it. Left out of the
+ * JSON while off, so older pages and files stay valid.
+ */
+needsMicrophone?: boolean, slack: SlackStatus, };
 
 export type Meetings = { detection: boolean, rules: Array<MeetingRule>, };
 
@@ -859,7 +868,7 @@ export type NoteOp = { "kind": "journalGroup", group: string, answers: JournalGr
 /**
  * The section's text the editor started from; the op fails when the note holds another.
  */
-expected?: string, };
+expected?: string, } | { "kind": "todoDone", line: number, text: string, };
 
 export type NotePreview = { path: string, name: string, 
 /**
@@ -895,7 +904,7 @@ export type OpenEvent = "start" | "context" | "meeting-start" | "meeting-end" | 
 
 export type OpenTodo = { text: string, 
 /**
- * "12 Oct · Notes › Meeting Two": the note's day, then the headings it sits under.
+ * "12. Okt. · Notes › Meeting Two": the note's day in the Mac's locale, then the headings it sits under.
  */
 detail: string, 
 /**
@@ -905,7 +914,11 @@ date: string,
 /**
  * The note, relative to the vault.
  */
-file: string, };
+file: string, 
+/**
+ * The todo's line in its note, 0-based: ticking it checks that this line still holds it.
+ */
+line: number, };
 
 /**
  * The app that opens each service's join links; `None`: the app macOS has for the link.
@@ -1620,7 +1633,7 @@ export type TimeTrackerDay = { state: TtState,
 activity: DayActivity | null, };
 
 /**
- * Settings → TimeTracker.
+ * Settings → Connections → TimeTracker.
  */
 export type TimeTrackerInfo = { 
 /**

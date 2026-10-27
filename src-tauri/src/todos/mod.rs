@@ -11,14 +11,17 @@ use std::path::{Path, PathBuf};
 use chrono::NaiveDate;
 use tauri::{AppHandle, Manager};
 
-pub use groups::{OpenTodo, TodoGroup, group_by_date, short_date};
+pub use groups::{OpenTodo, TodoGroup, group_by_date};
 pub use index::{DatedNote, NotesIndex};
 
-use crate::error::AppResult;
+use crate::action_log;
+use crate::error::{AppError, AppResult};
+use crate::locale::{self, DateLocale};
 use crate::state::AppState;
 use crate::store::settings::{DailySection, Settings};
-use crate::vault::commands::open_target;
+use crate::vault::commands::{blocking, open_target};
 use crate::vault::location::DailyNoteFormat;
+use crate::vault::ops::NoteOp;
 use scan::todo_key;
 
 /// The vault and its daily-notes folder as the watcher reports them (`/private/var/…` for `/var/…`).
@@ -53,8 +56,8 @@ fn relative(vault: &Path, file: &Path) -> String {
         .into_owned()
 }
 
-fn detail(date: NaiveDate, section: &str, today: NaiveDate) -> String {
-    let day = short_date(date, today);
+fn detail(date: NaiveDate, section: &str, today: NaiveDate, locale: DateLocale) -> String {
+    let day = locale.short_date(date, today);
     if section.is_empty() {
         day
     } else {
@@ -70,6 +73,7 @@ pub fn open_todos(app: &AppHandle, settings: &Settings, today: NaiveDate) -> Vec
     };
     let ignore = routine_step_keys(settings);
     let skip = settings.daily_note.heading(DailySection::Focus);
+    let locale = locale::system();
     let todos = app
         .state::<AppState>()
         .todos
@@ -77,15 +81,16 @@ pub fn open_todos(app: &AppHandle, settings: &Settings, today: NaiveDate) -> Vec
         .into_iter()
         .map(|(note, todo)| {
             let open = OpenTodo {
-                detail: detail(note.date, &todo.section, today),
+                detail: detail(note.date, &todo.section, today, locale),
                 text: todo.text,
                 date: note.date.format("%Y-%m-%d").to_string(),
                 file: relative(&vault, &note.file),
+                line: u32::try_from(todo.line).unwrap_or(u32::MAX),
             };
             (note.date, open)
         })
         .collect();
-    group_by_date(todos, today)
+    group_by_date(todos, today, locale)
 }
 
 /// The days whose daily note exists: a dated note that isn't that day's daily note doesn't count.
@@ -109,6 +114,32 @@ pub fn note_days(app: &AppHandle, settings: &Settings) -> Vec<NaiveDate> {
         .filter(is_daily_note)
         .map(|note| note.date)
         .collect()
+}
+
+/// Ticks a todo: `[x]` into `line` of its daily note (`file`, relative to the vault), refused when that line no
+/// longer holds the open `text`.
+#[tauri::command]
+pub async fn todo_complete(app: AppHandle, file: String, line: u32, text: String) -> AppResult<()> {
+    action_log::traced("Todo ticked", async move {
+        blocking(move || {
+            let state = app.state::<AppState>();
+            let settings = state.settings.get();
+            let Folders { vault, folder, .. } = folders(&app, &settings)?;
+            let path = vault.join(&file);
+            if !path.starts_with(&folder) || path.extension().is_none_or(|ext| ext != "md") {
+                return Err(AppError::InvalidInput(format!(
+                    "{file} isn't a daily note."
+                )));
+            }
+            state
+                .notes
+                .edit_file(&settings, &path, &NoteOp::TodoDone { line, text })?;
+            state.todos.changed(&[path]);
+            Ok(())
+        })
+        .await
+    })
+    .await
 }
 
 /// Opens a todo's note in Obsidian; `file` is relative to the vault.

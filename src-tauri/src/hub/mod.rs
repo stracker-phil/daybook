@@ -22,6 +22,7 @@ use crate::calendar;
 use crate::error::{AppError, AppResult};
 use crate::focus::{self, FocusLine, focus_lines};
 use crate::journal::{self, JournalProgress};
+use crate::locale::{self, DateLocale};
 use crate::reminders::{ReminderInput, ReminderJournalGroup, ReminderRoutine, pick_reminder};
 use crate::routines::{self, RoutineProgress};
 use crate::slack::{self, ShownStatus};
@@ -41,16 +42,16 @@ pub struct HubView {
     /// `YYYY-MM-DD`.
     pub day: String,
     pub is_today: bool,
-    /// "Saturday".
+    /// "Saturday", in the Mac's locale.
     pub weekday: String,
-    /// "24 October 2026".
+    /// "24. Oktober 2026", in the Mac's locale.
     pub date: String,
-    /// The board's title: a greeting today, the day's name on another day.
+    /// The board's title: a greeting today, the day's name (in the Mac's locale) on another day.
     pub title: String,
     /// The closest days with a note, for ‹ and ›.
     pub previous_day: Option<String>,
     pub next_day: Option<String>,
-    /// The sidebar's tool rows, in Settings → Tools order.
+    /// The sidebar's tool rows, in Settings → General → Tools order.
     pub tools: Vec<HubTool>,
     /// Today's status, for the status row's dot; `None` before the day's first.
     pub status: Option<Status>,
@@ -68,6 +69,9 @@ pub struct HubView {
     pub routines: Vec<RoutineProgress>,
     /// The topics of the day's notes section.
     pub notes: Vec<NoteSectionRef>,
+    /// The global shortcuts beside the Focus and Today's notes titles, in Settings notation.
+    pub focus_shortcut: Option<String>,
+    pub notes_shortcut: Option<String>,
     /// Every open todo in the daily notes, the same on every day.
     pub todos: Vec<TodoGroup>,
     /// Shows the day in TimeTracker.
@@ -85,10 +89,11 @@ fn greeting(hour: u32) -> &'static str {
     }
 }
 
-/// The view of `day` (today when `None`) at `now`.
+/// The view of `day` (today when `None`) at `now`, its dates in `locale`.
 pub fn hub_view_at(
     day: Option<NaiveDate>,
     now: NaiveDateTime,
+    locale: DateLocale,
     tools: Vec<HubTool>,
     status: Option<Status>,
 ) -> HubView {
@@ -98,12 +103,12 @@ pub fn hub_view_at(
     HubView {
         day: day.format("%Y-%m-%d").to_string(),
         is_today,
-        weekday: day.format("%A").to_string(),
-        date: day.format("%-d %B %Y").to_string(),
+        weekday: locale.weekday(day),
+        date: locale.long_date(day),
         title: if is_today {
             greeting(now.hour()).to_string()
         } else {
-            day.format("%A, %-d %B").to_string()
+            locale.day_title(day)
         },
         previous_day: None,
         next_day: None,
@@ -116,6 +121,8 @@ pub fn hub_view_at(
         journal: Vec::new(),
         routines: Vec::new(),
         notes: Vec::new(),
+        focus_shortcut: None,
+        notes_shortcut: None,
         todos: Vec::new(),
         timetracker: show_link(day, is_today),
         activity_tab: false,
@@ -148,8 +155,12 @@ pub async fn hub_view(app: AppHandle, day: Option<String>) -> AppResult<HubView>
         hotkeys: &hotkeys,
         commands: &commands.available(&app),
     });
-    let mut view = hub_view_at(day, now, tools, state.status);
+    let locale = blocking(|| Ok(locale::system())).await.unwrap_or_default();
+    let mut view = hub_view_at(day, now, locale, tools, state.status);
     view.activity_tab = state.offers_day_activity();
+    let set = |shortcut: &String| (!shortcut.is_empty()).then(|| shortcut.clone());
+    view.focus_shortcut = set(&hotkeys.focus);
+    view.notes_shortcut = set(&hotkeys.quick_notes);
     view.slack = slack::shown_now(&app).await;
     if settings.focus.enabled {
         let handle = app.clone();
@@ -266,6 +277,10 @@ mod tests {
             .unwrap()
     }
 
+    fn english() -> DateLocale {
+        DateLocale::parse("en_GB")
+    }
+
     #[test]
     fn today_is_greeted_by_the_time_of_day() {
         for (hour, title) in [
@@ -276,7 +291,7 @@ mod tests {
             (18, "Good evening"),
             (23, "Good evening"),
         ] {
-            let view = hub_view_at(None, at(hour), Vec::new(), None);
+            let view = hub_view_at(None, at(hour), english(), Vec::new(), None);
             assert_eq!(view.title, title, "{hour}");
             assert!(view.is_today, "{hour}");
         }
@@ -284,7 +299,7 @@ mod tests {
 
     #[test]
     fn today_shows_its_day_weekday_and_date() {
-        let view = hub_view_at(None, at(9), Vec::new(), None);
+        let view = hub_view_at(None, at(9), english(), Vec::new(), None);
         assert_eq!(view.day, "2026-10-24");
         assert_eq!(view.weekday, "Saturday");
         assert_eq!(view.date, "24 October 2026");
@@ -295,7 +310,7 @@ mod tests {
     #[test]
     fn another_day_is_titled_by_its_name() {
         let day = NaiveDate::from_ymd_opt(2026, 10, 23);
-        let view = hub_view_at(day, at(9), Vec::new(), None);
+        let view = hub_view_at(day, at(9), english(), Vec::new(), None);
         assert!(!view.is_today);
         assert_eq!(view.title, "Friday, 23 October");
         assert_eq!(view.day, "2026-10-23");
@@ -304,16 +319,35 @@ mod tests {
     }
 
     #[test]
+    fn dates_follow_the_locale() {
+        let day = NaiveDate::from_ymd_opt(2026, 10, 27);
+        let view = hub_view_at(day, at(9), DateLocale::parse("de_DE"), Vec::new(), None);
+        assert_eq!(view.weekday, "Dienstag");
+        assert_eq!(view.date, "27. Oktober 2026");
+        assert_eq!(view.title, "Dienstag, 27. Oktober");
+    }
+
+    #[test]
+    fn the_shortcuts_of_focus_and_notes_are_unset_until_the_command_fills_them() {
+        let view = hub_view_at(None, at(9), english(), Vec::new(), None);
+        let json = serde_json::to_value(&view).unwrap();
+        assert_eq!(view.focus_shortcut, None);
+        assert_eq!(view.notes_shortcut, None);
+        assert_eq!(json["focusShortcut"], serde_json::Value::Null);
+        assert_eq!(json["notesShortcut"], serde_json::Value::Null);
+    }
+
+    #[test]
     fn asking_for_today_explicitly_is_today() {
         let day = NaiveDate::from_ymd_opt(2026, 10, 24);
-        let view = hub_view_at(day, at(19), Vec::new(), None);
+        let view = hub_view_at(day, at(19), english(), Vec::new(), None);
         assert!(view.is_today);
         assert_eq!(view.title, "Good evening");
     }
 
     #[test]
     fn the_activity_tab_is_not_offered_until_the_command_decides() {
-        let view = hub_view_at(None, at(9), Vec::new(), None);
+        let view = hub_view_at(None, at(9), english(), Vec::new(), None);
         assert!(!view.activity_tab);
         assert_eq!(
             serde_json::to_value(&view).unwrap()["activityTab"],
@@ -329,10 +363,10 @@ mod tests {
             Some(Status::Break),
             Some(Status::Off),
         ] {
-            let view = hub_view_at(None, at(9), Vec::new(), status);
+            let view = hub_view_at(None, at(9), english(), Vec::new(), status);
             assert_eq!(view.status, status, "{status:?}");
         }
-        let view = hub_view_at(None, at(9), Vec::new(), Some(Status::Break));
+        let view = hub_view_at(None, at(9), english(), Vec::new(), Some(Status::Break));
         assert_eq!(
             serde_json::to_value(&view).unwrap()["status"],
             serde_json::json!("break")

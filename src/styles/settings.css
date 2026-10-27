@@ -2,29 +2,40 @@
 .settings-window { display: flex; height: 100%; }
 /* The strip under the window buttons, a drag region. */
 .settings-titlebar { flex: none; height: calc(var(--toolbar-height) - var(--space-4)); }
+/* Glaze's sidebar: light grey, the current page a grey fill. The title-bar strip and the search stay put; only the
+   list below them scrolls, so its overlay scrollbar never reaches the window buttons. */
 .settings-nav {
-  flex: none; width: 13.5rem; padding: 0 var(--space-2) var(--space-4); overflow: auto;
+  flex: none; width: 14.615rem; min-height: 0; padding: 0 var(--space-2);
   background: var(--chrome); box-shadow: inset -1px 0 0 var(--line);
   display: flex; flex-direction: column; gap: var(--space-3);
 }
+.settings-nav-list { flex: 1; min-height: 0; overflow: auto; margin: 0 calc(-1 * var(--space-2)); padding: 0 var(--space-2) var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
 .settings-nav-group { display: flex; flex-direction: column; gap: 2px; }
 .settings-nav-heading { padding: 0 var(--space-2) 2px; font-size: var(--fs-meta); font-weight: 600; color: var(--o3); }
 .settings-nav button {
   display: flex; align-items: center; gap: var(--space-2); height: 2.154rem; padding: 0 var(--space-2);
-  border: none; border-radius: var(--radius-sm); background: transparent; color: var(--text); text-align: left;
+  border: none; border-radius: 0.615rem; background: transparent; color: var(--text); text-align: left;
 }
 .settings-nav button svg { color: var(--o2); flex: none; }
-.settings-nav button[aria-current="page"] { background: var(--accent); color: var(--on-accent); }
-.settings-nav button[aria-current="page"] svg { color: inherit; }
+.settings-nav button:active:not([aria-current="page"]) { background: var(--fill); }
+.settings-nav button[aria-current="page"] { background: var(--fill-strong); color: var(--text-strong); }
+.settings-nav-search { flex: none; width: 100%; height: 2.154rem; padding: 0 var(--space-2); border-radius: 0.615rem; background: var(--fill); box-shadow: none; }
+.settings-nav-search:focus { background: var(--field); box-shadow: inset 0 0 0 1px var(--field-line); }
+.settings-nav-section { margin-left: auto; font-size: var(--fs-meta); color: var(--o2); }
+.settings-nav-empty { margin: 0; padding: 0 var(--space-2); color: var(--o3); }
 /* The title bar stays put; only the page below it scrolls. */
 .settings-pane { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--bg); }
-.settings-pane > header { flex: none; display: flex; align-items: center; gap: var(--space-3); height: var(--toolbar-height); padding: 0 var(--space-3) 0 var(--margin); }
-.settings-body { flex: 1; min-height: 0; overflow: auto; scrollbar-gutter: stable; padding: 0 var(--margin) var(--space-6); display: flex; flex-direction: column; gap: var(--space-5); }
-.settings-pane h2 { margin: 0; font-size: var(--fs-title); font-weight: 700; color: var(--text-strong); }
-.settings-intro { margin: 0; color: var(--o2); line-height: 1.4; }
-.settings-group { display: flex; flex-direction: column; gap: var(--space-2); }
-.settings-group h3 { margin: 0 0 0 var(--space-3); font-size: var(--fs-body); font-weight: 600; color: var(--text); }
-.settings-group-desc { margin: 0 0 0 var(--space-3); font-size: var(--fs-meta); color: var(--o2); line-height: 1.35; }
+/* The title sits in the strip beside the window buttons, as tall as the nav's drag strip. */
+.settings-pane > header { flex: none; display: flex; align-items: center; gap: var(--space-3); height: calc(var(--toolbar-height) - var(--space-4)); padding: var(--space-1) var(--space-3) 0 var(--margin); }
+.settings-body { flex: 1; min-height: 0; overflow: auto; scrollbar-gutter: stable; padding: var(--space-2) var(--margin) var(--space-6); display: flex; flex-direction: column; gap: var(--space-6); }
+/* The title as Glaze's ScrollArea shows it: in the title-bar strip, level with the window buttons. */
+.settings-pane h2 { margin: 0; font-size: var(--fs-title); font-weight: 600; color: var(--text-strong); }
+.settings-intro { margin: 0; color: var(--text); line-height: 1.45; text-wrap: pretty; }
+.settings-intro strong { font-weight: 600; color: var(--text-strong); }
+.settings-group { display: flex; flex-direction: column; gap: var(--space-1); scroll-margin-top: var(--space-2); }
+.settings-group > .settings-card { margin-top: var(--space-1); }
+.settings-group h3 { margin: 0 0 0 var(--space-4); font-size: var(--fs-body); font-weight: 600; color: var(--text); }
+.settings-group-desc { margin: 0 0 0 var(--space-4); font-size: var(--fs-meta); color: var(--o2); line-height: 1.35; text-wrap: pretty; }
 /* Found / Missing next to a path or a lookup. */
 .settings-state { font-size: var(--fs-meta); font-weight: 500; }
 .settings-state.found { color: var(--style-green); }
@@ -33,20 +44,61 @@
 /* Commands and examples to read and copy. */
 .code-block { margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); background: var(--fill); font-family: var(--font-mono); font-size: var(--fs-meta); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 /* An inset group, as in System Settings: a quiet fill, no border, hairlines between rows from the text's edge. */
-.settings-card { padding: 0 var(--space-3); }
-.settings-row { display: flex; align-items: center; gap: var(--space-4); min-height: 2.769rem; padding: var(--space-2) 0; }
-.settings-row + .settings-row { border-top: 1px solid var(--line); }
+.settings-card { --hairline: color-mix(in srgb, var(--text) 6%, transparent); padding: 0 var(--space-4); border-radius: 0.923rem; }
+/* Glaze's Field: 14px above and below, 48px at least; hairlines between rows, inset to the card's padding. */
+.settings-row { display: flex; align-items: center; gap: var(--space-4); min-height: 3.692rem; padding: 1.077rem 0; }
+.settings-row + .settings-row { border-top: 1px solid var(--hairline); }
 .settings-row.stacked { flex-direction: column; align-items: stretch; gap: var(--space-2); }
 /* A row that depends on the switch above it: indented and joined to it, without a hairline between. */
-.settings-row.nested { margin-top: calc(-1 * var(--space-2)); padding-left: var(--space-5); border-top: none; }
-.settings-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.settings-row.nested { margin-top: -0.615rem; padding-left: var(--space-5); border-top: none; }
+/* Controls without a label: a repeating item's lines (field, then ↑ ↓ and remove icons), or a value under its switch. */
+.settings-row.control-row { gap: var(--space-2); }
+.settings-row.control-row.nested { min-height: 0; padding-top: 0; }
+.item-line { display: flex; align-items: center; gap: var(--space-2); width: 100%; }
+:is(.item-line, .control-row) .grow { flex: 1; min-width: 0; }
+.item-actions { display: inline-flex; flex: none; align-items: center; }
+/* A list of one-line items in one card: no hairlines between them, one before what follows. */
+.item-list > .settings-row + .settings-row { border-top: none; }
+.item-list + .settings-row { border-top: 1px solid var(--hairline); }
+/* An item card's last row: its Add button, then the card's own move and remove at the end. */
+.entry-footer { gap: var(--space-2); }
+.entry-footer .item-actions { margin-left: auto; }
+.settings-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .settings-row-text label, .settings-row-label { color: var(--text); }
 .settings-row-label.with-icon { display: flex; align-items: center; gap: var(--space-2); }
-.settings-row-desc { font-size: var(--fs-meta); color: var(--o2); line-height: 1.35; }
+.settings-row-desc { max-width: 27rem; font-size: var(--fs-meta); color: var(--o2); line-height: 1.35; text-wrap: balance; }
 .settings-alert { margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--style-red) 12%, transparent); color: var(--style-red); line-height: 1.4; }
 /* The same alert where a view failed to load. */
 .settings-row-control { flex: none; display: flex; align-items: center; gap: var(--space-2); }
 .settings-row-control select.input { width: 9rem; }
+/* Glaze's fields: 32px, rounded, a quiet border on the card; popups are filled small controls; checkboxes are quiet
+   tiles that fill with the accent and a tick. */
+.settings-pane .input { height: 2.462rem; padding: 0 var(--space-3); border-radius: 0.769rem; background: transparent; box-shadow: inset 0 0 0 1px var(--field-line); }
+.settings-pane .input:focus { box-shadow: inset 0 0 0 1px var(--o2); }
+.settings-pane .input:disabled { opacity: 0.5; }
+.settings-pane .btn { height: 2.154rem; padding: 0 var(--space-3); border-radius: 0.615rem; }
+.settings-pane :is(.item-actions .icon-btn, .icon-btn.item-remove) { width: 2.154rem; height: 2.154rem; border-radius: 0.615rem; }
+.choice-list > .btn { align-self: flex-start; }
+.settings-pane select.input { height: 2.462rem; padding: 0 var(--space-1) 0 var(--space-3); border-radius: 0.769rem; background: var(--fill); box-shadow: none; }
+.item-line select.input { flex: none; width: 11rem; }
+.settings-pane select.input:focus { box-shadow: var(--focus-ring); }
+.settings-pane input[type="checkbox"]:not(.switch) {
+  appearance: none; flex: none; width: 1.231rem; height: 1.231rem; margin: 0; border-radius: 0.385rem;
+  background: var(--control); box-shadow: var(--control-shadow);
+}
+.settings-pane input[type="checkbox"]:not(.switch):checked {
+  background: var(--accent) center / 0.923rem no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2 5 8.5 9.5 3.5' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  box-shadow: none;
+}
+.settings-pane input[type="checkbox"]:not(.switch):disabled { opacity: 0.45; }
+.settings-pane input[type="checkbox"]:not(.switch):focus-visible { outline: none; box-shadow: var(--control-shadow), var(--focus-ring); }
+/* Segmented controls as Glaze's small ones: 28px, an 8px radius. */
+.settings-pane .segmented { --control-h: 2.154rem; border-radius: 0.615rem; }
+.settings-pane .segmented button { border-radius: 0.462rem; }
+/* Few-option multi-selects (contexts, projects, weekdays): Glaze's multiple segmented control, the chosen ones filled. */
+.segmented.chips { flex-wrap: wrap; }
+.segmented.chips button { height: 1.846rem; padding: 0 var(--space-2); }
+.segmented.chips button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); box-shadow: none; }
 .settings-row-control select.input.preset { width: 13.538rem; }
 /* A row with no effect under the current settings. */
 .settings-row.disabled :is(.settings-row-text, .settings-row-control) { opacity: 0.45; }
@@ -97,7 +149,6 @@
 .work-hours { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
 .time-range { display: flex; align-items: center; gap: var(--space-2); }
 .input.time { width: 6.923rem; }
-.item-actions { display: flex; justify-content: flex-end; gap: var(--space-2); width: 100%; }
 .choice-list { display: flex; flex-direction: column; gap: var(--space-2); width: 100%; }
 .choice-list ul { list-style: none; margin: 0; padding: 0; }
 .choice-list > ul:first-child li { display: flex; align-items: center; gap: var(--space-2); padding: 0.154rem 0; }
@@ -106,6 +157,42 @@
 .choice-matches li.active { background: var(--fill); }
 .button-row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 
+/* A Slack status to set: the bar as Slack draws it (the sidebar pill's look and tokens); clicked, emoji, text and
+   presence on one line and Keep the status below. */
+.slack-status-editor { width: 22.308rem; max-width: 100%; display: flex; flex-direction: column; align-items: stretch; gap: var(--space-2); }
+.settings-pane .slack-status.badge {
+  display: flex; align-items: center; gap: var(--space-2); max-width: none; height: 2.462rem; padding: 0 var(--space-3);
+  border: 1px solid var(--slack-pill-line); border-radius: 0.615rem; background: var(--slack-pill-bg); color: var(--slack-pill-text); text-align: left;
+}
+.settings-pane .slack-status.badge .slack-status-text { flex: 1; color: var(--slack-pill-strong); font-weight: 500; }
+.settings-pane .slack-status.badge .slack-status-text.empty { color: var(--slack-pill-empty); font-weight: 400; }
+.settings-pane .slack-status.badge .slack-presence { border-left-color: var(--slack-pill-line); color: var(--slack-pill-text); }
+.settings-pane .slack-status.badge .presence-dot[data-presence="auto"] { background: var(--slack-active); }
+.settings-pane .slack-status.badge .presence-dot[data-presence="away"] { border-color: var(--slack-pill-empty); }
+.slack-status-line { display: flex; align-items: center; gap: var(--space-2); }
+.input.slack-status-emoji { flex: none; width: 7rem; }
+.input.slack-status-text-input { flex: 1; min-width: 0; }
+.slack-status-line select.input { flex: none; width: 7rem; }
+/* A block led by a switch with its name in semibold; below it, indented past the switch, two columns: small grey
+   labels and the controls left-aligned at one width. Blocks sit 40px apart. */
+.lead-block { display: flex; flex-direction: column; gap: var(--space-3); }
+.lead-block + .lead-block { margin-top: 2.462rem; }
+.lead-switch { display: flex; align-items: center; gap: var(--space-2); }
+.lead-switch label { font-weight: 600; color: var(--text-strong); }
+.lead-switch :is(.item-actions, .item-remove) { margin-left: auto; }
+.lead-title { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
+.lead-title strong { font-weight: 600; color: var(--text-strong); }
+.input.app-trigger-name { width: 9.846rem; }
+.input.number.hours-input { width: 4.923rem; }
+.form-grid { display: grid; grid-template-columns: 9.231rem minmax(0, 1fr); align-items: start; gap: var(--space-2) var(--space-3); padding-left: 3.385rem; }
+/* A workflow switched off keeps its settings in view, dimmed. */
+.form-grid.off { opacity: 0.5; }
+.form-grid-label { display: flex; align-items: center; min-height: 2.462rem; font-size: var(--fs-meta); color: var(--o2); }
+.form-grid-control { min-width: 0; min-height: 2.462rem; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.form-grid-hint { font-size: var(--fs-meta); color: var(--o2); }
+.form-grid-control > .input:not(.number) { width: 22.308rem; max-width: 100%; }
+.form-grid-control > .input.number { width: 6.5rem; text-align: right; }
+.form-grid-control .inline-switch { font-size: var(--fs-meta); }
 /* A Slack status as Slack shows it: emoji, text, presence. */
 .slack-status { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; max-width: 18rem; }
 .slack-status-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -117,19 +204,10 @@
 .presence-dot[data-presence="auto"] { background: var(--style-green); }
 .presence-dot[data-presence="away"] { border: 1.5px solid var(--o2); }
 .check-column { display: flex; flex-direction: column; gap: var(--space-2); }
-.journal-question-fields { display: flex; flex-direction: column; gap: var(--space-2); width: 100%; }
-.journal-question-line { display: flex; gap: var(--space-2); }
-.journal-question-line .grow { flex: 1; min-width: 0; }
-.journal-group-actions { display: flex; align-items: center; gap: var(--space-2); width: 100%; }
-.journal-group-actions .item-actions { flex: 1; }
-.routine-step-fields { display: flex; flex-direction: column; gap: var(--space-2); width: 100%; }
-.routine-step-line { display: flex; align-items: center; gap: var(--space-2); }
-.routine-step-line .item-actions { flex: 1; }
 
 /* Search scopes: a name, its folders and scopes, the actions on one line. */
 .search-scope-row { align-items: center; gap: var(--space-2); }
 .search-scope-row .grow { flex: 1; min-width: 0; }
-.search-scope-row .item-actions { flex: none; width: auto; }
 .input.search-scope-name { width: 7.385rem; flex: none; }
 .input.search-exclude { width: 14.769rem; }
 
@@ -138,7 +216,6 @@
 .input.link-title { flex: none; width: 12rem; }
 .input.link-title.grow { flex: 1; min-width: 0; }
 .link-summary { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.link-head .item-actions { flex: none; width: auto; }
 .input.link-input { width: 20rem; }
 
 /* Launcher projects on a project card. */
@@ -148,15 +225,14 @@
 .launcher-problem > span { flex: 1; min-width: 0; font-size: var(--fs-meta); line-height: 1.35; }
 
 /* Music: name, kind and the actions on one line; the source below. */
-.music-head { gap: var(--space-2); }
 .input.music-name { flex: none; width: 12rem; }
-.music-head .item-actions { flex: 1; }
-.input.music-source-input { width: 20rem; }
-.music-source { display: flex; align-items: center; gap: var(--space-2); width: 100%; }
+.settings-pane select.input.music-kind { flex: none; width: 10rem; }
+.input.music-source-input { flex: 1; min-width: 0; }
+.music-line .music-source { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-2); }
 .music-source .grow { flex: 1; min-width: 0; }
-.music-source select { flex: none; width: 13.538rem; }
+.music-source select { flex: none; width: 10rem; }
+.music-line .item-actions { margin-left: auto; }
 .music-note { flex: none; font-size: var(--fs-meta); }
-.music-foot { align-items: center; }
 .music-error { flex: 1; min-width: 0; }
 .settings-input .input.music-call-volume { width: 3.692rem; }
 /* Settings → Status: diagnostics values with their tone, the action log by day and trigger. */
@@ -170,7 +246,7 @@
 .action-day { display: flex; flex-direction: column; gap: var(--space-1); }
 .action-day h4 { margin: var(--space-2) 0 0 var(--space-3); font-size: var(--fs-meta); font-weight: 600; color: var(--o3); }
 .action-event { padding: var(--space-2) 0; }
-.action-event + .action-event { border-top: 1px solid var(--line); }
+.action-event + .action-event { border-top: 1px solid var(--hairline); }
 .action-event-head { display: flex; align-items: baseline; gap: var(--space-2); }
 .action-event-time { color: var(--o3); font-variant-numeric: tabular-nums; }
 .action-event-trigger { font-weight: 600; color: var(--text); }
@@ -189,3 +265,10 @@
 .action-line-count { margin-left: var(--space-1); color: var(--o3); font-variant-numeric: tabular-nums; }
 .action-line-detail { color: var(--o3); overflow-wrap: anywhere; }
 .action-line[data-state="failed"] .action-line-detail { color: var(--style-red); }
+
+/* An inactive Settings window turns its accent fills grey, as Glaze's controls do. */
+:root.window-blurred .settings-pane :is(input[type="checkbox"]:not(.switch):checked, .switch:checked, .segmented.chips button[aria-pressed="true"]) {
+  background-color: color-mix(in srgb, var(--text) 20%, transparent);
+  color: var(--text);
+}
+:root.window-blurred .settings-nav { opacity: 0.6; }

@@ -22,30 +22,32 @@ export function Board() {
     <div className="view-page">
       <Toolbar title={title}>
         {hub && <TimeTrackerButton link={hub.timetracker} stage="hub:timetracker" />}
-        <button
-          type="button"
-          className="icon-btn"
-          data-stage="hub:inspector-toggle"
-          data-stage-label="Show or hide the inspector"
-          data-stage-role="toggle"
-          aria-label={label}
-          aria-pressed={!hidden} title={keys ? `${label} (${keys})` : label} onClick={toggle}>
-          <PanelRight size="1.077rem" aria-hidden="true" />
-        </button>
       </Toolbar>
       <div className="board">
         {hub && (
           <div className="board-content">
-            <TodayCard reminder={hub.reminder} focus={hub.focus} isToday={hub.isToday} />
+            <TodayCard reminder={hub.reminder} focus={hub.focus} isToday={hub.isToday} focusShortcut={hub.focusShortcut} />
             <Events hub={hub} />
+            <div role="separator" className="board-hairline" />
             <div className="board-checklists" data-stage="hub:checklists" data-stage-label="Routines and journal" data-stage-role="region">
               <RoutinesRow hub={hub} />
               <JournalRow hub={hub} />
             </div>
+            <div role="separator" className="board-hairline" />
             <TodaysNotes hub={hub} />
           </div>
         )}
       </div>
+      <button
+        type="button"
+        className="icon-btn inspector-toggle"
+        data-stage="hub:inspector-toggle"
+        data-stage-label="Show or hide the inspector"
+        data-stage-role="toggle"
+        aria-label={label}
+        aria-pressed={!hidden} title={keys ? `${label} (${keys})` : label} onClick={toggle}>
+        <PanelRight size={16} aria-hidden="true" />
+      </button>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api, toAppError, type ArtistMatch, type ArtistSearch, type MusicEntry, type MusicKind } from "../../api";
 import type { SettingsPageProps } from "../../registry/settingsPages";
-import { Group, Row, Switch } from "./controls";
+import { Checkbox, ControlRow, EntryFooter, Group } from "./controls";
 import { CommitInput, ItemActions, moveItem, replaceItem } from "./fields";
 
 const NEW_ENTRY: MusicEntry = { id: "", name: "New entry", kind: "playlist", source: "", shuffle: true, artistId: "", storefront: "" };
@@ -32,10 +32,9 @@ function ArtistField({ entry, onChange }: { entry: MusicEntry; onChange: (patch:
     );
   };
   const showPicker = matches.length > 1 && matches.some((match) => match.id === entry.artistId);
-  const hint = note ?? (entry.artistId ? null : "Type a name, then ↵");
   return (
     <div className="music-source">
-      <CommitInput label="Artist" className="grow" placeholder="Artist name" value={entry.source} onCommit={search} />
+      <CommitInput label="Artist" className="grow" placeholder="Artist name, then ↵" value={entry.source} onCommit={search} />
       {showPicker && (
         <select
           className="input"
@@ -53,7 +52,7 @@ function ArtistField({ entry, onChange }: { entry: MusicEntry; onChange: (patch:
           ))}
         </select>
       )}
-      {hint && <span className="music-note o3">{hint}</span>}
+      {note && <span className="music-note o3">{note}</span>}
     </div>
   );
 }
@@ -80,29 +79,14 @@ function PlaylistField({ entry, playlists, onChange }: { entry: MusicEntry; play
   );
 }
 
-function SourceRow({ entry, playlists, onChange }: { entry: MusicEntry; playlists: string[] | null; onChange: (patch: Partial<MusicEntry>) => void }) {
-  if (entry.kind === "playlist") {
-    return (
-      <Row label="Playlist">
-        <PlaylistField entry={entry} playlists={playlists} onChange={onChange} />
-      </Row>
-    );
-  }
-  if (entry.kind === "artist") {
-    return (
-      <Row label="Artist" description="The station Apple Music builds around the artist." stacked>
-        <ArtistField entry={entry} onChange={onChange} />
-      </Row>
-    );
-  }
-  return (
-    <Row label="Apple Music link" description="In Music: Share → Copy Link.">
-      <CommitInput label="Apple Music link" className="music-source-input" placeholder="https://music.apple.com/…" value={entry.source} onCommit={(source) => onChange({ source })} />
-    </Row>
-  );
+/** Where the entry plays from: a library playlist, an artist's station or an Apple Music link (Share → Copy Link). */
+function SourceField({ entry, playlists, onChange }: { entry: MusicEntry; playlists: string[] | null; onChange: (patch: Partial<MusicEntry>) => void }) {
+  if (entry.kind === "playlist") return <PlaylistField entry={entry} playlists={playlists} onChange={onChange} />;
+  if (entry.kind === "artist") return <ArtistField entry={entry} onChange={onChange} />;
+  return <CommitInput label="Apple Music link" className="music-source-input" placeholder="https://music.apple.com/…" value={entry.source} onCommit={(source) => onChange({ source })} />;
 }
 
-interface EntryCardProps {
+interface EntryRowProps {
   entry: MusicEntry;
   index: number;
   count: number;
@@ -112,13 +96,13 @@ interface EntryCardProps {
   onRemove: () => void;
 }
 
-function EntryCard({ entry, index, count, playlists, onChange, onMove, onRemove }: EntryCardProps) {
+function EntryRow({ entry, index, count, playlists, onChange, onMove, onRemove }: EntryRowProps) {
   return (
-    <Group>
-      <div className="settings-row music-head">
+    <ControlRow>
+      <div className="item-line music-line">
         <CommitInput label="Name" className="music-name" placeholder="Name" required value={entry.name} onCommit={(name) => onChange({ name })} />
         <select
-          className="input"
+          className="input music-kind"
           aria-label="Kind"
           value={entry.kind}
           onChange={(e) => onChange({ kind: e.target.value as MusicKind, source: "", artistId: "", storefront: "" })}
@@ -129,15 +113,17 @@ function EntryCard({ entry, index, count, playlists, onChange, onMove, onRemove 
             </option>
           ))}
         </select>
+        <SourceField entry={entry} playlists={playlists} onChange={onChange} />
+        {entry.kind === "playlist" && (
+          <Checkbox label="Shuffle" checked={entry.shuffle} onChange={(shuffle) => onChange({ shuffle })} />
+        )}
         <ItemActions index={index} count={count} onMove={onMove} onRemove={onRemove} removeLabel="Remove Entry" />
       </div>
-      <SourceRow entry={entry} playlists={playlists} onChange={onChange} />
-      {entry.kind === "playlist" && <Switch label="Shuffle" checked={entry.shuffle} onChange={(shuffle) => onChange({ shuffle })} />}
-    </Group>
+    </ControlRow>
   );
 }
 
-/** A card per playlist, artist radio or Apple Music link; the library's playlists load on request, since asking starts Music. */
+/** One line per playlist, artist radio or Apple Music link; the library's playlists load on request, since asking starts Music. */
 export function MusicPage({ s, set }: SettingsPageProps) {
   const [playlists, setPlaylists] = useState<string[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -161,36 +147,38 @@ export function MusicPage({ s, set }: SettingsPageProps) {
 
   return (
     <>
-      <p className="settings-group-desc">
-        Offered in the rail, the menu-bar menu and the Music overlay. A playlist is one from your library; artist radio is the station Apple Music builds around
-        an artist (“… &amp; Similar Artists”); a link is anything else from Apple Music (in Music: Share → Copy Link). What happens during calls and breaks is
-        set per context, at Contexts.
-      </p>
-      {entries.map((entry, i) => (
-        <EntryCard
-          key={entry.id || i}
-          entry={entry}
-          index={i}
-          count={entries.length}
-          playlists={playlists}
-          onChange={(patch) => save(replaceItem(entries, i, patch))}
-          onMove={(from, to) => save(moveItem(entries, from, to))}
-          onRemove={() => save(entries.filter((_, j) => j !== i))}
-        />
-      ))}
-      <div className="button-row music-foot">
-        <button type="button" className="btn" onClick={() => save([...entries, NEW_ENTRY])}>
-          Add Entry
-        </button>
-        <button type="button" className="btn btn-quiet" disabled={loading} onClick={loadPlaylists}>
-          {loading ? "Asking Music…" : playlists ? "Reload My Playlists" : "Load My Playlists"}
-        </button>
-        {error && (
-          <span className="form-field-error music-error" role="alert">
-            {error}
-          </span>
-        )}
-      </div>
+      <Group
+        title="Playlists and stations"
+        description="Offered in the rail, the menu-bar menu and the Music overlay. A playlist is one from your library; artist radio is the station Apple Music builds around an artist (“… & Similar Artists”); a link is anything else from Apple Music (in Music: Share → Copy Link). What happens during calls and breaks is set per context, at Contexts."
+      >
+        <div className="item-list">
+          {entries.map((entry, i) => (
+            <EntryRow
+              key={entry.id || i}
+              entry={entry}
+              index={i}
+              count={entries.length}
+              playlists={playlists}
+              onChange={(patch) => save(replaceItem(entries, i, patch))}
+              onMove={(from, to) => save(moveItem(entries, from, to))}
+              onRemove={() => save(entries.filter((_, j) => j !== i))}
+            />
+          ))}
+        </div>
+        <EntryFooter>
+          <button type="button" className="btn" onClick={() => save([...entries, NEW_ENTRY])}>
+            Add Entry
+          </button>
+          <button type="button" className="btn btn-quiet" disabled={loading} onClick={loadPlaylists}>
+            {loading ? "Asking Music…" : playlists ? "Reload My Playlists" : "Load My Playlists"}
+          </button>
+          {error && (
+            <span className="form-field-error music-error" role="alert">
+              {error}
+            </span>
+          )}
+        </EntryFooter>
+      </Group>
     </>
   );
 }

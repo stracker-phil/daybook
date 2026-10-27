@@ -5,6 +5,7 @@ import { SettingsWindow } from "../../components/settings/SettingsWindow";
 import { Toasts } from "../../components/Toasts";
 import { handleKeydown, installCommands } from "../../commands";
 import { applyAppearance, useSystemDark } from "../../lib/theme";
+import { trackWindowFocus } from "../../lib/windowFocus";
 import { useContextColor } from "../../lib/useContextColor";
 import { useStore } from "../../state/store";
 
@@ -52,6 +53,7 @@ export function SettingsApp() {
   useContextColor();
   useSettingsEvents(setPage);
   useErrorToasts();
+  useEffect(trackWindowFocus, []);
 
   useEffect(() => {
     if (settings) applyAppearance(settings, systemDark);

@@ -47,14 +47,16 @@ describe("ProjectsPage", () => {
       expect(oscorp().getByRole("textbox", { name: "Slack emoji" })).toHaveValue(":oscorp:");
     });
 
-    it("offers the contexts field with two or more contexts", () => {
+    it("offers a chip per context with two or more contexts, none pressed for a project in every context", () => {
       renderPage();
-      expect(oscorp().getByRole("textbox", { name: "Add to Contexts" })).toBeInTheDocument();
+      const chips = within(oscorp().getByRole("group", { name: "Contexts" }));
+      expect(chips.getAllByRole("button").map((b) => b.textContent)).toEqual(["[W] Work", "[P] Private"]);
+      for (const chip of chips.getAllByRole("button")) expect(chip).toHaveAttribute("aria-pressed", "false");
     });
 
-    it("hides the contexts field with a single context", () => {
+    it("hides the context chips with a single context", () => {
       renderPage({ contexts: [settings().contexts[0]] });
-      expect(oscorp().queryByRole("textbox", { name: "Add to Contexts" })).not.toBeInTheDocument();
+      expect(oscorp().queryByRole("group", { name: "Contexts" })).not.toBeInTheDocument();
     });
   });
 
@@ -93,16 +95,17 @@ describe("ProjectsPage", () => {
       expect(savedProject("Oscorp").slackEmoji).toBe(":oscorp:");
     });
 
-    it("adds a context typed into the contexts field", async () => {
+    it("adds a context by pressing its chip", async () => {
       renderPage();
-      await userEvent.type(oscorp().getByRole("textbox", { name: "Add to Contexts" }), "priv{Enter}");
+      await userEvent.click(oscorp().getByRole("button", { name: "[P] Private" }));
       expect(savedProject("Oscorp").contexts).toEqual(["private"]);
     });
 
-    it("lists the chosen contexts by title and removes one", async () => {
+    it("presses the chips of the chosen contexts and removes one by pressing it again", async () => {
       renderPage({ projects: [project({ name: "Oscorp", contexts: ["work", "private"] })] });
-      expect(oscorp().getByRole("list", { name: "Contexts" })).toHaveTextContent("[W] Work[P] Private");
-      await userEvent.click(oscorp().getByRole("button", { name: "Remove [W] Work" }));
+      expect(oscorp().getByRole("button", { name: "[W] Work" })).toHaveAttribute("aria-pressed", "true");
+      expect(oscorp().getByRole("button", { name: "[P] Private" })).toHaveAttribute("aria-pressed", "true");
+      await userEvent.click(oscorp().getByRole("button", { name: "[W] Work" }));
       expect(savedProject("Oscorp").contexts).toEqual(["private"]);
     });
   });

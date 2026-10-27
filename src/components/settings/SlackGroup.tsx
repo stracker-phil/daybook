@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api, type SlackInfo } from "../../api";
 import { useApiResult } from "../../lib/useApiResult";
 import { fail } from "../../state/requests";
-import { Group, Row } from "./controls";
+import { ControlRow, Group, Row } from "./controls";
 
 /** Whether a token is stored, read again when the connection changes. */
 function useSlackInfo() {
@@ -38,7 +38,7 @@ function Connected({ info }: { info: SlackInfo }) {
       <Row label="Connection" description={description}>
         <span className="settings-state found">Connected</span>
       </Row>
-      <Row label="">
+      <ControlRow>
         <div className="button-row">
           <button type="button" className="btn" disabled={busy} onClick={() => run(api.slackTest, "Slack connection failed")}>
             Test Connection
@@ -47,7 +47,7 @@ function Connected({ info }: { info: SlackInfo }) {
             Remove Token
           </button>
         </div>
-      </Row>
+      </ControlRow>
     </>
   );
 }
@@ -82,12 +82,12 @@ function Connect() {
   );
 }
 
-export function SlackPage() {
+/** Connections → Slack. */
+export function SlackGroup() {
   const { data: info } = useSlackInfo();
-  if (!info) return null;
   return (
-    <Group description="Workflows set your Slack status and presence and post to the channel (Settings → Workflows), in contexts with the Slack feature.">
-      {info.connected ? <Connected info={info} /> : <Connect />}
+    <Group title="Slack" anchor="slack" description="Workflows set your status and presence and post to the channel (Settings → Workflows), in contexts with the Slack feature.">
+      {info && (info.connected ? <Connected info={info} /> : <Connect />)}
     </Group>
   );
 }

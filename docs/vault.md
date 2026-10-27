@@ -185,14 +185,20 @@ walked again. A changed vault, format or focus heading starts over.
   headings from level 2 down ("Notes › Meeting Two"); not `- [ ] ?`, not inside code fences, not in the focus
   section (up to the next heading of its level).
 - `mod.rs` `open_todos`: newest note first, the same text (case and spacing ignored) on the same day once,
-  routine items left out (the wizard ticks them). Each `OpenTodo` has its text, `detail` ("12 Oct · Notes ›
-  Meeting Two"), date and vault-relative file.
-- `groups.rs` (pure): Today, This Week (from Monday), Last Week, then each month of this year and each earlier
-  year; empty groups never appear.
+  routine items left out (the wizard ticks them). Each `OpenTodo` has its text, `detail` ("27. Okt. · Notes ›
+  Meeting Two": the date in the Mac's locale, see `locale.rs`), date, vault-relative file and 0-based `line`.
+- `groups.rs` (pure): Today, This Week (from Monday), Last Week, then each month of this year (its name in the
+  Mac's locale) and each earlier year; empty groups never appear.
 - `note_days`: the days whose daily note exists (a dated note that isn't that day's daily note, in the folder
   or its year archive, doesn't count); the Daybook window's ‹ › step through them.
 
-Daybook never ticks a todo; a click opens its note in Obsidian (`todo_open`).
+A click on a todo opens its note in Obsidian (`todo_open`). Its checkbox ticks it (`todo_complete`, trigger
+"Todo ticked"): `NoteOp::TodoDone { line, text }` (`vault/ops/todo.rs`, pure) writes `[x]` into exactly that line
+of that daily note through `DailyNotes::edit_file` and the note writer ([ADR 0015](adr/0015-one-write-path-into-the-vault.md)),
+and refuses (`TODO_CHANGED`) when the line no longer holds that open todo (edited, moved or ticked in Obsidian);
+nothing is queued. The file must sit in the daily-notes folder and end in `.md`. The index forgets the note at
+once, so the next hub load leaves the todo out; the page hides it while the write runs and brings it back with an
+error toast when the write is refused.
 
 ## Quick notes
 
@@ -228,7 +234,7 @@ around it.
 | `quick_note_save` | `topic`, `newTitle` (empty keeps it), `body`, `base` | `QuickNoteSaved`: `saved { topic }` (its heading now) or `changed { note }` | `invalid_input` (bad topic or title, over 200 000 characters, no vault), `io` |
 | `quick_notes_close` | – | – (hides the editor, keeping its frame) | – |
 | `quick_notes_presentation` | – | `QuickNotePresentation { presenting }` (the event `quick_note_presentation` carries the same on every change; [windows.md](windows.md#quick-notes-editor)) | – |
-| `vault_info` | – | `VaultInfo` (`DailyNotes::info`, for Settings → Vault): the `DailyNoteFormat` in use (`null` without a vault), today's note path and whether it exists, the Obsidian CLI's path | – |
+| `vault_info` | – | `VaultInfo` (`DailyNotes::info`, for Settings → Connections → Vault): the `DailyNoteFormat` in use (`null` without a vault), today's note path and whether it exists, the Obsidian CLI's path | – |
 | `dev_edit_today_note` (debug builds, `dev.rs`) | `op: NoteOp` | `WriteOutcome` | as `edit_today` |
 
 Drive the write path from a debug build with `scripts/dev/js.sh`, e.g.

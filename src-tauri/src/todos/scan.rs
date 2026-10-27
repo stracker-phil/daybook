@@ -20,6 +20,14 @@ pub struct ScannedTodo {
     pub line: usize,
 }
 
+/// The text of an open task line (`- [ ] Call Anna`, also in a callout); `None` for any other line.
+pub fn open_task_text(line: &str) -> Option<&str> {
+    OPEN_TASK
+        .captures(line)
+        .and_then(|task| task.get(1))
+        .map(|text| text.as_str())
+}
+
 /// Case and spacing ignored.
 pub fn todo_key(text: &str) -> String {
     text.split_whitespace()
@@ -69,10 +77,9 @@ pub fn scan_open_todos(text: &str, skip_heading: &str) -> Vec<ScannedTodo> {
         if skip_level > 0 {
             continue;
         }
-        let Some(task) = OPEN_TASK.captures(line) else {
+        let Some(content) = open_task_text(line) else {
             continue;
         };
-        let content = &task[1];
         if content.is_empty() || content == "?" {
             continue;
         }
@@ -99,6 +106,23 @@ mod tests {
             text: text.into(),
             section: section.into(),
             line,
+        }
+    }
+
+    #[test]
+    fn an_open_task_line_gives_its_text_and_any_other_line_none() {
+        for (line, expected) in [
+            ("- [ ] Call Anna", Some("Call Anna")),
+            ("  * [ ]   Call Anna  ", Some("Call Anna")),
+            ("> - [ ] In a callout", Some("In a callout")),
+            ("> > + [ ] Nested", Some("Nested")),
+            ("- [x] Done", None),
+            ("- [ ]", None),
+            ("- Call Anna", None),
+            ("Call Anna", None),
+            ("", None),
+        ] {
+            assert_eq!(open_task_text(line), expected, "{line:?}");
         }
     }
 

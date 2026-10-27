@@ -29,7 +29,8 @@ api act '{"kind":"keys","keys":"Enter","window":"panel"}'
 ## Windows and anchors
 
 Five windows are Stage pages: `hub` (the Daybook window, label `main`; view `today` or `day:<date>`,
-`ui.inspector` open or closed), `settings` (with its `sections` and the current one), `panel` (the overlay, with
+`ui.inspector` open or closed), `settings` (with its `sections`, the pages in order, and the current one; `window` with a `section` also takes a
+former page's id from `window::settings::SECTIONS`, e.g. `calendar`, and opens its page scrolled to that group), `panel` (the overlay, with
 its view), `rail` and `quick-notes`. The rail tooltip is not a page.
 
 Commands, state, hotkeys and window frames come from Rust ([ADR 0017](adr/0017-commands-live-in-rust.md));

@@ -16,7 +16,7 @@ fn meeting_status(text: &str) -> SlackStatus {
 }
 
 /// An app is in a meeting while it runs and, with `window_title`, has a window whose title contains
-/// it. The first match wins.
+/// it, and with `needs_microphone`, records from the microphone. The first match wins.
 #[derive(Serialize, Clone, Debug, PartialEq, TS)]
 #[ts(export, export_to = "src/api/types.gen.ts")]
 #[serde(rename_all = "camelCase")]
@@ -26,6 +26,11 @@ pub struct MeetingRule {
     pub app: String,
     pub bundle_id: String,
     pub window_title: Option<String>,
+    /// Only while the app records from the microphone; built-in checks ignore it. Left out of the
+    /// JSON while off, so older pages and files stay valid.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    #[ts(as = "Option<bool>", optional)]
+    pub needs_microphone: bool,
     pub slack: SlackStatus,
 }
 
@@ -36,6 +41,7 @@ impl MeetingRule {
             app: app.into(),
             bundle_id: bundle_id.into(),
             window_title: None,
+            needs_microphone: false,
             slack: meeting_status(&format!("In a {service} call")),
         }
     }
@@ -51,6 +57,7 @@ impl MeetingRule {
         Some(Self {
             enabled: on_unless_false(source.get("enabled")),
             window_title: Some(trimmed(source.get("windowTitle"))).filter(|t| !t.is_empty()),
+            needs_microphone: is_true(source.get("needsMicrophone")),
             slack: SlackStatus::read(source.get("slack"), &fallback),
             app,
             bundle_id,

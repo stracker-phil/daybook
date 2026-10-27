@@ -189,7 +189,7 @@ pub async fn events_ahead(app: &AppHandle, from: NaiveDate, days: u64) -> Vec<Ca
     .await
 }
 
-/// Settings → Calendar and the contexts' calendar lists.
+/// Settings → Connections → Calendar and the contexts' calendar lists.
 #[derive(Serialize, Clone, Debug, PartialEq, TS)]
 #[ts(export, export_to = "src/api/types.gen.ts")]
 pub struct CalendarInfo {

@@ -10,6 +10,7 @@ pub mod day_message;
 pub mod decide;
 #[cfg(test)]
 mod fake_slack;
+mod lifecycle;
 mod send;
 pub mod sender;
 pub mod shown;
@@ -23,6 +24,7 @@ use chrono::Local;
 use tauri::{AppHandle, Emitter, Listener, Manager};
 
 pub use decide::HeadsUp;
+pub use lifecycle::restore_on_exit;
 pub use send::{last_error, set_now};
 pub use shown::ShownStatus;
 
@@ -47,7 +49,7 @@ use crate::store::settings::{Feature, SlackStatus};
 use crate::{notify, status as day_status, timetracker};
 
 /// The action log's detail for a send without a token.
-pub const NOT_CONNECTED: &str = "Not sent: Slack isn't connected (Settings → Slack)";
+pub const NOT_CONNECTED: &str = "Not sent: Slack isn't connected (Settings → Connections → Slack)";
 
 /// What Slack shows and the day's message, kept across restarts.
 pub struct SlackFiles {
@@ -104,16 +106,21 @@ fn changed(app: &AppHandle) {
     }
 }
 
-/// Steps the live state with what the owner set up now.
-fn step(app: &AppHandle, change: impl FnOnce(&mut Live, &Setup) -> Step) {
+fn with_setup<R>(app: &AppHandle, work: impl FnOnce(&Setup) -> R) -> R {
     let settings = app.state::<AppState>().settings.get();
-    let setup = Setup {
+    work(&Setup {
         slack_on: in_context(app),
         statuses: &settings.slack.statuses,
         workflows: &settings.slack.manual_workflows,
         today: day_status::today(app).status,
-    };
-    let next = change(&mut slack(app).live.lock_unpoisoned(), &setup);
+    })
+}
+
+/// Steps the live state with what the owner set up now.
+fn step(app: &AppHandle, change: impl FnOnce(&mut Live, &Setup) -> Step) {
+    let next = with_setup(app, |setup| {
+        change(&mut slack(app).live.lock_unpoisoned(), setup)
+    });
     run(app, next);
 }
 
@@ -227,33 +234,35 @@ fn remember_day_message(app: &AppHandle, posted: &api::Posted, text: &str) {
     }
 }
 
-/// A call's start or end; a new title for the same call changes nothing.
+/// A call's start, move or end; a new title for the same call changes nothing.
 fn call_changed(app: &AppHandle, event: CallEvent) {
-    let status = match event {
-        CallEvent::Started(call) => match trigger_status(app, &call.app) {
-            None => {
-                log::warn!(
-                    "No app trigger named {} for the call's Slack status",
-                    call.app
-                );
-                return;
-            }
-            status => status,
-        },
-        CallEvent::Ended { .. } => None,
+    let call = match event {
+        CallEvent::Started(call) | CallEvent::Switched { to: call, .. } => call,
+        CallEvent::Ended { .. } => {
+            step(app, |live, setup| live.call_changed(None, setup));
+            return;
+        }
         CallEvent::Changed(_) => return,
     };
-    step(app, |live, setup| live.call_changed(status, setup));
+    let Some(status) = trigger_status(app, &call.bundle_id) else {
+        log::warn!(
+            "No app trigger for {} ({}) for the call's Slack status",
+            call.app,
+            call.bundle_id
+        );
+        return;
+    };
+    step(app, |live, setup| live.call_changed(Some(status), setup));
 }
 
-/// The Slack status of the app trigger named `name`.
-fn trigger_status(app: &AppHandle, name: &str) -> Option<SlackStatus> {
+/// The Slack status of the app trigger for `bundle_id`.
+fn trigger_status(app: &AppHandle, bundle_id: &str) -> Option<SlackStatus> {
     let settings = app.state::<AppState>().settings.get();
     settings
         .meetings
         .rules
         .iter()
-        .find(|rule| rule.app == name)
+        .find(|rule| rule.bundle_id == bundle_id)
         .map(|rule| rule.slack.clone())
 }
 
@@ -271,9 +280,10 @@ pub fn install(app: &AppHandle) {
         step(&handle, |live, setup| live.context_changed(setup));
     });
     follow_calls(app);
+    lifecycle::restore_after_restart(app);
 }
 
-/// Every call start and end, for as long as the app runs.
+/// Every call start, move and end, for as long as the app runs.
 fn follow_calls(app: &AppHandle) {
     let handle = app.clone();
     let mut calls = calls::subscribe(app);

@@ -15,7 +15,7 @@ use crate::window;
 /// `timetracker:show:<day>` shows a day.
 pub const SHOW_PREFIX: &str = "timetracker:show:";
 
-/// Settings → TimeTracker.
+/// Settings → Connections → TimeTracker.
 #[derive(Serialize, Clone, Debug, PartialEq, TS)]
 #[ts(export, export_to = "src/api/types.gen.ts")]
 #[serde(rename_all = "camelCase")]

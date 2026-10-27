@@ -1,43 +1,59 @@
 import { useState } from "react";
 import type { Presence, SlackStatus } from "../../api";
 import { asShortcode } from "../../lib/slackEmoji";
-import { PRESENCE_LABELS, SlackStatusPreview } from "../SlackStatus";
-import { Row, Segmented, Switch, TextField } from "./controls";
+import { EmojiGlyph, PRESENCE_LABELS, PresenceDot } from "../SlackStatus";
+import { BufferedInput, Checkbox } from "./controls";
 
 const PRESENCES: Presence[] = ["auto", "away", "keep"];
 
-const LABEL = "Slack status";
-
-/** A preview row whose Edit… opens the emoji, text and presence below it. */
-export function SlackStatusField({ description, value, onChange, nested }: {
-  /** e.g. which placeholders the text takes. */
-  description?: string;
-  value: SlackStatus;
-  onChange: (next: SlackStatus) => void;
-  nested?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const change = (patch: Partial<SlackStatus>) => onChange({ ...value, ...patch });
+/** The status as Slack draws it: emoji, text, then the presence after a divider. */
+function SlackStatusBar({ value }: { value: SlackStatus }) {
   return (
     <>
-      <Row label={LABEL} description={open ? description : undefined} nested={nested}>
-        <SlackStatusPreview status={value} />
-        <button type="button" className="btn" aria-expanded={open} aria-label={`${open ? "Done Editing" : "Edit"} ${LABEL}`} onClick={() => setOpen(!open)}>
-          {open ? "Done" : "Edit…"}
-        </button>
-      </Row>
-      {open && (
+      {value.keepStatus ? (
+        <span className="slack-status-text empty">Status unchanged</span>
+      ) : (
         <>
-          <Switch nested label="Keep the status" description="Slack's emoji and text stay as they are." checked={value.keepStatus} onChange={(keepStatus) => change({ keepStatus })} />
-          {!value.keepStatus && (
-            <>
-              <TextField nested label="Emoji" placeholder=":emoji:" value={value.emoji} onCommit={(emoji) => change({ emoji: asShortcode(emoji) })} />
-              <TextField nested label="Text" placeholder="What's your status?" value={value.text} onCommit={(text) => change({ text })} />
-            </>
-          )}
-          <Segmented nested label="Presence" options={PRESENCES} labels={PRESENCE_LABELS} value={value.presence} onChange={(presence) => change({ presence })} />
+          <EmojiGlyph code={value.emoji} />
+          <span className={value.text ? "slack-status-text" : "slack-status-text empty"}>{value.text || "No status"}</span>
         </>
       )}
+      {value.presence !== "keep" && (
+        <span className="slack-presence">
+          <PresenceDot presence={value.presence} />
+          {PRESENCE_LABELS[value.presence]}
+        </span>
+      )}
     </>
+  );
+}
+
+/** The Slack-like bar; clicking it opens emoji, text and presence on one line and Keep the status below. */
+export function SlackStatusEditor({ value, onChange }: { value: SlackStatus; onChange: (next: SlackStatus) => void }) {
+  const [open, setOpen] = useState(false);
+  const change = (patch: Partial<SlackStatus>) => onChange({ ...value, ...patch });
+  const kept = value.keepStatus;
+  return (
+    <div className="slack-status-editor">
+      <button type="button" className="slack-status badge" aria-expanded={open} aria-label="Edit Slack status" onClick={() => setOpen(!open)}>
+        <SlackStatusBar value={value} />
+      </button>
+      {open && (
+        <>
+          <div className="slack-status-line">
+            <BufferedInput className="input slack-status-emoji" aria-label="Emoji" placeholder=":emoji:" disabled={kept} value={value.emoji} onCommit={(emoji) => change({ emoji: asShortcode(emoji) })} />
+            <BufferedInput className="input slack-status-text-input" aria-label="Status text" placeholder="What's your status?" disabled={kept} value={value.text} onCommit={(text) => change({ text })} />
+            <select className="input" aria-label="Presence" value={value.presence} onChange={(e) => change({ presence: e.target.value as Presence })}>
+              {PRESENCES.map((presence) => (
+                <option key={presence} value={presence}>
+                  {PRESENCE_LABELS[presence]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Checkbox label="Keep the status" checked={kept} onChange={(keepStatus) => change({ keepStatus })} />
+        </>
+      )}
+    </div>
   );
 }

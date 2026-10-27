@@ -39,6 +39,8 @@ const hubView = (patch: Partial<HubView> = {}): HubView => ({
   journal: [],
   routines: [],
   notes: [],
+  focusShortcut: null,
+  notesShortcut: null,
   todos: [],
   events: { timeline: { hours: [], workHours: null, fullDay: [], blocks: [], now: null }, rows: [] },
   timetracker: { command: "timetracker:show", label: "Open in TimeTracker" },
@@ -189,6 +191,11 @@ describe("Sidebar", () => {
       });
     });
 
+    it("shows the music row's title as the hub gives it", () => {
+      renderSidebar({ tools: [tool({ id: "music", title: "Music · Focus", command: "music:open" })] });
+      expect(row("Music")).toHaveTextContent("Music · Focus");
+    });
+
     it("toasts when a row's command fails", async () => {
       mocked.runCommand.mockRejectedValueOnce({ kind: "io", message: "Not available", code: null });
       renderSidebar({ tools: [tool({ id: "search", title: "Search vault" })] });
@@ -225,6 +232,11 @@ describe("Sidebar", () => {
     it("shows no badge without a Slack status", () => {
       renderSidebar({ slack: null });
       expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    });
+
+    it("keeps the settings gear without a Slack status", () => {
+      renderSidebar({ slack: null });
+      expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
     });
   });
 

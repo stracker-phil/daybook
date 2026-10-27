@@ -1,11 +1,11 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../api", async (orig) => ({ ...(await orig<object>()), api: (await import("../../test/apiMock")).createApiMock() }));
 
 import { api, type HubView } from "../../api";
-import { resetStore, useStore } from "../../state/store";
+import { flushUiState, resetStore, useStore } from "../../state/store";
 import { settings } from "../../test/settings";
 import { Board } from "./Board";
 
@@ -19,6 +19,29 @@ async function renderBoard(patch: Partial<HubView> = {}) {
 
 describe("Board", () => {
   beforeEach(() => vi.clearAllMocks());
+
+  afterEach(() => flushUiState());
+
+  describe("inspector toggle", () => {
+    it("is pressed and offers to hide the inspector while it is shown", async () => {
+      await renderBoard();
+      expect(screen.getByRole("button", { name: "Hide Inspector" })).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("hides the inspector and then offers to show it", async () => {
+      await renderBoard();
+      await userEvent.click(screen.getByRole("button", { name: "Hide Inspector" }));
+      expect(screen.getByRole("button", { name: "Show Inspector" })).toHaveAttribute("aria-pressed", "false");
+      expect(useStore.getState().uiState.inspectorHidden).toBe(true);
+    });
+
+    it("shows the inspector again on a second click", async () => {
+      await renderBoard();
+      await userEvent.click(screen.getByRole("button", { name: "Hide Inspector" }));
+      await userEvent.click(screen.getByRole("button", { name: "Show Inspector" }));
+      expect(screen.getByRole("button", { name: "Hide Inspector" })).toHaveAttribute("aria-pressed", "true");
+    });
+  });
 
   describe("TimeTracker button", () => {
     it("opens TimeTracker on today", async () => {

@@ -25,7 +25,8 @@ function AccessControl({ info, onRequest }: { info: CalendarInfo; onRequest: () 
   );
 }
 
-export function CalendarPage() {
+/** Connections → Calendar. */
+export function CalendarGroup() {
   const { data: info, reload } = useCalendarInfo();
   const request = async () => {
     try {
@@ -35,12 +36,13 @@ export function CalendarPage() {
     }
     reload();
   };
-  if (!info) return null;
   return (
-    <Group description="Each context chooses its calendars in Settings → Contexts.">
-      <Row label="Access" description={HINTS[info.access] ?? DENIED_HINT}>
-        <AccessControl info={info} onRequest={() => void request()} />
-      </Row>
+    <Group title="Calendar" anchor="calendar" description="Read for the day's events and meeting reminders, never changed. Each context picks its calendars in Settings → Contexts.">
+      {info && (
+        <Row label="Access" description={HINTS[info.access] ?? DENIED_HINT}>
+          <AccessControl info={info} onRequest={() => void request()} />
+        </Row>
+      )}
     </Group>
   );
 }

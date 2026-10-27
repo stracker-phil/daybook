@@ -302,7 +302,7 @@ fn aria_label(id: ToolId, label: &str) -> String {
     }
 }
 
-/// The rail's buttons in Settings → Tools order; a tool whose command no feature registered yet is
+/// The rail's buttons in Settings → General → Tools order; a tool whose command no feature registered yet is
 /// left out.
 pub fn rail_model(input: &RailInput) -> RailModel {
     let ids = visible_tools(input.tools, input.state, Surface::Rail);

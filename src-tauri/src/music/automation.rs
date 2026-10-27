@@ -6,7 +6,7 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Listener, Manager};
 use tokio::sync::broadcast::error::RecvError;
 
-use super::rules::{self, Action, Held, Moment, Step};
+use super::rules::{self, Action, Held, Lowered, Moment, Step};
 use super::state::entry_label;
 use crate::action_log::{self, ActionState, ActionTarget};
 use crate::calls::{self, Announced, CallEvent};
@@ -57,10 +57,16 @@ fn context_music(app: &AppHandle) -> ContextMusic {
 async fn run(app: &AppHandle, step: &Step) -> AppResult<Option<String>> {
     let now = super::read(app).await?;
     let settings = app.state::<AppState>().settings.get();
-    let action = {
+    let (action, changed, lowered) = {
         let mut inner = automation(app).inner.lock_unpoisoned();
-        rules::action(step, &now, &mut inner.held, &settings.music)
+        let before = inner.held.lowered;
+        let action = rules::action(step, &now, &mut inner.held, &settings.music);
+        let lowered = inner.held.lowered;
+        (action, lowered != before, lowered)
     };
+    if changed {
+        remember_lowered(app, lowered);
+    }
     let Some(action) = action else {
         return Ok(None);
     };
@@ -94,6 +100,37 @@ async fn run(app: &AppHandle, step: &Step) -> AppResult<Option<String>> {
     Ok(Some(text))
 }
 
+fn remember_lowered(app: &AppHandle, lowered: Option<Lowered>) {
+    let saved = app
+        .state::<AppState>()
+        .music_held
+        .update(|held| *held = lowered);
+    if let Err(e) = saved {
+        log::warn!("Couldn't remember the lowered music volume: {e}");
+    }
+}
+
+/// Runs `steps` in order after the steps already waiting.
+async fn run_steps(app: &AppHandle, title: &str, steps: Vec<Step>) {
+    let _in_order = automation(app).queue.lock().await;
+    for step in steps {
+        match run(app, &step).await {
+            Ok(Some(text)) => {
+                log::info!("{title}: {text}");
+                action_log::log_titled(
+                    Some(title),
+                    ActionTarget::Daybook,
+                    &text,
+                    ActionState::Done,
+                    None,
+                );
+            }
+            Ok(None) => {}
+            Err(e) => log::warn!("{title}: {step:?} failed: {e}"),
+        }
+    }
+}
+
 fn apply(app: &AppHandle, title: &'static str, now: Moment, first: bool) {
     let settings = context_music(app);
     let steps = {
@@ -112,25 +149,7 @@ fn apply(app: &AppHandle, title: &'static str, now: Moment, first: bool) {
         return;
     }
     let app = app.clone();
-    action_log::spawn(async move {
-        let _in_order = automation(&app).queue.lock().await;
-        for step in steps {
-            match run(&app, &step).await {
-                Ok(Some(text)) => {
-                    log::info!("{title}: {text}");
-                    action_log::log_titled(
-                        Some(title),
-                        ActionTarget::Daybook,
-                        &text,
-                        ActionState::Done,
-                        None,
-                    );
-                }
-                Ok(None) => {}
-                Err(e) => log::warn!("{title}: {step:?} failed: {e}"),
-            }
-        }
-    });
+    action_log::spawn(async move { run_steps(&app, title, steps).await });
 }
 
 fn in_call(app: &AppHandle) -> bool {
@@ -187,7 +206,7 @@ fn watch_calls(app: &AppHandle) {
                     match event {
                         CallEvent::Started(_) => call_changed(&handle, true),
                         CallEvent::Ended { .. } => call_changed(&handle, false),
-                        CallEvent::Changed(_) => {}
+                        CallEvent::Changed(_) | CallEvent::Switched { .. } => {}
                     }
                 }
                 Err(RecvError::Lagged(_)) => continue,
@@ -197,11 +216,50 @@ fn watch_calls(app: &AppHandle) {
     });
 }
 
+fn has_lowered(app: &AppHandle) -> bool {
+    automation(app)
+        .inner
+        .lock_unpoisoned()
+        .held
+        .lowered
+        .is_some()
+}
+
+async fn restore_volume(app: &AppHandle) {
+    run_steps(app, "Music", vec![Step::Restore]).await;
+}
+
+/// Waits for the first check to find no call.
+fn restore_after_restart(app: &AppHandle) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        calls::first_check(&app).await;
+        if in_call(&app) || !has_lowered(&app) {
+            return;
+        }
+        action_log::traced("Music lowered before the restart", restore_volume(&app)).await;
+    });
+}
+
+/// Daybook quits: a volume a call lowered goes back.
+pub async fn restore_on_exit(app: &AppHandle) {
+    if has_lowered(app) {
+        log::info!("Quitting during a call: restoring the music volume");
+        restore_volume(app).await;
+    }
+}
+
 pub fn install(app: &AppHandle) {
-    automation(app).inner.lock_unpoisoned().moment = Moment {
-        in_call: in_call(app),
-        away: away_now(app),
-    };
+    let lowered = app.state::<AppState>().music_held.read(|held| *held);
+    {
+        let mut inner = automation(app).inner.lock_unpoisoned();
+        inner.moment = Moment {
+            in_call: in_call(app),
+            away: away_now(app),
+        };
+        inner.held.lowered = lowered;
+    }
     listen_status(app);
     watch_calls(app);
+    restore_after_restart(app);
 }

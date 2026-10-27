@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { ChoiceList, ColorField, DaysField, ItemActions, TimeRangeField, joinList, moveItem, parseList, replaceItem } from "./fields";
+import type { Context } from "../../api";
+import { ColorField, CommitInput, DaysField, ItemActions, TimeRangeField, ToggleChips, contextChoices, joinList, moveItem, parseList, replaceItem } from "./fields";
 
 describe("ColorField", () => {
   it("offers the nine colours as radios and checks the value", () => {
@@ -138,94 +139,88 @@ describe("TimeRangeField", () => {
   });
 });
 
-describe("ChoiceList", () => {
+describe("ToggleChips", () => {
   const CHOICES = [
-    { id: "work", title: "[W] Work" },
-    { id: "private", title: "[P] Private" },
+    { id: "work", title: "Work" },
+    { id: "private", title: "Private" },
     { id: "side", title: "Side hustle" },
   ];
-  const renderList = (chosen: string[] = [], onChange = vi.fn()) => {
-    render(<ChoiceList label="Contexts" choices={CHOICES} chosen={chosen} onChange={onChange} placeholder="Add" />);
+  const renderChips = (chosen: string[] = [], onChange = vi.fn()) => {
+    render(<ToggleChips label="Contexts" choices={CHOICES} chosen={chosen} onChange={onChange} />);
     return onChange;
   };
-  const field = () => screen.getByRole("textbox", { name: "Add to Contexts" });
+  const chip = (name: string) => screen.getByRole("button", { name });
 
-  it("lists the chosen items by title", () => {
-    renderList(["work", "side"]);
-    expect(within(screen.getByRole("list", { name: "Contexts" })).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["[W] Work", "Side hustle"]);
+  it("offers every choice as a button in the labelled group", () => {
+    renderChips();
+    expect(within(screen.getByRole("group", { name: "Contexts" })).getAllByRole("button").map((b) => b.textContent)).toEqual(["Work", "Private", "Side hustle"]);
   });
 
-  it("shows no list while nothing is chosen", () => {
-    renderList();
-    expect(screen.queryByRole("list", { name: "Contexts" })).not.toBeInTheDocument();
+  it("presses the chosen ones", () => {
+    renderChips(["work", "side"]);
+    expect(chip("Work")).toHaveAttribute("aria-pressed", "true");
+    expect(chip("Side hustle")).toHaveAttribute("aria-pressed", "true");
+    expect(chip("Private")).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("removes a chosen item with its Remove button", async () => {
-    const onChange = renderList(["work", "side"]);
-    await userEvent.click(screen.getByRole("button", { name: "Remove [W] Work" }));
+  it("adds a chip to the chosen ones", async () => {
+    const onChange = renderChips(["work"]);
+    await userEvent.click(chip("Private"));
+    expect(onChange).toHaveBeenLastCalledWith(["work", "private"]);
+  });
+
+  it("removes a chosen chip", async () => {
+    const onChange = renderChips(["work", "side"]);
+    await userEvent.click(chip("Work"));
     expect(onChange).toHaveBeenLastCalledWith(["side"]);
   });
+});
 
-  it("shows an unknown chosen id as it is", () => {
-    renderList(["gone"]);
-    expect(screen.getByRole("button", { name: "Remove gone" })).toBeInTheDocument();
+describe("contextChoices", () => {
+  it("titles each context by its emoji label and name, leaving out an empty label", () => {
+    const contexts = [
+      { id: "work", label: " 💼 ", name: "Work" },
+      { id: "private", label: "", name: "Private" },
+    ] as Context[];
+    expect(contextChoices(contexts)).toEqual([
+      { id: "work", title: "💼 Work" },
+      { id: "private", title: "Private" },
+    ]);
+  });
+});
+
+describe("CommitInput", () => {
+  it("commits the trimmed text on Enter", async () => {
+    const onCommit = vi.fn();
+    render(<CommitInput label="Name" value="Alpha" onCommit={onCommit} />);
+    await userEvent.type(screen.getByRole("textbox", { name: "Name" }), "x  {Enter}");
+    expect(onCommit).toHaveBeenLastCalledWith("Alphax");
   });
 
-  it("lists the titles that contain the typed text, ignoring case", async () => {
-    renderList();
-    await userEvent.type(field(), "PRIV");
-    expect(within(screen.getByRole("listbox", { name: "Matching Contexts" })).getAllByRole("option").map((o) => o.textContent)).toEqual(["[P] Private"]);
+  it("commits on blur", async () => {
+    const onCommit = vi.fn();
+    render(<CommitInput label="Name" value="Alpha" onCommit={onCommit} />);
+    await userEvent.type(screen.getByRole("textbox", { name: "Name" }), "!");
+    expect(onCommit).not.toHaveBeenCalled();
+    await userEvent.tab();
+    expect(onCommit).toHaveBeenLastCalledWith("Alpha!");
   });
 
-  it("does not offer a chosen item again", async () => {
-    renderList(["side"]);
-    await userEvent.type(field(), "side");
-    expect(screen.getByText("No match.")).toBeInTheDocument();
+  it("does not commit an unchanged value", async () => {
+    const onCommit = vi.fn();
+    render(<CommitInput label="Name" value="Alpha" onCommit={onCommit} />);
+    await userEvent.click(screen.getByRole("textbox", { name: "Name" }));
+    await userEvent.tab();
+    expect(onCommit).not.toHaveBeenCalled();
   });
 
-  it("says so when nothing matches", async () => {
-    renderList();
-    await userEvent.type(field(), "zzz");
-    expect(screen.getByText("No match.")).toBeInTheDocument();
-    expect(screen.queryByRole("option")).not.toBeInTheDocument();
-  });
-
-  it("adds the first match on Enter and clears the field", async () => {
-    const onChange = renderList(["side"]);
-    await userEvent.type(field(), "r");
-    await userEvent.keyboard("{Enter}");
-    expect(onChange).toHaveBeenLastCalledWith(["side", "work"]);
-    expect(field()).toHaveValue("");
-    expect(screen.queryByRole("listbox", { name: "Matching Contexts" })).not.toBeInTheDocument();
-  });
-
-  it("adds the match picked with the arrow keys", async () => {
-    const onChange = renderList();
-    await userEvent.type(field(), "r");
-    await userEvent.keyboard("{ArrowDown}");
-    expect(screen.getByRole("option", { name: "[P] Private" })).toHaveAttribute("aria-selected", "true");
-    await userEvent.keyboard("{Enter}");
-    expect(onChange).toHaveBeenLastCalledWith(["private"]);
-  });
-
-  it("wraps from the first match to the last with ArrowUp", async () => {
-    const onChange = renderList();
-    await userEvent.type(field(), "r");
-    await userEvent.keyboard("{ArrowUp}{Enter}");
-    expect(onChange).toHaveBeenLastCalledWith(["private"]);
-  });
-
-  it("adds the clicked match", async () => {
-    const onChange = renderList();
-    await userEvent.type(field(), "side");
-    await userEvent.click(screen.getByRole("option", { name: "Side hustle" }));
-    expect(onChange).toHaveBeenLastCalledWith(["side"]);
-  });
-
-  it("adds nothing on Enter without a match", async () => {
-    const onChange = renderList();
-    await userEvent.type(field(), "zzz{Enter}");
-    expect(onChange).not.toHaveBeenCalled();
+  it("shows the saved value again when a required field is emptied", async () => {
+    const onCommit = vi.fn();
+    render(<CommitInput label="Name" value="Alpha" required onCommit={onCommit} />);
+    await userEvent.clear(screen.getByRole("textbox", { name: "Name" }));
+    await userEvent.tab();
+    expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("Alpha");
+    expect(onCommit).not.toHaveBeenCalled();
   });
 });
 
@@ -255,6 +250,16 @@ describe("ItemActions", () => {
     expect(onMove).toHaveBeenLastCalledWith(1, 0);
     await userEvent.click(screen.getByRole("button", { name: "Move Down" }));
     expect(onMove).toHaveBeenLastCalledWith(1, 2);
+  });
+
+  it("names the buttons Move Up, Move Down and the remove label", () => {
+    renderActions(1, 3);
+    expect(screen.getAllByRole("button").map((b) => b.getAttribute("aria-label"))).toEqual(["Move Up", "Move Down", "Remove Thing"]);
+  });
+
+  it("offers no remove button without an onRemove", () => {
+    render(<ItemActions index={0} count={2} onMove={() => {}} />);
+    expect(screen.getAllByRole("button").map((b) => b.getAttribute("aria-label"))).toEqual(["Move Up", "Move Down"]);
   });
 
   it("removes through the button with the given label", async () => {

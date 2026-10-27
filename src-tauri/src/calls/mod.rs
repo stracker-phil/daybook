@@ -1,5 +1,5 @@
-//! Calls: which app trigger is in a call (docs/presence-and-calls.md). Checked every `TICK` while the
-//! owner is at the Mac; `meetings:check` checks now and ends a call that is gone without the grace.
+//! Calls: which app trigger is in a call (docs/presence-and-calls.md). `watch` checks every 15 s while the
+//! Mac is awake; `meetings:check` checks now and ends a call that is gone without the grace.
 
 pub mod access;
 pub mod checks;
@@ -7,15 +7,15 @@ pub mod detect;
 mod join;
 mod pick;
 mod probe;
+pub mod titles;
 pub mod tracker;
+mod watch;
 
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
 
-use chrono::Local;
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 use tokio::sync::broadcast;
@@ -23,58 +23,26 @@ use ts_rs::TS;
 
 pub use join::{join, open_args};
 pub use tracker::{ActiveCall, CallEvent};
+pub use watch::{check_now, check_soon, first_check, start, woke};
 
-use self::detect::{Detected, Detection, Missing, detect};
+use self::detect::Missing;
 use self::probe::MacProbe;
-use self::tracker::{Seen, Tracker};
+use self::titles::EventTitles;
+use self::tracker::Tracker;
+use crate::action_log;
 use crate::bus::{Command, CommandBus};
-use crate::calendar::{self, events::running_event};
 use crate::error::{AppError, AppResult};
-use crate::events::CALL_CHANGED_EVENT;
 use crate::lock::MutexExt;
 use crate::state::AppState;
 use crate::store::settings::{AppRef, MeetingRule, Settings, built_in_call_apps};
-use crate::{action_log, presence, tray};
-
-const TICK: Duration = Duration::from_secs(15);
-
-#[derive(Default)]
-struct Status {
-    /// Permissions a check was refused and hasn't used since.
-    missing: Vec<Missing>,
-    error: Option<String>,
-}
-
-impl Status {
-    fn record(&mut self, detection: &Result<Detection, String>) {
-        match detection {
-            Ok(detection) => {
-                self.missing.retain(|m| !detection.granted.contains(m));
-                for m in &detection.missing {
-                    if !self.missing.contains(m) {
-                        self.missing.push(*m);
-                    }
-                }
-                self.error = None;
-            }
-            Err(e) => {
-                if self.error.as_ref() != Some(e) {
-                    log::warn!("Checking for a call failed: {e}");
-                }
-                self.error = Some(e.clone());
-            }
-        }
-    }
-}
 
 pub struct Calls {
     tracker: Mutex<Tracker>,
-    status: Mutex<Status>,
+    watch: watch::Watch,
     probe: MacProbe,
-    /// A regular check skips while one runs; an asked-for one waits and runs after it.
-    checking: tokio::sync::Mutex<()>,
     prompted: AtomicBool,
     events: broadcast::Sender<Announced>,
+    titles: Mutex<EventTitles>,
 }
 
 /// A call event with its action-log trigger ("Call started: Zoom"), which the followers' actions join.
@@ -88,11 +56,11 @@ impl Default for Calls {
     fn default() -> Self {
         Self {
             tracker: Mutex::default(),
-            status: Mutex::default(),
+            watch: watch::Watch::default(),
             probe: MacProbe::default(),
-            checking: tokio::sync::Mutex::default(),
             prompted: AtomicBool::new(false),
             events: broadcast::channel(16).0,
+            titles: Mutex::default(),
         }
     }
 }
@@ -105,7 +73,8 @@ pub fn active(app: &AppHandle) -> Option<ActiveCall> {
     calls(app).tracker.lock_unpoisoned().active().cloned()
 }
 
-/// Every call start, change and end, for the features that follow calls.
+/// Every call start, change, switch and end, for the features that follow calls. Subscribe before
+/// `start`, so the first check's events reach every follower.
 pub fn subscribe(app: &AppHandle) -> broadcast::Receiver<Announced> {
     calls(app).events.subscribe()
 }
@@ -115,104 +84,12 @@ pub fn detecting(settings: &Settings) -> bool {
     settings.meetings.detection && settings.vault.path.is_some()
 }
 
-async fn detect_now(app: &AppHandle, rules: Vec<MeetingRule>) -> Result<Detection, String> {
-    let handle = app.clone();
-    tauri::async_runtime::spawn_blocking(move || detect(&rules, &calls(&handle).probe))
-        .await
-        .map_err(|e| e.to_string())
-        .and_then(|result| result)
-}
-
-/// A call its app calls just "Meeting" takes the title of the calendar event running now.
-async fn with_event_title(app: &AppHandle, found: Option<Detected>) -> Option<Detected> {
-    let mut found = found?;
-    if found.title == checks::GENERIC_TITLE {
-        let now = Local::now().naive_local();
-        let events = calendar::events_on(app, now.date(), now.date()).await;
-        found.title = checks::call_title(
-            &found.title,
-            running_event(&events, now).map(|e| e.title.as_str()),
-        );
+/// Re-checks when a setting detection reads (the switch, the rules, the vault) changes.
+pub fn settings_changed(app: &AppHandle, previous: &Settings, saved: &Settings) {
+    let affects = |s: &Settings| (detecting(s), s.meetings.rules.clone());
+    if affects(previous) != affects(saved) || previous.vault.path != saved.vault.path {
+        check_soon(app);
     }
-    Some(found)
-}
-
-async fn check(app: &AppHandle, asked: bool) {
-    let state = calls(app);
-    let _one_at_a_time = if asked {
-        state.checking.lock().await
-    } else {
-        let Ok(guard) = state.checking.try_lock() else {
-            return;
-        };
-        guard
-    };
-    let settings = app.state::<AppState>().settings.get();
-    let seen = if detecting(&settings) {
-        let detection = detect_now(app, settings.meetings.rules).await;
-        state.status.lock_unpoisoned().record(&detection);
-        let Ok(detection) = detection else {
-            return;
-        };
-        Seen::Call(with_event_title(app, detection.found).await)
-    } else {
-        Seen::Off
-    };
-    let now = Local::now().naive_local();
-    let changes = state.tracker.lock_unpoisoned().observe(seen, now, asked);
-    if !changes.is_empty() {
-        announce(app, changes);
-    }
-}
-
-fn announce(app: &AppHandle, changes: Vec<CallEvent>) {
-    for change in changes {
-        let trigger = match &change {
-            CallEvent::Started(call) => {
-                log::info!("In a {} call: {}", call.app, call.title);
-                Some(action_log::begin(&format!("Call started: {}", call.app)))
-            }
-            CallEvent::Changed(call) => {
-                log::info!("The {} call is now: {}", call.app, call.title);
-                None
-            }
-            CallEvent::Ended { call, end } => {
-                log::info!("The {} call ended at {}", call.app, end.format("%H:%M:%S"));
-                Some(action_log::begin(&format!("Call ended: {}", call.app)))
-            }
-        };
-        // Nobody may be listening yet.
-        let _ = calls(app).events.send(Announced {
-            event: change,
-            trigger,
-        });
-    }
-    tray::refresh(app);
-    if let Err(e) = app.emit(CALL_CHANGED_EVENT, ()) {
-        log::warn!("Couldn't announce the call change: {e}");
-    }
-}
-
-/// A regular check, without waiting for it.
-pub fn check_soon(app: &AppHandle) {
-    let app = app.clone();
-    tauri::async_runtime::spawn(async move { check(&app, false).await });
-}
-
-/// Checks every `TICK`; while away it only checks whether the owner is back.
-pub fn start(app: &AppHandle) {
-    let app = app.clone();
-    tauri::async_runtime::spawn(async move {
-        let mut ticks = tokio::time::interval(TICK);
-        loop {
-            ticks.tick().await;
-            if presence::is_away(&app) {
-                presence::verify(&app).await;
-            } else {
-                check(&app, false).await;
-            }
-        }
-    });
 }
 
 #[derive(Serialize, Clone, Debug, PartialEq, TS)]
@@ -262,7 +139,7 @@ pub struct CallsInfo {
 pub fn calls_info(app: AppHandle) -> CallsInfo {
     let settings = app.state::<AppState>().settings.get();
     let state = calls(&app);
-    let status = state.status.lock_unpoisoned();
+    let status = state.watch.status.lock_unpoisoned();
     CallsInfo {
         detecting: detecting(&settings),
         active: active(&app).as_ref().map(CallView::from),
@@ -330,7 +207,7 @@ pub fn register(bus: &mut CommandBus<AppHandle>) {
         Command::new("meetings:check", "Check for a Call Now")
             .help("Check for a call now; a call that is gone ends at once")
             .run(|app| async move {
-                check(&app, true).await;
+                watch::check_asked(&app).await;
                 Ok(())
             }),
     );

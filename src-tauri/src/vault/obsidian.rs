@@ -25,7 +25,7 @@ pub struct ObsidianCli {
 }
 
 impl ObsidianCli {
-    /// `configured` (Settings → Vault) wins; else the login shell's `PATH`, else the usual places.
+    /// `configured` (Settings → Connections → Vault) wins; else the login shell's `PATH`, else the usual places.
     pub fn find(&self, configured: &str) -> Option<PathBuf> {
         if let Some((key, path)) = self.found.lock_unpoisoned().as_ref()
             && key == configured

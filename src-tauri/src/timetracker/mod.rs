@@ -12,6 +12,7 @@ mod drive;
 pub mod link;
 pub mod logged;
 pub mod reply;
+mod split_calls;
 mod status_timer;
 pub mod watch;
 
@@ -249,7 +250,7 @@ fn read_timer_soon(app: &AppHandle) {
     });
 }
 
-/// Settings → TimeTracker: where the tool is, whether it runs, its version.
+/// Settings → Connections → TimeTracker: where the tool is, whether it runs, its version.
 pub async fn info(app: &AppHandle) -> TimeTrackerInfo {
     let path = cli(app).path().display().to_string();
     let default_path = client::DEFAULT_PATH.to_string();

@@ -217,9 +217,9 @@ describe("ContextsPage", () => {
       expect(savedContext("work").calendars).toEqual([]);
     });
 
-    it("asks to allow access in Settings → Calendar and lists nothing without access", async () => {
+    it("asks to allow access in Settings → Connections and lists nothing without access", async () => {
       renderCalendars({ access: "denied", calendars: [] }, ["Work"]);
-      expect(await work().findByText("Allow calendar access in Settings → Calendar to choose calendars.")).toBeInTheDocument();
+      expect(await work().findByText("Allow calendar access in Settings → Connections to choose calendars.")).toBeInTheDocument();
       expect(work().queryByRole("checkbox", { name: /Work/ })).not.toBeInTheDocument();
       expect(work().queryByText("not on this Mac")).not.toBeInTheDocument();
     });

@@ -1,8 +1,9 @@
 //! Keeps Slack in line with the picked status, a running call and calendar heads-ups (`decide` sets the
-//! order). Pure: each change returns the step to take. A call's status is replaced afterwards only if
-//! Slack took it.
+//! order). Each change returns the step to take and records a call status on its way. A call's status
+//! is replaced afterwards only if Slack took it; one still on its way when the call ends is replaced
+//! once it lands.
 
-use super::decide::{Decision, HeadsUp, Wanted, decide, focus_of, with_project};
+use super::decide::{Decision, HeadsUp, Wanted, changes_nothing, decide, focus_of, with_project};
 use crate::store::settings::{SlackStatus, Status, StatusMap};
 
 /// A status the owner picked.
@@ -49,6 +50,8 @@ pub struct Live {
     call: Option<SlackStatus>,
     /// Slack took the call status.
     call_shown: bool,
+    /// The call status sent last, until Slack answered.
+    call_in_flight: Option<SlackStatus>,
     heads_up: Option<HeadsUp>,
 }
 
@@ -88,6 +91,11 @@ impl Live {
             self.wanted(setup),
         );
         self.call_shown = false;
+        if let Decision::Call(mapping) = &decision
+            && !changes_nothing(mapping)
+        {
+            self.call_in_flight = Some(mapping.clone());
+        }
         match decision {
             Decision::WorkflowOff { mapping, note } => Step::Skip {
                 mapping,
@@ -119,15 +127,24 @@ impl Live {
         }
     }
 
-    /// A call started (its trigger's status) or ended (`None`). An ended call that Slack shows is
-    /// replaced in every context.
+    /// A call started or moved to another app (its trigger's status) or ended (`None`). An ended call
+    /// Slack shows is replaced in every context; a move to an app with the same status sends nothing.
     pub fn call_changed(&mut self, call: Option<SlackStatus>, setup: &Setup) -> Step {
         let Some(mapping) = call else {
             let shown = self.call_on_screen();
             self.call = None;
-            return if shown { self.apply(setup) } else { Step::Idle };
+            return if shown && self.call_in_flight.is_none() {
+                self.apply(setup)
+            } else {
+                Step::Idle
+            };
         };
+        let already = self.call.as_ref() == Some(&mapping)
+            && (self.call_shown || self.call_in_flight.as_ref() == Some(&mapping));
         self.call = Some(mapping.clone());
+        if already {
+            return Step::Idle;
+        }
         if setup.slack_on {
             self.apply(setup)
         } else {
@@ -180,9 +197,49 @@ impl Live {
         }
     }
 
-    /// Slack took `sent`; it counts as shown while it is still the call's status.
-    pub fn call_sent(&mut self, sent: &SlackStatus) {
-        self.call_shown = self.call.as_ref() == Some(sent);
+    /// Slack took the call status `sent`. It counts as shown while it is still the call's status;
+    /// otherwise the call ended or moved on its way, and what is wanted now replaces it. An older send
+    /// landing changes nothing: the newer one settles it.
+    pub fn call_sent(&mut self, sent: &SlackStatus, setup: &Setup) -> Step {
+        if self.call_in_flight.as_ref() != Some(sent) {
+            return Step::Idle;
+        }
+        self.call_in_flight = None;
+        if self.call.as_ref() == Some(sent) {
+            self.call_shown = true;
+            Step::Idle
+        } else {
+            self.apply(setup)
+        }
+    }
+
+    /// The call status `sent` never reached Slack (failed, replaced or not connected).
+    pub fn call_not_sent(&mut self, sent: &SlackStatus) {
+        self.call_in_flight.take_if(|in_flight| *in_flight == *sent);
+    }
+
+    /// After a restart without a call: Slack still shows a call status from before, so what is wanted
+    /// now replaces it, in every context.
+    pub fn restore_after_restart(&mut self, setup: &Setup) -> Step {
+        if self.call.is_some() || self.call_in_flight.is_some() {
+            Step::Idle
+        } else {
+            self.apply(setup)
+        }
+    }
+
+    /// Daybook quits: a call status Slack shows, or that is on its way, is replaced by what is wanted
+    /// without the call. `None` when nothing is to be sent.
+    pub fn quitting(&mut self, setup: &Setup) -> Option<Decision> {
+        if !self.call_on_screen() && self.call_in_flight.is_none() {
+            return None;
+        }
+        self.call = None;
+        self.call_in_flight = None;
+        match self.apply(setup) {
+            Step::Send(decision) => Some(decision),
+            Step::Idle | Step::Skip { .. } => None,
+        }
     }
 }
 
@@ -284,7 +341,7 @@ mod tests {
             live.call_changed(Some(call()), &setup),
             Step::Send(Decision::Call(call()))
         );
-        live.call_sent(&call());
+        live.call_sent(&call(), &setup);
 
         assert_eq!(
             live.status_picked(picked(Status::Break, "coffee"), &setup),
@@ -307,7 +364,7 @@ mod tests {
         let mut live = Live::default();
         live.status_picked(picked(Status::Working, ""), &setup);
         live.call_changed(Some(call()), &setup);
-        live.call_sent(&call());
+        live.call_sent(&call(), &setup);
         assert_eq!(
             live.call_changed(None, &setup),
             status_step(&world.statuses.working, "")
@@ -341,7 +398,7 @@ mod tests {
         let mut live = Live::default();
         live.status_picked(picked(Status::Working, ""), &world.setup(true));
         live.call_changed(Some(call()), &world.setup(true));
-        live.call_sent(&call());
+        live.call_sent(&call(), &world.setup(true));
         assert_eq!(
             live.call_changed(None, &world.setup(false)),
             status_step(&world.statuses.working, "")
@@ -364,7 +421,7 @@ mod tests {
             live.context_changed(&world.setup(true)),
             Step::Send(Decision::Call(call()))
         );
-        live.call_sent(&call());
+        live.call_sent(&call(), &world.setup(true));
         assert_eq!(live.context_changed(&world.setup(true)), Step::Idle);
     }
 
@@ -423,7 +480,7 @@ mod tests {
         let setup = world.setup(true);
         let mut live = Live::default();
         live.call_changed(Some(call()), &setup);
-        live.call_sent(&call());
+        live.call_sent(&call(), &setup);
         assert_eq!(live.heads_up_changed(Some(heads_up()), &setup), Step::Idle);
     }
 
@@ -445,7 +502,7 @@ mod tests {
         };
         let mut live = Live::default();
         live.call_changed(Some(call()), &setup);
-        live.call_sent(&call());
+        live.call_sent(&call(), &setup);
         assert_eq!(
             live.call_changed(None, &setup),
             status_step(&world.statuses.working, "")
@@ -458,7 +515,7 @@ mod tests {
         let setup = world.setup(true);
         let mut live = Live::default();
         live.call_changed(Some(call()), &setup);
-        live.call_sent(&call());
+        live.call_sent(&call(), &setup);
         assert_eq!(
             live.call_changed(None, &setup),
             status_step(&world.statuses.off, "")
@@ -474,7 +531,7 @@ mod tests {
         live.call_changed(Some(call()), &setup);
         live.call_changed(None, &setup);
         live.call_changed(Some(other), &setup);
-        live.call_sent(&call());
+        live.call_sent(&call(), &setup);
         assert_eq!(live.call_changed(None, &setup), Step::Idle);
     }
 
@@ -547,7 +604,7 @@ mod tests {
         let mut live = Live::default();
         live.status_picked(working_on(None), &setup);
         live.call_changed(Some(call()), &setup);
-        live.call_sent(&call());
+        live.call_sent(&call(), &setup);
 
         assert_eq!(
             live.project_changed(Some("Oscorp".into()), &setup),
@@ -568,6 +625,203 @@ mod tests {
             live.status_picked(working_on(None), &setup),
             working_named(&world, "9:00 - 18:00")
         );
+    }
+
+    fn other_call() -> SlackStatus {
+        SlackStatus::new(":phone:", "On the phone", Presence::Away)
+    }
+
+    fn keep_everything() -> SlackStatus {
+        SlackStatus {
+            keep_status: true,
+            ..SlackStatus::new("", "", Presence::Keep)
+        }
+    }
+
+    fn working_live(setup: &Setup) -> Live {
+        let mut live = Live::default();
+        live.status_picked(picked(Status::Working, ""), setup);
+        live
+    }
+
+    #[test]
+    fn a_call_moving_to_an_app_with_another_status_sends_only_that_status() {
+        let world = World::new();
+        let setup = world.setup(true);
+        let mut live = working_live(&setup);
+        live.call_changed(Some(call()), &setup);
+        live.call_sent(&call(), &setup);
+
+        assert_eq!(
+            live.call_changed(Some(other_call()), &setup),
+            Step::Send(Decision::Call(other_call()))
+        );
+    }
+
+    #[test]
+    fn a_call_moving_to_an_app_with_the_same_status_sends_nothing() {
+        let world = World::new();
+        let setup = world.setup(true);
+        let mut live = working_live(&setup);
+        live.call_changed(Some(call()), &setup);
+        live.call_sent(&call(), &setup);
+
+        assert_eq!(live.call_changed(Some(call()), &setup), Step::Idle);
+    }
+
+    #[test]
+    fn a_call_ending_while_its_status_is_on_its_way_is_replaced_once_it_lands() {
+        let world = World::new();
+        let setup = world.setup(true);
+        let mut live = working_live(&setup);
+        live.call_changed(Some(call()), &setup);
+
+        assert_eq!(live.call_changed(None, &setup), Step::Idle);
+        assert_eq!(
+            live.call_sent(&call(), &setup),
+            status_step(&world.statuses.working, "")
+        );
+    }
+
+    #[test]
+    fn an_older_call_status_landing_changes_nothing() {
+        let world = World::new();
+        let setup = world.setup(true);
+        let mut live = working_live(&setup);
+        live.call_changed(Some(call()), &setup);
+        live.call_changed(Some(other_call()), &setup);
+
+        assert_eq!(live.call_sent(&call(), &setup), Step::Idle);
+        assert_eq!(live.call_sent(&other_call(), &setup), Step::Idle);
+        assert_eq!(
+            live.call_changed(None, &setup),
+            status_step(&world.statuses.working, "")
+        );
+    }
+
+    #[test]
+    fn a_call_status_that_never_reached_slack_is_not_replaced_when_the_call_ends() {
+        let world = World::new();
+        let setup = world.setup(true);
+        let mut live = working_live(&setup);
+        live.call_changed(Some(call()), &setup);
+        live.call_not_sent(&call());
+
+        assert_eq!(live.call_sent(&call(), &setup), Step::Idle);
+        assert_eq!(live.call_changed(None, &setup), Step::Idle);
+    }
+
+    #[test]
+    fn a_call_status_that_never_reached_slack_is_sent_again_with_the_next_change() {
+        let world = World::new();
+        let setup = world.setup(true);
+        let mut live = working_live(&setup);
+        live.call_changed(Some(call()), &setup);
+        live.call_not_sent(&call());
+
+        assert_eq!(
+            live.call_changed(Some(call()), &setup),
+            Step::Send(Decision::Call(call()))
+        );
+    }
+
+    #[test]
+    fn a_call_status_that_changes_nothing_is_never_tracked_as_sent() {
+        let world = World::new();
+        let setup = world.setup(true);
+        let mut live = working_live(&setup);
+        assert_eq!(
+            live.call_changed(Some(keep_everything()), &setup),
+            Step::Send(Decision::Call(keep_everything()))
+        );
+
+        assert_eq!(live.call_sent(&keep_everything(), &setup), Step::Idle);
+        assert_eq!(live.quitting(&setup), None);
+        assert_eq!(live.call_changed(None, &setup), Step::Idle);
+    }
+
+    #[test]
+    fn a_restart_without_a_call_replaces_what_slack_shows() {
+        let world = World::new();
+        let setup = world.setup(true);
+        let mut live = working_live(&setup);
+        assert_eq!(
+            live.restore_after_restart(&setup),
+            status_step(&world.statuses.working, "")
+        );
+    }
+
+    #[test]
+    fn a_restart_during_a_call_or_with_a_send_in_flight_changes_nothing() {
+        let world = World::new();
+        let setup = world.setup(true);
+
+        let mut in_call = working_live(&setup);
+        in_call.call_changed(Some(call()), &setup);
+        in_call.call_sent(&call(), &setup);
+        assert_eq!(in_call.restore_after_restart(&setup), Step::Idle);
+
+        let mut in_flight = working_live(&setup);
+        in_flight.call_changed(Some(call()), &setup);
+        in_flight.call_changed(None, &setup);
+        assert_eq!(in_flight.restore_after_restart(&setup), Step::Idle);
+    }
+
+    #[test]
+    fn quitting_during_a_shown_call_restores_the_wanted_status() {
+        let world = World::new();
+        let setup = world.setup(true);
+        let mut live = working_live(&setup);
+        live.call_changed(Some(call()), &setup);
+        live.call_sent(&call(), &setup);
+
+        assert_eq!(
+            live.quitting(&setup),
+            Some(Decision::Status {
+                mapping: world.statuses.working.clone(),
+                note: String::new(),
+            })
+        );
+    }
+
+    #[test]
+    fn quitting_while_the_call_status_is_on_its_way_restores_the_wanted_status() {
+        let world = World::new();
+        let setup = world.setup(true);
+        let mut live = working_live(&setup);
+        live.call_changed(Some(call()), &setup);
+
+        assert_eq!(
+            live.quitting(&setup),
+            Some(Decision::Status {
+                mapping: world.statuses.working.clone(),
+                note: String::new(),
+            })
+        );
+    }
+
+    #[test]
+    fn quitting_without_a_call_status_on_slack_sends_nothing() {
+        let world = World::new();
+        let mut idle = working_live(&world.setup(true));
+        assert_eq!(idle.quitting(&world.setup(true)), None);
+
+        let mut outside_slack = Live::default();
+        outside_slack.call_changed(Some(call()), &world.setup(false));
+        assert_eq!(outside_slack.quitting(&world.setup(true)), None);
+    }
+
+    #[test]
+    fn quitting_sends_nothing_when_the_workflow_of_the_wanted_status_is_off() {
+        let mut world = World::new();
+        world.workflows.break_ = false;
+        let setup = world.setup(true);
+        let mut live = Live::default();
+        live.status_picked(picked(Status::Break, ""), &setup);
+        live.call_changed(Some(call()), &setup);
+        live.call_sent(&call(), &setup);
+
+        assert_eq!(live.quitting(&setup), None);
     }
 
     #[test]

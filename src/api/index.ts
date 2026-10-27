@@ -29,6 +29,7 @@ import type {
   LaunchEvent,
   Missing,
   MusicState,
+  OpenTodo,
   NoteChanged,
   PaletteResults,
   NoteSectionRef,
@@ -124,7 +125,7 @@ export const api = {
   calendarRequestAccess: () => invoke<CalendarAccess>("calendar_request_access"),
   /** Joins an event's call: starts the start-first apps, then opens the link in its app. Join links only. */
   calendarJoin: (url: string) => invoke<void>("calendar_join", { url }),
-  /** Settings → Calls: detection, the running call, permissions, the built-in app triggers. */
+  /** Settings → Workflows → App triggers: detection, the running call, permissions, the built-in app triggers. */
   callsInfo: () => invoke<CallsInfo>("calls_info"),
   /** Accessibility: macOS's prompt the first time, then its privacy settings; Automation: its privacy settings. */
   callsRequestAccess: (permission: Missing) => invoke<boolean>("calls_request_access", { permission }),
@@ -168,6 +169,8 @@ export const api = {
   dailyNoteOpen: (day?: string, heading?: string) => invoke<void>("daily_note_open", { day: day ?? null, heading: heading ?? null }),
   /** Opens a todo's note (relative to the vault) in Obsidian. */
   todoOpen: (file: string) => invoke<void>("todo_open", { file }),
+  /** Ticks an open todo in its note; refused when that line no longer holds it. */
+  todoComplete: (todo: Pick<OpenTodo, "file" | "line" | "text">) => invoke<void>("todo_complete", { file: todo.file, line: todo.line, text: todo.text }),
   /** Creates today's note through the Obsidian CLI; resolves whether it exists now. */
   dailyNoteCreate: () => invoke<boolean>("daily_note_create"),
   /** The quick-notes picker's rows for `query` (today's matching topics, then a new one) and the notes heading. */
@@ -206,7 +209,7 @@ export const api = {
   jiraSuggestions: () => invoke<string[]>("jira_suggestions"),
   /** Project Launcher's projects (cached for a minute unless `fresh`); asking may start it. */
   launcherProjects: (fresh: boolean) => invoke<LauncherProjects>("launcher_projects", { fresh }),
-  /** Settings → TimeTracker: the command's path, whether TimeTracker can be reached, and its version. */
+  /** Settings → Connections → TimeTracker: the command's path, whether TimeTracker can be reached, and its version. */
   timetrackerInfo: () => invoke<TimeTrackerInfo>("timetracker_info"),
   /** TimeTracker's projects, archived ones too, and its state; the list read last unless `fresh`. */
   timetrackerProjects: (fresh: boolean) => invoke<TimeTrackerProjects>("timetracker_projects", { fresh }),

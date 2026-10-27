@@ -17,8 +17,15 @@ function renderPage(patch: Partial<Settings> = {}) {
 }
 
 const lastSaved = () => mocked.updateSettings.mock.lastCall![0];
-const channelMessages = () => screen.getAllByRole("textbox", { name: "Channel message" });
 const field = (name: string) => screen.getByRole("textbox", { name });
+const blockOf = (switchName: string) => within(screen.getByRole("switch", { name: switchName }).closest(".lead-block") as HTMLElement);
+const message = (status: string) => blockOf(status).getByRole("textbox", { name: "Channel message" });
+
+const STATUS_BLOCKS = [
+  ["Working and present", "working"],
+  ["Taking a break", "break"],
+  ["Done for today", "off"],
+] as const;
 
 async function replace(input: HTMLElement, text: string) {
   await userEvent.clear(input);
@@ -92,16 +99,19 @@ describe("WorkflowsPage", () => {
   });
 
   describe("Slack status of a workflow", () => {
-    const statusFields = () => screen.getAllByRole("button", { name: "Edit Slack status" });
-
-    it.each([
-      [0, "working"],
-      [1, "break"],
-      [2, "off"],
-    ] as const)("saves the edited text of status field %i as slack.statuses.%s only", async (index, key) => {
+    it("shows the status as a bar that opens its editor", async () => {
       renderPage();
-      await userEvent.click(statusFields()[index]);
-      await replace(screen.getByLabelText("Text"), "Heads down");
+      const bar = blockOf("Taking a break").getByRole("button", { name: "Edit Slack status" });
+      expect(bar).toHaveAttribute("aria-expanded", "false");
+      await userEvent.click(bar);
+      expect(bar).toHaveAttribute("aria-expanded", "true");
+      expect(blockOf("Taking a break").getByRole("textbox", { name: "Status text" })).toHaveValue("AFK");
+    });
+
+    it.each(STATUS_BLOCKS)("saves the edited text of %s as slack.statuses.%s only", async (label, key) => {
+      renderPage();
+      await userEvent.click(blockOf(label).getByRole("button", { name: "Edit Slack status" }));
+      await replace(blockOf(label).getByRole("textbox", { name: "Status text" }), "Heads down");
       await userEvent.keyboard("{Enter}");
       const base = settings().slack;
       expect(lastSaved().slack).toEqual({ ...base, statuses: { ...base.statuses, [key]: { ...base.statuses[key], text: "Heads down" } } });
@@ -109,8 +119,8 @@ describe("WorkflowsPage", () => {
 
     it("saves a changed presence of the Break status", async () => {
       renderPage();
-      await userEvent.click(statusFields()[1]);
-      await userEvent.click(within(screen.getByRole("group", { name: "Presence" })).getByRole("button", { name: "No change" }));
+      await userEvent.click(blockOf("Taking a break").getByRole("button", { name: "Edit Slack status" }));
+      await userEvent.selectOptions(blockOf("Taking a break").getByRole("combobox", { name: "Presence" }), "keep");
       expect(lastSaved().slack.statuses.break.presence).toBe("keep");
     });
   });
@@ -118,37 +128,35 @@ describe("WorkflowsPage", () => {
   describe("channel messages", () => {
     it("shows the saved message of each status", () => {
       renderPage();
-      expect(channelMessages().map((input) => (input as HTMLInputElement).value)).toEqual(["re", "afk", "off for today :wave:"]);
+      expect(message("Working and present")).toHaveValue("re");
+      expect(message("Taking a break")).toHaveValue("afk");
+      expect(message("Done for today")).toHaveValue("off for today :wave:");
     });
 
-    it.each([
-      [0, "working"],
-      [1, "break"],
-      [2, "off"],
-    ] as const)("saves the edited message of field %i as statusMessages.%s on Enter", async (index, key) => {
+    it.each(STATUS_BLOCKS)("saves the edited message of %s as statusMessages.%s on Enter", async (label, key) => {
       renderPage();
-      await replace(channelMessages()[index], "new text");
+      await replace(message(label), "new text");
       await userEvent.keyboard("{Enter}");
       expect(lastSaved().statusMessages).toEqual({ ...settings().statusMessages, [key]: "new text" });
     });
 
     it("saves an edited message on blur", async () => {
       renderPage();
-      await replace(channelMessages()[1], "lunch");
+      await replace(message("Taking a break"), "lunch");
       await userEvent.tab();
       expect(lastSaved().statusMessages.break).toBe("lunch");
     });
 
     it("saves a cleared message as empty, so nothing is posted", async () => {
       renderPage();
-      await replace(channelMessages()[0], "");
+      await replace(message("Working and present"), "");
       await userEvent.tab();
       expect(lastSaved().statusMessages.working).toBe("");
     });
 
     it("saves nothing while the field is only being typed in", async () => {
       renderPage();
-      await replace(channelMessages()[0], "half");
+      await replace(message("Working and present"), "half");
       expect(mocked.updateSettings).not.toHaveBeenCalled();
     });
 
@@ -263,18 +271,18 @@ describe("WorkflowsPage", () => {
 
   describe("before an absence", () => {
     const rules = () => settings().statusRules;
-    const card = (title: string) => within(screen.getByRole("heading", { name: title }).closest("section")!);
+    const rule = (hours: number) => blockOf(`Absence within ${hours} hours`);
 
     it("shows the saved absence settings", () => {
       renderPage();
-      expect(field("Absence titles")).toHaveValue("Out of office");
+      expect(field("Titles")).toHaveValue("Out of office");
       expect(screen.getByRole("spinbutton", { name: "Busy blocks from" })).toHaveValue(8);
       expect(field("Time zone label")).toHaveValue("");
     });
 
     it("saves the comma list of absence titles", async () => {
       renderPage();
-      await replace(field("Absence titles"), "Out of office, Vacation ,, Sick");
+      await replace(field("Titles"), "Out of office, Vacation ,, Sick");
       await userEvent.keyboard("{Enter}");
       expect(lastSaved().statusRules).toEqual({ ...rules(), absenceTitles: ["Out of office", "Vacation", "Sick"] });
     });
@@ -293,37 +301,37 @@ describe("WorkflowsPage", () => {
       expect(lastSaved().statusRules.tzLabel).toBe("CEST");
     });
 
-    it("shows one card per rule titled by its hours", () => {
+    it("shows one switch per rule named by its hours, with the hours inline", () => {
       renderPage();
-      expect(screen.getByRole("heading", { name: "Absence starts within 8 hours" })).toBeInTheDocument();
-      expect(screen.getByRole("heading", { name: "Absence starts within 168 hours" })).toBeInTheDocument();
+      expect(screen.getByRole("switch", { name: "Absence within 8 hours" })).toBeChecked();
+      expect(rule(8).getByRole("spinbutton", { name: "Hours before" })).toHaveValue(8);
+      expect(rule(168).getByRole("spinbutton", { name: "Hours before" })).toHaveValue(168);
     });
 
     it("saves a rule switched off", async () => {
       renderPage();
-      await userEvent.click(card("Absence starts within 168 hours").getByRole("switch", { name: "Workflow on" }));
+      await userEvent.click(screen.getByRole("switch", { name: "Absence within 168 hours" }));
       expect(lastSaved().statusRules.rules).toEqual([rules().rules[0], { ...rules().rules[1], enabled: false }]);
     });
 
     it("saves the hours of a rule", async () => {
       renderPage();
-      await replace(card("Absence starts within 8 hours").getByRole("spinbutton", { name: "Hours before" }), "12");
+      await replace(rule(8).getByRole("spinbutton", { name: "Hours before" }), "12");
       await userEvent.keyboard("{Enter}");
       expect(lastSaved().statusRules.rules).toEqual([{ ...rules().rules[0], hours: 12 }, rules().rules[1]]);
     });
 
     it("saves the Slack status of a rule", async () => {
       renderPage();
-      const rule = card("Absence starts within 8 hours");
-      await userEvent.click(rule.getByRole("button", { name: "Edit Slack status" }));
-      await replace(rule.getByLabelText("Text"), "Out soon");
+      await userEvent.click(rule(8).getByRole("button", { name: "Edit Slack status" }));
+      await replace(rule(8).getByRole("textbox", { name: "Status text" }), "Out soon");
       await userEvent.keyboard("{Enter}");
       expect(lastSaved().statusRules.rules).toEqual([{ ...rules().rules[0], slack: { ...rules().rules[0].slack, text: "Out soon" } }, rules().rules[1]]);
     });
 
     it("removes only the rule whose Remove Rule is clicked", async () => {
       renderPage();
-      await userEvent.click(card("Absence starts within 8 hours").getByRole("button", { name: "Remove Rule" }));
+      await userEvent.click(rule(8).getByRole("button", { name: "Remove Rule" }));
       expect(lastSaved().statusRules.rules).toEqual([rules().rules[1]]);
     });
 

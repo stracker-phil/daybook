@@ -338,7 +338,7 @@ fn tool_entries(id: ToolId, input: &MenuInput) -> Vec<MenuEntry> {
     }
 }
 
-/// Every tool in the Settings → Tools order.
+/// Every tool in the Settings → General → Tools order.
 fn tool_section(input: &MenuInput) -> Vec<MenuEntry> {
     input
         .tools

@@ -8,6 +8,12 @@ export interface SettingsPageProps {
   set: (patch: Partial<Settings>) => void;
 }
 
+/** A group of a page, opened by `settings:<id>` and scrolled to it. */
+export interface SettingsSection {
+  id: string;
+  title: string;
+}
+
 interface SettingsPage {
   id: string;
   group: string;
@@ -18,6 +24,8 @@ interface SettingsPage {
   Body: ComponentType<SettingsPageProps>;
   /** Position inside its group; pages without one follow, by label. */
   order?: number;
+  /** Groups the page registers by id (`Group anchor`), also found by the nav's search. */
+  sections?: SettingsSection[];
 }
 
 /** Nav order of the known groups; any other group follows them, by name. */
@@ -53,18 +61,38 @@ export function settingsPages(): SettingsPage[] {
   return [...pages.values()].sort(compare);
 }
 
-/** The named page, or the first when the name is absent or unknown. */
+export const hasSection = (page: SettingsPage, id: string | undefined) => page.sections?.some((section) => section.id === id) ?? false;
+
+/** The named page, the page holding the named section, or the first when the name is absent or unknown. */
 export function resolveSettingsPage(id: string | undefined): SettingsPage | undefined {
   const all = settingsPages();
-  return all.find((p) => p.id === id) ?? all[0];
+  return all.find((p) => p.id === id) ?? all.find((p) => hasSection(p, id)) ?? all[0];
 }
 
-export function settingsGroups(): { group: string; pages: SettingsPage[] }[] {
-  const groups: { group: string; pages: SettingsPage[] }[] = [];
-  for (const page of settingsPages()) {
+/** A page in the nav; `section` when the search found the page by that section's title. */
+export interface SettingsNavEntry {
+  page: SettingsPage;
+  section?: SettingsSection;
+}
+
+/** Pages whose label, nav group or a section title contains `query` (any case). */
+function searchSettingsPages(query: string): SettingsNavEntry[] {
+  const needle = query.trim().toLowerCase();
+  const has = (text: string) => text.toLowerCase().includes(needle);
+  return settingsPages().flatMap((page) => {
+    if (has(page.label) || has(page.group)) return [{ page }];
+    const section = page.sections?.find((candidate) => has(candidate.title));
+    return section ? [{ page, section }] : [];
+  });
+}
+
+/** The nav groups in nav order, filtered to `query` when one is given. */
+export function settingsGroups(query: string): { group: string; pages: SettingsNavEntry[] }[] {
+  const groups: { group: string; pages: SettingsNavEntry[] }[] = [];
+  for (const hit of searchSettingsPages(query)) {
     const last = groups.at(-1);
-    if (last?.group === page.group) last.pages.push(page);
-    else groups.push({ group: page.group, pages: [page] });
+    if (last?.group === hit.page.group) last.pages.push(hit);
+    else groups.push({ group: hit.page.group, pages: [hit] });
   }
   return groups;
 }

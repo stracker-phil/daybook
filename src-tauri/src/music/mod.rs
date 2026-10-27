@@ -19,6 +19,7 @@ use std::time::Duration;
 use chrono::Utc;
 use tauri::{AppHandle, Emitter, Manager};
 
+pub use automation::restore_on_exit;
 pub use commands::register;
 
 use self::script::{

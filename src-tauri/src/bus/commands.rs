@@ -15,14 +15,20 @@ async fn open_panel(app: AppHandle, view: &str) -> AppResult<()> {
     Ok(())
 }
 
+/// The pages, then the former pages that open a group of one ("Calendar (Connections)").
 fn settings_pages(_: &AppHandle) -> Vec<ArgChoice> {
-    window::settings::PAGES
+    let choice = |id: &str, title: String| ArgChoice {
+        title: Some(title),
+        ..ArgChoice::new(id)
+    };
+    let pages = window::settings::PAGES
         .iter()
-        .map(|(id, title)| ArgChoice {
-            title: Some(title.to_string()),
-            ..ArgChoice::new(*id)
-        })
-        .collect()
+        .map(|(id, title)| choice(id, title.to_string()));
+    let sections = window::settings::SECTIONS.iter().map(|(id, page, title)| {
+        let page = window::settings::page_title(page).unwrap_or(page);
+        choice(id, format!("{title} ({page})"))
+    });
+    pages.chain(sections).collect()
 }
 
 fn creating_today(app: &AppHandle) -> bool {

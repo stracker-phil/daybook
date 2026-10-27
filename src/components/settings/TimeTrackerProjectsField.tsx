@@ -8,7 +8,7 @@ import { openTimeTracker, type TimeTrackerProjectsResult } from "./useTimeTracke
 function problemOf(list: TimeTrackerProjects | null, error: string | null): { text: string; canOpen: boolean } | null {
   if (error) return { text: `TimeTracker didn't answer: ${error}`, canOpen: false };
   if (list?.state === "notRunning") return { text: "TimeTracker isn't running: start it to pick its projects.", canOpen: true };
-  if (list?.state === "missing") return { text: "TimeTracker isn't installed: check its command in Settings → TimeTracker.", canOpen: false };
+  if (list?.state === "missing") return { text: "TimeTracker isn't installed: check its command in Settings → Connections.", canOpen: false };
   return null;
 }
 

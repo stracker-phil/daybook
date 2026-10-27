@@ -139,6 +139,7 @@ mod tests {
     fn call(app: &str, title: &str, since: NaiveDateTime) -> ActiveCall {
         ActiveCall {
             app: app.into(),
+            bundle_id: format!("com.example.{}", app.to_lowercase()),
             title: title.into(),
             since,
         }

@@ -2,12 +2,14 @@
 //!
 //! Zoom runs its CptHost process only during a meeting, Teams uses the microphone during a call (and shows a
 //! level-19 window while it isn't in front, on any Space), and a Google Meet meeting has a
-//! `xxx-xxxx-xxx` link in a Chrome tab (the Meet app's windows are Chrome windows too).
+//! `xxx-xxxx-xxx` link in a Chrome tab (the Meet app's windows are Chrome windows too) while Chrome
+//! records from the microphone.
 
 use std::collections::HashSet;
 use std::sync::LazyLock;
 
 use regex::Regex;
+use serde::Deserialize;
 
 pub use crate::store::settings::{MEET_BUNDLE, TEAMS_BUNDLE, ZOOM_BUNDLE};
 
@@ -23,7 +25,7 @@ pub fn built_in_check(bundle_id: &str) -> Option<&'static str> {
             Some("A call while Teams uses the microphone or shows its call window, on any Space.")
         }
         MEET_BUNDLE => Some(
-            "A call while a Chrome tab or the Meet app shows a meeting link (meet.google.com/xxx-xxxx-xxx).",
+            "A call while a Chrome tab or the Meet app shows a meeting link (meet.google.com/xxx-xxxx-xxx) and Chrome uses the microphone.",
         ),
         _ => None,
     }
@@ -138,6 +140,35 @@ pub fn running_bundle_ids(list: &str) -> HashSet<String> {
 /// The app's path in `lsappinfo info -only bundlepath -app <id>`.
 pub fn bundle_path(info: &str) -> Option<String> {
     BUNDLE_PATH.captures(info).map(|c| c[1].to_string())
+}
+
+#[derive(Deserialize)]
+struct ChromeTabs {
+    #[serde(default)]
+    urls: Vec<Vec<Option<String>>>,
+    #[serde(default)]
+    titles: Vec<Vec<Option<String>>>,
+}
+
+fn flat(windows: Vec<Vec<Option<String>>>) -> Vec<String> {
+    windows
+        .into_iter()
+        .flatten()
+        .map(Option::unwrap_or_default)
+        .collect()
+}
+
+/// The URLs and titles of every tab from the tabs script's JSON (`{}` while Chrome isn't running);
+/// anything else is an error, never "no tabs".
+pub fn parse_chrome_tabs(output: &str) -> Result<(Vec<String>, Vec<String>), String> {
+    let output = output.trim();
+    // serde would also read a JSON array as the struct's fields in order.
+    if !output.starts_with('{') {
+        return Err(format!("Chrome's tabs couldn't be read: {output:.80}"));
+    }
+    let tabs: ChromeTabs =
+        serde_json::from_str(output).map_err(|e| format!("Chrome's tabs couldn't be read: {e}"))?;
+    Ok((flat(tabs.urls), flat(tabs.titles)))
 }
 
 /// What a refused script says: -1743 is a refused Automation request; either spelling of the text.
@@ -332,6 +363,47 @@ Kernel Assertions: 0x104=USB,MAGICWAKE";
             ("", false),
         ] {
             assert_eq!(automation_refused(stderr), expected, "{stderr}");
+        }
+    }
+
+    #[test]
+    fn chrome_not_running_gives_no_tabs() {
+        assert_eq!(parse_chrome_tabs("{}"), Ok((vec![], vec![])));
+        assert_eq!(parse_chrome_tabs("  {}\n"), Ok((vec![], vec![])));
+    }
+
+    #[test]
+    fn chrome_tabs_of_all_windows_are_flattened_in_order() {
+        let output =
+            r#"{"urls":[["https://a","https://b"],["https://c"]],"titles":[["A","B"],["C"]]}"#;
+        assert_eq!(
+            parse_chrome_tabs(output),
+            Ok((
+                strings(&["https://a", "https://b", "https://c"]),
+                strings(&["A", "B", "C"])
+            ))
+        );
+    }
+
+    #[test]
+    fn null_tab_entries_become_empty_strings() {
+        let output = r#"{"urls":[["https://a",null]],"titles":[[null,"B"]]}"#;
+        assert_eq!(
+            parse_chrome_tabs(output),
+            Ok((strings(&["https://a", ""]), strings(&["", "B"])))
+        );
+    }
+
+    #[test]
+    fn output_that_is_not_the_tabs_json_is_an_error_not_no_tabs() {
+        for output in ["", "Chrome is not running", r#"{"urls":"x"}"#, "[]", "{"] {
+            assert!(
+                matches!(
+                    parse_chrome_tabs(output),
+                    Err(message) if message.starts_with("Chrome's tabs couldn't be read")
+                ),
+                "{output}"
+            );
         }
     }
 

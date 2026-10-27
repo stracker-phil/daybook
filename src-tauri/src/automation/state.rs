@@ -204,6 +204,7 @@ mod tests {
         let work = context("[W]", "Work");
         let call = ActiveCall {
             app: "Zoom".into(),
+            bundle_id: "us.zoom.xos".into(),
             title: "Standup".into(),
             since: at(10, 5),
         };

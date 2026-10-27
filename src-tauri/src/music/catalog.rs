@@ -1,8 +1,6 @@
 //! Apple's artist search (iTunes Search API), for artist radio entries; the store to search in.
 
-use std::path::Path;
 use std::sync::LazyLock;
-use std::time::Duration;
 
 use regex::Regex;
 use serde::Serialize;
@@ -13,14 +11,12 @@ use url::Url;
 
 use crate::error::{AppError, AppResult};
 use crate::net::{Http, NetError};
-use crate::process;
 use crate::state::AppState;
 use crate::store::settings::MusicEntry;
 
 pub const SEARCH_URL: &str = "https://itunes.apple.com/search";
 const MATCHES: &str = "8";
 const FALLBACK_STORE: &str = "us";
-const LOCALE_TIMEOUT: Duration = Duration::from_secs(3);
 
 static STORE_IN_LINK: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"music\.apple\.com/([A-Za-z]{2})/").unwrap());
@@ -110,11 +106,9 @@ pub fn region_of(locale: &str) -> Option<String> {
         .map(str::to_lowercase)
 }
 
-/// The Mac's region, from `AppleLocale`. Blocking.
+/// The Mac's region, from `AppleLocale`. Blocking the first time.
 pub fn mac_region() -> Option<String> {
-    let args = ["read".to_string(), "-g".into(), "AppleLocale".into()];
-    let output = process::run(Path::new("/usr/bin/defaults"), &args, LOCALE_TIMEOUT).ok()?;
-    region_of(&output.stdout).filter(|_| output.success)
+    crate::locale::apple_locale().and_then(region_of)
 }
 
 /// The store to search in: the one asked for, else one the entries name, else `region`, else the US.

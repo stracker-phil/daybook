@@ -72,7 +72,8 @@ function Preset({ label, description, value, presets, unit, disabled, onChange }
 
 const toggleRail = () => void api.runCommand("rail:toggle").catch((e) => fail(e, "Couldn't show the rail"));
 
-export function RailPage({ s, set }: SettingsPageProps) {
+/** Appearance → Rail, Showing the Rail, Rail look and Rail tooltips. */
+export function RailGroups({ s, set }: SettingsPageProps) {
   const rail = s.rail;
   const change = (patch: Partial<Rail>) => set({ rail: { ...rail, ...patch } });
   const edgeOff = !rail.enabled;
@@ -81,6 +82,7 @@ export function RailPage({ s, set }: SettingsPageProps) {
     <>
       <Group
         title="Rail"
+        anchor="rail"
         description="A bar of tools at the screen edge: status, tools, journal progress, links and music. It works over full-screen apps and never takes focus."
       >
         <Row label="Try it" description="Shows the rail on this screen so you can see changes as you make them; again hides it.">
@@ -89,10 +91,7 @@ export function RailPage({ s, set }: SettingsPageProps) {
           </button>
         </Row>
       </Group>
-      <Group
-        title="Showing the Rail"
-        description="Opened with the rail shortcut it stays until you press the shortcut again, or until you move the pointer to its edge: from then on it hides once the pointer leaves, like a rail shown at the edge."
-      >
+      <Group title="Showing the Rail">
         <Switch
           label="Show at the screen edge"
           description="Rest the pointer at the edge to slide it in. The rail shortcut works either way."
@@ -127,7 +126,6 @@ export function RailPage({ s, set }: SettingsPageProps) {
         />
         <Preset
           label="Show after"
-          description="How long the pointer rests at the edge first."
           value={rail.showDelay}
           presets={SHOW_DELAYS}
           unit="ms"
@@ -136,7 +134,6 @@ export function RailPage({ s, set }: SettingsPageProps) {
         />
         <Preset
           label="Hide after"
-          description="How long the pointer stays away before it slides out."
           value={rail.hideDelay}
           presets={HIDE_DELAYS}
           unit="ms"
@@ -144,7 +141,7 @@ export function RailPage({ s, set }: SettingsPageProps) {
         />
         <Switch
           label="Keep it visible during meetings"
-          description="While a call is detected (Workflows → Calls), the rail stays on screen."
+          description="While a call is detected (Workflows → App triggers), the rail stays on screen."
           checked={rail.showDuringMeetings}
           onChange={(showDuringMeetings) => change({ showDuringMeetings })}
         />
@@ -166,7 +163,7 @@ export function RailPage({ s, set }: SettingsPageProps) {
           onChange={(callPosition) => change({ callPosition })}
         />
       </Group>
-      <Group title="Look" description="The rail and its tooltips follow these.">
+      <Group title="Rail look" description="The rail and its tooltips follow these.">
         <Segmented label="Appearance" options={THEMES} value={rail.theme} onChange={(theme) => change({ theme })} />
         <Segmented
           label="Shape"
@@ -179,7 +176,7 @@ export function RailPage({ s, set }: SettingsPageProps) {
         <Segmented label="Size" options={SIZES} value={rail.size} onChange={(size) => change({ size })} />
         <Segmented
           label="Hover highlight"
-          description="How the button under the pointer stands out: tinted or filled with your accent colour, or grey."
+          description="The button under the pointer, in your accent colour or grey."
           options={optionsOf(HIGHLIGHT_LABELS)}
           labels={HIGHLIGHT_LABELS}
           value={rail.highlight}
@@ -206,7 +203,7 @@ export function RailPage({ s, set }: SettingsPageProps) {
           onChange={(fadeWhenIdle) => change({ fadeWhenIdle })}
         />
       </Group>
-      <Group title="Tooltips">
+      <Group title="Rail tooltips">
         <Preset
           label="First tooltip after"
           description="Moving along the rail then shows the next ones at once."

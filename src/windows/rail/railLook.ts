@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import type { RailTheme } from "../../api";
 import { useSystemDark } from "../../lib/theme";
 
-/** The rail and its tooltip have their own light or dark look (Settings → Rail → Appearance), apart from the app's schemes. */
+/** The rail and its tooltip have their own light or dark look (Settings → Appearance → Rail look), apart from the app's schemes. */
 export function useRailTheme(theme: RailTheme | undefined, accent: string | undefined) {
   const systemDark = useSystemDark();
   useEffect(() => {

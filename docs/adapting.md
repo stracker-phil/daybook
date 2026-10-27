@@ -23,7 +23,7 @@ second app with their own name, identifier, data, socket and URL scheme, so they
 | URL scheme | `daybook://` | `daybook-debug://` | `tauri.conf.json` and `tauri.debug.conf.json` `plugins.deep-link.desktop.schemes` (the bundler writes them into `Info.plist`); `lib.rs` `LINK_SCHEME` (a test compares it with both files); `deep_link.rs` runs the automation actions `state`, `show`, `status`, `slack`, `command` ([automation.md](automation.md#links)) |
 | Socket, lock | `daybook.sock`, `daybook.lock` in the config dir | the same names in the debug config dir | `lib.rs` `SOCKET_NAME`, `instance.rs` `LOCK_NAME`; `scripts/dev/js.sh`, `scripts/dev/smoke.sh` (the socket) |
 | Config dir | `~/Library/Application Support/com.philippstracker.daybook/` | `….daybook.debug/` | `lib.rs` `config_dir()` |
-| Data files | in the config dir: `settings.json`, `keybindings.json`, `ui_state.json`, `context.json`, `status-memory.json`, `pending-entries.json`, `routines.json`, `day-message.json`, `slack-shown.json`, `jira-tickets.json`, `checkins.json`, `quick_notes.json` | the same in the debug config dir | `store/settings/store.rs`, `store/keybindings.rs`, `store/ui_state.rs`, `contexts/mod.rs`, `status/memory.rs`, `vault/pending.rs`, `routines/fired.rs`, `slack/day_message.rs`, `slack/shown.rs`, `jira/tickets.rs`, `activity/pause.rs`, `quick_notes/mod.rs` |
+| Data files | in the config dir: `settings.json`, `keybindings.json`, `ui_state.json`, `context.json`, `status-memory.json`, `pending-entries.json`, `routines.json`, `day-message.json`, `slack-shown.json`, `music-held.json`, `jira-tickets.json`, `checkins.json`, `quick_notes.json` | the same in the debug config dir | `store/settings/store.rs`, `store/keybindings.rs`, `store/ui_state.rs`, `contexts/mod.rs`, `status/memory.rs`, `vault/pending.rs`, `routines/fired.rs`, `slack/day_message.rs`, `slack/shown.rs`, `state.rs` (`music_held`), `jira/tickets.rs`, `activity/pause.rs`, `quick_notes/mod.rs` |
 | Logs dir | `~/Library/Logs/com.philippstracker.daybook/` | `….daybook.debug/` | Tauri's `app_log_dir`, from the identifier |
 | LaunchAgent | `~/Library/LaunchAgents/Daybook.plist`, written by `tauri-plugin-autostart` and named after `productName` | named after the debug `productName` | `app.rs` (`MacosLauncher::LaunchAgent`, `--hidden`), `autostart.rs` |
 | Keychain | generic passwords, service = the bundle identifier: accounts `slack-token` and `api-token` (the HTTP API) | the debug identifier | `secrets.rs`, `slack/token.rs`, `http_api/token.rs` |
@@ -69,7 +69,7 @@ TimeTracker (`../timetracker`) owns timers; Daybook never tracks time
 ([ADR 0022](adr/0022-daybook-drives-timetracker-through-its-cli.md), [timetracker.md](timetracker.md)).
 
 - **Path:** `settings.timetracker.path`, default `~/.local/bin/timetracker` (`timetracker/client.rs`
-  `DEFAULT_PATH`; Settings → TimeTracker).
+  `DEFAULT_PATH`; Settings → Connections → TimeTracker).
 - **Words Daybook runs**, each with `--json`: `status`, `projects --archived`, `timer status`,
   `timer recent --limit <n>`, `timer start <project> [--note=…]`, `timer stop`, `record …`, `recordings <day>`,
   `suggestions <day>`, `show [day]`, `focus`, and `watch --json` as a long-running stream
@@ -103,7 +103,7 @@ Owner-specific: delete the module and its calls in `lib.rs` and `app.rs` (`repor
 | **Dock icon**: hidden by Hide to Menu Bar, shown with the window | `window/mod.rs` `set_dock_icon` | No Dock; nothing to do | Same |
 | **Calendar**: EventKit through `objc2-event-kit`, the usage strings in `src-tauri/Info.plist` | `calendar/eventkit.rs` | No EventKit: read CalDAV or `.ics` instead behind the same `Store` | No EventKit: the Windows calendar APIs |
 | **Presence**: NSWorkspace sleep/wake, the distributed lock/unlock notifications, `ioreg` for the lock state | `presence/native.rs` | logind / D-Bus session signals | `WTSRegisterSessionNotification` |
-| **Call detection**: `lsappinfo`, `pgrep`, `pmset -g assertions`, `ps`, `CGWindowListCopyWindowInfo`, `osascript` (Chrome tabs), Accessibility window titles; bundle ids in `store/settings/calls.rs` | `calls/probe.rs`, `calls/access.rs`, `calls/checks.rs` | Process names and PulseAudio/PipeWire sources behind the same `Probe` | Process list and the audio session API behind the same `Probe` |
+| **Call detection**: `lsappinfo`, `pgrep`, `pmset -g assertions`, `ps`, `CGWindowListCopyWindowInfo`, `osascript` (Chrome tabs; the Automation usage string `NSAppleEventsUsageDescription` in `src-tauri/Info.plist`), Accessibility window titles; bundle ids in `store/settings/calls.rs` | `calls/probe.rs`, `calls/access.rs`, `calls/checks.rs` | Process names and PulseAudio/PipeWire sources behind the same `Probe` | Process list and the audio session API behind the same `Probe` |
 | **Secrets**: the login Keychain through `security-framework` | `secrets.rs` | Secret Service (`libsecret`) behind `SecretStore` | Credential Manager behind `SecretStore` |
 | **Time zone label**: `localtime_r`'s `tm_zone` | `status_rules/mod.rs` `zone_of` | Works | No `tm_zone`: format the zone from the Windows API |
 | **Joining**: `open -b`, a Chrome web app through `--app-id` | `calls/join.rs` | `xdg-open`; Chrome's `--app-id` works the same | `start`; same for Chrome |

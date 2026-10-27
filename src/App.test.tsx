@@ -27,6 +27,8 @@ const hub = (patch: Partial<HubView> = {}): HubView => ({
   journal: [],
   routines: [],
   notes: [],
+  focusShortcut: null,
+  notesShortcut: null,
   todos: [],
   events: { timeline: { hours: [], workHours: null, fullDay: [], blocks: [], now: null }, rows: [] },
   timetracker: { command: "timetracker:show", label: "Open in TimeTracker" },
@@ -119,6 +121,7 @@ describe("App", () => {
       ["onSlackChanged", mocked.onSlackChanged],
       ["onWindowOpened", mocked.onWindowOpened],
       ["onTimerChanged", mocked.onTimerChanged],
+      ["onMusicChanged", mocked.onMusicChanged],
     ])("reloads the hub on %s", async (_name, listen) => {
       await renderApp();
       await screen.findByText("Good morning");

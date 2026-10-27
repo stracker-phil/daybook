@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Routine, Settings } from "../../api";
@@ -64,31 +64,47 @@ describe("RoutinesPage", () => {
   });
 
   describe("contexts", () => {
-    it("lists the routine's contexts by their label and name", () => {
+    it("shows every context as a chip, pressed for the routine's own", () => {
       renderPage();
-      expect(within(morning().getByRole("list", { name: "Contexts" })).getByText("[W] Work")).toBeInTheDocument();
+      const chips = within(morning().getByRole("group", { name: "Contexts" }));
+      expect(chips.getByRole("button", { name: "[W] Work" })).toHaveAttribute("aria-pressed", "true");
+      expect(chips.getByRole("button", { name: "[P] Private" })).toHaveAttribute("aria-pressed", "false");
     });
 
-    it("adds a context found by typing part of its name", async () => {
+    it("adds a context by toggling its chip on", async () => {
       renderPage();
-      await userEvent.type(morning().getByRole("textbox", { name: "Add to Contexts" }), "priv{Enter}");
+      await userEvent.click(within(morning().getByRole("group", { name: "Contexts" })).getByRole("button", { name: "[P] Private" }));
       expect(savedRoutine("morning").contexts).toEqual(["work", "private"]);
     });
 
-    it("removes a context", async () => {
+    it("removes a context by toggling its chip off", async () => {
       renderPage();
-      await userEvent.click(morning().getByRole("button", { name: "Remove [W] Work" }));
+      await userEvent.click(within(morning().getByRole("group", { name: "Contexts" })).getByRole("button", { name: "[W] Work" }));
       expect(savedRoutine("morning").contexts).toEqual([]);
     });
 
-    it("hides the chooser when there is only one context", () => {
+    it("hides the chips when there is only one context", () => {
       const [work] = settings().contexts;
       renderPage({ contexts: [work] });
-      expect(screen.queryByRole("textbox", { name: "Add to Contexts" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("group", { name: "Contexts" })).not.toBeInTheDocument();
     });
   });
 
   describe("items", () => {
+    it("gives each item its own Move Up, Move Down and Remove Item icon buttons", () => {
+      renderPage();
+      expect(morning().getAllByRole("button", { name: "Remove Item" })).toHaveLength(4);
+      expect(evening().getAllByRole("button", { name: "Remove Item" })).toHaveLength(2);
+      expect(evening().getAllByRole("button", { name: "Move Up" })).toHaveLength(3);
+    });
+
+    it("shows the weekday chips of an item with every day pressed while it is due daily", () => {
+      renderPage();
+      const days = within(evening().getByRole("group", { name: "Time recording: due on" }));
+      expect(days.getAllByRole("button")).toHaveLength(7);
+      for (const chip of days.getAllByRole("button")) expect(chip).toHaveAttribute("aria-pressed", "true");
+    });
+
     it("appends a New item without link or weekdays", async () => {
       renderPage();
       await userEvent.click(evening().getByRole("button", { name: "Add Item" }));
@@ -183,6 +199,31 @@ describe("RoutinesPage", () => {
       renderPage();
       expect(last(morning(), "Move Up")).toBeDisabled();
       expect(last(evening(), "Move Down")).toBeDisabled();
+    });
+  });
+
+  describe("due range", () => {
+    it("shows the Due range while Due is on", () => {
+      renderPage();
+      expect(morning().getByRole("switch", { name: "Due" })).toBeChecked();
+      expect(morning().getByLabelText("Due from")).toHaveValue("09:45");
+      expect(morning().getByLabelText("Due until")).toHaveValue("13:00");
+    });
+
+    it("hides the Due range while Due is off", () => {
+      const [first, ...rest] = settings().routines;
+      renderPage({ routines: [{ ...first, timing: { ...first.timing, due: null, openWhenDue: false } }, ...rest] });
+      expect(morning().getByRole("switch", { name: "Due" })).not.toBeChecked();
+      expect(morning().queryByLabelText("Due from")).not.toBeInTheDocument();
+      expect(morning().queryByLabelText("Due until")).not.toBeInTheDocument();
+    });
+
+    it("saves an edited Due start", async () => {
+      renderPage();
+      const from = morning().getByLabelText("Due from");
+      fireEvent.change(from, { target: { value: "08:30" } });
+      fireEvent.blur(from);
+      expect(savedRoutine("morning").timing.due).toEqual({ from: "08:30", to: "13:00" });
     });
   });
 

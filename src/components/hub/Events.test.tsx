@@ -49,6 +49,8 @@ function renderEvents(dayEvents: DayEvents, patch: Partial<HubView> = {}) {
     journal: [],
     routines: [],
     notes: [],
+    focusShortcut: null,
+    notesShortcut: null,
     todos: [],
     events: dayEvents,
     timetracker: { command: "timetracker:show", label: "Open in TimeTracker" },

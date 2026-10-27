@@ -34,3 +34,4 @@ it stands in Daybook. The numbers in this table are Daybook's.
 | [0023](0023-status-drives-the-timer-calls-are-suggestions.md) | The status drives the timer; calls are suggestions | Accepted (2026-10-27), implemented |
 | [0024](0024-daybook-shows-timetrackers-day-read-only.md) | Daybook shows TimeTracker's day read-only | Accepted (2026-10-27), implemented |
 | [0025](0025-quick-note-presentation-covers-one-screen.md) | Quick note presentation covers one screen, not macOS full screen | Accepted (2026-10-27), implemented |
+| [0026](0026-the-daybook-window-follows-the-prototypes-look.md) | The Daybook window follows the prototype's look | Accepted (2026-10-27), implemented |

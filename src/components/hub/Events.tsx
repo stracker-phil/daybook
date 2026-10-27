@@ -53,7 +53,7 @@ export function Events({ hub }: { hub: HubView }) {
         <h2 className="board-section-title">{title}</h2>
         {rows.length > 0 && hub.isToday && (
           <button type="button" className="icon-btn" aria-label={toggleLabel} aria-pressed={hidePast} title={toggleLabel} onClick={togglePast}>
-            {hidePast ? <EyeOff size="1.077rem" aria-hidden="true" /> : <Eye size="1.077rem" aria-hidden="true" />}
+            {hidePast ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
           </button>
         )}
       </header>

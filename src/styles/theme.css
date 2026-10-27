@@ -36,11 +36,8 @@
   --o2: color-mix(in srgb, var(--text) 68%, transparent);
   --o3: color-mix(in srgb, var(--text) 52%, transparent);
 
-  /* One scrollbar everywhere (base.css): an 8px track, a 6px thumb. */
+  /* Room kept beside a scroller's rows; scrollbars themselves are macOS's overlay ones (base.css). */
   --scrollbar-size: 8px;
-  --scrollbar-thumb: color-mix(in srgb, var(--o3) 55%, transparent);
-  --scrollbar-thumb-hover: var(--o3);
-  --scrollbar-thumb-active: var(--o2);
 
   /* The line grows past 20px only for large data font sizes, so rows never clip their text. */
   --pad: 3px;
@@ -56,7 +53,8 @@
   --radius-sm: 0.462rem;
   --radius: 0.769rem;
   --radius-lg: 0.923rem;
-  --sidebar-width: 18.5rem;
+  /* px like the prototype's: the sidebar keeps its width at every text size. */
+  --sidebar-width: 220px;
   --inspector-width: 24.5rem;
   /* The unified toolbar: the window buttons (trafficLightPosition in tauri.conf.json) sit centered in its height
      and don't scale with the UI size, so neither does it. */
@@ -84,6 +82,8 @@
   --sel: color-mix(in srgb, var(--accent) 20%, transparent);
   /* The accent as text: no lighter than the palette allows, so it stays readable on light surfaces. */
   --accent-text: oklch(from var(--accent) min(l, var(--accent-text-max-l)) c h);
+  /* Text on an accent fill: white on the deep hues, near-black on the light ones (yellow, orange, green, teal). */
+  --on-accent: oklch(from var(--accent) clamp(0.2, (0.69 - l) * 1000, 1) 0 0);
 }
 .sidebar { --sel: var(--sidebar-selected); }
 

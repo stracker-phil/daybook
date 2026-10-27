@@ -1,7 +1,7 @@
 import type { Routine, RoutineStep } from "../../api";
 import type { SettingsPageProps } from "../../registry/settingsPages";
-import { Group, Row, TextField } from "./controls";
-import { ChoiceList, CommitInput, DaysField, ItemActions, moveItem, replaceItem } from "./fields";
+import { ControlRow, EntryFooter, Group, Row, TextField } from "./controls";
+import { CommitInput, DaysField, ItemActions, ToggleChips, contextChoices, moveItem, replaceItem, type Choice } from "./fields";
 import { TimingFields } from "./TimingFields";
 
 function StepRow({ step, index, count, onChange, onMove, onRemove }: {
@@ -13,22 +13,22 @@ function StepRow({ step, index, count, onChange, onMove, onRemove }: {
   onRemove: () => void;
 }) {
   return (
-    <Row label={`Item ${index + 1}`} stacked>
-      <div className="routine-step-fields">
-        <CommitInput label="Item" placeholder="What to do" required value={step.title} onCommit={(title) => onChange({ title: title.trim() })} />
-        <CommitInput label="Link" placeholder="Link to open with ⌘O (optional): https://… or a vault path" value={step.link} onCommit={(link) => onChange({ link: link.trim() })} />
-        <div className="routine-step-line">
-          <DaysField label={`${step.title}: due on`} days={step.days} onChange={(days) => onChange({ days })} />
-          <ItemActions index={index} count={count} onMove={onMove} onRemove={onRemove} removeLabel="Remove Item" />
-        </div>
+    <ControlRow stacked>
+      <div className="item-line">
+        <CommitInput label="Item" className="grow" placeholder="What to do" required value={step.title} onCommit={(title) => onChange({ title })} />
+        <ItemActions index={index} count={count} onMove={onMove} onRemove={onRemove} removeLabel="Remove Item" />
       </div>
-    </Row>
+      <div className="item-line">
+        <CommitInput label="Link" className="grow" placeholder="Link to open with ⌘O (optional): https://… or a vault path" value={step.link} onCommit={(link) => onChange({ link })} />
+        <DaysField label={`${step.title}: due on`} days={step.days} onChange={(days) => onChange({ days })} />
+      </div>
+    </ControlRow>
   );
 }
 
 function RoutineCard({ routine, contexts, index, count, onChange, onMove, onRemove }: {
   routine: Routine;
-  contexts: { id: string; title: string }[];
+  contexts: Choice[];
   index: number;
   count: number;
   onChange: (patch: Partial<Routine>) => void;
@@ -41,8 +41,8 @@ function RoutineCard({ routine, contexts, index, count, onChange, onMove, onRemo
     <Group title={routine.name} description="Items are due every day unless you pick weekdays, e.g. only Fr for a weekly task.">
       <TextField label="Name" required value={routine.name} onCommit={(name) => onChange({ name: name.trim() })} />
       {contexts.length > 1 && (
-        <Row label="Contexts" description="Runs only while one of these is current. None: every context with Routines turned on." stacked>
-          <ChoiceList label="Contexts" choices={contexts} chosen={routine.contexts} onChange={(ids) => onChange({ contexts: ids })} placeholder="Add: type part of a context's name, ↵ adds it" />
+        <Row label="Contexts" description="None selected: every context with Routines turned on.">
+          <ToggleChips label="Contexts" choices={contexts} chosen={routine.contexts} onChange={(ids) => onChange({ contexts: ids })} />
         </Row>
       )}
       <TimingFields timing={routine.timing} contextEvent="When switching to one of its contexts" onChange={(timing) => onChange({ timing })} />
@@ -57,14 +57,12 @@ function RoutineCard({ routine, contexts, index, count, onChange, onMove, onRemo
           onRemove={() => setSteps(steps.filter((_, j) => j !== i))}
         />
       ))}
-      <Row label="">
-        <div className="journal-group-actions">
-          <button type="button" className="btn" onClick={() => setSteps([...steps, { title: "New item", link: "", days: [] }])}>
-            Add Item
-          </button>
-          <ItemActions index={index} count={count} onMove={onMove} onRemove={onRemove} removeLabel="Remove Routine" />
-        </div>
-      </Row>
+      <EntryFooter>
+        <button type="button" className="btn" onClick={() => setSteps([...steps, { title: "New item", link: "", days: [] }])}>
+          Add Item
+        </button>
+        <ItemActions index={index} count={count} onMove={onMove} onRemove={onRemove} removeLabel="Remove Routine" />
+      </EntryFooter>
     </Group>
   );
 }
@@ -75,7 +73,7 @@ const newRoutine = (): Routine => ({ id: "", name: "New routine", contexts: [], 
 /** A routine's reminder in Settings → Reminders follows it by its id. */
 export function RoutinesPage({ s, set }: SettingsPageProps) {
   const routines = s.routines;
-  const contexts = s.contexts.map((context) => ({ id: context.id, title: [context.label.trim(), context.name].filter(Boolean).join(" ") }));
+  const contexts = contextChoices(s.contexts);
   const save = (next: Routine[]) => set({ routines: next });
   return (
     <>

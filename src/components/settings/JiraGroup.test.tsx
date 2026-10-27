@@ -6,45 +6,50 @@ vi.mock("../../api", async (orig) => ({ ...(await orig<object>()), api: (await i
 
 import type { Jira, Settings } from "../../api";
 import { settings } from "../../test/settings";
-import { JiraPage } from "./JiraPage";
+import { JiraGroup } from "./JiraGroup";
 
 const set = vi.fn<(patch: Partial<Settings>) => void>();
 
-function renderPage(jira: Partial<Jira> = {}) {
-  render(<JiraPage s={settings({ jira: { baseUrl: "", defaultPrefix: "", ...jira } })} set={set} />);
+function renderGroup(jira: Partial<Jira> = {}) {
+  render(<JiraGroup s={settings({ jira: { baseUrl: "", defaultPrefix: "", ...jira } })} set={set} />);
 }
 
 const saved = () => set.mock.lastCall![0].jira!;
 
-describe("JiraPage", () => {
+describe("JiraGroup", () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it("is titled Jira", () => {
+    renderGroup();
+    expect(screen.getByRole("heading", { name: "Jira" })).toBeInTheDocument();
+  });
 
   describe("Issue URL description", () => {
     it("explains the field without a URL", () => {
-      renderPage();
+      renderGroup();
       expect(screen.getByText("The part of an issue link before the key.")).toBeInTheDocument();
     });
 
     it("shows where issue 6805 opens, with QRS when no project is set", () => {
-      renderPage({ baseUrl: "https://x.atlassian.net/browse/" });
+      renderGroup({ baseUrl: "https://x.atlassian.net/browse/" });
       expect(screen.getByText("Issue 6805 opens https://x.atlassian.net/browse/QRS-6805")).toBeInTheDocument();
     });
 
     it("adds the missing slash and uses the default project", () => {
-      renderPage({ baseUrl: "https://x.atlassian.net/browse", defaultPrefix: "ABC" });
+      renderGroup({ baseUrl: "https://x.atlassian.net/browse", defaultPrefix: "ABC" });
       expect(screen.getByText("Issue 6805 opens https://x.atlassian.net/browse/ABC-6805")).toBeInTheDocument();
     });
   });
 
   describe("saving", () => {
     it("saves the issue URL trimmed and keeps the default project", async () => {
-      renderPage({ defaultPrefix: "ABC" });
+      renderGroup({ defaultPrefix: "ABC" });
       await userEvent.type(screen.getByRole("textbox", { name: "Issue URL" }), "  https://x.atlassian.net/browse/  {Enter}");
       expect(saved()).toEqual({ baseUrl: "https://x.atlassian.net/browse/", defaultPrefix: "ABC" });
     });
 
     it("saves the default project trimmed and keeps the issue URL", async () => {
-      renderPage({ baseUrl: "https://x/browse/" });
+      renderGroup({ baseUrl: "https://x/browse/" });
       await userEvent.type(screen.getByRole("textbox", { name: "Default project" }), " QRS {Enter}");
       expect(saved()).toEqual({ baseUrl: "https://x/browse/", defaultPrefix: "QRS" });
     });

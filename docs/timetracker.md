@@ -58,7 +58,7 @@ project.
 - **Open in TimeTracker:** `timetracker:show` (tray, palette, Daybook window) runs `timetracker show`; the family
   `timetracker:show:<YYYY-MM-DD>` shows another day.
 
-Settings → TimeTracker shows the tool's path, whether TimeTracker runs (and its version) and Open TimeTracker.
+Settings → Connections → TimeTracker shows the tool's path, whether TimeTracker runs (and its version) and Open TimeTracker.
 
 | Command | Returns |
 |---|---|
@@ -114,7 +114,11 @@ started." or "…stopped.") offers Open TimeTracker.
 
 ## Calls become suggestions
 
-On a call's end (a call that drops and comes back within the grace is one call), `call_suggestion` (pure) checks, in
+On a call's end (a call that drops and comes back within the grace is one call), the call waits 2 minutes
+(`split_calls.rs`, pure `SplitCalls`): when the same app (bundle id) is in a call again within 2 minutes of the end
+(a reconnect, breakout rooms), the new part continues it and the joined call (the first part's start and, unless it
+was "Meeting", its title) is suggested once it ends for good. A call moving to another app (`Switched`) ends the old
+one at once. The status counts as it was when the call ended. Then `call_suggestion` (pure) checks, in
 order: the status is Working; the context has the Status feature; the call (cut at midnight) lasts 3 minutes or
 more; the title (or, for a generic "Meeting", the overlapping event's) names a current project by its name or a
 meeting word; that project is linked to a TimeTracker project (the first link is used). Then it sends

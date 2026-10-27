@@ -29,28 +29,30 @@
 
   --shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.6), inset 0 0 0 0.5px rgba(255, 255, 255, 0.1), 0 12px 36px rgba(0, 0, 0, 0.5);
   --shadow-small: 0 0 0 0.5px rgba(0, 0, 0, 0.3), 0 0.5px 2px rgba(0, 0, 0, 0.4);
+  /* the rail's bar, as the prototype's popover surface */
+  --rail-bg: #0f0f10;
+  --rail-text: #ffffff;
+  --rail-line: rgba(255, 255, 255, 0.1);
+
   --scrim: rgba(0, 0, 0, 0.35);
 
   /* white on the macOS accent */
   --on-system-accent: #ffffff;
-
-  /* status colors; red, yellow, blue and purple are accent hues (theme.css) */
-  --style-green: #8fd18a;
 }
 
-/* The accent hues for this tone, on its content and on a sidebar of the same tone (the Default scheme puts a dark
-   sidebar beside light content). */
+/* The hues for this tone (Apple's system colours), on its content and on a sidebar of the same tone: the accent and
+   context hues, green and the success tint. Text on a hue's fill is derived in theme.css. */
 [data-content="dark"], [data-sidebar="dark"] .sidebar {
-  /* text on an accent fill, at least 4.5:1 on every hue */
-  --on-accent: #1a1a1a;
   --accent-text-max-l: 1;
-  --a-orange: #f5a25d;
-  --a-gold: #e8c15a;
-  --a-red: #f2857a;
-  --a-magenta: #ee8fc8;
-  --a-purple: #c4a3f5;
-  --a-indigo: #a3acf7;
-  --a-blue: #7cb8f2;
-  --a-teal: #6fd1bb;
-  --a-graphite: #a1a1a6;
+  --a-orange: #ff9f0a;
+  --a-gold: #ffd60a;
+  --a-red: #ff453a;
+  --a-magenta: #ff375f;
+  --a-purple: #bf5af2;
+  --a-indigo: #5e5ce6;
+  --a-blue: #0a84ff;
+  --a-teal: #40c8e0;
+  --a-graphite: #8e8e93;
+  --a-green: #30d158;
+  --style-green: #59d499;
 }

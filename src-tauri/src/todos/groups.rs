@@ -5,17 +5,21 @@ use chrono::{Datelike, Days, NaiveDate};
 use serde::Serialize;
 use ts_rs::TS;
 
+use crate::locale::DateLocale;
+
 #[derive(Serialize, Clone, Debug, PartialEq, TS)]
 #[ts(export, export_to = "src/api/types.gen.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct OpenTodo {
     pub text: String,
-    /// "12 Oct · Notes › Meeting Two": the note's day, then the headings it sits under.
+    /// "12. Okt. · Notes › Meeting Two": the note's day in the Mac's locale, then the headings it sits under.
     pub detail: String,
     /// The note's day, `YYYY-MM-DD`.
     pub date: String,
     /// The note, relative to the vault.
     pub file: String,
+    /// The todo's line in its note, 0-based: ticking it checks that this line still holds it.
+    pub line: u32,
 }
 
 #[derive(Serialize, Clone, Debug, PartialEq, TS)]
@@ -26,7 +30,7 @@ pub struct TodoGroup {
     pub todos: Vec<OpenTodo>,
 }
 
-fn group_label(date: NaiveDate, today: NaiveDate) -> String {
+fn group_label(date: NaiveDate, today: NaiveDate, locale: DateLocale) -> String {
     let this_week = today - Days::new(u64::from(today.weekday().num_days_from_monday()));
     let last_week = this_week - Days::new(7);
     if date >= today {
@@ -36,26 +40,22 @@ fn group_label(date: NaiveDate, today: NaiveDate) -> String {
     } else if date >= last_week {
         "Last Week".into()
     } else if date.year() == today.year() {
-        date.format("%B").to_string()
+        locale.month(date)
     } else {
         date.year().to_string()
     }
 }
 
-/// "12 Oct", with the year when it isn't this year's.
-pub fn short_date(date: NaiveDate, today: NaiveDate) -> String {
-    if date.year() == today.year() {
-        date.format("%-d %b").to_string()
-    } else {
-        date.format("%-d %b %Y").to_string()
-    }
-}
-
-/// Keeps the todos' order (newest first); a group follows the one before only when its label differs.
-pub fn group_by_date(todos: Vec<(NaiveDate, OpenTodo)>, today: NaiveDate) -> Vec<TodoGroup> {
+/// Keeps the todos' order (newest first); a group follows the one before only when its label differs. Month
+/// names follow `locale`.
+pub fn group_by_date(
+    todos: Vec<(NaiveDate, OpenTodo)>,
+    today: NaiveDate,
+    locale: DateLocale,
+) -> Vec<TodoGroup> {
     let mut groups: Vec<TodoGroup> = Vec::new();
     for (date, todo) in todos {
-        let label = group_label(date, today);
+        let label = group_label(date, today, locale);
         match groups.last_mut() {
             Some(group) if group.label == label => group.todos.push(todo),
             _ => groups.push(TodoGroup {
@@ -85,7 +85,16 @@ mod tests {
             detail: "12 Oct · Notes".into(),
             date: "2026-10-12".into(),
             file: "1-Journal/2026-10-12.md".into(),
+            line: 4,
         }
+    }
+
+    fn english() -> DateLocale {
+        DateLocale::parse("en_GB")
+    }
+
+    fn german() -> DateLocale {
+        DateLocale::parse("de_DE")
     }
 
     #[test]
@@ -100,14 +109,25 @@ mod tests {
             (day(2026, 3, 1), "March"),
             (day(2025, 12, 31), "2025"),
         ] {
-            assert_eq!(group_label(date, today()), expected, "{date}");
+            assert_eq!(group_label(date, today(), english()), expected, "{date}");
         }
     }
 
     #[test]
-    fn short_dates_show_the_year_only_when_it_is_not_this_year() {
-        assert_eq!(short_date(day(2026, 10, 12), today()), "12 Oct");
-        assert_eq!(short_date(day(2025, 12, 31), today()), "31 Dec 2025");
+    fn month_labels_follow_the_locale() {
+        for (date, expected) in [
+            (day(2026, 9, 20), "September"),
+            (day(2026, 3, 1), "März"),
+            (day(2026, 5, 1), "Mai"),
+            (day(2025, 12, 31), "2025"),
+        ] {
+            assert_eq!(group_label(date, today(), german()), expected, "{date}");
+        }
+        assert_eq!(
+            group_label(day(2026, 3, 1), today(), DateLocale::parse("de_AT")),
+            "März"
+        );
+        assert_eq!(group_label(day(2026, 9, 29), today(), german()), "Today");
     }
 
     #[test]
@@ -119,6 +139,7 @@ mod tests {
                 (day(2025, 12, 31), open_todo("c")),
             ],
             today(),
+            english(),
         );
 
         assert_eq!(
@@ -149,6 +170,7 @@ mod tests {
                 (day(2026, 9, 20), open_todo("c")),
             ],
             today(),
+            english(),
         );
 
         let shape: Vec<(&str, usize)> = groups
@@ -156,7 +178,7 @@ mod tests {
             .map(|group| (group.label.as_str(), group.todos.len()))
             .collect();
         assert_eq!(shape, [("Last Week", 2), ("September", 1)]);
-        assert!(group_by_date(Vec::new(), today()).is_empty());
+        assert!(group_by_date(Vec::new(), today(), english()).is_empty());
     }
 
     #[test]
@@ -174,7 +196,8 @@ mod tests {
                     "text": "a",
                     "detail": "12 Oct · Notes",
                     "date": "2026-10-12",
-                    "file": "1-Journal/2026-10-12.md"
+                    "file": "1-Journal/2026-10-12.md",
+                    "line": 4
                 }]
             })
         );

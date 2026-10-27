@@ -11,12 +11,8 @@ pub const LABEL: &str = "settings";
 
 /// Every Settings page, in the page list's order: the ids `settings:<page>` opens and the palette lists.
 /// The page registers its body under the same id (`src/components/settings/pages.tsx`).
-pub const PAGES: [(&str, &str); 23] = [
-    ("vault", "Vault"),
-    ("calendar", "Calendar"),
-    ("slack", "Slack"),
-    ("jira", "Jira"),
-    ("timetracker", "TimeTracker"),
+pub const PAGES: [(&str, &str); 16] = [
+    ("connections", "Connections"),
     ("contexts", "Contexts"),
     ("projects", "Projects"),
     ("daily-note", "Daily Note"),
@@ -25,16 +21,26 @@ pub const PAGES: [(&str, &str); 23] = [
     ("search", "Search"),
     ("workflows", "Workflows"),
     ("reminders", "Reminders"),
-    ("calls", "Calls"),
     ("links", "Links"),
     ("music", "Music"),
     ("general", "General"),
-    ("tools", "Tools"),
-    ("rail", "Rail"),
-    ("automation", "Automation"),
-    ("shortcuts", "Shortcuts"),
     ("appearance", "Appearance"),
+    ("shortcuts", "Shortcuts"),
+    ("automation", "Automation"),
     ("status", "Status"),
+];
+
+/// Former pages that are now a group of another page: `(id, page, title)`. `settings:<id>` opens the page
+/// and the page scrolls to the group registered under the same id.
+pub const SECTIONS: [(&str, &str, &str); 8] = [
+    ("vault", "connections", "Vault"),
+    ("calendar", "connections", "Calendar"),
+    ("slack", "connections", "Slack"),
+    ("jira", "connections", "Jira"),
+    ("timetracker", "connections", "TimeTracker"),
+    ("calls", "workflows", "Calls"),
+    ("tools", "general", "Tools"),
+    ("rail", "appearance", "Rail"),
 ];
 
 pub fn page_title(id: &str) -> Option<&'static str> {
@@ -42,6 +48,20 @@ pub fn page_title(id: &str) -> Option<&'static str> {
         .iter()
         .find(|(page, _)| *page == id)
         .map(|(_, title)| *title)
+}
+
+/// The page that shows `id`: the page itself, or the page holding that section.
+pub fn page_of(id: &str) -> Option<&'static str> {
+    PAGES
+        .iter()
+        .map(|(page, _)| *page)
+        .find(|page| *page == id)
+        .or_else(|| {
+            SECTIONS
+                .iter()
+                .find(|(section, ..)| *section == id)
+                .map(|(_, page, _)| *page)
+        })
 }
 
 fn url(page: Option<&str>) -> WebviewUrl {
@@ -101,9 +121,9 @@ pub fn open(app: &AppHandle, page: Option<&str>) {
     show_on_pointer_screen(app, window);
 }
 
-/// `settings:<page>`: refuses a page that doesn't exist.
+/// `settings:<page>`: a page or a section of one; refuses anything else.
 pub fn open_page(app: &AppHandle, page: &str) -> AppResult<()> {
-    if page_title(page).is_none() {
+    if page_of(page).is_none() {
         return Err(AppError::NotFound(format!("No Settings page {page}")));
     }
     open(app, Some(page));
@@ -131,7 +151,72 @@ mod tests {
         assert_eq!(page_title("routines"), Some("Routines"));
         assert_eq!(page_title("journal"), Some("Journal"));
         assert_eq!(page_title("workflows"), Some("Workflows"));
-        assert_eq!(page_title("calls"), Some("Calls"));
+    }
+
+    #[test]
+    fn a_section_id_has_no_page_title() {
+        for (id, ..) in SECTIONS {
+            assert_eq!(page_title(id), None, "{id}");
+        }
+    }
+
+    #[test]
+    fn the_pages_are_listed_in_order() {
+        let ids: Vec<&str> = PAGES.iter().map(|(id, _)| *id).collect();
+        assert_eq!(
+            ids,
+            [
+                "connections",
+                "contexts",
+                "projects",
+                "daily-note",
+                "routines",
+                "journal",
+                "search",
+                "workflows",
+                "reminders",
+                "links",
+                "music",
+                "general",
+                "appearance",
+                "shortcuts",
+                "automation",
+                "status",
+            ]
+        );
+    }
+
+    #[test]
+    fn a_page_is_its_own_page_and_a_section_belongs_to_its_page() {
+        for (id, _) in PAGES {
+            assert_eq!(page_of(id), Some(id), "{id}");
+        }
+        for (id, page, _) in SECTIONS {
+            assert_eq!(page_of(id), Some(page), "{id}");
+        }
+        assert_eq!(page_of("calendar"), Some("connections"));
+        assert_eq!(page_of("calls"), Some("workflows"));
+    }
+
+    #[test]
+    fn an_unknown_id_has_no_page() {
+        for id in ["", "nope", "Calendar", "daily note"] {
+            assert_eq!(page_of(id), None, "{id}");
+        }
+    }
+
+    #[test]
+    fn every_section_lives_on_a_listed_page() {
+        for (id, page, _) in SECTIONS {
+            assert!(page_title(page).is_some(), "{id} -> {page}");
+        }
+    }
+
+    #[test]
+    fn no_section_id_is_also_a_page_id() {
+        for (id, ..) in SECTIONS {
+            assert!(PAGES.iter().all(|(page, _)| *page != id), "{id}");
+        }
     }
 
     #[test]

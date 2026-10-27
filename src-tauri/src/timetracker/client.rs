@@ -27,7 +27,7 @@ pub const DEFAULT_PATH: &str = "~/.local/bin/timetracker";
 
 pub const NOT_RUNNING: &str = "TimeTracker isn't running.";
 pub const NO_ANSWER: &str = "TimeTracker didn't answer.";
-pub const MISSING: &str = "TimeTracker isn't installed (Settings → TimeTracker).";
+pub const MISSING: &str = "TimeTracker isn't installed (Settings → Connections → TimeTracker).";
 
 /// How a run of the tool ended.
 #[derive(Clone, Debug, PartialEq)]
@@ -515,7 +515,7 @@ mod tests {
             error_of(reply_result(&Err(RunFailure::Missing))),
             (
                 ErrorKind::TimetrackerMissing,
-                "TimeTracker isn't installed (Settings → TimeTracker).".to_string()
+                "TimeTracker isn't installed (Settings → Connections → TimeTracker).".to_string()
             )
         );
     }

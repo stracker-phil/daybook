@@ -4,7 +4,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::store::settings::Presence;
+use super::decide::status_text;
+use crate::store::settings::{MeetingRule, Presence};
 
 pub const FILE_NAME: &str = "slack-shown.json";
 
@@ -41,6 +42,18 @@ impl ShownStatus {
         }
     }
 
+    /// Whether it is an app trigger's call status, as a call leaves it when Daybook quits mid-call.
+    pub fn is_call_status(&self, rules: &[MeetingRule]) -> bool {
+        if self.emoji.is_empty() && self.text.is_empty() {
+            return false;
+        }
+        rules.iter().any(|rule| {
+            !rule.slack.keep_status
+                && rule.slack.emoji == self.emoji
+                && status_text(&rule.slack, "") == self.text
+        })
+    }
+
     /// Takes what Slack accepted: emoji, text and expiry (Unix seconds, 0: none), and presence.
     pub fn record(&mut self, profile: Option<(String, String, i64)>, presence: Option<Presence>) {
         if let Some((emoji, text, expiration)) = profile {
@@ -57,6 +70,7 @@ impl ShownStatus {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::store::settings::SlackStatus;
 
     fn shown() -> ShownStatus {
         ShownStatus {
@@ -141,6 +155,72 @@ mod tests {
                 "{now}"
             );
         }
+    }
+
+    fn rule(emoji: &str, text: &str, keep_status: bool) -> MeetingRule {
+        MeetingRule {
+            enabled: true,
+            app: "Zoom".into(),
+            bundle_id: "us.zoom.xos".into(),
+            window_title: None,
+            needs_microphone: false,
+            slack: SlackStatus {
+                keep_status,
+                ..SlackStatus::new(emoji, text, Presence::Away)
+            },
+        }
+    }
+
+    fn showing(emoji: &str, text: &str) -> ShownStatus {
+        ShownStatus {
+            emoji: emoji.into(),
+            text: text.into(),
+            ..ShownStatus::default()
+        }
+    }
+
+    #[test]
+    fn a_status_is_a_call_status_when_emoji_and_text_match_any_rule() {
+        let rules = [
+            rule(":headphones:", "In a Zoom call", false),
+            rule(":phone:", "In a Teams call", false),
+        ];
+        for (emoji, text) in [
+            (":headphones:", "In a Zoom call"),
+            (":phone:", "In a Teams call"),
+        ] {
+            assert!(
+                showing(emoji, text).is_call_status(&rules),
+                "{emoji} {text}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_status_is_no_call_status_without_a_matching_rule() {
+        let rules = [rule(":headphones:", "In a Zoom call", false)];
+        for (emoji, text) in [
+            (":coffee:", "Lunch"),
+            (":headphones:", "Lunch"),
+            (":coffee:", "In a Zoom call"),
+        ] {
+            assert!(
+                !showing(emoji, text).is_call_status(&rules),
+                "{emoji} {text}"
+            );
+        }
+    }
+
+    #[test]
+    fn an_empty_status_is_no_call_status_even_for_a_rule_with_empty_emoji_and_text() {
+        let rules = [rule("", "", false)];
+        assert!(!ShownStatus::default().is_call_status(&rules));
+    }
+
+    #[test]
+    fn a_rule_that_keeps_the_status_never_matches() {
+        let rules = [rule(":headphones:", "In a Zoom call", true)];
+        assert!(!showing(":headphones:", "In a Zoom call").is_call_status(&rules));
     }
 
     #[test]

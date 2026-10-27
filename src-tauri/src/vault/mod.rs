@@ -159,7 +159,7 @@ impl DailyNotes {
         Ok((vault, format))
     }
 
-    /// Settings → Vault's view; looking up the Obsidian CLI can take seconds.
+    /// Settings → Connections → Vault's view; looking up the Obsidian CLI can take seconds.
     pub fn info(&self, settings: &Settings) -> VaultInfo {
         let today = self.state(settings);
         VaultInfo {
@@ -237,17 +237,8 @@ impl DailyNotes {
             }
             return Ok(WriteOutcome::Queued);
         }
-        let layout = NoteLayout::from_settings(settings);
-        let mut edit = |text: &str| op.apply(text, &layout);
-        match self.writer.edit_note(&vault, &file, &mut edit) {
-            Ok(true) => {
-                logged.update(ActionState::Done, None);
-                Ok(WriteOutcome::Written)
-            }
-            Ok(false) => {
-                logged.update(ActionState::Skipped, Some(ALREADY.into()));
-                Ok(WriteOutcome::Unchanged)
-            }
+        match self.write_now(settings, &vault, &file, &op, &logged) {
+            Ok(outcome) => Ok(outcome),
             Err(e @ WriteError::Conflict(_)) => {
                 log::warn!("{e} The change waits.");
                 logged.update(ActionState::Waiting, Some(format!("{e} Retried later.")));
@@ -258,6 +249,43 @@ impl DailyNotes {
                 logged.update(ActionState::Failed, Some(e.to_string()));
                 Err(e.into())
             }
+        }
+    }
+
+    /// Applies `op` to `file`, an existing note under the canonical vault; never queues.
+    pub fn edit_file(
+        &self,
+        settings: &Settings,
+        file: &Path,
+        op: &NoteOp,
+    ) -> AppResult<WriteOutcome> {
+        let vault = vault(settings)?;
+        let vault = vault.canonicalize().unwrap_or(vault);
+        let logged = action_log::sending(ActionTarget::Obsidian, &op.describe());
+        self.write_now(settings, &vault, file, op, &logged)
+            .map_err(|e| {
+                logged.update(ActionState::Failed, Some(e.to_string()));
+                e.into()
+            })
+    }
+
+    /// Writes `op` into `file` and logs a write or no change; an error is the caller's to log.
+    fn write_now(
+        &self,
+        settings: &Settings,
+        vault: &Path,
+        file: &Path,
+        op: &NoteOp,
+        logged: &Logged,
+    ) -> Result<WriteOutcome, WriteError> {
+        let layout = NoteLayout::from_settings(settings);
+        let mut edit = |text: &str| op.apply(text, &layout);
+        if self.writer.edit_note(vault, file, &mut edit)? {
+            logged.update(ActionState::Done, None);
+            Ok(WriteOutcome::Written)
+        } else {
+            logged.update(ActionState::Skipped, Some(ALREADY.into()));
+            Ok(WriteOutcome::Unchanged)
         }
     }
 
@@ -686,5 +714,60 @@ mod tests {
                 .as_deref(),
             Some("current\n")
         );
+    }
+
+    fn tick(line: u32, text: &str) -> NoteOp {
+        NoteOp::TodoDone {
+            line,
+            text: text.into(),
+        }
+    }
+
+    #[test]
+    fn ticking_a_todo_in_a_note_of_the_vault_writes_the_tick() {
+        let fx = Fixture::new(&[], fast());
+        fx.write_note("# Day\n\n- [ ] Call Anna\n");
+        let file = fx.note().canonicalize().unwrap();
+
+        let outcome = fx
+            .notes
+            .edit_file(&fx.settings, &file, &tick(2, "Call Anna"))
+            .unwrap();
+
+        assert_eq!(outcome, WriteOutcome::Written);
+        assert_eq!(fx.note_text().unwrap(), "# Day\n\n- [x] Call Anna\n");
+    }
+
+    #[test]
+    fn ticking_a_todo_whose_line_changed_is_refused_and_writes_nothing() {
+        let fx = Fixture::new(&[], fast());
+        fx.write_note("# Day\n\n- [ ] Call Bob\n");
+        let file = fx.note().canonicalize().unwrap();
+
+        let result = fx
+            .notes
+            .edit_file(&fx.settings, &file, &tick(2, "Call Anna"));
+
+        assert_eq!(
+            result.unwrap_err(),
+            AppError::InvalidInput(crate::vault::ops::todo::TODO_CHANGED.into())
+        );
+        assert_eq!(fx.note_text().unwrap(), "# Day\n\n- [ ] Call Bob\n");
+    }
+
+    #[test]
+    fn ticking_a_todo_of_a_file_outside_the_vault_is_refused() {
+        let fx = Fixture::new(&[], fast());
+        fx.write_note("# Day\n");
+        let elsewhere = tempfile::tempdir().unwrap();
+        let outside = elsewhere.path().canonicalize().unwrap().join("a.md");
+        fs::write(&outside, "- [ ] Call Anna\n").unwrap();
+
+        let result = fx
+            .notes
+            .edit_file(&fx.settings, &outside, &tick(0, "Call Anna"));
+
+        assert!(matches!(result, Err(AppError::InvalidInput(_))));
+        assert_eq!(fs::read_to_string(&outside).unwrap(), "- [ ] Call Anna\n");
     }
 }

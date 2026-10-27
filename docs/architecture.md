@@ -29,6 +29,7 @@ no database. The JSON files live in the config dir, `~/Library/Application Suppo
 | `context.json` | the current context | `contexts::Contexts` |
 | `status-memory.json` | today's status: date, status, since, whether you worked today ([status.md](status.md)) | `status::Statuses` |
 | `slack-shown.json`, `day-message.json` | what Slack shows as Daybook set it; the day's first Working message ([slack.md](slack.md)) | `slack::SlackFiles` |
+| `music-held.json` | the music volume a call lowered, until it is back ([music.md](music.md#automation)) | `AppState::music_held` |
 | `routines.json` | the once-a-day wizard triggers that fired today ([routines.md](routines.md#the-wizard)) | `routines::Fired` |
 | `jira-tickets.json` | the Jira keys opened per day (`jira/tickets.rs`); also imported from the prototype | – |
 
@@ -179,6 +180,7 @@ src-tauri/
   src/presence/ calls/       away (asleep, locked); call detection, the grace rule, joining (presence-and-calls.md)
   src/tools/                 the tools and their choices, which tools a surface shows
   src/hub/                   the Daybook window's view model (hub_view) and its sidebar rows
+  src/locale.rs              dates in the Mac's locale (AppleLocale, read once) for the Daybook window
   src/palette/               palette entries, ranking, running a pick
   src/shortcuts/             global shortcuts, accelerator names, the Shortcuts page's overview
   src/tray.rs notify.rs      menu-bar item, notifications
@@ -196,7 +198,7 @@ src/
   api/index.ts types.gen.ts types.ts
   state/store.ts requests.ts slices/ (settings, ui, viewState, hub)
   commands/                  registry, scopes (`global`, `hub`), index (APP_COMMANDS: the windows' own keys), remote
-  components/                Sidebar, hub/ (Board, TodayCard, Events, DayTimeline, Inspector), Toolbar, Modal, Dialogs, Toasts, settings/, …
+  components/                Sidebar, hub/ (Board, TodayCard, Events, DayTimeline, Inspector, TodoList), Toolbar, Modal, Dialogs, Toasts, settings/, …
   windows/panel/             the overlay page: PanelApp, PaletteView, ContextView, StatusView, OfferOffView, SampleView, search/
   windows/settings/          the Settings window's page: SettingsApp
   windows/quicknotes/        the quick-notes editor's page: QuickNotesApp, useQuickNote, MarkdownEditor, markdown

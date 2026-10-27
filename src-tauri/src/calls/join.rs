@@ -1,4 +1,4 @@
-//! Joining a call (Settings → Calls → Joining a Call): the apps to start first, then the link in the app
+//! Joining a call (Settings → Workflows → Joining a Call): the apps to start first, then the link in the app
 //! chosen for its service.
 
 use std::path::Path;

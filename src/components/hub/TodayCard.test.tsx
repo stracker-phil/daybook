@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -16,10 +16,11 @@ interface CardProps {
   reminder?: ReminderLine | null;
   focus?: FocusLine[] | null;
   isToday?: boolean;
+  focusShortcut?: string | null;
 }
 
-function renderCard({ reminder = null, focus = null, isToday = true }: CardProps = {}) {
-  return render(<TodayCard reminder={reminder} focus={focus} isToday={isToday} />);
+function renderCard({ reminder = null, focus = null, isToday = true, focusShortcut = null }: CardProps = {}) {
+  return render(<TodayCard reminder={reminder} focus={focus} isToday={isToday} focusShortcut={focusShortcut} />);
 }
 
 const FOCUS: FocusLine[] = [
@@ -143,6 +144,16 @@ describe("TodayCard", () => {
       expect(screen.getByText("No focus list.")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Set Today's Focus" })).toBeDisabled();
       expect(screen.queryByText("Set today's focus…")).not.toBeInTheDocument();
+    });
+
+    it("shows the focus shortcut as a key cap beside the title today", () => {
+      renderCard({ focus: FOCUS, focusShortcut: "ctrl+alt+cmd+f" });
+      expect(within(screen.getByRole("heading", { name: /Focus/ })).getByText("⌃⌥⌘F")).toBeInTheDocument();
+    });
+
+    it("shows no key cap on another day", () => {
+      renderCard({ focus: FOCUS, isToday: false, focusShortcut: "ctrl+alt+cmd+f" });
+      expect(screen.queryByText("⌃⌥⌘F")).not.toBeInTheDocument();
     });
 
     it("separates the reminder from the focus list", () => {

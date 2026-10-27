@@ -53,7 +53,7 @@ fn failed(e: SlackError) -> AppError {
 }
 
 fn not_connected() -> AppError {
-    AppError::NotFound("Slack isn't connected (Settings → Slack).".into())
+    AppError::NotFound("Slack isn't connected (Settings → Connections → Slack).".into())
 }
 
 /// Puts `list` below the day's message. Without a message from today the list is posted and becomes

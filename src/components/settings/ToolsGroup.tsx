@@ -13,14 +13,12 @@ function PlaceSwitch({ label, checked, disabled, onChange }: { label: string; ch
   );
 }
 
-export function ToolsPage({ s, set }: SettingsPageProps) {
+/** General → Tools. */
+export function ToolsGroup({ s, set }: SettingsPageProps) {
   const tools = s.tools;
   const save = (next: ToolPlacement[]) => set({ tools: next });
   return (
-    <Group
-      title="Tools"
-      description="Order and place of the tools in the rail and the Daybook window; the menu-bar menu uses the same order. A tool that has nothing to offer right now stays hidden."
-    >
+    <Group title="Tools" anchor="tools" description="Order and place of the tools in the rail and the Daybook window; the menu-bar menu uses the same order.">
       {tools.map((tool, i) => {
         const info = TOOL_INFO[tool.id];
         const Icon = info.icon;

@@ -9,6 +9,7 @@ import { handleKeydown, installCommands } from "./commands";
 import { answerRemote } from "./commands/remote";
 import { applyAppearance, useSystemDark } from "./lib/theme";
 import { useContextColor } from "./lib/useContextColor";
+import { trackWindowFocus } from "./lib/windowFocus";
 import { flushUiState, useStore } from "./state/store";
 import "./styles";
 
@@ -46,6 +47,7 @@ function useBackendEvents() {
       api.onCallChanged(reloadHub),
       api.onSlackChanged(reloadHub),
       api.onTimerChanged(reloadHub),
+      api.onMusicChanged(reloadHub),
       api.onWindowOpened(reloadHub),
     ];
 
@@ -87,6 +89,7 @@ export default function App() {
   const systemDark = useSystemDark();
   useBackendEvents();
   useContextColor();
+  useEffect(trackWindowFocus, []);
 
   useEffect(() => {
     if (settings) applyAppearance(settings, systemDark);

@@ -3,7 +3,7 @@ import type { CalendarInfo, Context, Feature, MusicEntry, WorkHours } from "../.
 import type { SettingsPageProps } from "../../registry/settingsPages";
 import { ContextCalendars } from "./ContextCalendars";
 import { ContextMusicFields } from "./ContextMusicFields";
-import { Group, NumberField, Row, Switch, TextField } from "./controls";
+import { Checkbox, EntryFooter, Group, NumberField, Row, Switch, TextField } from "./controls";
 import { CONTEXT_COLORS, ColorField, DaysField, ItemActions, TimeRangeField, moveItem, replaceItem } from "./fields";
 import { useCalendarInfo } from "./useCalendarInfo";
 
@@ -73,10 +73,7 @@ function ContextCard({ context, scopes, calendars, music, index, count, onChange
       <Row label="Features" stacked>
         <div className="check-row">
           {FEATURES.map((feature) => (
-            <label key={feature.id} className="check">
-              <input type="checkbox" checked={context.features.includes(feature.id)} onChange={(e) => toggle(feature.id, e.target.checked)} />
-              {feature.label}
-            </label>
+            <Checkbox key={feature.id} label={feature.label} checked={context.features.includes(feature.id)} onChange={(on) => toggle(feature.id, on)} />
           ))}
         </div>
       </Row>
@@ -107,9 +104,9 @@ function ContextCard({ context, scopes, calendars, music, index, count, onChange
       <WorkHoursRows context={context} onChange={onChange} />
       {calendars && <ContextCalendars info={calendars} chosen={context.calendars} onChange={(next) => onChange({ calendars: next })} />}
       <ContextMusicFields context={context} entries={music} onChange={onChange} />
-      <Row label="">
+      <EntryFooter>
         <ItemActions index={index} count={count} onMove={onMove} onRemove={onRemove} removeLabel="Remove Context" />
-      </Row>
+      </EntryFooter>
     </Group>
   );
 }

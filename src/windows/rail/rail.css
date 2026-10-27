@@ -8,6 +8,9 @@
 .rail-bar {
   --bar-w: 40px; --btn: 32px; --icon: 18px; --cap-w: 36px; --btn-r: 8px; --div-w: 24px; --label-w: 32px;
   --rail-shadow: 0 0 0 0.5px color-mix(in srgb, var(--shade) 8%, transparent), 0 2px 5px color-mix(in srgb, var(--shade) 16%, transparent);
+  /* The prototype's surface: near-black in dark, near-white in light, its text pure white or black. */
+  --text: var(--rail-text); --text-strong: var(--rail-text); --pop: var(--rail-bg); --line: var(--rail-line);
+  --o2: color-mix(in srgb, var(--rail-text) 60%, transparent); --o3: color-mix(in srgb, var(--rail-text) 40%, transparent);
   position: relative; isolation: isolate; display: flex; flex-direction: column; align-items: center; gap: 4px;
   width: var(--bar-w); color: var(--text);
 }

@@ -1,5 +1,5 @@
 /** How Slack shows a status: the emoji, the text and the presence dot. */
-import type { Presence, ShownStatus, SlackStatus } from "../api";
+import type { Presence, ShownStatus } from "../api";
 import { emojiGlyph, emojiName } from "../lib/slackEmoji";
 
 export function EmojiGlyph({ code }: { code: string }) {
@@ -22,21 +22,6 @@ export const PRESENCE_LABELS: Record<Presence, string> = { auto: "Active", away:
 /** Filled: active; hollow: away. */
 export function PresenceDot({ presence }: { presence: Presence }) {
   return <span className="presence-dot" data-presence={presence} aria-hidden="true" />;
-}
-
-/** A status to set, as Slack would show it (Settings). */
-export function SlackStatusPreview({ status }: { status: SlackStatus }) {
-  return (
-    <span className="slack-status">
-      {status.keepStatus ? <span className="slack-status-text empty">Status unchanged</span> : <SlackLine emoji={status.emoji} text={status.text} />}
-      {status.presence !== "keep" && (
-        <span className="slack-presence">
-          <PresenceDot presence={status.presence} />
-          {PRESENCE_LABELS[status.presence]}
-        </span>
-      )}
-    </span>
-  );
 }
 
 function SlackLine({ emoji, text }: { emoji: string; text: string }) {

@@ -10,7 +10,7 @@ use super::api::{self, Applied};
 use super::decide::{Decision, changes_nothing, describe_status};
 use super::sender::{Outcome, SendError};
 use super::status::Step;
-use super::{NOT_CONNECTED, changed, slack, token};
+use super::{NOT_CONNECTED, changed, slack, step, token};
 use crate::action_log::{self, ActionState, ActionTarget, Logged};
 use crate::error::{AppError, AppResult};
 use crate::lock::MutexExt;
@@ -143,6 +143,11 @@ fn report(
     call: Option<&SlackStatus>,
     logged: &Logged,
 ) {
+    if let Some(call) = call
+        && !matches!(outcome, Outcome::Sent(_))
+    {
+        slack(app).live.lock_unpoisoned().call_not_sent(call);
+    }
     match outcome {
         Outcome::Sent(applied) => {
             log::info!("Slack status set: {described}");
@@ -150,10 +155,10 @@ fn report(
             if let Some(problem) = applied.problem {
                 log::info!("{problem}");
             }
-            if let Some(call) = call {
-                slack(app).live.lock_unpoisoned().call_sent(call);
-            }
             record_shown(app, applied);
+            if let Some(call) = call {
+                step(app, |live, setup| live.call_sent(call, setup));
+            }
         }
         Outcome::Replaced => {
             log::info!("Slack status {described}: replaced by a newer one");
@@ -178,7 +183,7 @@ pub async fn set_now(app: &AppHandle, mapping: &SlackStatus, note: &str) -> AppR
     let Some(token) = token(app).await else {
         logged.update(ActionState::Skipped, Some(NOT_CONNECTED.into()));
         return Err(AppError::InvalidInput(
-            "Connect Slack in Settings → Slack first.".into(),
+            "Connect Slack in Settings → Connections → Slack first.".into(),
         ));
     };
     slack(app).sender.supersede();
@@ -197,6 +202,29 @@ pub async fn set_now(app: &AppHandle, mapping: &SlackStatus, note: &str) -> AppR
     }
     record_shown(app, applied);
     Ok(())
+}
+
+/// Sends a decision and waits for Slack, without a retry; for quitting.
+pub(super) async fn send_now(app: &AppHandle, decision: Decision) {
+    let (mapping, note, expiration, _) = sending(decision);
+    if changes_nothing(&mapping) {
+        return;
+    }
+    let described = describe_status(&mapping, &note);
+    let logged = action_log::sending(ActionTarget::SlackStatus, &described);
+    let Some(token) = token(app).await else {
+        logged.update(ActionState::Skipped, Some(NOT_CONNECTED.into()));
+        return;
+    };
+    slack(app).sender.supersede();
+    let applied = slack(app)
+        .api
+        .apply(&token, &mapping, &note, expiration)
+        .await;
+    if let Ok(applied) = logged_result(app, &logged, applied) {
+        log::info!("Slack status set: {described}");
+        record_shown(app, applied);
+    }
 }
 
 fn record_shown(app: &AppHandle, applied: Applied) {

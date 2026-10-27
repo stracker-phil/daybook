@@ -5,7 +5,9 @@ of a native macOS app, the token sets, the controls. Update this page with every
 item. Decisions: [ADR 0007](adr/0007-color-palettes.md) (token sets, no literals),
 [ADR 0009](adr/0009-three-schemes-four-palettes.md) (schemes and palettes),
 [ADR 0010](adr/0010-a-scheme-per-system-mode.md) (a scheme per macOS mode),
-[ADR 0011](adr/0011-native-macos-look.md) (the native look). Implementation (files, registries, CSS structure):
+[ADR 0011](adr/0011-native-macos-look.md) (the native look),
+[ADR 0026](adr/0026-the-daybook-window-follows-the-prototypes-look.md) (the Daybook window follows the
+prototype's look). Implementation (files, registries, CSS structure):
 [frontend.md](frontend.md#styling).
 
 It covers the menu-bar menu, the Daybook window (sidebar, board, inspector), the overlay panel and its views,
@@ -60,63 +62,91 @@ Light scheme in light mode and the Dark scheme in dark mode the sidebar is trans
 
 The Daybook window has three columns: the sidebar, the board and the inspector.
 
-- **Sidebar** (`Sidebar`, `.sidebar`): full height on its own palette (dark in the Default scheme). On top a drag
-  strip under the window buttons (`.sidebar-titlebar`), then the day (`.day-header`): the weekday in
-  `--fs-title` bold `--sidebar-strong` over the date in `--fs-meta` `--sidebar-muted`, one button that opens the
-  day's note in Obsidian, with ‹ › beside it (borderless, 30% while there is no day that way; P and N), and on
-  another day "Back to Today" (O) under it in `--accent`. Below it the tools
-  in Settings → Tools order (`.si` rows, see [Rows](#rows)): icon, title and, where one works, the global
-  shortcut as a dimmed key cap; the context row in the context's colour (`--context`, taken in the sidebar's
-  tone); a row that only tells (the call) reads in `--sidebar-muted`; `--sidebar-line` hairlines for the
-  separators. A tool shows only once its feature exists and while it has something to offer. At the bottom
-  (`.sidebar-footer`) a slot for the Slack status, then the Settings gear, a borderless `.icon-btn` in
-  `--sidebar-muted` whose tooltip names its key (`Settings (⌘,)`). ⌘⌃S hides the sidebar and drops its column;
-  the state is kept in `ui_state.json` (`sidebarHidden`).
-- **Board** (`.main` on `--bg`, `Board`): the toolbar's title is the greeting (Good morning, Good afternoon,
-  Good evening) or, for another day, its name; below it the board (`.board`), whose sections come with their
-  features: the Today card, events and the timeline, the routine and journal chips, today's notes. See
-  [The board](#the-board).
-- **Inspector** (`Inspector`, `.inspector`): a 24.5rem column on `--bg-quiet` with a `--line` hairline at its
-  left edge and its own toolbar ("12 open"); it holds the open todos: groups (Today, This Week, Last Week, a month,
-  a year) whose header ("June (3)", `--fs-meta` semibold `--o3`, a chevron) folds them, kept in `ui_state.json`
-  (`collapsedTodoGroups`); each todo is its text over "12 Oct · Notes › Topic" in `--fs-meta` `--o3`, and a click
-  opens its note in Obsidian (Daybook never ticks one). Where TimeTracker is offered, a Todos | Activity switch in
-  the toolbar shows TimeTracker's day instead (`ActivityTab`, [timetracker.md](timetracker.md#the-activity-tab)),
-  kept in `ui_state.json` (`inspectorTab`). ⌘⌃I and the toolbar's
-  `PanelRight` button (`aria-pressed`) show and hide it; the state is kept in `ui_state.json`
-  (`inspectorHidden`).
+The Daybook window takes the prototype's sizes, spacing and colours
+([ADR 0026](adr/0026-the-daybook-window-follows-the-prototypes-look.md)); type stays the system font. Its
+vertical edges (sidebar | board, board | inspector) are hairlines that fade out at the top and bottom; its
+hairlines (`--hairline`) are `--text` at 6%, as light as Glaze's separators. The sidebar, the board and the
+inspector each scroll below their titlebar row, with macOS's overlay scrollbars.
+
+- **Sidebar** (`Sidebar`, `.sidebar`): 220px (px, at every text size), full height on its own palette (dark in the
+  Default scheme: #212121, white labels and icons, #b1b1b1 for the date). On top a drag strip under the window
+  buttons (`.sidebar-titlebar`), then the day (`.day-header`, 16px above, 12px below, 8px at the sides): the
+  weekday in 18px semibold (24px line) over the date in 11px `--sidebar-muted`, both in the Mac's locale
+  ("Dienstag", "27. Oktober 2026"), one button (8px by 10px padding, 8px radius) that opens the day's note in
+  Obsidian, with ‹ › beside it (24 by 20px, white, 30% while there is no day that way; P and N), and on another
+  day "Back to Today" (O) under it in `--accent-text`. Below it the tools in Settings → General → Tools order (`.si` rows,
+  see [Rows](#rows)): a 16px icon, the title (Music reads "Music · <entry>" while an entry plays) and, where one
+  works, the global shortcut as a key chip; the context row in the context's colour (`--context-text`, 500); a
+  row that only tells (the call) reads in `--sidebar-muted`; `--sidebar-line` hairlines for the separators (6px
+  above and below, 18px in). A tool shows only once its feature exists and while it has something to offer. At
+  the bottom, floating 10px from the edges (`.sidebar-footer`): the Slack status as Slack draws it (a 32px pill,
+  8px radius, `#1a1d21` with a white 15% frame, 13px `#d1d2d3` text, the emoji at most 64px, "No status" italic
+  at 50%, the presence dot `#59d499` while active), then the Settings gear, a borderless 28px `.icon-btn` in
+  white whose tooltip names its key (`Settings (⌘,)`). ⌘⌃S hides the sidebar and drops its column; the state is
+  kept in `ui_state.json` (`sidebarHidden`).
+- **Board** (`.main` on `--bg`, `Board`): the toolbar's title (15px, 500) is the greeting (Good morning, Good
+  afternoon, Good evening) or, for another day, its name in the Mac's locale ("Dienstag, 27. Oktober"); below it
+  the board (`.board`), whose sections come with their features: the Today card, events and the timeline, the
+  routine and journal chips, today's notes. See [The board](#the-board). The main and inspector toolbars have no
+  rule below them.
+- **Inspector** (`Inspector`, `.inspector`): a 24.5rem column on `--bg` with its own toolbar ("12 open"), its body
+  padded 0 8px 16px; it holds the open todos: groups (Today, This Week, Last Week, a month in the Mac's locale, a
+  year) whose header ("Oktober (3)", 11px 500 `--o3`, a 12px chevron, padding 12px 8px 2px) folds them, kept in
+  `ui_state.json` (`collapsedTodoGroups`). Each todo is a row (10px gap, padding 6px 8px, 8px radius, a 5% hover
+  fill): a 16px checkbox (6px radius, the control fill; the accent with a check once ticked) and its text over
+  "27. Okt. · Notes › Topic" in 11px `--o3`. The checkbox ticks the todo in its note
+  ([vault.md](vault.md#open-todos)): it disappears at once, and comes back with an error toast when the note
+  changed meanwhile; a click on the text opens its note in Obsidian. Where TimeTracker is offered, a Todos |
+  Activity switch in the toolbar (the pressed tab filled with the accent, `--on-accent` text, 13px 500) shows
+  TimeTracker's day instead (`ActivityTab`, [timetracker.md](timetracker.md#the-activity-tab)), kept in
+  `ui_state.json` (`inspectorTab`); with one tab there is no switch. ⌘⌃I and the `PanelRight` button
+  (`.inspector-toggle`, `aria-pressed`, fixed 8px from the window's lower right corner, transparent, `--o3`) show
+  and hide it; the state is kept in `ui_state.json` (`inspectorHidden`).
+- **An inactive window** dims like the prototype's: while the window isn't key (`window-blurred` on `<html>`),
+  toolbar titles and buttons, the inspector toggle and the sidebar's content sit at 40%, and the pressed
+  inspector tab and a ticked checkbox turn grey (`--text` at 20%).
 - **Unified toolbar** (`Toolbar`, `.toolbar`): every view starts with one 52px row beside the window buttons
   (which sit centered in it, 20px from the left): the view's title (`.toolbar-title`, `--fs-title`, bold,
   `--text-strong`), its detail (`.toolbar-detail`, `--fs-meta`, `--o2`), then its actions at the trailing end,
-  with a hairline below. Empty parts drag the window. There is no app title and no Settings button (⌘, the app
+  with a hairline below (not in the Daybook window). Empty parts drag the window. There is no app title and no Settings button (⌘, the app
   menu, the sidebar gear and the palette open Settings). Without the sidebar the row leaves `--traffic-lights` for
   the window buttons.
 - There is no status bar.
 
 ## The board
 
-A column of at most 64rem with the content margins; sections 20px apart, their titles `--fs-meta` semibold `--o2`.
+The prototype's column: at most 680px, centred, padded 16px 32px 64px, its blocks 32px apart. Section titles
+(`.board-section-title`, `.chip-row-title`) are 11px, 500, `--o3`, 12px in so they line up with the rows, 6px
+above them; Focus and Today's notes show their global shortcut beside the title as a key chip, like Journal.
 
-- **Today card** (`.today-card`): a light card (`--fill` at half strength, `--radius-lg`) holding the reminder as one
-  line (`.reminder`): the label (`Now`, `Next`, `Routine`, …) in `--fs-meta` `--o3`, the text, and the action's name in
-  the accent at the end. With an action the whole line is the button (hover and focus `--fill`, focus ring) and it
-  takes the focus whenever the window comes up, so ↵ runs it. Under a hairline the focus list ("Focus" in
-  `--fs-meta` `--o3`): one button over all its lines that opens the focus overlay (today only; another day's list
-  is read-only). A task is a 14px rounded checkbox (`--line` border; done: filled `--context` with a check;
-  in progress: a `--context` dot; cancelled: a minus and the text struck through in `--o3`), its project as a
-  `--fill` tag, then the text; other lines are sub-items, indented and `--fs-meta` `--o2`. Empty today it offers
-  "Set today's focus…" in the accent.
-- **Events** (`.board-section`): "Today's events" (or "Events" on another day), an eye toggle (today, with events)
-  that hides past events from the list, never from the timeline, with "N past events hidden" under it.
-- **Day timeline** (`.timeline`): hour labels (`--fs-caption`, `--o3`, tabular) over ticks, then one rounded bar on
-  `--fill`. The context's work hours are a 3px line along the bar's top (`--context` at 55%), whole-day events a
-  3px line along its bottom; event blocks fill the bar between with 4px insets (`--context` at 45%, past ones at
-  22%, a 1px gap where one event runs into the next). The now-line is a 2px `--style-red` line from the labels
-  down. Hovering a block highlights its row (`--context-tint`) and the other way round; the highlighted block
-  turns full `--context` and pulses gently (not with reduced motion).
-- **Event rows** (`.event-row`): the time (7.5rem, `--data-font-size`, `--o3`, tabular), the title, the call app as a
-  pill when the event links a call, the calendar in `--o3`. A row with a call is the button that joins it. Past
-  rows sit at 50% until hovered.
+- **Today card** (`.today-card`): a light card (`--text` at 2.5%, 12px radius, 6px padding) holding the reminder
+  as one line (`.reminder`, 8px 12px): the label (`Now`, `Next`, `Routine`, …) in 11px `--o3`, the text, and the
+  action's name in 11px `--accent-text` at the end. With an action the whole line is the button (hover and focus
+  a 5% fill, focus ring) and it takes the focus whenever the window comes up, so ↵ runs it. Under a hairline the
+  focus list (its "Focus" title as above): one button over all its lines (6px apart) that opens the focus overlay
+  (today only; another day's list is read-only). A task is a 16px checkbox (5px radius, a 10% frame; done: filled
+  `--context` with a check in `--on-context`; in progress: a `--context` dot; cancelled: a minus and the text
+  struck through in `--o3`), 12px before its project as a tag, then the text; other lines are sub-items, indented
+  and 11px `--o2`. Empty today it offers "Set today's focus…" in `--accent-text`.
+- **Events** (`.board-section`): "Today's events" (or "Events" on another day), an eye toggle (a bare 16px icon;
+  today, with events) that hides past events from the list, never from the timeline, with "N past events hidden"
+  under it.
+- **Day timeline** (`.timeline`): hour labels (11px on a 16px line, `--text` at 40%, tabular) over 6px ticks, then
+  one rounded 36px bar on a 5% fill. The context's work hours are a 3px line along the bar's top (`--context` at
+  55%), whole-day events a 3px line along its bottom; event blocks fill the bar between with 4px insets
+  (`--context` at 45%, past ones at 22%, a 1px gap where one event runs into the next). The now-line is a 2px
+  `--style-red` (Apple's red) line from the labels down. Hovering a block highlights its row (`--context-tint`)
+  and the other way round; the highlighted block turns full `--context` and pulses gently (not with reduced
+  motion).
+- **Event rows** (`.event-row`, 8px 12px): the time (96px, 13px `--o3`, tabular), the title, the call app as a
+  badge when the event links a call (a pill on a 10% fill, 11px 500 `--o2`), the calendar in 11px `--o3`. A row
+  with a call is the button that joins it. Past rows sit at 50% until hovered.
+- **Routines and journal** (`.board-checklists`): one block between two hairlines (12px in), its rows 12px apart.
+  Each row has its title in a 112px column and the chips beside it: 36px tall, 8px radius, 12px inside, the 16px
+  icon 10px from the title, a 5% fill (10% on hover), then the progress dots (6px; filled `--context`) or a check
+  in `--context-text`.
+- **Today's notes**: "Open in Obsidian" (11px, `--accent-text`) beside the title; a row per topic (8px 12px, 8px
+  radius); empty today "Write a note…" with its icon in `--accent-text`.
 
 ## Appearance and tokens
 
@@ -156,10 +186,10 @@ set them on their own element); `applyInitialLook` paints the defaults before th
 | `--raised`, `--knob` | white, white | `#5a5a5a`, white | the pressed segment; the switch thumb |
 | `--shadow`, `--shadow-small` | | | overlays (a hairline ring and a soft drop; no border); the raised segment and the switch thumb |
 | `--scrim`, `--shade` | black 14% | black 35% | behind sheets and panels; black for `color-mix` darkening |
-| `--a-<name>`, `--accent-text-max-l` | deep hues, `0.56` | light hues, `1` | the nine accent hues (`ACCENTS`); the highest OKLCH lightness of `--accent-text`. They also apply inside a sidebar of the same tone |
-| `--on-accent` | white | `#1a1a1a` | text on any palette accent's fill, at least 4.5:1 on every hue; like the hues, it follows the sidebar's tone inside the sidebar |
+| `--a-<name>`, `--a-green`, `--accent-text-max-l` | Apple's light system colours, `0.56` | Apple's dark system colours, `1` | the nine accent hues (`ACCENTS`) and green, also the context colours (blue `#007aff`/`#0a84ff`, red `#ff3b30`/`#ff453a`, …); the highest OKLCH lightness of `--accent-text`. They also apply inside a sidebar of the same tone |
+| `--style-green` | `#24853a` | `#59d499` | the success tint and the Working dot; in the hue block, so the dark sidebar takes the dark one |
+| `--rail-bg`, `--rail-text`, `--rail-line` | `#fcfcfc`, black, black 10% | `#0f0f10`, white, white 10% | the rail's bar and its tooltip card, as the prototype's popover surface |
 | `--on-system-accent` | white | white | text on the System accent, as macOS draws it |
-| `--style-green` | | | the success tint; red, yellow, blue and purple are accent hues (`theme.css`) |
 
 **Sidebar palette** tokens (everything inside the sidebar uses only these; `theme.css` maps the generic tokens of
 shared controls to them inside `.sidebar`, and the accent hues come from the content palette of the sidebar's
@@ -167,9 +197,10 @@ tone):
 
 | Token | Dark | Light | Role |
 |---|---|---|---|
-| `--sidebar-bg` | `#262626` | `#ebebeb` | the surface where it is opaque |
-| `--sidebar-text`, `--sidebar-strong` | `#e6e6e6`, white | `#262626`, black | entries; the selected entry and the app's name |
-| `--sidebar-muted` | `#9e9e9e` | `#636363` | icons (the Settings gear), key caps, meta |
+| `--sidebar-bg` | `#212121` | `#ebebeb` | the surface where it is opaque |
+| `--sidebar-text`, `--sidebar-strong` | white, white | `#262626`, black | entries and their icons, the arrows and the gear; the selected entry and the weekday |
+| `--sidebar-muted` | `#b1b1b1` | `#636363` | the date, meta, a row that only tells |
+| `--slack-pill-bg`, `-line`, `-text`, `-empty`, `--slack-active` | `#1a1d21`, white 15%, `#d1d2d3`, white 50%, `#59d499` | the same | the Slack status pill, as Slack draws it |
 | `--sidebar-hover`, `--sidebar-selected` | white at 5 and 12% | black at 4 and 9% | hovered and selected entry (translucent, so they work on the material) |
 | `--sidebar-line` | white at 10% | black at 10% | its edge, separators |
 
@@ -182,6 +213,8 @@ Derived tokens in `src/styles/theme.css`, the same for every palette:
 | `--o2`, `--o3` | `--text` at 68% and 52% | secondary and tertiary text |
 | `--sel` | `--accent` at 20% (`--sidebar-selected` in the sidebar) | selected row |
 | `--accent-text` | `--accent` with its lightness capped at `--accent-text-max-l` | the accent as text |
+| `--on-accent` | white on a hue under OKLCH lightness 0.69, near-black on a lighter one (yellow, orange, green, teal) | text on an accent fill; `--on-system-accent` for System |
+| `--context-text`, `--on-context` | `--context` capped like `--accent-text`; the text on a context fill, picked like `--on-accent` | the context's colour as text (the sidebar's context row); a ticked focus box |
 | `--focus-ring` | a 3px ring of the accent at 45% | focus on fields, buttons, segments |
 | `--ui-font-size`, `--data-font-size` | 13px, 12px | set from the Text size setting by `applyAppearance` (`lib/theme.ts`) |
 | `--fs-display`, `--fs-heading`, `--fs-title`, `--fs-body`, `--fs-meta`, `--fs-caption` | 22, 17, 15, 13, 11 and 10px in rem | the type scale |
@@ -190,9 +223,9 @@ Derived tokens in `src/styles/theme.css`, the same for every palette:
 | `--row-h`, `--pad` | at least 20px plus 2 × 3px | the row anatomy (px: it grows only for large data sizes) |
 | `--font-ui`, `--font-mono` | the system font (SF Pro), SF Mono | fixed |
 | `--radius-sm`, `--radius`, `--radius-lg` | 6, 10, 12px | controls; menus, popovers and inset groups; sheets and panels |
-| `--sidebar-width` | 16rem | the sidebar column |
+| `--sidebar-width` | 220px | the sidebar column (px, as the prototype's) |
 | `--toolbar-height`, `--traffic-lights` | 52px, 84px | the unified toolbar (centered on the window buttons); its left inset without the sidebar (px: they don't scale) |
-| `--scrollbar-size`, `--scrollbar-thumb` (`-hover`, `-active`) | 8px; `--o3` at 55%, `--o3`, `--o2` | the one scrollbar (`base.css`) |
+| `--scrollbar-size` | 8px | room kept beside a scroller's rows; no scrollbar is styled, so every scroller keeps macOS's overlay scrollbars, shown only while scrolling (`base.css`) |
 
 **Accent:** Settings → Appearance "Accent" picks the app accent: System first (a swatch of the accent hues around
 a circle; it follows the macOS accent color through WebKit's `AccentColor`, with white text on it), then the
@@ -284,7 +317,9 @@ stacking.
 
 Every list shares one row: sidebar entries, palette results, settings lists. A 20px line with padding above and
 below (at least 28px; 36px in inset groups), hairlines between rows, no hover fill on plain rows, `--sel` when
-selected. Sidebar entries (`.si`) have 2px more padding, an 8px inset and a 6px radius; the active one (`.si.sel`)
+selected. Sidebar entries (`.si`) are the prototype's: 32px tall, 10px inside, the icon 10px from the title, 2px apart, an
+8px inset and a 6px radius; a shortcut hint is a key chip (16px tall, 4px inside, 4px radius, SF Mono 11px, a
+`--text` 10% frame, `--o3`, at 60%; the same beside board section titles). The active one (`.si.sel`)
 is `--sidebar-selected` with its label in `--sidebar-strong` (500) and its icon in the accent. Dimmed rows
 (`.dimmed`) take 55% opacity.
 
@@ -405,14 +440,17 @@ the link count), the call button when a call runs. Shapes: pill (a rounded bar w
 highlight), docked (flush with the edge) or floating (round buttons that grow on hover); sizes compact, regular
 and large; light, dark or the system look. Hovering shows a tooltip card beside the bar (`src/windows/railtip/`):
 the label, the key caps, a detail line and, for tools with choices, a menu (contexts, playlists, links) that can
-be clicked while the pointer stays on the card. Settings → Rail holds the edges, trigger, delays, look and
-tooltips; Settings → Tools chooses which tools it shows.
+be clicked while the pointer stays on the card. Settings → Appearance holds the rail's edges, trigger, delays,
+look and tooltips; Settings → General → Tools chooses which tools it shows. The bar and the tooltip card take the
+prototype's surface (`--rail-bg`: near-black in dark, near-white in light; `--rail-text` white or black,
+secondary and tertiary at 60 and 40%).
 
 ## Contexts
 
 Each context has a colour (Settings → Contexts). `styles/context.css` turns `data-context="<colour>"` on any
-element into `--context` (the palette's hue for that colour: `--a-blue`, `--a-magenta` for pink, `--a-gold` for
-yellow, `--style-green` for green, …) and `--context-tint` (16 % of it). Both windows put the current context's
+element into `--context` (the palette's hue for that colour, Apple's system colours as in the prototype:
+`--a-blue`, `--a-magenta` for pink, `--a-gold` for yellow, `--a-green` for green, …), `--context-tint` (16 % of
+it), `--context-text` (capped for text on light surfaces) and `--on-context` (text on its fill). Both windows put the current context's
 colour on the root (`useContextColor`), so pills, selection tints and progress dots use `var(--context)`; there
 is no colour literal outside the palettes.
 
@@ -447,21 +485,48 @@ text, as in Spotlight. Group headings are small `--o3` text; a row's detail foll
 
 - A window of its own (880 × 720, at least 760 × 560), on the pointer's screen; Esc, ⌘W and the close button
   hide it, and it reopens on the page it showed. It has the System Settings layout: the page list on `--chrome`
-  (`.settings-nav`, under a drag strip for the window buttons; 28px rows under small `--o3` group headings; the
-  current page filled with the accent and `--on-accent` text, as a focused macOS sidebar) and the page on
-  `--bg` (`.settings-pane`): the title in `--fs-title` bold in a 52px row that drags the window, the intro in
-  `--o2`, then groups. Every change applies at once; there is no Save.
-- A group (`Group`, `.settings-group`) is a 13px semibold `--text` heading over its inset group
-  (`.settings-card`); each row (`Row`, `.settings-row`, at least 36px) has the label and its description
-  (`--fs-meta`, `--o2`) on the left and the control on the right, hairlines between rows. A stacked row
+  (`.settings-nav`, 190px wide, Glaze's sidebar: a drag strip for the window buttons and a search field that
+  narrows the list by page, nav group or section title stay put, only the list below scrolls; 26px rows under
+  small `--o3` group headings, so the 16 pages fit 720px without scrolling; the current page a grey
+  `--fill-strong` fill) and the page on `--bg` (`.settings-pane`): the title in `--fs-title` semibold in the
+  strip beside the window buttons (it drags the window), the intro in regular `--text` (what it touches in
+  **bold**), then groups 24px apart. Every change applies at once; there is no Save.
+- A page has either an intro or group descriptions that say the same, never both; a row's description adds
+  what its label doesn't say, or is left out.
+- The controls follow Glaze's: a group (`Group`, `.settings-group`) is a 13px semibold `--text` heading, indented
+  to the card's content, over its inset group (`.settings-card`, 12px radius, 16px side padding); each row
+  (`Row`, `.settings-row`, 14px above and below, at least 48px, very light hairlines between rows) has the
+  label and, 4px below it, its description
+  (`--fs-meta`, `--o2`, at most 27rem wide, balanced lines) on the left and the control on the right, hairlines
+  between rows. A stacked row
   (`.stacked`) puts the control under the label; a row that depends on a switch sits indented under it
   (`.nested`). Number fields and number popups share one width. Counts use tabular figures; paths, bundle ids and
   commands are mono and selectable. A failure reads in red on a light red tint (`.settings-alert`).
 - A group may carry a description under its heading (`.settings-group-desc`, `--fs-meta`, `--o2`). A lookup
   reads Found in `--style-green` or Missing in `--style-yellow` (`.settings-state`).
-- Pages register in `registry/settingsPages.ts`, in four groups: **Setup** (Vault, Contexts, Projects),
-  **Obsidian** (Daily Note, Routines, Journal), **Workflows** (with its first page) and **System** (General, Tools, Shortcuts,
-  Appearance). Shortcuts lists the global shortcuts first, each marked Global (`.shortcut-global`), then the
+- Pages register in `registry/settingsPages.ts`, in four groups: **Setup** (Connections, Contexts, Projects),
+  **Obsidian** (Daily Note, Routines, Journal, Search), **Workflows** (Workflows, Reminders, Links, Music) and
+  **System** (General, Appearance, Shortcuts, Automation, Status). Connections holds Vault, Obsidian CLI,
+  Calendar, Slack, Jira and TimeTracker as groups; Workflows holds the call triggers and Joining a Call; General
+  holds Launch at login and Tools; Appearance holds the Rail. A former page's id (`vault`, `calendar`, `slack`,
+  `jira`, `timetracker`, `calls`, `tools`, `rail`) opens its page scrolled to that group.
+- Fields and popups are 32px tall with a 10px radius (fields with a quiet border, popups filled); push buttons
+  and segmented controls are 28px; checkboxes are
+  quiet 16px tiles that fill with the accent and a tick. A few options picked together (contexts, projects,
+  weekdays) are chips in one strip, the chosen ones filled with the accent. A repeating item (a routine's item, a
+  journal question, a search scope, a daily-note section) is one compact line: its field, then ↑ ↓ and a
+  trash icon (quiet `--o2` icon buttons, lighter when disabled), its secondary fields on a line below; an
+  item card ends in a row with its Add button and the card's own ↑ ↓ and trash. A due time range sits right
+  under its switch.
+- A workflow (a status, an app trigger, an absence rule, a reminder) is a block: its switch on the left and its
+  name (or a sentence with a field, "During a [Zoom] call") in semibold, its move and remove at the end; below,
+  indented past the switch, a two-column form of small `--o2` labels (120px) and controls left-aligned at
+  290px; a block switched off stays visible at half opacity; blocks sit 32px apart in one card.
+- A list of one-line items (music entries, links, search scopes) shares one card: each line holds all its
+  fields, then ↑ ↓ and trash.
+- A Slack status to set reads as Slack draws it: a dark bar (the sidebar pill's `--slack-*` tokens) with the
+  emoji, the text in white, a divider and the presence. Clicking it opens Emoji, Status text and Presence on
+  one line with Keep the status as a checkbox below. Shortcuts lists the global shortcuts first, each marked Global (`.shortcut-global`), then the
   app menu's keys (fixed), then the windows' own keys; a key field records the next key, Escape stops, ⌫
   unbinds; conflicts show in `--style-yellow`. A concept with several items gets a page with one card per item;
   a fixed list (sections, tools) moves its rows up and down.
@@ -525,7 +590,7 @@ does not exist yet is left out, a disabled one is greyed out.
 menu-bar menu.
 
 The menu-bar menu: Create Today's Note while it is missing (with how many changes wait for it), the tools in
-Settings → Tools order (a tool with things to pick is a submenu: its overlay first, then the picks, the current
+Settings → General → Tools order (a tool with things to pick is a submenu: its overlay first, then the picks, the current
 one ticked), the links, Open Today's Note, Settings…, Quit Daybook; without a vault only Choose Vault….
 Global shortcuts show next to their items. The item's title is the current context's label (an emoji).
 
@@ -542,9 +607,11 @@ Targets, computed by `src/styles/contrast.ts` (WCAG contrast; OKLCH as the CSS c
 `src/styles/contrast.test.ts`:
 
 - `--o2` at least 4.5:1 and `--o3` at least 3:1 on `--bg`, in both content palettes.
-- `--on-accent` at least 4.5:1 on every palette accent (the System accent takes white, as macOS does).
-- Sidebar: `--sidebar-text` and `--sidebar-muted` at least 4.5:1 on `--sidebar-bg`; every accent of the
-  sidebar's tone at least 3:1 on it.
+- `--on-accent` (white or near-black, derived per hue) at least 3:1 on every palette accent; Apple's system
+  colours leave no single text colour at 4.5:1 on all of them (the System accent takes white, as macOS does).
+- Sidebar: `--sidebar-text` and `--sidebar-muted` at least 4.5:1 on `--sidebar-bg`; every accent of the dark
+  sidebar's tone at least 3:1 on it. On the light sidebar the light hues (yellow, orange, green, teal) fall below;
+  text uses `--context-text`/`--accent-text`, capped in lightness.
 
 Also held, checked by eye: `--text` at least 7:1 on `--bg`, each accent at least 3:1 on `--bg`, and `--line`
 visible against `--bg`.

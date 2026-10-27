@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import type { OpenEvent, Timing } from "../../api";
-import { Row, Switch } from "./controls";
+import { Checkbox, ControlRow, Row, Switch } from "./controls";
 import { TimeRangeField } from "./fields";
 
 const NEW_DUE = { from: "09:00", to: "" };
@@ -32,21 +32,15 @@ export function TimingFields({ timing, contextEvent, onChange }: { timing: Timin
         onChange={(on) => onChange(on ? { ...timing, due: lastDue.current } : { ...timing, due: null, openWhenDue: false })}
       />
       {due && (
-        <Row label="Due between" nested>
+        <ControlRow nested>
           <TimeRangeField label="Due" from={due.from} to={due.to} openEnd onChange={(range) => onChange({ ...timing, due: range })} />
-        </Row>
+        </ControlRow>
       )}
       <Row label="Opens by itself" description="Only while something is still open, and never while you're away." stacked>
         <div className="check-column">
-          <label className="check">
-            <input type="checkbox" checked={timing.openWhenDue} disabled={!due} onChange={(e) => onChange({ ...timing, openWhenDue: e.target.checked })} />
-            When it's due (once a day)
-          </label>
+          <Checkbox label="When it's due (once a day)" checked={timing.openWhenDue} disabled={!due} onChange={(openWhenDue) => onChange({ ...timing, openWhenDue })} />
           {events.map((event) => (
-            <label key={event.value} className="check">
-              <input type="checkbox" checked={timing.openOn.includes(event.value)} onChange={(e) => toggle(event.value, e.target.checked)} />
-              {event.label}
-            </label>
+            <Checkbox key={event.value} label={event.label} checked={timing.openOn.includes(event.value)} onChange={(on) => toggle(event.value, on)} />
           ))}
         </div>
       </Row>

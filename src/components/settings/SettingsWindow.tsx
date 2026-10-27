@@ -1,9 +1,63 @@
+import { useState } from "react";
 import type { Settings } from "../../api";
-import { resolveSettingsPage, settingsGroups, useSettingsPagesVersion } from "../../registry/settingsPages";
+import { hasSection, resolveSettingsPage, settingsGroups, useSettingsPagesVersion, type SettingsNavEntry } from "../../registry/settingsPages";
 import { useStageMeta } from "../../stage/meta";
 import { useStore } from "../../state/store";
+import { SectionTarget } from "./controls";
 
-/** System Settings layout: the page list grouped on the left, the page on the right; every change applies at once. */
+const targetOf = (match: SettingsNavEntry) => match.section?.id ?? match.page.id;
+
+/** The page list, narrowed by the search field; a page found by a section's title opens at that section. */
+function SettingsNav({ current, onPage }: { current: string; onPage: (id: string) => void }) {
+  const [query, setQuery] = useState("");
+  const groups = settingsGroups(query);
+  const first = groups[0]?.pages[0];
+  return (
+    <nav className="settings-nav" aria-label="Settings pages" data-stage-list="settings">
+      <div className="settings-titlebar" data-tauri-drag-region />
+      <input
+        className="input settings-nav-search"
+        type="search"
+        aria-label="Search Settings"
+        placeholder="Search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && first) onPage(targetOf(first));
+        }}
+      />
+      <div className="settings-nav-list">
+        {groups.length === 0 && <p className="settings-nav-empty">No Results</p>}
+        {groups.map((g) => (
+          <div key={g.group} className="settings-nav-group">
+            <div className="settings-nav-heading">{g.group}</div>
+            {g.pages.map((match) => {
+              const { page: { id, label, icon: Icon }, section } = match;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  aria-label={section ? `${label} ${section.title}` : undefined}
+                  aria-current={current === id ? "page" : undefined}
+                  data-stage={`settings-nav:${id}`}
+                  data-stage-label={`Settings: ${label}`}
+                  data-stage-role="item"
+                  onClick={() => onPage(targetOf(match))}
+                >
+                  <Icon size="1.077rem" /> {label}
+                  {section && <span className="settings-nav-section"> {section.title}</span>}
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
+/** System Settings layout: the page list grouped on the left, the page on the right; every change applies at once.
+ *  `page` may also name a section; that page opens scrolled to the section's group. */
 export function SettingsWindow({ page: shown, onPage }: { page: string | undefined; onPage: (id: string) => void }) {
   useSettingsPagesVersion();
   const settings = useStore((s) => s.settings);
@@ -16,40 +70,21 @@ export function SettingsWindow({ page: shown, onPage }: { page: string | undefin
     const current = useStore.getState().settings;
     if (current) void save({ ...current, ...patch }, { quiet: true });
   };
+  const target = hasSection(page, shown) ? shown : undefined;
   const { Body } = page;
 
   return (
     <div className="settings-window">
-      <nav className="settings-nav" aria-label="Settings pages" data-stage-list="settings">
-        <div className="settings-titlebar" data-tauri-drag-region />
-        {settingsGroups().map((g) => (
-          <div key={g.group} className="settings-nav-group">
-            <div className="settings-nav-heading">{g.group}</div>
-            {g.pages.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                type="button"
-                aria-current={page.id === id ? "page" : undefined}
-                data-stage={`settings-nav:${id}`}
-                data-stage-label={`Settings: ${label}`}
-                data-stage-role="item"
-                onClick={() => onPage(id)}
-              >
-                <Icon size="1.077rem" /> {label}
-              </button>
-            ))}
-          </div>
-        ))}
-      </nav>
+      <SettingsNav current={page.id} onPage={onPage} />
       <div className="settings-pane">
         <header data-tauri-drag-region>
-          <h2 data-tauri-drag-region>
-            {page.label}
-          </h2>
+          <h2 data-tauri-drag-region>{page.label}</h2>
         </header>
         <div className="settings-body" key={page.id} data-stage={`settings:${page.id}`} data-stage-label={`Settings: ${page.label}`} data-stage-role="region">
           {page.intro && <p className="settings-intro">{page.intro}</p>}
-          <Body s={settings} set={set} />
+          <SectionTarget.Provider value={target}>
+            <Body s={settings} set={set} />
+          </SectionTarget.Provider>
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 //! The Tauri app: managed state, plugins, window and menu events, setup and the run loop.
 
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use tauri::{AppHandle, Manager, RunEvent, WindowEvent};
 use tauri_plugin_autostart::MacosLauncher;
@@ -19,6 +20,7 @@ use crate::{
 };
 
 const MAX_LOG_BYTES: u128 = 5 * 1024 * 1024;
+const EXIT_RESTORE: Duration = Duration::from_secs(3);
 
 pub fn start(
     state: AppState,
@@ -81,11 +83,12 @@ pub fn start(
             scheduler::start(app.handle());
             wizard::install(app.handle());
             status::start(app.handle());
-            calls::start(app.handle());
             slack::install(app.handle());
             music::install(app.handle());
             timetracker::install(app.handle());
             activity::install(app.handle());
+            // After every follower subscribed, so none misses the first check's call.
+            calls::start(app.handle());
             status_rules::start(app.handle());
             notify::install(app.handle());
             window::panel::build(app.handle())?;
@@ -116,10 +119,22 @@ pub fn start(
             RunEvent::Exit => {
                 stage::unpublish(app);
                 timetracker::stop(app);
+                restore_after_call(app);
                 action_log::flush();
             }
             _ => {}
         });
+}
+
+/// Quitting during a call puts back the Slack status and the music volume the call replaced, within
+/// `EXIT_RESTORE`; what doesn't make it is restored at the next start.
+fn restore_after_call(app: &AppHandle) {
+    let finished = tauri::async_runtime::block_on(tokio::time::timeout(EXIT_RESTORE, async {
+        tokio::join!(slack::restore_on_exit(app), music::restore_on_exit(app));
+    }));
+    if finished.is_err() {
+        log::warn!("Restoring Slack and the music after the call took too long");
+    }
 }
 
 fn commands_bus() -> bus::Commands {

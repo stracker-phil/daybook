@@ -41,6 +41,14 @@ pub fn has_been_asleep_long_enough(asleep_for: Duration) -> bool {
     asleep_for >= ASLEEP_AT_LEAST
 }
 
+/// An unreadable lock state counts as locked for this long; after that as unlocked, so a broken
+/// `ioreg` can't keep everything that waits for the owner off for good.
+const UNREADABLE_LOCKED_AT_MOST: Duration = Duration::from_secs(5 * 60);
+
+pub fn locked_when_unreadable(unreadable_for: Duration) -> bool {
+    unreadable_for < UNREADABLE_LOCKED_AT_MOST
+}
+
 static SCREEN_LOCKED: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#""CGSSessionScreenIsLocked"\s*=\s*Yes"#).expect("valid regex"));
 
@@ -89,6 +97,17 @@ mod tests {
         for (secs, expected) in [(30, false), (59, false), (60, true), (61, true)] {
             assert_eq!(
                 has_been_asleep_long_enough(Duration::from_secs(secs)),
+                expected,
+                "{secs} s"
+            );
+        }
+    }
+
+    #[test]
+    fn an_unreadable_lock_state_counts_as_locked_for_five_minutes() {
+        for (secs, expected) in [(0, true), (299, true), (300, false), (301, false)] {
+            assert_eq!(
+                locked_when_unreadable(Duration::from_secs(secs)),
                 expected,
                 "{secs} s"
             );

@@ -49,7 +49,7 @@ pub fn issue_link(jira: &Jira, input: &str) -> AppResult<(String, String)> {
     let base = jira.base_url.trim();
     if base.is_empty() {
         return Err(AppError::InvalidInput(
-            "Set your Jira URL in Settings → Jira first.".into(),
+            "Set your Jira URL in Settings → Connections → Jira first.".into(),
         ));
     }
     let slash = if base.ends_with('/') { "" } else { "/" };
@@ -172,7 +172,7 @@ mod tests {
     fn issue_links_need_a_jira_url_in_settings() {
         assert_eq!(
             invalid_input_message(issue_link(&jira("  ", "QRS"), "6805")),
-            "Set your Jira URL in Settings → Jira first."
+            "Set your Jira URL in Settings → Connections → Jira first."
         );
     }
 

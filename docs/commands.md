@@ -36,7 +36,7 @@ notification (`notify.rs`). The managed `bus::Commands` holds the app's bus, fil
 | Id | Title | Notes |
 |---|---|---|
 | `app:settings` | Settings… | opens the Settings window where it was (`window::open_settings`) |
-| `settings:<page>` | Open a Settings page | family; choices: `window::settings::PAGES`; an unknown page is `not_found` |
+| `settings:<page>` | Open a Settings page | family; choices: `window::settings::PAGES`, then `SECTIONS` (former pages, titled "Calendar (Connections)"), which open their page scrolled to that group; an unknown page is `not_found` |
 | `view:toggleInspector` | Show or Hide the Inspector | shows the Daybook window and toggles its right column |
 | `app:quit` | Quit Daybook | quits |
 | `app:logs` | Open Log Folder | |
@@ -101,7 +101,7 @@ command ids.
 
 - `build_menu(MenuInput { state, hotkeys, tools })`: without a vault only Choose Vault…, Settings… and Quit.
   Otherwise Create Today's Note (with "N entries waiting for today's note") while the note is missing, the
-  tools in Settings → Tools order (a tool with choices is a submenu: its overlay command first, then its
+  tools in Settings → General → Tools order (a tool with choices is a submenu: its overlay command first, then its
   choices), the link menu (at most ten, the rest under More…, then More Links), Open Today's Note,
   Settings…, Quit Daybook. Separators never lead, trail or repeat; empty submenus go.
 - `prune(entries, &dyn CommandStatus)` leaves out what runs an unknown command, greys disabled ones and drops
@@ -140,7 +140,7 @@ ranks and runs.
 
 - `palette_entries(state, hotkeys, commands)`: the menu-bar menu built with every tool, pruned, flattened
   (`PaletteEntry`: kind, label, detail, shortcut, command), plus direct commands (the rail, a call check,
-  the CLI install, the log folder, a "Settings: <Title>" entry per Settings page, the sample overlays in
+  the CLI install, the log folder, a "Settings: <Title>" entry per Settings page and per former page in `SECTIONS`, the sample overlays in
   debug builds). A command reads as `Music: Pause`
   (its submenu path, without overflow submenus or a repeat of the label); links, projects, music and contexts
   are named by themselves, with the link's group and "Current" as detail. Each command once; not the status

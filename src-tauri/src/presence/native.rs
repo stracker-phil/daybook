@@ -64,14 +64,14 @@ fn add_observer(
     std::mem::forget(observer);
 }
 
-/// Blocking. An unreadable state counts as locked, so nothing opens at a lock screen.
-pub fn screen_locked() -> bool {
+/// Blocking. `None` when the state is unreadable.
+pub fn screen_locked() -> Option<bool> {
     let args = ["-n", "Root", "-d1", "-r"].map(String::from);
     let reason = match process::run(Path::new("/usr/sbin/ioreg"), &args, IOREG_TIMEOUT) {
-        Ok(output) if output.success => return is_screen_locked_output(&output.stdout),
+        Ok(output) if output.success => return Some(is_screen_locked_output(&output.stdout)),
         Ok(output) => output.stderr.trim().to_string(),
         Err(e) => e.to_string(),
     };
     log::warn!("Couldn't read the screen lock state: {reason}");
-    true
+    None
 }

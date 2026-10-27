@@ -96,9 +96,25 @@ fn entry(id: ToolId, state: &ToolState) -> Entry {
         ToolId::QuickNotes => row("Quick notes", "notes:quick"),
         ToolId::Links => row("Links", "links:open"),
         ToolId::Projects => row("Projects", "projects:open"),
-        ToolId::Music => row("Music", "music:open"),
+        ToolId::Music => Entry::Row {
+            title: playing_name(state)
+                .map_or_else(|| "Music".into(), |name| format!("Music · {name}")),
+            command: Some("music:open"),
+            detail: None,
+        },
         ToolId::Separator1 | ToolId::Separator2 => Entry::Separator,
     }
+}
+
+/// The entry that plays now; `None` while paused or stopped.
+fn playing_name(state: &ToolState) -> Option<&str> {
+    let music = &state.music;
+    let entry = music.entry.as_deref().filter(|_| music.playing)?;
+    music
+        .entries
+        .iter()
+        .find(|item| item.id == entry)
+        .map(|item| item.name.as_str())
 }
 
 /// The global shortcut of a tool, in Settings notation; the rail shows it too.
@@ -164,7 +180,7 @@ mod tests {
     use super::*;
     use crate::menu::model::CommandsStub;
     use crate::store::settings::{Feature, default_tools};
-    use crate::tools::{Status, bare_state};
+    use crate::tools::{Music, MusicItem, Status, bare_state};
 
     fn hotkeys() -> Hotkeys {
         Hotkeys {
@@ -412,6 +428,34 @@ mod tests {
             let activity = row(&tools, ToolId::Activity).unwrap();
             assert_eq!(activity.title, title, "{timer:?}");
             assert_eq!(activity.command.as_deref(), Some("activity:switch"));
+        }
+    }
+
+    #[test]
+    fn the_music_row_names_what_plays_and_is_plain_otherwise() {
+        let cell = MusicItem {
+            id: "cell".into(),
+            name: "Cell".into(),
+        };
+        for (playing, entry, expected) in [
+            (true, Some("cell"), "Music · Cell"),
+            (false, Some("cell"), "Music"),
+            (true, None, "Music"),
+            (true, Some("gone"), "Music"),
+        ] {
+            let state = ToolState {
+                music: Music {
+                    entries: vec![cell.clone()],
+                    playing,
+                    volume: None,
+                    entry: entry.map(str::to_string),
+                },
+                ..bare_state()
+            };
+            let tools = build(&place(&[ToolId::Music]), &state, &CommandsStub::default());
+            let music = row(&tools, ToolId::Music).unwrap();
+            assert_eq!(music.title, expected, "{playing} {entry:?}");
+            assert_eq!(music.command.as_deref(), Some("music:open"));
         }
     }
 

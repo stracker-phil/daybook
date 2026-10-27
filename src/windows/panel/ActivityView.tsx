@@ -24,7 +24,7 @@ function useTracking(initial: TtState) {
 }
 
 function TtStatus({ tt, onOpen }: { tt: TtState; onOpen: () => void }) {
-  if (tt === "missing") return <span className="palette-error">TimeTracker isn't installed (Settings → TimeTracker).</span>;
+  if (tt === "missing") return <span className="palette-error">TimeTracker isn't installed (Settings → Connections → TimeTracker).</span>;
   return (
     <span className="activity-tt">
       <span className="palette-error">TimeTracker isn't running.</span>

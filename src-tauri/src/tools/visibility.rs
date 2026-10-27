@@ -1,4 +1,4 @@
-//! Which tools a surface shows right now, in the Settings → Tools order.
+//! Which tools a surface shows right now, in the Settings → General → Tools order.
 
 use super::state::ToolState;
 use crate::store::settings::{Feature, ToolId, ToolPlacement};

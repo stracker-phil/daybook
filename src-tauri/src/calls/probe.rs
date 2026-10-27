@@ -9,18 +9,17 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use objc2::msg_send;
-use objc2::rc::Retained;
+use objc2::rc::{Retained, autoreleasepool};
 use objc2::runtime::AnyObject;
 use objc2_app_kit::NSRunningApplication;
 use objc2_application_services::{AXError, AXUIElement};
 use objc2_core_foundation::{CFArray, CFRetained, CFString, CFType};
 use objc2_core_graphics::{CGWindowListCopyWindowInfo, CGWindowListOption, kCGNullWindowID};
 use objc2_foundation::NSString;
-use serde::Deserialize;
 
 use super::access;
 use super::checks::{
-    TEAMS_BUNDLE, automation_refused, bundle_path, microphone_pids, running_bundle_ids,
+    automation_refused, bundle_path, microphone_pids, parse_chrome_tabs, running_bundle_ids,
     runs_from_bundle,
 };
 use super::detect::{Missing, Probe, ProbeError};
@@ -29,8 +28,8 @@ use crate::process::{self, Output};
 
 const LIST_TIMEOUT: Duration = Duration::from_secs(5);
 const SCRIPT_TIMEOUT: Duration = Duration::from_secs(8);
-/// A hung app must not stall the check.
-const AX_TIMEOUT_SECONDS: f32 = 0.5;
+/// A hung app must not stall the check; a busy one in a call may take a moment.
+const AX_TIMEOUT_SECONDS: f32 = 2.0;
 /// Teams shows a window on this level only during a call, on any Space.
 const TEAMS_CALL_LAYER: f64 = 19.0;
 const TEAMS_OWNER: &str = "Microsoft Teams";
@@ -65,42 +64,6 @@ impl MacProbe {
             .insert(bundle_id.to_string(), found.clone());
         Some(found)
     }
-
-    /// Whether a process of the app, its helpers included, records from a microphone.
-    fn uses_microphone(&self, bundle_id: &str) -> Result<bool, String> {
-        let assertions = run("/usr/bin/pmset", &["-g", "assertions"], LIST_TIMEOUT)?;
-        let pids = microphone_pids(&assertions.stdout);
-        if pids.is_empty() {
-            return Ok(false);
-        }
-        let Some(app_path) = self.bundle_path(bundle_id) else {
-            return Ok(false);
-        };
-        let pids = pids
-            .iter()
-            .map(u32::to_string)
-            .collect::<Vec<_>>()
-            .join(",");
-        // ps fails when none of the processes exists any more.
-        let executables = run("/bin/ps", &["-o", "comm=", "-p", &pids], LIST_TIMEOUT)?;
-        Ok(runs_from_bundle(&executables.stdout, &app_path))
-    }
-}
-
-#[derive(Deserialize, Default)]
-struct ChromeTabs {
-    #[serde(default)]
-    urls: Vec<Vec<Option<String>>>,
-    #[serde(default)]
-    titles: Vec<Vec<Option<String>>>,
-}
-
-fn flat(windows: Vec<Vec<Option<String>>>) -> Vec<String> {
-    windows
-        .into_iter()
-        .flatten()
-        .map(Option::unwrap_or_default)
-        .collect()
 }
 
 impl Probe for MacProbe {
@@ -122,14 +85,30 @@ impl Probe for MacProbe {
         }
     }
 
-    /// Teams in a call: it records from the microphone (also while in front), or shows its floating
-    /// call window, which it does on other Spaces even while muted.
-    fn teams_in_call(&self) -> Result<bool, String> {
-        let recording = self.uses_microphone(TEAMS_BUNDLE).unwrap_or_else(|e| {
-            log::warn!("Checking the microphone failed: {e}");
-            false
-        });
-        Ok(recording || has_window(TEAMS_OWNER, TEAMS_CALL_LAYER))
+    fn uses_microphone(&self, bundle_id: &str) -> Result<bool, String> {
+        let assertions = run("/usr/bin/pmset", &["-g", "assertions"], LIST_TIMEOUT)?;
+        if !assertions.success {
+            return Err(format!("pmset failed: {}", assertions.stderr.trim()));
+        }
+        let pids = microphone_pids(&assertions.stdout);
+        if pids.is_empty() {
+            return Ok(false);
+        }
+        let Some(app_path) = self.bundle_path(bundle_id) else {
+            return Ok(false);
+        };
+        let pids = pids
+            .iter()
+            .map(u32::to_string)
+            .collect::<Vec<_>>()
+            .join(",");
+        // ps fails when none of the processes exists any more.
+        let executables = run("/bin/ps", &["-o", "comm=", "-p", &pids], LIST_TIMEOUT)?;
+        Ok(runs_from_bundle(&executables.stdout, &app_path))
+    }
+
+    fn teams_call_window(&self) -> bool {
+        autoreleasepool(|_| has_window(TEAMS_OWNER, TEAMS_CALL_LAYER))
     }
 
     fn chrome_tabs(&self) -> Result<(Vec<String>, Vec<String>), ProbeError> {
@@ -145,44 +124,66 @@ impl Probe for MacProbe {
                 output.stderr.trim()
             )));
         }
-        let tabs: ChromeTabs = serde_json::from_str(output.stdout.trim()).unwrap_or_default();
-        Ok((flat(tabs.urls), flat(tabs.titles)))
+        parse_chrome_tabs(&output.stdout).map_err(ProbeError::Failed)
     }
 
     fn window_titles(&self, bundle_id: &str) -> Result<Vec<String>, ProbeError> {
         if !access::is_trusted() {
             return Err(ProbeError::Missing(Missing::Accessibility));
         }
-        let apps = NSRunningApplication::runningApplicationsWithBundleIdentifier(
-            &NSString::from_str(bundle_id),
-        );
-        let Some(app) = apps.firstObject() else {
-            return Ok(Vec::new());
-        };
-        Ok(ax_window_titles(app.processIdentifier()))
+        autoreleasepool(|_| {
+            let apps = NSRunningApplication::runningApplicationsWithBundleIdentifier(
+                &NSString::from_str(bundle_id),
+            );
+            let Some(app) = apps.firstObject() else {
+                return Ok(Vec::new());
+            };
+            ax_window_titles(app.processIdentifier())
+        })
     }
 }
 
-fn ax_window_titles(pid: i32) -> Vec<String> {
+/// An app without windows, or one that quit meanwhile, has none; a refused or timed-out request
+/// (a hung app) is no answer, never "no windows".
+fn windows_failure(error: AXError) -> Result<Vec<String>, ProbeError> {
+    match error {
+        AXError::NoValue | AXError::AttributeUnsupported | AXError::InvalidUIElement => {
+            Ok(Vec::new())
+        }
+        AXError::APIDisabled => Err(ProbeError::Missing(Missing::Accessibility)),
+        AXError::CannotComplete => Err(ProbeError::Failed(
+            "The app didn't answer for its window titles in time".into(),
+        )),
+        other => Err(ProbeError::Failed(format!(
+            "Reading the window titles failed (AXError {})",
+            other.0
+        ))),
+    }
+}
+
+fn ax_window_titles(pid: i32) -> Result<Vec<String>, ProbeError> {
     // SAFETY: an application element of a live pid; attributes are read with a timeout.
     unsafe {
         let app = AXUIElement::new_application(pid);
         app.set_messaging_timeout(AX_TIMEOUT_SECONDS);
-        let Ok(windows) = attribute(&app, "AXWindows") else {
-            return Vec::new();
+        let windows = match attribute(&app, "AXWindows") {
+            Ok(windows) => windows,
+            Err(error) => return windows_failure(error),
         };
         let Ok(windows) = windows.downcast::<CFArray>() else {
-            return Vec::new();
+            return Err(ProbeError::Failed(
+                "The app's windows came back as something else than a list".into(),
+            ));
         };
         let windows: &CFArray<AXUIElement> = windows.cast_unchecked();
-        windows
+        Ok(windows
             .iter()
             .filter_map(|window| {
                 let title = attribute(&window, "AXTitle").ok()?;
                 title.downcast_ref::<CFString>().map(ToString::to_string)
             })
             .filter(|title| !title.is_empty())
-            .collect()
+            .collect())
     }
 }
 
@@ -239,4 +240,49 @@ fn text(dictionary: &AnyObject, key: &str) -> Option<String> {
         .downcast::<NSString>()
         .ok()
         .map(|text| text.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_app_without_windows_or_that_quit_has_no_window_titles() {
+        for error in [
+            AXError::NoValue,
+            AXError::AttributeUnsupported,
+            AXError::InvalidUIElement,
+        ] {
+            assert_eq!(windows_failure(error), Ok(Vec::new()), "{}", error.0);
+        }
+    }
+
+    #[test]
+    fn disabled_accessibility_is_a_missing_permission() {
+        assert_eq!(
+            windows_failure(AXError::APIDisabled),
+            Err(ProbeError::Missing(Missing::Accessibility))
+        );
+    }
+
+    #[test]
+    fn an_app_that_does_not_answer_in_time_is_a_failure_not_no_windows() {
+        assert_eq!(
+            windows_failure(AXError::CannotComplete),
+            Err(ProbeError::Failed(
+                "The app didn't answer for its window titles in time".into()
+            ))
+        );
+    }
+
+    #[test]
+    fn any_other_accessibility_error_is_a_failure_naming_its_code() {
+        assert_eq!(
+            windows_failure(AXError::Failure),
+            Err(ProbeError::Failed(format!(
+                "Reading the window titles failed (AXError {})",
+                AXError::Failure.0
+            )))
+        );
+    }
 }

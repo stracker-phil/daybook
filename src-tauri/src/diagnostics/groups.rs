@@ -209,7 +209,7 @@ pub fn permissions_group(calendar: CalendarAccess, accessibility: bool) -> Diagn
         row("Accessibility", "Allowed", DiagnosticTone::Ok)
     } else {
         row("Accessibility", "Not allowed", DiagnosticTone::Warn)
-            .offering("settings:general", "General Settings…")
+            .offering("settings:calls", "App Triggers…")
     };
     group("Permissions", vec![calendar, accessibility])
 }
@@ -571,16 +571,11 @@ mod tests {
     }
 
     #[test]
-    fn accessibility_not_allowed_points_to_general_settings() {
+    fn accessibility_not_allowed_points_to_the_app_triggers_settings() {
         let group = permissions_group(CalendarAccess::FullAccess, false);
         assert_eq!(
             shown(&group)[1],
-            (
-                "Accessibility",
-                "Not allowed",
-                Warn,
-                Some("settings:general")
-            )
+            ("Accessibility", "Not allowed", Warn, Some("settings:calls"))
         );
         assert_eq!(
             shown(&permissions_group(CalendarAccess::FullAccess, true))[1],

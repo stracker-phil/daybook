@@ -128,8 +128,11 @@ gear and Choose Vault… too):
 3. It shows the Dock icon, moves the window to the pointer's screen, shows it and brings it forward.
 
 Closing hides the window, so it keeps its page and scroll. `PAGES` lists every page id with its title in
-the page list's order; `settings:<page>` refuses an id that isn't there (`not_found`), and the palette lists
-one "Settings: <Title>" entry per page.
+the page list's order; `SECTIONS` the former pages that are now a group of one (`vault`, `calendar`, `slack`,
+`jira`, `timetracker` on Connections, `calls` on Workflows, `tools` on General, `rail` on Appearance), and
+`page_of` maps either to its page. `settings:<page>` takes both and refuses anything else (`not_found`); a
+section's id reaches the page as is, which scrolls to that group. The palette lists one "Settings: <Title>"
+entry per page and per section.
 
 ## Quick notes editor
 

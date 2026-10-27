@@ -7,11 +7,13 @@ mod native;
 
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant, SystemTime};
 
 use tauri::{AppHandle, Manager};
 
-use checks::{Away, after_wake, has_been_asleep_long_enough, is_coming_back};
+use checks::{
+    Away, after_wake, has_been_asleep_long_enough, is_coming_back, locked_when_unreadable,
+};
 use native::SystemEvent;
 
 use crate::lock::MutexExt;
@@ -26,6 +28,8 @@ struct Inner {
     away: Away,
     /// Wall-clock time, which runs on while the Mac sleeps.
     asleep_since: Option<SystemTime>,
+    /// Since when the lock state has been unreadable in a row.
+    unreadable_since: Option<Instant>,
 }
 
 #[derive(Default)]
@@ -47,6 +51,11 @@ fn away(app: &AppHandle) -> Away {
 /// No automatic overlay may open while away.
 pub fn is_away(app: &AppHandle) -> bool {
     away(app).is_away()
+}
+
+/// Asleep: nothing is checked but whether the Mac is awake again.
+pub fn is_asleep(app: &AppHandle) -> bool {
+    away(app).asleep
 }
 
 fn set_away(app: &AppHandle, next: Away) {
@@ -79,22 +88,48 @@ fn label(away: Away) -> &'static str {
     }
 }
 
-async fn screen_locked() -> bool {
-    tauri::async_runtime::spawn_blocking(native::screen_locked)
+/// The lock state; an unreadable one counts as locked, for a bounded time (`locked_when_unreadable`).
+async fn screen_locked(app: &AppHandle) -> bool {
+    let reading = tauri::async_runtime::spawn_blocking(native::screen_locked)
         .await
-        .unwrap_or(true)
+        .ok()
+        .flatten();
+    locked_from(app, reading)
 }
 
-/// Awake again, announced or noticed: asleep ends, and the lock state decides the rest.
-async fn wake(app: &AppHandle, how: &str) {
-    let locked = screen_locked().await;
-    if !away(app).asleep {
-        return;
+/// Keeps the streak of unreadable lock states.
+fn locked_from(app: &AppHandle, reading: Option<bool>) -> bool {
+    let mut inner = presence(app).inner.lock_unpoisoned();
+    match reading {
+        Some(locked) => {
+            inner.unreadable_since = None;
+            locked
+        }
+        None => {
+            let since = *inner.unreadable_since.get_or_insert_with(Instant::now);
+            locked_when_unreadable(since.elapsed())
+        }
     }
+}
+
+/// Awake again, announced or noticed: asleep ends, and the lock state decides the rest. A call that
+/// is gone now ended when the Mac fell asleep at the latest.
+async fn wake(app: &AppHandle, how: &str) {
+    let locked = screen_locked(app).await;
+    let asleep_since = {
+        let inner = presence(app).inner.lock_unpoisoned();
+        if !inner.away.asleep {
+            return;
+        }
+        inner.asleep_since
+    };
     log::info!(
         "Awake again ({how}), screen {}",
         if locked { "locked" } else { "unlocked" }
     );
+    if let Some(since) = asleep_since {
+        calls::woke(app, since);
+    }
     set_away(app, after_wake(locked));
 }
 
@@ -112,7 +147,7 @@ async fn check(app: &AppHandle) {
         }
         return;
     }
-    if state.locked && !screen_locked().await {
+    if state.locked && !screen_locked(app).await {
         clear_stale_lock(app);
     }
 }
@@ -156,10 +191,10 @@ fn poll_while_locked(app: &AppHandle) {
     });
 }
 
-/// Back at the screen: look for a call, run what fell due meanwhile, refresh the menu bar and give a
-/// waiting overlay the focus.
+/// Back at the screen: look for a call (one that is gone ends at once), run what fell due meanwhile,
+/// refresh the menu bar and give a waiting overlay the focus.
 fn came_back(app: &AppHandle) {
-    calls::check_soon(app);
+    calls::check_now(app);
     scheduler::tick_soon(app);
     tray::refresh(app);
     let app = app.clone();

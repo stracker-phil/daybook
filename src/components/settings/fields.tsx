@@ -1,7 +1,8 @@
 /** Fields shared by the card-per-item settings pages. */
-import { useEffect, useState, type KeyboardEvent } from "react";
-import { X } from "lucide-react";
-import type { ContextColor } from "../../api";
+import { useEffect, useState } from "react";
+import { ArrowDown, ArrowUp, Trash2 } from "lucide-react";
+import type { Context, ContextColor } from "../../api";
+import { BufferedInput } from "./controls";
 
 export const CONTEXT_COLORS: ContextColor[] = ["blue", "purple", "pink", "red", "orange", "yellow", "green", "teal", "graphite"];
 
@@ -25,33 +26,46 @@ export function ColorField({ label, value, onChange }: { label: string; value: C
   );
 }
 
-/** Monday first; stored as weekdays with 0 = Sunday. */
-const WEEKDAYS: { value: number; label: string }[] = [
-  { value: 1, label: "Mo" },
-  { value: 2, label: "Tu" },
-  { value: 3, label: "We" },
-  { value: 4, label: "Th" },
-  { value: 5, label: "Fr" },
-  { value: 6, label: "Sa" },
-  { value: 0, label: "Su" },
-];
+export interface Choice {
+  id: string;
+  title: string;
+}
 
-/** Weekday toggles; an empty list means every day (all shown on; none or all saved as []). */
-export function DaysField({ label, days, onChange }: { label: string; days: number[]; onChange: (days: number[]) => void }) {
-  const shown = days.length > 0 ? days : WEEKDAYS.map((day) => day.value);
-  const toggle = (value: number) => {
-    const next = shown.includes(value) ? shown.filter((day) => day !== value) : [...shown, value];
-    onChange(next.length === 0 || next.length === WEEKDAYS.length ? [] : next.sort((a, b) => a - b));
-  };
+/** A context's label (an emoji) and name. */
+const titleOf = (context: Context) => [context.label.trim(), context.name].filter(Boolean).join(" ");
+
+export const contextChoices = (contexts: Context[]): Choice[] => contexts.map((context) => ({ id: context.id, title: titleOf(context) }));
+
+/** Multi-select toggle chips; the chosen ones are pressed. */
+export function ToggleChips({ label, choices, chosen, onChange }: { label: string; choices: Choice[]; chosen: string[]; onChange: (ids: string[]) => void }) {
+  const toggle = (id: string) => onChange(chosen.includes(id) ? chosen.filter((other) => other !== id) : [...chosen, id]);
   return (
-    <div className="segmented" role="group" aria-label={label}>
-      {WEEKDAYS.map((day) => (
-        <button key={day.value} type="button" aria-pressed={shown.includes(day.value)} onClick={() => toggle(day.value)}>
-          {day.label}
+    <div className="segmented chips" role="group" aria-label={label}>
+      {choices.map((choice) => (
+        <button key={choice.id} type="button" aria-pressed={chosen.includes(choice.id)} onClick={() => toggle(choice.id)}>
+          {choice.title}
         </button>
       ))}
     </div>
   );
+}
+
+/** Monday first; stored as weekdays with 0 = Sunday. */
+const WEEKDAYS: Choice[] = [
+  { id: "1", title: "Mo" },
+  { id: "2", title: "Tu" },
+  { id: "3", title: "We" },
+  { id: "4", title: "Th" },
+  { id: "5", title: "Fr" },
+  { id: "6", title: "Sa" },
+  { id: "0", title: "Su" },
+];
+
+/** Weekday chips; an empty list means every day (all shown on; none or all saved as []). */
+export function DaysField({ label, days, onChange }: { label: string; days: number[]; onChange: (days: number[]) => void }) {
+  const shown = days.length > 0 ? days.map(String) : WEEKDAYS.map((day) => day.id);
+  const change = (ids: string[]) => onChange(ids.length === 0 || ids.length === WEEKDAYS.length ? [] : ids.map(Number).sort((x, y) => x - y));
+  return <ToggleChips label={label} choices={WEEKDAYS} chosen={shown} onChange={change} />;
 }
 
 /** An `HH:MM` field that saves on blur or ↵; saving per keystroke would garble the time mid-entry. */
@@ -87,101 +101,19 @@ export function TimeRangeField({ label, from, to, onChange, openEnd }: { label: 
   );
 }
 
-export interface Choice {
-  id: string;
-  title: string;
-}
-
-const STEPS: Record<string, number> = { ArrowDown: 1, ArrowUp: -1 };
-
-/**
- * Several picks: the chosen ones inline, each removed with one click, and a type-to-add field that keeps the
- * focus (↑↓ pick a match, ↵ adds it).
- */
-export function ChoiceList({ label, choices, chosen, onChange, placeholder }: { label: string; choices: Choice[]; chosen: string[]; onChange: (ids: string[]) => void; placeholder: string }) {
-  const [query, setQuery] = useState("");
-  const [active, setActive] = useState(0);
-  const text = query.trim().toLowerCase();
-  const matches = text ? choices.filter((choice) => !chosen.includes(choice.id) && choice.title.toLowerCase().includes(text)) : [];
-  const current = Math.min(active, Math.max(0, matches.length - 1));
-  const add = (choice: Choice | undefined) => {
-    if (!choice) return;
-    onChange([...chosen, choice.id]);
-    setQuery("");
-    setActive(0);
-  };
-  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    const step = STEPS[e.key];
-    if (step && matches.length > 0) {
-      e.preventDefault();
-      setActive((current + step + matches.length) % matches.length);
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      add(matches[current]);
-    }
-  };
-  const titleOf = (id: string) => choices.find((choice) => choice.id === id)?.title ?? id;
-
-  return (
-    <div className="choice-list">
-      {chosen.length > 0 && (
-        <ul aria-label={label}>
-          {chosen.map((id) => (
-            <li key={id}>
-              <span className="grow-text">{titleOf(id)}</span>
-              <button type="button" className="icon-btn tiny" aria-label={`Remove ${titleOf(id)}`} onClick={() => onChange(chosen.filter((other) => other !== id))}>
-                <X size="0.846rem" aria-hidden="true" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      <input
-        className="input"
-        aria-label={`Add to ${label}`}
-        placeholder={placeholder}
-        value={query}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          setActive(0);
-        }}
-        onKeyDown={onKeyDown}
-      />
-      {text && (
-        <ul className="choice-matches" role="listbox" aria-label={`Matching ${label}`}>
-          {matches.length === 0 && <li className="o3">No match.</li>}
-          {matches.map((choice, i) => (
-            <li
-              key={choice.id}
-              role="option"
-              aria-selected={i === current}
-              className={i === current ? "active" : undefined}
-              onMouseDown={(e) => e.preventDefault()}
-              onMouseEnter={() => setActive(i)}
-              onClick={() => add(choice)}
-            >
-              {choice.title}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-/** Up, down and, for a list you can add to, remove. */
-export function ItemActions({ index, count, onMove, onRemove, removeLabel }: { index: number; count: number; onMove: (from: number, to: number) => void; onRemove?: () => void; removeLabel?: string }) {
+/** Up, down and, for a list you can add to, remove: icon buttons named by their action. */
+export function ItemActions({ index, count, onMove, onRemove, removeLabel = "Remove" }: { index: number; count: number; onMove: (from: number, to: number) => void; onRemove?: () => void; removeLabel?: string }) {
   return (
     <div className="item-actions">
-      <button type="button" className="btn btn-quiet" disabled={index === 0} onClick={() => onMove(index, index - 1)}>
-        Move Up
+      <button type="button" className="icon-btn" aria-label="Move Up" title="Move Up" disabled={index === 0} onClick={() => onMove(index, index - 1)}>
+        <ArrowUp size="1.077rem" aria-hidden="true" />
       </button>
-      <button type="button" className="btn btn-quiet" disabled={index === count - 1} onClick={() => onMove(index, index + 1)}>
-        Move Down
+      <button type="button" className="icon-btn" aria-label="Move Down" title="Move Down" disabled={index === count - 1} onClick={() => onMove(index, index + 1)}>
+        <ArrowDown size="1.077rem" aria-hidden="true" />
       </button>
       {onRemove && (
-        <button type="button" className="btn btn-danger" onClick={onRemove}>
-          {removeLabel}
+        <button type="button" className="icon-btn" aria-label={removeLabel} title={removeLabel} onClick={onRemove}>
+          <Trash2 size="1.077rem" aria-hidden="true" />
         </button>
       )}
     </div>
@@ -207,34 +139,25 @@ export const parseList = (text: string) =>
     .filter(Boolean);
 export const joinList = (words: string[]) => words.join(", ");
 
-/** A bare text input that saves on blur or ↵; an empty value isn't saved when `required`. */
-interface CommitInputProps {
+/** A bare text input that saves its trimmed text on blur or ↵; an empty value isn't saved when `required`. */
+export function CommitInput({ label, value, onCommit, placeholder, required, className }: {
   label: string;
   value: string;
   onCommit: (value: string) => void;
   placeholder?: string;
   required?: boolean;
   className?: string;
-}
-
-export function CommitInput({ label, value, onCommit, placeholder, required, className }: CommitInputProps) {
-  const [draft, setDraft] = useState(value);
-  useEffect(() => setDraft(value), [value]);
-  const commit = () => {
-    const next = draft.trim();
-    if (next === value) return;
-    if (next || !required) onCommit(next);
-    else setDraft(value);
-  };
+}) {
   return (
-    <input
+    <BufferedInput
       className={["input", className].filter(Boolean).join(" ")}
       aria-label={label}
       placeholder={placeholder}
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+      required={required}
+      value={value}
+      onCommit={(text) => {
+        if (text.trim() !== value) onCommit(text.trim());
+      }}
     />
   );
 }

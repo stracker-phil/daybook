@@ -1,10 +1,11 @@
+import type { ReactNode } from "react";
 import { X } from "lucide-react";
 import { api, type AppRef, type CallsInfo, type Joining, type MeetingRule, type Missing, type OpenWith } from "../../api";
 import { fail } from "../../state/requests";
 import type { SettingsPageProps } from "../../registry/settingsPages";
-import { Group, Row, Switch, TextField } from "./controls";
-import { ItemActions, moveItem, replaceItem } from "./fields";
-import { SlackStatusField } from "./SlackStatusField";
+import { Checkbox, ControlRow, EntryFooter, FormRow, FormText, Group, LeadSwitch, Row, Switch } from "./controls";
+import { CommitInput, ItemActions, moveItem, replaceItem } from "./fields";
+import { SlackStatusEditor } from "./SlackStatusField";
 import { useCallsInfo } from "./useCallsInfo";
 
 const SERVICES: { service: keyof OpenWith; label: string }[] = [
@@ -56,14 +57,15 @@ function CallState({ info, reload }: { info: CallsInfo; reload: () => void }) {
   );
 }
 
+const READS_TITLES = "Lets app triggers read other apps’ window titles.";
+const TITLES_BLOCKED = "Other apps’ window titles need it, so apps with a window title can’t be recognized yet.";
+
 function Permissions({ info, needsTitles, reload }: { info: CallsInfo; needsTitles: boolean; reload: () => void }) {
   return (
     <>
-      {needsTitles && !info.accessibility && (
-        <Row label="Accessibility" description="Other apps’ window titles need Accessibility, so apps with a window title can’t be recognized yet.">
-          <AllowAccessibility reload={reload} />
-        </Row>
-      )}
+      <Row label="Accessibility" description={needsTitles && !info.accessibility ? TITLES_BLOCKED : READS_TITLES}>
+        {info.accessibility ? <span className="settings-state found">Allowed</span> : <AllowAccessibility reload={reload} />}
+      </Row>
       {info.missing.includes("automation") && (
         <Row label="Automation" description="Daybook isn’t allowed to read Chrome’s tabs (Privacy → Automation), so Meet calls can’t be recognized.">
           <button type="button" className="btn" onClick={() => void requestAccess("automation", reload)}>
@@ -75,34 +77,63 @@ function Permissions({ info, needsTitles, reload }: { info: CallsInfo; needsTitl
   );
 }
 
-function AppTrigger({ rule, check, onChange }: { rule: MeetingRule; check: string | undefined; onChange: (patch: Partial<MeetingRule>) => void }) {
-  const choose = () => void pickApp().then((picked) => picked && onChange({ bundleId: picked.bundleId }));
-  return (
+interface TriggerProps {
+  rule: MeetingRule;
+  actions: ReactNode;
+  onChange: (patch: Partial<MeetingRule>) => void;
+}
+
+function Trigger({ rule, actions, onChange, call, children }: TriggerProps & { call: boolean; children: ReactNode }) {
+  const title = (
     <>
-      <Switch label="Recognize calls" checked={rule.enabled} onChange={(enabled) => onChange({ enabled })} />
-      <TextField label="Name" description="Shown for the call, e.g. in the menu bar." required value={rule.app} onCommit={(app) => onChange({ app: app.trim() })} />
-      {check ? (
-        <Row label="Call" description={check} />
-      ) : (
-        <>
-          <Row label="macOS app" description={rule.bundleId}>
-            <button type="button" className="btn" onClick={choose}>
-              Choose…
-            </button>
-          </Row>
-          <TextField
-            label="Window title"
-            description="Counts only while a window’s title contains this; empty: while the app runs."
-            placeholder="Contains … (optional)"
-            value={rule.windowTitle ?? ""}
-            onCommit={(title) => onChange({ windowTitle: title.trim() || null })}
-          />
-        </>
-      )}
-      <SlackStatusField description="Shown while the call runs, in contexts with Slack." value={rule.slack} onChange={(slack) => onChange({ slack })} />
+      <strong>{call ? "During a" : "While"}</strong>
+      <CommitInput label="Name" className="app-trigger-name" placeholder="App name" required value={rule.app} onCommit={(app) => onChange({ app })} />
+      <strong>{call ? "call" : "is running"}</strong>
     </>
   );
+  return (
+    <LeadSwitch label={`Recognize ${rule.app} calls`} title={title} checked={rule.enabled} onChange={(enabled) => onChange({ enabled })} accessory={actions}>
+      {children}
+      <FormRow label="Slack status">
+        <SlackStatusEditor value={rule.slack} onChange={(slack) => onChange({ slack })} />
+      </FormRow>
+    </LeadSwitch>
+  );
 }
+
+function BuiltInTrigger({ check, ...props }: TriggerProps & { check: string }) {
+  return (
+    <Trigger {...props} call>
+      <FormRow label="Call" hint={check} />
+    </Trigger>
+  );
+}
+
+function CustomTrigger(props: TriggerProps) {
+  const { rule, onChange } = props;
+  const choose = () => void pickApp().then((picked) => picked && onChange({ bundleId: picked.bundleId }));
+  return (
+    <Trigger {...props} call={false}>
+      <FormRow label="macOS app" hint={rule.bundleId}>
+        <button type="button" className="btn" onClick={choose}>
+          Choose…
+        </button>
+      </FormRow>
+      <FormText
+        label="Window title"
+        placeholder="Contains … (optional)"
+        hint="Only windows on the current Space count."
+        value={rule.windowTitle ?? ""}
+        onCommit={(title) => onChange({ windowTitle: title.trim() || null })}
+      />
+      <FormRow label="Microphone">
+        <Checkbox label="Only while it records from the microphone" checked={rule.needsMicrophone ?? false} onChange={(needsMicrophone) => onChange({ needsMicrophone })} />
+      </FormRow>
+    </Trigger>
+  );
+}
+
+const APP_TRIGGERS = { title: "App triggers", anchor: "calls" };
 
 function AppTriggers({ s, set, info, reload }: SettingsPageProps & { info: CallsInfo; reload: () => void }) {
   const rules = s.meetings.rules;
@@ -114,24 +145,25 @@ function AppTriggers({ s, set, info, reload }: SettingsPageProps & { info: Calls
   const remove = (index: number) => save(rules.filter((_, j) => j !== index));
   const addOther = () => void pickApp().then((picked) => picked && save([...rules, newRule(picked)]));
   return (
-    <>
-      <Group
-        title="App triggers"
-        description="Zoom, Teams and Google Meet calls are recognized directly, on any Space; other apps count while they run (and, if set, show a window whose title contains the text). Checked every 15 seconds while you’re at the Mac; a call ends 45 seconds after it was last seen."
-      >
-        <Switch label="Watch apps" description="Off: no app trigger runs." checked={s.meetings.detection} onChange={(detection) => set({ meetings: { ...s.meetings, detection } })} />
-        {info.detecting && <CallState info={info} reload={reload} />}
-        <Permissions info={info} needsTitles={needsTitles} reload={reload} />
-      </Group>
-      {rules.map((rule, i) => (
-        <Group key={i} title={rule.app}>
-          <AppTrigger rule={rule} check={checkOf(rule.bundleId)} onChange={(patch) => save(replaceItem(rules, i, patch))} />
-          <Row label="">
-            <ItemActions index={i} count={rules.length} onMove={move} onRemove={() => remove(i)} removeLabel="Remove App" />
-          </Row>
-        </Group>
-      ))}
-      <div className="button-row">
+    <Group
+      {...APP_TRIGGERS}
+      description="Zoom, Teams and Google Meet calls are recognized directly; other apps count while they run, or while a window title contains the text. Checked every 15 seconds while you’re at the Mac; a call ends 45 seconds after it was last seen."
+    >
+      <Switch label="Watch apps" description="Off: no app trigger runs." checked={s.meetings.detection} onChange={(detection) => set({ meetings: { ...s.meetings, detection } })} />
+      {info.detecting && <CallState info={info} reload={reload} />}
+      <Permissions info={info} needsTitles={needsTitles} reload={reload} />
+      <ControlRow stacked>
+        {rules.map((rule, i) => {
+          const check = checkOf(rule.bundleId);
+          const props: TriggerProps = {
+            rule,
+            onChange: (patch) => save(replaceItem(rules, i, patch)),
+            actions: <ItemActions index={i} count={rules.length} onMove={move} onRemove={() => remove(i)} removeLabel="Remove App" />,
+          };
+          return check ? <BuiltInTrigger key={i} check={check} {...props} /> : <CustomTrigger key={i} {...props} />;
+        })}
+      </ControlRow>
+      <EntryFooter>
         {missing.map((builtIn) => (
           <button key={builtIn.rule.bundleId} type="button" className="btn" onClick={() => save([...rules, builtIn.rule])}>
             Add {builtIn.rule.app}
@@ -140,8 +172,8 @@ function AppTriggers({ s, set, info, reload }: SettingsPageProps & { info: Calls
         <button type="button" className="btn" onClick={addOther}>
           Add Other App…
         </button>
-      </div>
-    </>
+      </EntryFooter>
+    </Group>
   );
 }
 
@@ -200,27 +232,13 @@ function JoiningCall({ s, set }: SettingsPageProps) {
   );
 }
 
-export function CallsPage(props: SettingsPageProps) {
+/** Workflows → App triggers and Joining a Call. */
+export function CallWorkflows(props: SettingsPageProps) {
   const { data: info, reload } = useCallsInfo();
   return (
     <>
-      {info && <AppTriggers {...props} info={info} reload={reload} />}
+      {info ? <AppTriggers {...props} info={info} reload={reload} /> : <Group {...APP_TRIGGERS}>{null}</Group>}
       <JoiningCall {...props} />
     </>
-  );
-}
-
-/** Rendered on Settings → General. */
-export function AccessibilityRow() {
-  const { data: info, reload } = useCallsInfo();
-  if (!info) return null;
-  return (
-    <Row label="Accessibility" description="Lets app triggers read other apps’ window titles (Settings → Calls).">
-      {info.accessibility ? (
-        <span className="settings-state found">Allowed</span>
-      ) : (
-        <AllowAccessibility reload={reload} />
-      )}
-    </Row>
   );
 }

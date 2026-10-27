@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -53,6 +53,26 @@ const setTime = (label: string, value: string) => {
 
 describe("LinksPage", () => {
   beforeEach(() => vi.clearAllMocks());
+
+  describe("card layout", () => {
+    it("lists all links as lines of one Quick access card", () => {
+      renderPage([link({ title: "A" }), link({ title: "B" }), link({ title: "C" })]);
+      expect(screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(["Quick access"]);
+      expect(screen.getAllByRole("textbox", { name: "Title" }).map((t) => (t as HTMLInputElement).value)).toEqual(["A", "B", "C"]);
+    });
+
+    it("opens the details of a link below its line while the others stay collapsed", async () => {
+      renderPage([link({ title: "A" }), link({ title: "B" })]);
+      await show();
+      expect(screen.getAllByRole("textbox", { name: "URL" })).toHaveLength(1);
+      expect(screen.getAllByRole("button", { name: "Show Details" })).toHaveLength(1);
+    });
+
+    it("offers Add Link even without links", () => {
+      renderPage([]);
+      expect(screen.getByRole("button", { name: "Add Link" })).toBeInTheDocument();
+    });
+  });
 
   describe("collapsed card", () => {
     it("shows the title and starts without details", () => {
@@ -143,40 +163,45 @@ describe("LinksPage", () => {
   });
 
   describe("Context and Project", () => {
-    it("adds a context and removes the last one back to null", async () => {
+    it("adds a context by its chip and saves null when the last one is switched off", async () => {
       renderPage([link()]);
       await show();
-      await userEvent.type(screen.getByRole("textbox", { name: "Add to Context" }), "priv{Enter}");
+      const chip = within(screen.getByRole("group", { name: "Context" })).getByRole("button", { name: "[P] Private" });
+      expect(chip).toHaveAttribute("aria-pressed", "false");
+      await userEvent.click(chip);
       expect(savedLink().contexts).toEqual(["private"]);
-      await userEvent.click(screen.getByRole("button", { name: "Remove [P] Private" }));
+      await userEvent.click(chip);
       expect(savedLink().contexts).toBeNull();
     });
 
-    it("hides the Context list with a single context", async () => {
+    it("hides the Context chips with a single context", async () => {
       renderPage([link()], { contexts: [settings().contexts[0]] });
       await show();
-      expect(screen.queryByRole("textbox", { name: "Add to Context" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("group", { name: "Context" })).not.toBeInTheDocument();
     });
 
     it("saves the projects in the order of the Settings, not of picking", async () => {
       renderPage([link()]);
       await show();
-      await userEvent.type(screen.getByRole("textbox", { name: "Add to Project" }), "pay{Enter}");
-      await userEvent.type(screen.getByRole("textbox", { name: "Add to Project" }), "int{Enter}");
+      const chips = within(screen.getByRole("group", { name: "Project" }));
+      await userEvent.click(chips.getByRole("button", { name: "Oscorp" }));
+      await userEvent.click(chips.getByRole("button", { name: "Internal" }));
       expect(savedLink().projects).toEqual(["Internal", "Oscorp"]);
     });
 
-    it("saves null after removing the last project", async () => {
+    it("presses the chip of a chosen project and saves null after switching off the last one", async () => {
       renderPage([link({ projects: ["Oscorp"] })]);
       await show();
-      await userEvent.click(screen.getByRole("button", { name: "Remove Oscorp" }));
+      const chip = within(screen.getByRole("group", { name: "Project" })).getByRole("button", { name: "Oscorp" });
+      expect(chip).toHaveAttribute("aria-pressed", "true");
+      await userEvent.click(chip);
       expect(savedLink().projects).toBeNull();
     });
 
-    it("hides the Project list without projects", async () => {
+    it("hides the Project chips without projects", async () => {
       renderPage([link()], { projects: [] });
       await show();
-      expect(screen.queryByRole("textbox", { name: "Add to Project" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("group", { name: "Project" })).not.toBeInTheDocument();
     });
   });
 

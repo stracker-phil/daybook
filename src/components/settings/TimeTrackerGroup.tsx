@@ -11,11 +11,12 @@ function StateLabel({ info }: { info: TimeTrackerInfo }) {
   return <span className="settings-state missing">{info.state === "notRunning" ? "TimeTracker isn't running" : "Not installed"}</span>;
 }
 
-export function TimeTrackerPage({ s, set }: SettingsPageProps) {
+/** Connections → TimeTracker. */
+export function TimeTrackerGroup({ s, set }: SettingsPageProps) {
   const timetracker = s.timetracker;
   const { data: info } = useTimetrackerInfo(timetracker.path);
   return (
-    <Group title="Command line tool">
+    <Group title="TimeTracker" anchor="timetracker" description="Daybook shows what TimeTracker is timing; it never records time itself.">
       <Row label="State" description={info ? <span className="mono selectable">{tildePath(info.path)}</span> : undefined}>
         {info && (
           <span className="button-row">
