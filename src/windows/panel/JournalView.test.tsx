@@ -92,9 +92,9 @@ describe("JournalView", () => {
     it("switches to the group numbered by the pressed ⌘ digit", async () => {
       await renderView([MORNING, EVENING], "Morning");
       cmdDigit(2);
-      expect(pressed("Evening")).toBe(true);
+      await waitFor(() => expect(pressed("Evening")).toBe(true));
       cmdDigit(1);
-      expect(pressed("Morning")).toBe(true);
+      await waitFor(() => expect(pressed("Morning")).toBe(true));
     });
 
     it("ignores a digit without ⌘ and a digit beyond the last group", async () => {
