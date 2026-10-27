@@ -128,14 +128,16 @@ describe("ShortcutsPage", () => {
       });
     });
 
-    it("notes that this build registers none when they are not registered", async () => {
+    it("notes that the debug build registers none when they are not registered", async () => {
       await renderPage({ registered: false });
-      expect(screen.getByText(/registers none while the prototype runs/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/The debug build registers none; they take effect in the installed app\./),
+      ).toBeInTheDocument();
     });
 
     it("has no such note when they are registered", async () => {
       await renderPage();
-      expect(screen.queryByText(/registers none/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/The debug build registers none/)).not.toBeInTheDocument();
     });
   });
 

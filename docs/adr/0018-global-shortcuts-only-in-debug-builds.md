@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (2026-10-24), implemented. Temporary: the step that retires the prototype supersedes it.
+Accepted (2026-10-24), implemented. Superseded by [ADR 0030](0030-global-shortcuts-only-in-release-builds.md).
 
 ## Context
 

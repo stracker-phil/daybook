@@ -29,7 +29,7 @@ export function GlobalShortcuts({ overview, s, set }: SettingsPageProps & { over
       description={
         <>
           Work in every app. Click a shortcut and press the new keys; ⌫ clears it, Esc cancels.
-          {!overview.registered && <> This build registers none while the prototype runs; they take effect in the debug build.</>}
+          {!overview.registered && <> The debug build registers none; they take effect in the installed app.</>}
         </>
       }
     >

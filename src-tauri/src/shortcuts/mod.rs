@@ -15,8 +15,8 @@ use crate::state::AppState;
 use crate::store::settings::Hotkeys;
 use crate::{bus, menu};
 
-/// Release builds register none (ADR 0018).
-pub const REGISTERED: bool = cfg!(debug_assertions);
+/// The debug build registers none, so the installed app keeps its keys (ADR 0030).
+pub const REGISTERED: bool = !cfg!(debug_assertions);
 
 pub struct HotkeyAction {
     /// Its key in `Settings.hotkeys`, as stored.

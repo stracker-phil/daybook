@@ -597,8 +597,8 @@ Keys of controls, not commands (they act on the focused control and are not rebi
 | Context menu | ↑↓ items, ↵ runs, Escape closes |
 | Settings → Shortcuts | a key field records the next key (global shortcuts and the menu's keys pause meanwhile); Escape stops, ⌫ unbinds |
 
-Global shortcuts are registered only by the debug build while the prototype runs
-([ADR 0018](adr/0018-global-shortcuts-only-in-debug-builds.md)).
+Global shortcuts are registered only by release builds; the debug build leaves them to the installed app
+([ADR 0030](adr/0030-global-shortcuts-only-in-release-builds.md)).
 
 ## Menu bar
 

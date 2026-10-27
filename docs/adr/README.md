@@ -26,7 +26,7 @@ it stands in Daybook. The numbers in this table are Daybook's.
 | [0015](0015-one-write-path-into-the-vault.md) | Every vault write goes through the note writer; the app never touches frontmatter | Accepted (2026-10-24), implemented |
 | [0016](0016-overlays-never-navigate.md) | Overlays are a non-activating panel that never navigates | Accepted (2026-10-24), implemented |
 | [0017](0017-commands-live-in-rust.md) | Commands live in Rust | Accepted (2026-10-24), implemented |
-| [0018](0018-global-shortcuts-only-in-debug-builds.md) | Release builds register no global shortcuts while the prototype runs | Accepted (2026-10-24), implemented |
+| [0018](0018-global-shortcuts-only-in-debug-builds.md) | Release builds register no global shortcuts while the prototype runs | Accepted (2026-10-24), superseded by [0030](0030-global-shortcuts-only-in-release-builds.md) |
 | [0019](0019-daybook-owns-the-status.md) | Daybook owns the status; it is never read from the note | Accepted (2026-10-24), implemented |
 | [0020](0020-network-only-to-listed-hosts.md) | Daybook talks to Slack (and later Apple's catalog), nothing else | Accepted (2026-10-25), implemented |
 | [0021](0021-a-local-http-api-with-guards.md) | A local HTTP API, off by default and guarded | Accepted (2026-10-27), implemented |
@@ -38,3 +38,4 @@ it stands in Daybook. The numbers in this table are Daybook's.
 | [0027](0027-several-windows-on-a-native-window-layer.md) | Several windows on a native window layer | Accepted (2026-10-27), implemented |
 | [0028](0028-overlays-follow-the-prototype.md) | Overlays follow the prototype's look; the activity is not the timer | Accepted (2026-10-27), implemented; partly supersedes 0011 |
 | [0029](0029-every-call-goes-to-timetracker.md) | Every call goes to TimeTracker, with or without a project | Accepted (2026-10-27), implemented; supersedes the calls part of 0023 |
+| [0030](0030-global-shortcuts-only-in-release-builds.md) | Global shortcuts only in release builds | Accepted (2026-10-27), implemented; supersedes 0018 |

@@ -40,8 +40,8 @@ complete it. The ids follow the prototype: `tool:<id>` (sidebar tools), `hub:*` 
 its toggle), `panel:input`, `palette:search` and `palette:<command>`, `status:<status>`, `project:<id>`,
 `rail:<id>`, `settings-nav:<page>` and `settings:<page>`, `quick-notes:editor`.
 
-`describe.hotkeys` lists the configured global shortcuts even in release builds, which register none while the
-prototype runs ([ADR 0018](adr/0018-global-shortcuts-only-in-debug-builds.md)); `keys` then runs the command.
+`describe.hotkeys` lists the configured global shortcuts even in the debug build, which registers none
+([ADR 0030](adr/0030-global-shortcuts-only-in-release-builds.md)); `keys` then runs the command.
 
 ## Code
 

@@ -127,9 +127,9 @@ menu item's command.
 `hotkey_commands`, converted by `accelerator` (`shift+cmd+k` → `Shift+Command+K`), registered through
 `tauri-plugin-global-shortcut` by `apply` (again after a save that changed them); a shortcut whose command no
 feature registered is skipped. `shortcuts_pause(paused)` takes them away while Settings records one.
-Release builds register none while the prototype runs (`REGISTERED`,
-[ADR 0018](adr/0018-global-shortcuts-only-in-debug-builds.md)); `shortcuts::shown` is what menus and the Daybook window's sidebar show next
-to their items, so a release build shows no hints. `HOTKEY_ACTIONS` pairs each `Hotkeys` key with its command;
+The debug build registers none, so the installed app keeps its keys (`REGISTERED`,
+[ADR 0030](adr/0030-global-shortcuts-only-in-release-builds.md)); `shortcuts::shown` is what menus and the Daybook window's sidebar show next
+to their items, so the debug build shows no hints. `HOTKEY_ACTIONS` pairs each `Hotkeys` key with its command;
 `shortcut_overview` (`shortcuts/overview.rs`) gives Settings → Shortcuts the ones whose command exists, with
 the bus's title and help, plus the app menu's keys.
 

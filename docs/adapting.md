@@ -128,7 +128,7 @@ Owner-specific: delete the module and its calls in `lib.rs` and `app.rs` (`repor
 | **Music**: JXA through `osascript` (Automation permission) | `music/script.rs` | MPRIS over D-Bus | The media session API |
 | **Notifications**: `tauri-plugin-notification`, a button runs a bus command | `notify.rs` | Works through the plugin; actions depend on the desktop | Works through the plugin |
 | **Random token**: `SecRandom` for the HTTP API token | `http_api/token.rs` | `getrandom` | `getrandom` |
-| **Global shortcuts**: registered only in debug builds until the prototype is retired (`shortcuts::REGISTERED`, [ADR 0018](adr/0018-global-shortcuts-only-in-debug-builds.md)) | `shortcuts/` | Works through the plugin on X11 | Works through the plugin |
+| **Global shortcuts**: registered only in release builds (`shortcuts::REGISTERED`, [ADR 0030](adr/0030-global-shortcuts-only-in-release-builds.md)) | `shortcuts/` | Works through the plugin on X11 | Works through the plugin |
 | **Tests**: the setup pretends to be a Mac (`navigator.platform`) | `src/test-setup.ts` | Make the platform a parameter | Same |
 
 A port is done when `bun run test`, `bun run lint` and `bun run release` pass on the target, and the app can:

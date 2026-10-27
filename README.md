@@ -8,8 +8,28 @@ time; my TimeTracker app does that, and Daybook drives it.
 It is a local tool for one person on one Mac. Published as source, as-is: no releases, no binaries, no
 support. To build it or port it, point a coding agent at [AGENTS.md](AGENTS.md).
 
-> Work in progress: Daybook is being ported from a prototype step by step. Right now it is the empty shell: a
-> menu-bar icon, a window with Settings, the command palette and the CLI below.
+![The Daybook window: today's routine, focus, events, journal and notes](docs/screens/day.png)
+
+## What it does
+
+- **Status:** Working, Break and Done for today, with the Slack status to match, and TimeTracker's timer started
+  or stopped along with it.
+- **The day:** today's events, routines (checklists in the daily note), the daily focus, the journal and quick
+  notes, all in the Daybook window and in small overlays opened by global shortcuts.
+- **Activity:** what I'm working on, as a Daybook project and a note, with TimeTracker's timer picked in a second
+  row. Every call during work becomes a suggestion in TimeTracker, with or without a project, and the window's
+  Activity tab shows TimeTracker's day.
+- **The vault:** search with a note preview, open todos across daily notes, quick-access links, Jira issues and
+  Project Launcher folders.
+- **Music, the rail and automation:** Apple Music playlists, a thin rail at the screen edge, the `daybook` CLI,
+  `daybook://` links and a local HTTP API.
+
+![The Activity tab: TimeTracker's day, with suggestions from calls](docs/screens/day-activity.png)
+
+| | |
+|---|---|
+| ![The activity overlay: a project and a note, then the timer](docs/screens/activity-overlay.png) | ![The status overlay](docs/screens/status-overlay.png) |
+| ![The journal overlay](docs/screens/journal-overlay.png) | ![The music overlay](docs/screens/music-overlay.png) |
 
 ## Install
 
@@ -20,7 +40,8 @@ bun run release
 
 This builds `Daybook.app`, links it into `~/Applications` and the `daybook` command into `~/.local/bin`. A
 `~/.local/bin/daybook` the install didn't make (such as the prototype's script) is left alone;
-`scripts/install.sh --replace-cli` replaces it. It runs on macOS on Apple Silicon only.
+`scripts/install.sh --replace-cli` replaces it. Run `scripts/create-signing-cert.sh` once per Mac first, so
+macOS keeps the Accessibility and Calendar grants across rebuilds. It runs on macOS on Apple Silicon only.
 
 ## CLI
 
