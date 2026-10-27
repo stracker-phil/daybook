@@ -10,6 +10,7 @@ use std::time::Duration;
 
 use chrono::{NaiveDate, NaiveDateTime};
 
+use super::day::records::{Recording, Suggestion, parse_recordings, parse_suggestions};
 use super::reply::{
     RecentTimer, TimerState, TtProject, TtStatus, parse_projects, parse_recent, parse_recorded,
     parse_refusal, parse_status, parse_timer,
@@ -71,6 +72,8 @@ const READS: &[&[&str]] = &[
     &["focus"],
     &["timer", "status"],
     &["timer", "recent"],
+    &["recordings"],
+    &["suggestions"],
 ];
 
 /// Whether `args` would change TimeTracker's data.
@@ -157,6 +160,18 @@ pub fn recent(tt: &dyn TimeTracker, limit: u8) -> AppResult<Vec<RecentTimer>> {
     let limit = limit.clamp(1, 100).to_string();
     parse_recent(&call(tt, &["timer", "recent", "--limit", &limit])?)
         .map_err(AppError::TimeTrackerRefused)
+}
+
+/// The recordings with time on `day`, as TimeTracker's Day view shows them.
+pub fn recordings(tt: &dyn TimeTracker, day: NaiveDate) -> AppResult<Vec<Recording>> {
+    let day = day.format("%Y-%m-%d").to_string();
+    parse_recordings(&call(tt, &["recordings", &day])?).map_err(AppError::TimeTrackerRefused)
+}
+
+/// The suggestions to review on `day`: rules' and stored ones.
+pub fn suggestions(tt: &dyn TimeTracker, day: NaiveDate) -> AppResult<Vec<Suggestion>> {
+    let day = day.format("%Y-%m-%d").to_string();
+    parse_suggestions(&call(tt, &["suggestions", &day])?).map_err(AppError::TimeTrackerRefused)
 }
 
 /// Starts the timer on TimeTracker's project `project_id`; TimeTracker continues today's recording
@@ -786,6 +801,42 @@ mod tests {
                 vec![vec!["timer", "recent", "--limit", sent, "--json"]],
                 "{limit}"
             );
+        }
+    }
+
+    #[test]
+    fn recordings_and_suggestions_are_read_for_the_day_as_json() {
+        let day = NaiveDate::from_ymd_opt(2026, 10, 23).unwrap();
+        let tt = Fake::answering(reply(Some(0), "[]", ""));
+        assert_eq!(recordings(&tt, day), Ok(vec![]));
+        assert_eq!(suggestions(&tt, day), Ok(vec![]));
+        assert_eq!(
+            tt.calls(),
+            vec![
+                vec!["recordings", "2026-10-23", "--json"],
+                vec!["suggestions", "2026-10-23", "--json"],
+            ]
+        );
+    }
+
+    #[test]
+    fn recordings_and_suggestions_are_reads_that_a_debug_build_still_runs() {
+        for args in [
+            ["recordings", "2026-10-23", "--json"],
+            ["suggestions", "2026-10-23", "--json"],
+        ] {
+            assert!(!changes_data(&args), "{args:?}");
+        }
+        #[cfg(debug_assertions)]
+        {
+            let cli = cli_at_nothing();
+            for command in ["recordings", "suggestions"] {
+                assert_eq!(
+                    cli.run(&[command, "2026-10-23", "--json"]),
+                    Err(RunFailure::Missing),
+                    "{command}"
+                );
+            }
         }
     }
 

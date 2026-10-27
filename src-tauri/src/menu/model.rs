@@ -298,10 +298,14 @@ fn tool_entries(id: ToolId, input: &MenuInput) -> Vec<MenuEntry> {
             .map(|since| MenuEntry::Info(format!("In a meeting since {since}")))
             .collect(),
         ToolId::Journal => journal_entries(input),
-        ToolId::Hub => vec![
-            command("Open Daybook", "hub:open", &hotkeys.hub),
-            plain("Open in TimeTracker", "timetracker:show"),
-        ],
+        ToolId::Hub => {
+            let mut entries = vec![command("Open Daybook", "hub:open", &hotkeys.hub)];
+            if state.offers_day_activity() {
+                entries.push(plain("Day Activity", "activity:showTab"));
+            }
+            entries.push(plain("Open in TimeTracker", "timetracker:show"));
+            entries
+        }
         ToolId::Search => with_choices(
             "Search Vault",
             command("Search Vault…", "search:open", &hotkeys.search),
@@ -422,6 +426,7 @@ impl CommandStatus for CommandsStub {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::timetracker::TtState;
     use crate::tools::{
         ContextItem, GroupProgress, Link, Music, MusicItem, Progress, Topic, bare_state, fixture,
     };
@@ -585,7 +590,7 @@ mod tests {
     }
 
     #[test]
-    fn the_hub_is_just_open_daybook() {
+    fn the_hub_opens_daybook_then_the_day_activity_then_timetracker() {
         let menu = menu_with(
             &bare_state(),
             &Hotkeys {
@@ -598,6 +603,7 @@ mod tests {
             labels(&menu),
             [
                 "Open Daybook",
+                "Day Activity",
                 "Open in TimeTracker",
                 "—",
                 "Open Today's Note",
@@ -612,8 +618,38 @@ mod tests {
         );
         assert_eq!(
             menu[1],
+            command_entry("Day Activity", "activity:showTab", None)
+        );
+        assert_eq!(
+            menu[2],
             command_entry("Open in TimeTracker", "timetracker:show", None)
         );
+    }
+
+    #[test]
+    fn the_hub_hides_the_day_activity_without_the_status_feature_or_with_timetracker_missing() {
+        for (features, tt, shown) in [
+            (vec![Feature::Status], TtState::Available, true),
+            (vec![Feature::Jira], TtState::Available, false),
+            (vec![Feature::Status], TtState::Missing, false),
+        ] {
+            let state = ToolState {
+                features: features.clone(),
+                tt,
+                ..bare_state()
+            };
+            let menu = labels(&menu_of(&state, &[ToolId::Hub]));
+            assert_eq!(
+                menu.contains(&"Day Activity".to_string()),
+                shown,
+                "{features:?} {tt:?}"
+            );
+            assert_eq!(menu[0], "Open Daybook", "{features:?} {tt:?}");
+            assert!(
+                menu.contains(&"Open in TimeTracker".to_string()),
+                "{features:?} {tt:?}"
+            );
+        }
     }
 
     #[test]
@@ -1199,7 +1235,13 @@ mod tests {
         let pruned = prune(menu, &stub(&["daily:open", "app:settings"], &[]));
         assert_eq!(
             labels(&pruned),
-            ["Open Daybook", "Open in TimeTracker", "—", "Quit Daybook"]
+            [
+                "Open Daybook",
+                "Day Activity",
+                "Open in TimeTracker",
+                "—",
+                "Quit Daybook"
+            ]
         );
     }
 }

@@ -42,6 +42,7 @@ const hubView = (patch: Partial<HubView> = {}): HubView => ({
   todos: [],
   events: { timeline: { hours: [], workHours: null, fullDay: [], blocks: [], now: null }, rows: [] },
   timetracker: { command: "timetracker:show", label: "Open in TimeTracker" },
+  activityTab: false,
   ...patch,
 });
 

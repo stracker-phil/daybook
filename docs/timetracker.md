@@ -122,3 +122,34 @@ meeting word; that project is linked to a TimeTracker project (the first link is
 TimeTracker shows as "Suggested by Daybook" to approve. TimeTracker shows only the part of a suggestion no recording
 covers, so a call made while a timer runs often doesn't show. When TimeTracker isn't running a notification says the
 call wasn't sent. Every outcome is logged.
+
+## The Activity tab
+
+The inspector's Activity tab shows TimeTracker's day read-only ([ADR 0024](adr/0024-daybook-shows-timetrackers-day-read-only.md));
+it is offered (`ToolState::offers_day_activity`, `HubView.activityTab`) in a context with the Status feature while
+TimeTracker is installed. `timetracker_day { day }` runs `recordings <day> --json` and `suggestions <day> --json`
+(`client::recordings`, `client::suggestions`; reads, so debug builds run them too) and returns
+`TimeTrackerDay { state, activity }`: no `activity` while TimeTracker isn't running or is missing, an error when it
+refuses.
+
+`day/view.rs` (pure, `day_view`) builds `DayActivity`:
+- **Timeline:** one row per span of each recording and each suggestion, in start order. A span without an end is the
+  running row ("now"). A gap of 5 minutes or more between rows is a "Nothing recorded" row; suggestions count as
+  covered time. Suggestions show "Suggested by Slack" and count toward no total.
+- **By Project:** projects in order of first appearance with their total, then one line per recording: the note
+  (or "No description"), the tag and its spans ("10:30–11:30, 12:00–12:45").
+- Totals use TimeTracker's durations, formatted like TimeTracker (`1h 05m`, `45m`). Colours come from the project
+  list; a project without one draws in graphite.
+
+Rust sends every text (`title`, `copyText`, `suggestedBy`, `empty`), so the page builds none. Clicking a duration
+copies it; clicking a note or a work row copies the note.
+
+**Reloads:** Rust remembers the day the tab asked for last and emits `activity_changed` when `day/reload.rs`
+(`reloads`, pure) says so: a `watch` data line for recordings, rules, tags or projects of that day (or of no day;
+projects after the colours reloaded), TimeTracker starting or quitting, and the timer changing while the tab shows
+today. The page also reloads on a day change, on window focus and every minute while the tab shows.
+
+`activity:showTab` ("Day Activity", in the menu-bar menu's Hub tool and the palette) shows the Daybook window and
+emits `show_activity_tab`; the page opens the inspector on the tab. The tab (`inspectorTab`) and its view
+(`activityView`: timeline or byProject) are kept in `ui_state.json`. "Open in TimeTracker" in the tab's toolbar runs
+`timetracker:show`.

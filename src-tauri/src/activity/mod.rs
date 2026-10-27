@@ -254,6 +254,11 @@ async fn toggle_pause(app: &AppHandle) -> AppResult<()> {
 
 pub fn register(bus: &mut CommandBus<AppHandle>) {
     bus.add(
+        Command::new("activity:showTab", "Day Activity")
+            .help("Show TimeTracker's day in the Daybook window's inspector")
+            .run_now(window::show_activity_tab),
+    );
+    bus.add(
         Command::new("activity:switch", "Log Activity…")
             .help("Start TimeTracker's timer on what you work on")
             .run(|app| async move { open(&app, ActivityMode::Switch, None).await }),

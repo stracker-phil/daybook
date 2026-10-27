@@ -252,8 +252,41 @@ impl ToolState {
         self.features.contains(&feature)
     }
 
+    /// TimeTracker's day is offered (the inspector's Activity tab, Day Activity) in a context with the
+    /// Status feature while TimeTracker is installed.
+    pub fn offers_day_activity(&self) -> bool {
+        self.has_feature(Feature::Status) && self.tt != TtState::Missing
+    }
+
     pub fn current_context(&self) -> Option<&ContextItem> {
         let id = self.context.as_deref()?;
         self.contexts.iter().find(|context| context.id == id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_day_activity_is_offered_with_the_status_feature_while_timetracker_is_installed() {
+        for (features, tt, expected) in [
+            (vec![Feature::Status], TtState::Available, true),
+            (
+                vec![Feature::Status, Feature::Jira],
+                TtState::NotRunning,
+                true,
+            ),
+            (vec![Feature::Jira], TtState::Available, false),
+            (Vec::new(), TtState::NotRunning, false),
+            (vec![Feature::Status], TtState::Missing, false),
+        ] {
+            let state = ToolState {
+                features: features.clone(),
+                tt,
+                ..bare_state()
+            };
+            assert_eq!(state.offers_day_activity(), expected, "{features:?} {tt:?}");
+        }
     }
 }

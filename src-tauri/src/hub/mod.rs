@@ -72,6 +72,9 @@ pub struct HubView {
     pub todos: Vec<TodoGroup>,
     /// Shows the day in TimeTracker.
     pub timetracker: TimeTrackerLink,
+    /// The inspector offers the Activity tab: the context has the Status feature and TimeTracker is
+    /// installed.
+    pub activity_tab: bool,
 }
 
 fn greeting(hour: u32) -> &'static str {
@@ -115,6 +118,7 @@ pub fn hub_view_at(
         notes: Vec::new(),
         todos: Vec::new(),
         timetracker: show_link(day, is_today),
+        activity_tab: false,
     }
 }
 
@@ -145,6 +149,7 @@ pub async fn hub_view(app: AppHandle, day: Option<String>) -> AppResult<HubView>
         commands: &commands.available(&app),
     });
     let mut view = hub_view_at(day, now, tools, state.status);
+    view.activity_tab = state.offers_day_activity();
     view.slack = slack::shown_now(&app).await;
     if settings.focus.enabled {
         let handle = app.clone();
@@ -304,6 +309,16 @@ mod tests {
         let view = hub_view_at(day, at(19), Vec::new(), None);
         assert!(view.is_today);
         assert_eq!(view.title, "Good evening");
+    }
+
+    #[test]
+    fn the_activity_tab_is_not_offered_until_the_command_decides() {
+        let view = hub_view_at(None, at(9), Vec::new(), None);
+        assert!(!view.activity_tab);
+        assert_eq!(
+            serde_json::to_value(&view).unwrap()["activityTab"],
+            serde_json::json!(false)
+        );
     }
 
     #[test]

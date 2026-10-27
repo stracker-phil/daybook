@@ -7,6 +7,7 @@
 mod call_suggestion;
 pub mod client;
 pub mod commands;
+pub mod day;
 mod drive;
 pub mod link;
 pub mod reply;
@@ -18,6 +19,7 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+use chrono::{Local, NaiveDate};
 use tauri::{AppHandle, Emitter, Listener, Manager};
 
 pub use commands::register;
@@ -25,10 +27,11 @@ use commands::{TimeTrackerInfo, TimeTrackerProjects};
 pub use watch::{Tracking, TtState};
 
 use self::client::{Cli, resolve_path, state_of};
-use self::reply::{DataKind, TtProject};
+use self::day::{DayChange, TimeTrackerDay};
+use self::reply::{DataChange, DataKind, TtProject};
 use self::watch::{Next, Reconnect, Sink, poll, state_after};
 use crate::error::{AppError, AppResult};
-use crate::events::{CONTEXT_CHANGED_EVENT, TIMER_CHANGED_EVENT};
+use crate::events::{ACTIVITY_CHANGED_EVENT, CONTEXT_CHANGED_EVENT, TIMER_CHANGED_EVENT};
 use crate::lock::MutexExt;
 use crate::state::AppState;
 use crate::store::settings::Settings;
@@ -40,6 +43,8 @@ pub struct TimeTrackerService {
     tracking: Mutex<Tracking>,
     /// `projects --archived`, as listed last.
     projects: Mutex<Option<Vec<TtProject>>>,
+    /// The day the Activity tab read last.
+    shown_day: Mutex<Option<NaiveDate>>,
     /// The Daybook project of the timer as Slack heard it last.
     project: Mutex<Option<String>>,
     watching: Arc<Mutex<Option<Child>>>,
@@ -99,17 +104,18 @@ pub fn current_project(app: &AppHandle) -> Option<String> {
 }
 
 fn set_tracking(app: &AppHandle, next: Tracking) {
-    let timer_changed = {
+    let (tt_changed, timer_changed) = {
         let mut tracking = service(app).tracking.lock_unpoisoned();
         if *tracking == next {
             return;
         }
-        if tracking.tt != next.tt {
+        let tt_changed = tracking.tt != next.tt;
+        if tt_changed {
             log::info!("TimeTracker: {:?}", next.tt);
         }
         let timer_changed = tracking.timer != next.timer;
         *tracking = next.clone();
-        timer_changed
+        (tt_changed, timer_changed)
     };
     if let Err(e) = app.emit(TIMER_CHANGED_EVENT, &next) {
         log::warn!("Couldn't announce the timer change: {e}");
@@ -120,6 +126,36 @@ fn set_tracking(app: &AppHandle, next: Tracking) {
     }
     tray::refresh(app);
     follow_project(app);
+    day_changed(
+        app,
+        DayChange::Tracking {
+            tt_changed,
+            timer_changed,
+        },
+    );
+}
+
+/// Tells the Activity tab to read its day again when `change` touches it.
+fn day_changed(app: &AppHandle, change: DayChange) {
+    let Some(shown) = *service(app).shown_day.lock_unpoisoned() else {
+        return;
+    };
+    if day::reloads(change, shown, Local::now().date_naive())
+        && let Err(e) = app.emit(ACTIVITY_CHANGED_EVENT, ())
+    {
+        log::warn!("Couldn't tell the Activity tab of a change: {e}");
+    }
+}
+
+/// The Activity tab's day; projects are listed first when they never were, for their colours.
+pub async fn day_for_page(app: &AppHandle, day: NaiveDate) -> AppResult<TimeTrackerDay> {
+    *service(app).shown_day.lock_unpoisoned() = Some(day);
+    let projects = match cached_projects(app) {
+        Some(projects) => projects,
+        None => load_projects_logged(app).await.unwrap_or_default(),
+    };
+    let now = Local::now().fixed_offset();
+    blocking(app, move |tool| day::read_day(tool, &projects, day, now)).await
 }
 
 /// Slack hears of the timer's project when it changed.
@@ -174,12 +210,17 @@ pub async fn load_projects(app: &AppHandle) -> AppResult<Vec<TtProject>> {
     Ok(listed)
 }
 
+async fn load_projects_logged(app: &AppHandle) -> Option<Vec<TtProject>> {
+    load_projects(app)
+        .await
+        .inspect_err(|e| log::warn!("Couldn't list TimeTracker's projects: {e}"))
+        .ok()
+}
+
 fn refresh_projects_soon(app: &AppHandle) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        if let Err(e) = load_projects(&app).await {
-            log::warn!("Couldn't list TimeTracker's projects: {e}");
-        }
+        load_projects_logged(&app).await;
     });
 }
 
@@ -244,13 +285,22 @@ impl Sink for AppSink<'_> {
         set_tracking(self.0, tracking);
     }
 
-    fn data_changed(&self, kind: DataKind) {
-        match kind {
+    fn data_changed(&self, change: DataChange) {
+        match change.kind {
             DataKind::Projects => {
-                refresh_projects_soon(self.0);
+                // The tab reads the day once the new colours are in.
+                let app = self.0.clone();
+                tauri::async_runtime::spawn(async move {
+                    load_projects_logged(&app).await;
+                    day_changed(&app, DayChange::Data(change));
+                });
                 read_timer_soon(self.0);
             }
-            DataKind::Recordings => activity::recordings_changed(self.0),
+            DataKind::Recordings => {
+                activity::recordings_changed(self.0);
+                day_changed(self.0, DayChange::Data(change));
+            }
+            DataKind::Tags | DataKind::Rules => day_changed(self.0, DayChange::Data(change)),
             DataKind::Other => {}
         }
     }

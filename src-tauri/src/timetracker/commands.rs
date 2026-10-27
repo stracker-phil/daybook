@@ -5,6 +5,7 @@ use serde::Serialize;
 use tauri::AppHandle;
 use ts_rs::TS;
 
+use super::day::TimeTrackerDay;
 use super::reply::TtProject;
 use super::{Tracking, TtState, blocking, client, tracking};
 use crate::bus::{Command, CommandBus};
@@ -51,6 +52,13 @@ pub async fn timetracker_projects(app: AppHandle, fresh: bool) -> TimeTrackerPro
 #[tauri::command]
 pub fn timetracker_timer(app: AppHandle) -> Tracking {
     tracking(&app)
+}
+
+/// The Activity tab: TimeTracker's `day` (`YYYY-MM-DD`), read-only. Later changes to it come as
+/// `activity_changed`.
+#[tauri::command]
+pub async fn timetracker_day(app: AppHandle, day: String) -> AppResult<TimeTrackerDay> {
+    super::day_for_page(&app, parse_day(&day)?).await
 }
 
 /// Brings TimeTracker to the front, starting it if needed.

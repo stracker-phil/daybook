@@ -22,7 +22,7 @@ function handleLaunchEvents(events: LaunchEvent[]) {
 
 function useBackendEvents() {
   useEffect(() => {
-    const { loadSettings, loadUiState, loadHub, applySettings, applyKeybindings, toggleInspector, toast } = useStore.getState();
+    const { loadSettings, loadUiState, loadHub, applySettings, applyKeybindings, toggleInspector, showActivityTab, toast } = useStore.getState();
     const drainLaunches = () => api.takeLaunchEvents().then(handleLaunchEvents, (e) => toast("error", `Launch request failed: ${toAppError(e).message}`));
 
     // Re-installing applies the user's keybinding overrides, which arrive with the settings.
@@ -38,6 +38,7 @@ function useBackendEvents() {
       api.onSettingsChanged((settings) => (applySettings(settings), reloadHub())),
       api.onKeybindingsChanged(applyKeybindings),
       api.onToggleInspector(toggleInspector),
+      api.onShowActivityTab(showActivityTab),
       api.onContextChanged(reloadHub),
       api.onStatusChanged(reloadHub),
       api.onNoteChanged(reloadHub),

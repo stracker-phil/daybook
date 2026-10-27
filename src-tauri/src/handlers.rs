@@ -73,6 +73,7 @@ pub fn handlers() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         timetracker::commands::timetracker_info,
         timetracker::commands::timetracker_projects,
         timetracker::commands::timetracker_timer,
+        timetracker::commands::timetracker_day,
         timetracker::commands::timetracker_focus,
         activity::commands::activity_suggestions,
         activity::commands::activity_submit,

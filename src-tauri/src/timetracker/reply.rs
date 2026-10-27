@@ -1,5 +1,6 @@
 //! TimeTracker's `--json` replies and `watch` lines as typed values. Pure.
 
+use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -105,11 +106,21 @@ pub struct Refusal {
 }
 
 /// What changed in TimeTracker's data, from a `data` line.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DataKind {
     Projects,
     Recordings,
+    Tags,
+    Rules,
     Other,
+}
+
+/// A `data` line: what changed and on which day.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DataChange {
+    pub kind: DataKind,
+    /// `None` when any day may have changed.
+    pub day: Option<NaiveDate>,
 }
 
 /// A line of `watch --json` Daybook acts on.
@@ -119,7 +130,7 @@ pub enum WatchLine {
     Timer(Option<TimerState>),
     /// The activity tracker changed; Daybook ignores it.
     Tracker,
-    Data(DataKind),
+    Data(DataChange),
 }
 
 #[derive(Deserialize)]
@@ -130,8 +141,9 @@ struct Line {
 }
 
 #[derive(Deserialize)]
-struct DataChange {
+struct DataLine {
     kind: String,
+    day: Option<String>,
 }
 
 /// `null` prints nothing, so an empty reply is `None`.
@@ -188,12 +200,18 @@ pub fn parse_watch_line(line: &str) -> Option<WatchLine> {
             .map(|reply| WatchLine::Timer(reply.into_timer())),
         "tracker" => Some(WatchLine::Tracker),
         "data" => {
-            let change: DataChange = serde_json::from_value(line.data).ok()?;
-            Some(WatchLine::Data(match change.kind.as_str() {
+            let change: DataLine = serde_json::from_value(line.data).ok()?;
+            let kind = match change.kind.as_str() {
                 "projects" => DataKind::Projects,
                 "recordings" => DataKind::Recordings,
+                "tags" => DataKind::Tags,
+                "rules" => DataKind::Rules,
                 _ => DataKind::Other,
-            }))
+            };
+            let day = change
+                .day
+                .and_then(|day| NaiveDate::parse_from_str(&day, "%Y-%m-%d").ok());
+            Some(WatchLine::Data(DataChange { kind, day }))
         }
         _ => None,
     }
@@ -501,15 +519,18 @@ mod tests {
             ("projects", DataKind::Projects),
             ("recordings", DataKind::Recordings),
             ("activity", DataKind::Other),
-            ("tags", DataKind::Other),
-            ("rules", DataKind::Other),
+            ("tags", DataKind::Tags),
+            ("rules", DataKind::Rules),
             ("settings", DataKind::Other),
             ("something-new", DataKind::Other),
         ] {
             let line = watch_line("data", &format!(r#"{{"kind":"{kind}","day":null}}"#));
             assert_eq!(
                 parse_watch_line(&line),
-                Some(WatchLine::Data(expected)),
+                Some(WatchLine::Data(DataChange {
+                    kind: expected,
+                    day: None
+                })),
                 "{kind}"
             );
         }
@@ -520,7 +541,10 @@ mod tests {
         let line = watch_line("data", r#"{"kind":"recordings","day":"2026-10-27"}"#);
         assert_eq!(
             parse_watch_line(&line),
-            Some(WatchLine::Data(DataKind::Recordings))
+            Some(WatchLine::Data(DataChange {
+                kind: DataKind::Recordings,
+                day: NaiveDate::from_ymd_opt(2026, 10, 27)
+            }))
         );
     }
 

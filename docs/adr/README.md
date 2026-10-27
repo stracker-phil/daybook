@@ -32,3 +32,4 @@ it stands in Daybook. The numbers in this table are Daybook's.
 | [0021](0021-a-local-http-api-with-guards.md) | A local HTTP API, off by default and guarded | Accepted (2026-10-27), implemented |
 | [0022](0022-daybook-drives-timetracker-through-its-cli.md) | Daybook drives TimeTracker through its CLI and never tracks time itself | Accepted (2026-10-27), implemented |
 | [0023](0023-status-drives-the-timer-calls-are-suggestions.md) | The status drives the timer; calls are suggestions | Accepted (2026-10-27), implemented |
+| [0024](0024-daybook-shows-timetrackers-day-read-only.md) | Daybook shows TimeTracker's day read-only | Accepted (2026-10-27), implemented |

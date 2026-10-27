@@ -1,7 +1,7 @@
 import { vi } from "vitest";
 import type { api as realApi } from "../api";
 // Must not import the store or "../api": they would load the real api module while it is being mocked.
-import { EMPTY_UI_STATE, type Keybindings, type MusicState, type NoteSectionRef, type QuickNoteSaved, type Settings, type UiState } from "../api/types";
+import { EMPTY_UI_STATE, type Keybindings, type MusicState, type NoteSectionRef, type QuickNoteSaved, type Settings, type TimeTrackerDay, type UiState } from "../api/types";
 import { settings } from "./settings";
 
 const noUnlisten = () => Promise.resolve(() => {});
@@ -54,6 +54,7 @@ export function createApiMock(): typeof realApi {
       todos: [],
       events: { timeline: { hours: [], workHours: null, fullDay: [], blocks: [], now: null }, rows: [] },
       timetracker: { command: "timetracker:show", label: "Open in TimeTracker" },
+      activityTab: false,
     }),
     calendarInfo: vi.fn().mockResolvedValue({ access: "full-access", calendars: [] }),
     calendarRequestAccess: vi.fn().mockResolvedValue("full-access"),
@@ -120,6 +121,10 @@ export function createApiMock(): typeof realApi {
     timetrackerInfo: vi.fn().mockResolvedValue({ path: "/Users/pat/.local/bin/timetracker", defaultPath: "~/.local/bin/timetracker", state: "available", version: "0.1.0" }),
     timetrackerProjects: vi.fn().mockResolvedValue({ state: "available", projects: [] }),
     timetrackerTimer: vi.fn().mockResolvedValue({ tt: "available", timer: null }),
+    timetrackerDay: vi.fn(async (day: string): Promise<TimeTrackerDay> => ({
+      state: "available",
+      activity: { day, isToday: true, rows: [], projects: [], total: "0m", totalMs: 0, endLabel: null, empty: "Nothing recorded yet", running: false },
+    })),
     timetrackerFocus: vi.fn().mockResolvedValue(undefined),
     activitySuggestions: vi.fn().mockResolvedValue([]),
     activitySubmit: vi.fn().mockResolvedValue(undefined),
@@ -164,8 +169,10 @@ export function createApiMock(): typeof realApi {
     onCallChanged: vi.fn(noUnlisten),
     onSlackChanged: vi.fn(noUnlisten),
     onTimerChanged: vi.fn(noUnlisten),
+    onActivityChanged: vi.fn(noUnlisten),
     onMusicChanged: vi.fn(noUnlisten),
     onToggleInspector: vi.fn(noUnlisten),
+    onShowActivityTab: vi.fn(noUnlisten),
     onKeybindingsChanged: vi.fn(noUnlisten),
     onStageCollect: vi.fn(noUnlisten),
     onStageAct: vi.fn(noUnlisten),

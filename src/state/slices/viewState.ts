@@ -14,6 +14,12 @@ export interface ViewStateSlice {
   toggleHidePastEvents: () => void;
   /** Folds or unfolds one of the inspector's todo groups. */
   toggleTodoGroup: (label: string) => void;
+  /** The inspector's tab: the open todos or the day's activity. */
+  setInspectorTab: (tab: UiState["inspectorTab"]) => void;
+  /** The Activity tab's view: the timeline or the projects. */
+  setActivityView: (view: UiState["activityView"]) => void;
+  /** Target of the `show_activity_tab` event. */
+  showActivityTab: () => void;
 }
 
 export const viewStateSlice: Slice<ViewStateSlice> = {
@@ -55,6 +61,18 @@ export const viewStateSlice: Slice<ViewStateSlice> = {
         patchUiState(({ collapsedTodoGroups: folded }) => ({
           collapsedTodoGroups: folded.includes(label) ? folded.filter((group) => group !== label) : [...folded, label],
         }));
+      },
+
+      setInspectorTab(tab) {
+        patchUiState(() => ({ inspectorTab: tab }));
+      },
+
+      setActivityView(view) {
+        patchUiState(() => ({ activityView: view }));
+      },
+
+      showActivityTab() {
+        patchUiState(() => ({ inspectorTab: "activity", inspectorHidden: false }));
       },
     };
   },

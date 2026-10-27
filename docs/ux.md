@@ -83,7 +83,9 @@ The Daybook window has three columns: the sidebar, the board and the inspector.
   left edge and its own toolbar ("12 open"); it holds the open todos: groups (Today, This Week, Last Week, a month,
   a year) whose header ("June (3)", `--fs-meta` semibold `--o3`, a chevron) folds them, kept in `ui_state.json`
   (`collapsedTodoGroups`); each todo is its text over "12 Oct · Notes › Topic" in `--fs-meta` `--o3`, and a click
-  opens its note in Obsidian (Daybook never ticks one). Then the Activity tab. ⌘⌃I and the toolbar's
+  opens its note in Obsidian (Daybook never ticks one). Where TimeTracker is offered, a Todos | Activity switch in
+  the toolbar shows TimeTracker's day instead (`ActivityTab`, [timetracker.md](timetracker.md#the-activity-tab)),
+  kept in `ui_state.json` (`inspectorTab`). ⌘⌃I and the toolbar's
   `PanelRight` button (`aria-pressed`) show and hide it; the state is kept in `ui_state.json`
   (`inspectorHidden`).
 - **Unified toolbar** (`Toolbar`, `.toolbar`): every view starts with one 52px row beside the window buttons

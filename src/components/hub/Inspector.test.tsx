@@ -66,6 +66,61 @@ describe("Inspector", () => {
     await vi.waitFor(() => expect(useStore.getState().toasts.map((t) => t.message).join()).toContain("Obsidian missing"));
   });
 
+  describe("Activity tab", () => {
+    async function renderWithTabs(tab: "todos" | "activity", activityTab = true) {
+      const hub = { ...(await api.hubView()), todos: [group("Today", [todo("Write report")])], activityTab };
+      resetStore({ hub, uiState: { ...EMPTY_UI_STATE, inspectorTab: tab } });
+      render(<Inspector />);
+    }
+
+    const tabSwitch = () => screen.queryByRole("group", { name: "Inspector tab" });
+
+    it("offers the Todos and Activity switch when Rust offers the tab", async () => {
+      await renderWithTabs("todos");
+      const buttons = within(tabSwitch()!).getAllByRole("button");
+      expect(buttons.map((b) => b.textContent)).toEqual(["Todos", "Activity"]);
+      expect(within(tabSwitch()!).getByRole("button", { name: "Todos" })).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("shows no switch and the todos when the tab is not offered, even if Activity was saved", async () => {
+      await renderWithTabs("activity", false);
+      expect(tabSwitch()).not.toBeInTheDocument();
+      expect(screen.getByText("1 open")).toBeInTheDocument();
+      expect(screen.getByText("Write report")).toBeInTheDocument();
+    });
+
+    it("titles the column Activity and hides the todos on the Activity tab", async () => {
+      await renderWithTabs("activity");
+      expect(screen.getByText("Activity", { selector: ":not(button)" })).toBeInTheDocument();
+      expect(screen.queryByText("1 open")).not.toBeInTheDocument();
+      expect(screen.queryByText("Write report")).not.toBeInTheDocument();
+    });
+
+    it("switches to the todos and back to the title with the count", async () => {
+      await renderWithTabs("activity");
+      await userEvent.click(within(tabSwitch()!).getByRole("button", { name: "Todos" }));
+      expect(screen.getByText("1 open")).toBeInTheDocument();
+      expect(screen.getByText("Write report")).toBeInTheDocument();
+    });
+
+    it("saves the chosen tab after the debounce", async () => {
+      await renderWithTabs("todos");
+      await userEvent.click(within(tabSwitch()!).getByRole("button", { name: "Activity" }));
+      await vi.waitFor(() => expect(mocked.setUiState).toHaveBeenCalledWith(expect.objectContaining({ inspectorTab: "activity" })), { timeout: 2000 });
+    });
+
+    it("runs the TimeTracker command from the header button on the Activity tab", async () => {
+      await renderWithTabs("activity");
+      await userEvent.click(screen.getByRole("button", { name: "Open in TimeTracker" }));
+      expect(mocked.runCommand).toHaveBeenCalledWith("timetracker:show");
+    });
+
+    it("has no TimeTracker header button on the Todos tab", async () => {
+      await renderWithTabs("todos");
+      expect(screen.queryByRole("button", { name: "Open in TimeTracker" })).not.toBeInTheDocument();
+    });
+  });
+
   describe("folding", () => {
     it("hides the todos of a clicked group and keeps the other groups open", async () => {
       await renderInspector([group("Today", [todo("Write report")]), group("Last week", [todo("Pay invoice")])]);

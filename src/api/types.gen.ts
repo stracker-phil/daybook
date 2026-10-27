@@ -68,6 +68,11 @@ tag: string | null,
  */
 display: string, };
 
+/**
+ * How the Activity tab shows the day.
+ */
+export type ActivityTabView = "timeline" | "byProject";
+
 export type ActivityTtProject = { id: string, name: string, client: string | null, 
 /**
  * An accent name, e.g. `blue`; empty before TimeTracker listed its projects.
@@ -327,6 +332,101 @@ waiting: number, };
  */
 export type DailySection = "journal" | "focus" | "plan" | "notes";
 
+/**
+ * TimeTracker's day as the Activity tab shows it.
+ */
+export type DayActivity = { 
+/**
+ * `YYYY-MM-DD`.
+ */
+day: string, isToday: boolean, 
+/**
+ * In time order.
+ */
+rows: Array<DayActivityRow>, 
+/**
+ * In first-appearance order; suggestions left out.
+ */
+projects: Array<DayActivityProject>, 
+/**
+ * The recordings' sum as TimeTracker counts it, suggestions left out: "3h 00m".
+ */
+total: string, totalMs: number, 
+/**
+ * Under the last row: its end, `now` while it runs; `None` without rows.
+ */
+endLabel: string | null, 
+/**
+ * "Nothing recorded yet" today, "Nothing recorded" on another day; `None` once there are rows.
+ */
+empty: string | null, 
+/**
+ * A timer runs on the day.
+ */
+running: boolean, };
+
+/**
+ * A project in By Project with its recordings.
+ */
+export type DayActivityProject = { projectId: string, project: string, client: string | null, color: string | null, shade: number | null, total: string, totalMs: number, recordings: Array<DayActivityRecording>, };
+
+/**
+ * One recording in By Project: every span on one row.
+ */
+export type DayActivityRecording = { recordingId: string, 
+/**
+ * Verbatim; empty without one.
+ */
+note: string, tag: string | null, 
+/**
+ * "10:30–11:30, 12:00–12:45"; the running span ends with `now`.
+ */
+spans: string, duration: string, durationMs: number, running: boolean, };
+
+/**
+ * One row of the Timeline: a span of a recording or suggestion, or a gap.
+ */
+export type DayActivityRow = { kind: DayActivityRowKind, 
+/**
+ * `HH:MM`.
+ */
+start: string, 
+/**
+ * `HH:MM`, or `now` for the running span.
+ */
+end: string, 
+/**
+ * "1h 05m".
+ */
+duration: string, durationMs: number, 
+/**
+ * "Apollo · QRS-7061: Data Sync", the project alone without a note, "Nothing recorded"
+ * for a gap.
+ */
+title: string, project: string | null, client: string | null, 
+/**
+ * Verbatim; empty without one.
+ */
+note: string, tag: string | null, 
+/**
+ * An accent name; `None` for a gap or a project TimeTracker didn't list.
+ */
+color: string | null, 
+/**
+ * 0 to 8, darkest first.
+ */
+shade: number | null, 
+/**
+ * "Suggested by Slack: Oscorp" on a suggestion.
+ */
+suggestedBy: string | null, 
+/**
+ * What a click copies: the note, else the project; `None` for a gap.
+ */
+copyText: string | null, recordingId: string | null, };
+
+export type DayActivityRowKind = "work" | "running" | "suggestion" | "gap";
+
 export type DayEvents = { timeline: DayTimeline, rows: Array<EventRow>, };
 
 /**
@@ -526,7 +626,17 @@ todos: Array<TodoGroup>,
 /**
  * Shows the day in TimeTracker.
  */
-timetracker: TimeTrackerLink, };
+timetracker: TimeTrackerLink, 
+/**
+ * The inspector offers the Activity tab: the context has the Status feature and TimeTracker is
+ * installed.
+ */
+activityTab: boolean, };
+
+/**
+ * The inspector's tab.
+ */
+export type InspectorTab = "todos" | "activity";
 
 /**
  * "Open Jira Issue" opens `base_url` + the key; a bare number gets `default_prefix`.
@@ -1450,6 +1560,15 @@ export type TextPart = { text: string, hit: boolean, };
 export type TextSize = "small" | "medium" | "large";
 
 /**
+ * The Activity tab's answer: the day, or why there is none.
+ */
+export type TimeTrackerDay = { state: TtState, 
+/**
+ * `None` unless TimeTracker answered.
+ */
+activity: DayActivity | null, };
+
+/**
  * Settings → TimeTracker.
  */
 export type TimeTrackerInfo = { 
@@ -1648,7 +1767,11 @@ hidePastEvents: boolean,
 /**
  * The labels of the inspector's todo groups that are folded away.
  */
-collapsedTodoGroups: Array<string>, };
+collapsedTodoGroups: Array<string>, 
+/**
+ * Stays when the Activity tab is hidden, so it comes back with it.
+ */
+inspectorTab: InspectorTab, activityView: ActivityTabView, };
 
 export type Vault = { path: string | null, 
 /**

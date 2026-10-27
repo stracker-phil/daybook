@@ -52,6 +52,7 @@ function renderEvents(dayEvents: DayEvents, patch: Partial<HubView> = {}) {
     todos: [],
     events: dayEvents,
     timetracker: { command: "timetracker:show", label: "Open in TimeTracker" },
+    activityTab: false,
     ...patch,
   };
   render(<Events hub={hub} />);

@@ -30,6 +30,7 @@ const hub = (patch: Partial<HubView> = {}): HubView => ({
   todos: [],
   events: { timeline: { hours: [], workHours: null, fullDay: [], blocks: [], now: null }, rows: [] },
   timetracker: { command: "timetracker:show", label: "Open in TimeTracker" },
+  activityTab: false,
   ...patch,
 });
 
@@ -218,6 +219,16 @@ describe("App", () => {
       expect(inspector()).not.toBeInTheDocument();
       await emit(mocked.onToggleInspector);
       expect(inspector()).toBeInTheDocument();
+    });
+
+    it("opens a hidden inspector on the Activity tab when Rust announces show_activity_tab", async () => {
+      mocked.hubView.mockResolvedValueOnce(hub({ activityTab: true }));
+      mocked.getUiState.mockResolvedValueOnce({ ...EMPTY_UI_STATE, inspectorHidden: true });
+      await renderApp();
+      await vi.waitFor(() => expect(inspector()).not.toBeInTheDocument());
+      await emit(mocked.onShowActivityTab);
+      expect(inspector()).toBeInTheDocument();
+      expect(within(inspector()!).getByRole("button", { name: "Activity" })).toHaveAttribute("aria-pressed", "true");
     });
 
     it("answers to the new key when the keybindings change", async () => {

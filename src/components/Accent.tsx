@@ -18,8 +18,10 @@ export function AccentSwatches({ value, onChange, withSystem = false }: { value:
 const DARKEST = 0.36;
 const SHADE_STEP = 0.06;
 
-/** A small filled circle in a TimeTracker project's colour: an accent hue at one of its shades (0 darkest). */
+/** A TimeTracker project's colour as CSS: an accent hue at one of its shades (0 darkest). */
+export const accentColor = (accent: string, shade: number) => `oklch(from var(--a-${accent}, var(--o3)) ${(DARKEST + shade * SHADE_STEP).toFixed(2)} c h)`;
+
+/** A small filled circle in a TimeTracker project's colour. */
 export function AccentDot({ accent, shade }: { accent: string; shade: number }) {
-  const background = `oklch(from var(--a-${accent}, var(--o3)) ${(DARKEST + shade * SHADE_STEP).toFixed(2)} c h)`;
-  return <span className="accent-dot" aria-hidden="true" style={{ background }} />;
+  return <span className="accent-dot" aria-hidden="true" style={{ background: accentColor(accent, shade) }} />;
 }

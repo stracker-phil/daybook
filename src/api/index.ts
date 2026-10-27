@@ -55,6 +55,7 @@ import type {
   Status,
   ToolId,
   StatusChanged,
+  TimeTrackerDay,
   TimeTrackerInfo,
   TimeTrackerProjects,
   TimerChanged,
@@ -201,6 +202,8 @@ export const api = {
   timetrackerProjects: (fresh: boolean) => invoke<TimeTrackerProjects>("timetracker_projects", { fresh }),
   /** TimeTracker's state and its running timer; later changes come as `timer_changed`. */
   timetrackerTimer: () => invoke<TimerChanged>("timetracker_timer"),
+  /** The Activity tab: TimeTracker's `day` (`YYYY-MM-DD`), read-only; later changes come as `activity_changed`. */
+  timetrackerDay: (day: string) => invoke<TimeTrackerDay>("timetracker_day", { day }),
   /** Brings TimeTracker to the front, starting it if needed. */
   timetrackerFocus: () => invoke<void>("timetracker_focus"),
   /** The activity overlay's suggestions: meetings, today's tickets, recent timers, in that order. */
@@ -269,6 +272,10 @@ export const api = {
   onSlackChanged: (handler: () => void): Promise<UnlistenFn> => listen("slack_changed", handler),
   /** TimeTracker started or stopped a timer, or started, quit or went missing. */
   onTimerChanged: (handler: (change: TimerChanged) => void): Promise<UnlistenFn> => listen<TimerChanged>("timer_changed", (e) => handler(e.payload)),
+  /** TimeTracker's day the Activity tab shows changed. */
+  onActivityChanged: (handler: () => void): Promise<UnlistenFn> => listen("activity_changed", handler),
+  /** To the Daybook window: show the inspector on its Activity tab. */
+  onShowActivityTab: (handler: () => void): Promise<UnlistenFn> => listen("show_activity_tab", handler),
   /** Settings were saved, from any window. */
   onSettingsChanged: (handler: (settings: Settings) => void): Promise<UnlistenFn> => listen<Settings>("settings_changed", (e) => handler(e.payload)),
   /** Shortcut overrides were saved, from any window. */

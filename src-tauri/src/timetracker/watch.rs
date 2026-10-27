@@ -7,7 +7,7 @@ use serde::Serialize;
 use ts_rs::TS;
 
 use super::client::{RawReply, RunFailure, TimeTracker, state_of, timer_status};
-use super::reply::{DataKind, TimerState, WatchLine, parse_watch_line};
+use super::reply::{DataChange, TimerState, WatchLine, parse_watch_line};
 
 /// Whether Daybook can reach TimeTracker.
 #[derive(Serialize, Clone, Copy, Debug, Default, PartialEq, Eq, TS)]
@@ -117,7 +117,7 @@ pub trait Sink {
     /// The first line arrived.
     fn connected(&self);
     fn tracking(&self, tracking: Tracking);
-    fn data_changed(&self, kind: DataKind);
+    fn data_changed(&self, change: DataChange);
 }
 
 /// Follows one `watch` until it ends; whether any line came.
@@ -140,7 +140,7 @@ pub fn follow(tt: &dyn TimeTracker, sink: &dyn Sink) -> (WatchEnd, bool) {
                 tt: TtState::Available,
                 timer,
             }),
-            WatchLine::Data(kind) => sink.data_changed(kind),
+            WatchLine::Data(change) => sink.data_changed(change),
             WatchLine::Tracker => {}
         }
     }
@@ -165,6 +165,7 @@ mod tests {
     use std::sync::Mutex;
 
     use super::super::client::Watch;
+    use super::super::reply::DataKind;
     use super::*;
 
     const IDLE: &str = r#"{"running":false,"recordingId":null,"projectId":null,"project":null,"client":null,"tagId":null,"tag":null,"note":null,"startedAt":null,"startedAtIso":null,"elapsedMs":null}"#;
@@ -257,7 +258,7 @@ mod tests {
     enum Heard {
         Connected,
         Tracking(Tracking),
-        Data(DataKind),
+        Data(DataChange),
     }
 
     #[derive(Default)]
@@ -272,8 +273,8 @@ mod tests {
             self.0.borrow_mut().push(Heard::Tracking(tracking));
         }
 
-        fn data_changed(&self, kind: DataKind) {
-            self.0.borrow_mut().push(Heard::Data(kind));
+        fn data_changed(&self, change: DataChange) {
+            self.0.borrow_mut().push(Heard::Data(change));
         }
     }
 
@@ -399,12 +400,18 @@ mod tests {
                     tt: TtState::Available,
                     timer: None
                 }),
-                Heard::Data(DataKind::Projects),
+                Heard::Data(DataChange {
+                    kind: DataKind::Projects,
+                    day: None
+                }),
                 Heard::Tracking(Tracking {
                     tt: TtState::Available,
                     timer: Some(running_timer())
                 }),
-                Heard::Data(DataKind::Recordings),
+                Heard::Data(DataChange {
+                    kind: DataKind::Recordings,
+                    day: chrono::NaiveDate::from_ymd_opt(2026, 10, 27)
+                }),
             ]
         );
     }

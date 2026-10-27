@@ -11,7 +11,7 @@ pub mod settings;
 
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
 
-use crate::events::{TOGGLE_INSPECTOR_EVENT, WINDOW_OPENED_EVENT};
+use crate::events::{SHOW_ACTIVITY_TAB_EVENT, TOGGLE_INSPECTOR_EVENT, WINDOW_OPENED_EVENT};
 
 const MAIN: &str = "main";
 
@@ -154,5 +154,13 @@ pub fn toggle_inspector(app: &AppHandle) {
     show_main(app);
     if let Err(e) = app.emit_to(MAIN, TOGGLE_INSPECTOR_EVENT, ()) {
         log::warn!("Couldn't toggle the inspector: {e}");
+    }
+}
+
+/// Shows the Daybook window with its inspector open on the Activity tab.
+pub fn show_activity_tab(app: &AppHandle) {
+    show_main(app);
+    if let Err(e) = app.emit_to(MAIN, SHOW_ACTIVITY_TAB_EVENT, ()) {
+        log::warn!("Couldn't show the Activity tab: {e}");
     }
 }

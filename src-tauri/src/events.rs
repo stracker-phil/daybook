@@ -24,6 +24,9 @@ pub const SLACK_CHANGED_EVENT: &str = "slack_changed";
 pub const MUSIC_CHANGED_EVENT: &str = "music_changed";
 /// Payload: a `TimerChanged`; TimeTracker's state or its timer changed (docs/timetracker.md).
 pub const TIMER_CHANGED_EVENT: &str = "timer_changed";
+/// No payload; TimeTracker's day the Activity tab shows changed, so the tab reads it again
+/// (`timetracker_day`).
+pub const ACTIVITY_CHANGED_EVENT: &str = "activity_changed";
 /// Payload: the saved `Settings`.
 pub const SETTINGS_CHANGED_EVENT: &str = "settings_changed";
 /// Payload: the saved `Keybindings`.
@@ -32,6 +35,8 @@ pub const KEYBINDINGS_CHANGED_EVENT: &str = "keybindings_changed";
 pub const OPEN_SETTINGS_EVENT: &str = "open_settings";
 /// To the Daybook window. No payload; shows or hides the inspector column.
 pub const TOGGLE_INSPECTOR_EVENT: &str = "toggle_inspector";
+/// To the Daybook window. No payload; shows the inspector on its Activity tab.
+pub const SHOW_ACTIVITY_TAB_EVENT: &str = "show_activity_tab";
 /// To the quick-notes editor. No payload; another topic was chosen, so the page saves and reloads.
 pub const QUICK_NOTE_TARGET_EVENT: &str = "quick_note_target";
 /// To the rail window. Payload: the `RailModel` to draw.

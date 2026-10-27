@@ -1,5 +1,5 @@
-//! Window layout that survives a restart (`ui_state.json`): the sidebar, the inspector and pane sizes. Unknown keys are
-//! ignored.
+//! Window layout that survives a restart (`ui_state.json`): the sidebar, the inspector (its tab and the
+//! Activity tab's view) and pane sizes. Unknown keys are ignored.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -9,6 +9,27 @@ use ts_rs::TS;
 
 use super::json_store::JsonStore;
 use crate::error::AppResult;
+
+/// The inspector's tab.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq, Eq, TS)]
+#[ts(export, export_to = "src/api/types.gen.ts")]
+#[serde(rename_all = "camelCase")]
+pub enum InspectorTab {
+    #[default]
+    Todos,
+    /// TimeTracker's day.
+    Activity,
+}
+
+/// How the Activity tab shows the day.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq, Eq, TS)]
+#[ts(export, export_to = "src/api/types.gen.ts")]
+#[serde(rename_all = "camelCase")]
+pub enum ActivityTabView {
+    #[default]
+    Timeline,
+    ByProject,
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, TS)]
 #[ts(export, export_to = "src/api/types.gen.ts")]
@@ -25,6 +46,9 @@ pub struct UiState {
     pub hide_past_events: bool,
     /// The labels of the inspector's todo groups that are folded away.
     pub collapsed_todo_groups: Vec<String>,
+    /// Stays when the Activity tab is hidden, so it comes back with it.
+    pub inspector_tab: InspectorTab,
+    pub activity_view: ActivityTabView,
 }
 
 impl Default for UiState {
@@ -36,6 +60,8 @@ impl Default for UiState {
             pane_sizes: HashMap::new(),
             hide_past_events: false,
             collapsed_todo_groups: Vec::new(),
+            inspector_tab: InspectorTab::default(),
+            activity_view: ActivityTabView::default(),
         }
     }
 }
@@ -83,6 +109,8 @@ mod tests {
                 pane_sizes: HashMap::new(),
                 hide_past_events: false,
                 collapsed_todo_groups: Vec::new(),
+                inspector_tab: InspectorTab::Todos,
+                activity_view: ActivityTabView::Timeline,
             }
         );
     }
@@ -171,6 +199,8 @@ mod tests {
             pane_sizes: HashMap::from([("list".to_string(), 320.0)]),
             hide_past_events: true,
             collapsed_todo_groups: vec!["Today".to_string()],
+            inspector_tab: InspectorTab::Activity,
+            activity_view: ActivityTabView::ByProject,
         };
         let saved = UiStateStore::open(dir.path())
             .set(ui.clone())
@@ -203,9 +233,27 @@ mod tests {
                 "sidebarWidth": 200,
                 "paneSizes": {},
                 "hidePastEvents": false,
-                "collapsedTodoGroups": []
+                "collapsedTodoGroups": [],
+                "inspectorTab": "todos",
+                "activityView": "timeline"
             })
         );
+    }
+
+    #[test]
+    fn the_inspector_tab_and_activity_view_are_read_from_their_camel_case_names() {
+        let dir = temp_config_dir();
+        std::fs::write(
+            dir.path().join("ui_state.json"),
+            r#"{"inspectorTab": "activity", "activityView": "byProject"}"#,
+        )
+        .unwrap();
+        let loaded = UiStateStore::open(dir.path()).get();
+        assert_eq!(loaded.inspector_tab, InspectorTab::Activity);
+        assert_eq!(loaded.activity_view, ActivityTabView::ByProject);
+        let json = serde_json::to_value(&loaded).unwrap();
+        assert_eq!(json["inspectorTab"], "activity");
+        assert_eq!(json["activityView"], "byProject");
     }
 
     #[test]
