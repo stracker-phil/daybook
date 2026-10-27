@@ -76,12 +76,18 @@ export function createApiMock(): typeof realApi {
       api: { running: false, error: null, port: 27180 },
       token: "secret-token",
       baseUrl: "http://127.0.0.1:27180/v1",
+      stageFile: null,
+      lastPresenterRequest: null,
+      registerCommand: "stage register http://127.0.0.1:27180/v1/stage --token secret-token",
       examples: [
         'curl -s -H "Authorization: Bearer <token>" http://127.0.0.1:27180/v1/state',
         'curl -s -H "Authorization: Bearer <token>" -d status=break -d note=Lunch http://127.0.0.1:27180/v1/status',
       ],
     }),
     automationNewToken: vi.fn().mockResolvedValue("new-token"),
+    stageRevealFile: vi.fn().mockResolvedValue(undefined),
+    stageAnchors: vi.fn().mockResolvedValue(undefined),
+    stageDone: vi.fn().mockResolvedValue(undefined),
     statusSet: vi.fn().mockResolvedValue(undefined),
     focusInfo: vi.fn().mockResolvedValue({ body: "", projects: [], slack: "none", channel: "" }),
     focusSave: vi.fn().mockResolvedValue(undefined),
@@ -153,5 +159,7 @@ export function createApiMock(): typeof realApi {
     onMusicChanged: vi.fn(noUnlisten),
     onToggleInspector: vi.fn(noUnlisten),
     onKeybindingsChanged: vi.fn(noUnlisten),
+    onStageCollect: vi.fn(noUnlisten),
+    onStageAct: vi.fn(noUnlisten),
   };
 }

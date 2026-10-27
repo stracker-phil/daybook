@@ -21,7 +21,7 @@ use crate::error::{AppError, AppResult};
 use crate::http_api::{self, ApiStatus};
 use crate::state::AppState;
 use crate::store::settings::SlackStatus;
-use crate::{slack, status, window};
+use crate::{slack, stage, status, window};
 use cli::CliInfo;
 
 /// Lets the answer to a command that quits reach its caller before the app exits.
@@ -87,7 +87,7 @@ async fn perform(app: &AppHandle, request: Request) -> Result<Outcome, Automatio
 }
 
 /// Runs a command by id and waits for it; one that quits the app is answered first.
-pub(super) async fn command(app: &AppHandle, id: &str) -> Result<(), AutomationError> {
+pub(crate) async fn command(app: &AppHandle, id: &str) -> Result<(), AutomationError> {
     let commands = app.state::<bus::Commands>();
     let info = commands
         .info(id)
@@ -123,13 +123,24 @@ pub struct AutomationInfo {
     pub base_url: String,
     /// Requests to copy, with `<token>` for the token.
     pub examples: Vec<String>,
+    /// The Stage discovery file while Stage can find Daybook.
+    pub stage_file: Option<String>,
+    /// When a presenter last sent a request, in epoch milliseconds; memory only.
+    #[ts(type = "number | null")]
+    pub last_presenter_request: Option<i64>,
+    /// `stage register <url> --token <token>`, to paste into a terminal.
+    pub register_command: String,
 }
 
 #[tauri::command]
 pub async fn automation_info(app: AppHandle) -> AppResult<AutomationInfo> {
     let token = http_api::token(&app).await.map_err(AppError::Io)?;
     let api = http_api::api_status(&app);
+    let presentations = stage::presentations_info(&app, api.port, token.expose());
     Ok(AutomationInfo {
+        stage_file: presentations.stage_file,
+        last_presenter_request: presentations.last_request,
+        register_command: presentations.register_command,
         cli: cli::cli_info(),
         token: token.expose().to_string(),
         base_url: http_api::base_url(api.port),

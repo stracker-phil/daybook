@@ -33,7 +33,7 @@ export function Inspector() {
   const toggle = useStore((s) => s.toggleTodoGroup);
   const count = groups?.reduce((sum, group) => sum + group.todos.length, 0) ?? 0;
   return (
-    <aside className="inspector" aria-label="Inspector">
+    <aside className="inspector" aria-label="Inspector" data-stage="hub:inspector" data-stage-label="Inspector: open todos" data-stage-role="region">
       <Toolbar title={groups ? `${count} open` : "Todos"} />
       <div className="inspector-body">
         {groups && count === 0 && <p className="board-empty o3">Nothing open in your daily notes.</p>}

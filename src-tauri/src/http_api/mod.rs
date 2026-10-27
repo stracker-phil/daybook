@@ -18,8 +18,9 @@ use crate::automation::{self, Action, AutomationError, Outcome};
 use crate::error::{AppError, AppResult};
 use crate::lock::MutexExt;
 use crate::secrets::Secret;
+use crate::stage;
 use crate::state::AppState;
-use request::{Head, MAX_HEAD_BYTES, check, head_end, params, parse_head, response};
+use request::{Head, MAX_HEAD_BYTES, check, head_end, params, parse_head, response, stage_verb};
 use token::ApiToken;
 
 const READ_TIMEOUT: Duration = Duration::from_secs(10);
@@ -113,6 +114,7 @@ fn bind_error(port: u16, error: &std::io::Error) -> String {
 pub fn restart(app: &AppHandle) {
     let settings = app.state::<AppState>().settings.get().api;
     let mut server = http_api(app).server.lock_unpoisoned();
+    stage::unpublish(app);
     let restarting = server.task.take().inspect(|task| task.abort()).is_some();
     server.error = None;
     if !settings.enabled {
@@ -129,6 +131,9 @@ pub fn restart(app: &AppHandle) {
                 listener,
                 settings.port,
             )));
+            if settings.presentations {
+                stage::publish(app, settings.port);
+            }
         }
         Err(e) => {
             let error = bind_error(settings.port, &e);
@@ -212,7 +217,7 @@ async fn read_body(
     Ok(body)
 }
 
-/// The token, the guards, the body, then the action.
+/// The token, the guards, Presentations for Stage, the body, then the action or Stage verb.
 async fn answer(
     app: &AppHandle,
     stream: &mut TcpStream,
@@ -223,15 +228,22 @@ async fn answer(
         .map_err(|e| AutomationError::new(503, format!("The API token isn't available: {e}")))?;
     let read = async {
         let (head, leftover) = read_head(stream).await?;
-        let action = check(&head, token.expose(), port)?;
+        let route = check(&head, token.expose(), port)?;
+        if stage_verb(&route).is_some() {
+            stage::admit(app)?;
+        }
         let body = read_body(stream, &head, leftover).await?;
-        Ok::<_, AutomationError>((action, head, body))
+        Ok::<_, AutomationError>((route, head, body))
     };
-    let (action, head, body) = match tokio::time::timeout(READ_TIMEOUT, read).await {
+    let (route, head, body) = match tokio::time::timeout(READ_TIMEOUT, read).await {
         Ok(read) => read?,
         Err(_) => return Err(AutomationError::bad("The request took too long.")),
     };
-    automation::run(app, &action, &params(&head, &body)?).await
+    let params = params(&head, &body)?;
+    match stage_verb(&route) {
+        Some(verb) => stage::run(app, verb, &params).await,
+        None => automation::run(app, &route, &params).await,
+    }
 }
 
 async fn handle(app: AppHandle, mut stream: TcpStream, port: u16) {
@@ -261,6 +273,15 @@ pub fn api_status(app: &AppHandle) -> ApiStatus {
         running: server.task.is_some(),
         error: server.error.clone(),
         port: app.state::<AppState>().settings.get().api.port,
+    }
+}
+
+/// The discovery file carries the token, so a new one rewrites it.
+fn refresh_discovery(app: &AppHandle) {
+    let settings = app.state::<AppState>().settings.get().api;
+    let running = http_api(app).server.lock_unpoisoned().task.is_some();
+    if running && settings.presentations {
+        stage::publish(app, settings.port);
     }
 }
 
@@ -294,6 +315,7 @@ pub async fn automation_new_token(app: AppHandle) -> AppResult<String> {
         .await
         .map_err(AppError::Io)?;
     log::info!("Made a new API token");
+    refresh_discovery(&app);
     Ok(token.expose().to_string())
 }
 

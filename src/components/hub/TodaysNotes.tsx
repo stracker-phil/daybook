@@ -10,7 +10,7 @@ export function TodaysNotes({ hub }: { hub: HubView }) {
   const editTopic = (topic: NoteSectionRef) => void api.quickNotesOpen(topic, false).catch((e) => fail(e, "Couldn't open quick notes"));
   const openTopic = (topic: NoteSectionRef) => (hub.isToday ? editTopic(topic) : openNote(topic.title));
   return (
-    <section className="board-section" aria-label={title}>
+    <section className="board-section" aria-label={title} data-stage="hub:notes" data-stage-label="Today’s notes" data-stage-role="region">
       <header className="board-section-head">
         <h2 className="board-section-title">{title}</h2>
         <button type="button" className="link-btn" onClick={() => openNote()}>

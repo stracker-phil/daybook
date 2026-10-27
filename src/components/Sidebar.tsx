@@ -20,7 +20,12 @@ function DayHeader({ hub }: { hub: HubView }) {
   }
   return (
     <div className="day-header">
-      <button type="button" className="day-title" title={hub.isToday ? "Open Today's Note in Obsidian" : "Open This Day's Note in Obsidian"} onClick={openNote}>
+      <button
+        type="button"
+        className="day-title"
+        data-stage="hub:date"
+        data-stage-label={`${hub.weekday}, ${hub.date} (opens the note in Obsidian)`}
+        title={hub.isToday ? "Open Today's Note in Obsidian" : "Open This Day's Note in Obsidian"} onClick={openNote}>
         <h2>{hub.weekday}</h2>
         <span className="day-date">{hub.date}</span>
       </button>
@@ -51,7 +56,13 @@ function ToolButton({ row, icon }: { row: ToolRow; icon?: ReactNode }) {
   const command = row.command;
   const disabled = !command || !row.enabled;
   return (
-    <button type="button" className={row.accent ? "si tool-row accent" : "si tool-row"} disabled={disabled} onClick={() => command && run(command)}>
+    <button
+      type="button"
+      className={row.accent ? "si tool-row accent" : "si tool-row"}
+      data-stage={`tool:${row.id}`}
+      data-stage-label={row.title}
+      disabled={disabled}
+      onClick={() => command && run(command)}>
       {icon ?? <Icon size="1.077rem" aria-hidden="true" />}
       <span className="label">{row.title}</span>
       {row.detail && <span className="meta">{row.detail}</span>}
@@ -73,13 +84,13 @@ export function Sidebar() {
       <div className="sidebar-titlebar" data-tauri-drag-region />
       <div className="sidebar-body">
         {hub && <DayHeader hub={hub} />}
-        <nav className="sidebar-nav" aria-label="Tools">
+        <nav className="sidebar-nav" aria-label="Tools" data-stage-list="tools">
           {hub?.tools.map((tool, i) => <SidebarRow key={tool.kind === "separator" ? `separator-${i}` : tool.id} tool={tool} hub={hub} />)}
         </nav>
       </div>
       <footer className="sidebar-footer">
         {hub?.slack ? <SlackBadge shown={hub.slack} /> : <span className="spacer" />}
-        <button type="button" className="icon-btn" aria-label="Settings" title="Settings (⌘,)" onClick={() => run("app:settings")}>
+        <button type="button" className="icon-btn" aria-label="Settings" title="Settings (⌘,)" data-stage="hub:settings" onClick={() => run("app:settings")}>
           <Settings size="1.077rem" aria-hidden="true" />
         </button>
       </footer>

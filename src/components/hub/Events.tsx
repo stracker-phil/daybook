@@ -48,7 +48,7 @@ export function Events({ hub }: { hub: HubView }) {
   const toggleLabel = hidePast ? "Show Past Events" : "Hide Past Events";
 
   return (
-    <section className="board-section" aria-label={title}>
+    <section className="board-section" aria-label={title} data-stage="hub:events" data-stage-label="Today’s events and timeline" data-stage-role="region">
       <header className="board-section-head">
         <h2 className="board-section-title">{title}</h2>
         {rows.length > 0 && hub.isToday && (

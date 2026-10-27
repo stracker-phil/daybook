@@ -7,8 +7,10 @@ import { applyInitialLook } from "../../lib/theme";
 import "../../styles";
 import "./quicknotes.css";
 import { QuickNotesApp } from "./QuickNotesApp";
+import { installStageHooks } from "../../stage/hooks";
 
 applyInitialLook();
+void installStageHooks("quick-notes");
 installNativeMenuGuard();
 // This window has no toasts: its errors go to the log.
 const logEditorError = (message: string) => void api.logError(`Quick notes: ${message}`).catch(() => {});

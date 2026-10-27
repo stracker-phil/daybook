@@ -82,7 +82,7 @@ export function StatusView({ request }: { request: StatusRequest }) {
   return (
     <div className="panel-card status-view">
       <div className="panel-heading o2">What is your status?</div>
-      <div className="palette-input">
+      <div className="palette-input" data-stage="panel:input" data-stage-label="Status message" data-stage-role="field">
         <option.icon size="1.077rem" aria-hidden="true" />
         <input
           autoFocus
@@ -103,6 +103,9 @@ export function StatusView({ request }: { request: StatusRequest }) {
           <li
             key={item.status}
             id={`status-${item.status}`}
+            data-stage={`status:${item.status}`}
+            data-stage-label={item.label}
+            data-stage-list="statuses"
             role="option"
             aria-selected={item.status === picked}
             className={item.status === picked ? "active" : undefined}

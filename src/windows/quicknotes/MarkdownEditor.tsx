@@ -143,5 +143,5 @@ export function MarkdownEditor({ value, documentKey, onChange, ref }: { value: s
 
   useImperativeHandle(ref, () => ({ focus: () => view.current?.focus() }), []);
 
-  return <div ref={parent} className="quick-note-editor" />;
+  return <div ref={parent} className="quick-note-editor" data-stage="quick-notes:editor" data-stage-label="Quick notes editor" />;
 }

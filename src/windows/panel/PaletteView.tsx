@@ -25,7 +25,16 @@ interface RowProps {
 
 function PaletteRow({ entry, icon: Icon, active, activeRef, onHover, onRun }: RowProps) {
   return (
-    <li ref={active ? activeRef : undefined} role="option" aria-selected={active} className={active ? "active" : undefined} onMouseEnter={onHover} onClick={onRun}>
+    <li
+      ref={active ? activeRef : undefined}
+      role="option"
+      aria-selected={active}
+      className={active ? "active" : undefined}
+      data-stage={`palette:${entry.command.toLowerCase().replace(/[^a-z0-9:]+/g, "-")}`}
+      data-stage-label={entry.label}
+      onMouseEnter={onHover}
+      onClick={onRun}
+    >
       <Icon size="1.077rem" className="o3" aria-hidden="true" />
       <span className="grow-text">{entry.label}</span>
       {entry.detail && <span className="o3 palette-detail">{entry.detail}</span>}
@@ -110,7 +119,7 @@ export function PaletteView() {
 
   return (
     <div className="panel-card palette-view">
-      <div className="palette-input">
+      <div className="palette-input" data-stage="palette:search" data-stage-label="Search commands" data-stage-role="field">
         <Command size="1.077rem" aria-hidden="true" />
         <input
           autoFocus
@@ -121,7 +130,7 @@ export function PaletteView() {
           onKeyDown={onKeyDown}
         />
       </div>
-      <ul className="palette-list palette-results" role="listbox" aria-label="Results">
+      <ul className="palette-list palette-results" role="listbox" aria-label="Results" data-stage-list="palette:results">
         {groups.map((group, g) => (
           <Fragment key={group.kind}>
             <li role="presentation" className="palette-section">

@@ -131,7 +131,7 @@ export function MusicView() {
 
   return (
     <div className="panel-card palette-view">
-      <div className="palette-input">
+      <div className="palette-input" data-stage="panel:input" data-stage-label="Music entry" data-stage-role="field">
         <Music size="1.077rem" aria-hidden="true" />
         <input
           autoFocus

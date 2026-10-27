@@ -120,8 +120,28 @@ fn given_token(head: &Head) -> Option<String> {
         })
 }
 
-/// The action, once the request passed the checks that need no body. A browser page (Origin) or a
-/// foreign Host (DNS rebinding) is refused before anything else.
+fn is_word(segment: &str) -> bool {
+    !segment.is_empty() && segment.bytes().all(|b| b.is_ascii_lowercase())
+}
+
+/// `/v1/<action>` or `/v1/stage/<verb>` (as `stage/<verb>`), with an optional trailing slash.
+fn route(path: &str) -> Option<&str> {
+    let rest = path.strip_prefix("/v1/")?;
+    let rest = rest.strip_suffix('/').unwrap_or(rest);
+    match rest.split_once('/') {
+        None => is_word(rest).then_some(rest),
+        Some(("stage", verb)) => is_word(verb).then_some(rest),
+        Some(_) => None,
+    }
+}
+
+/// The Stage verb of a route from `check`, e.g. `describe` for `stage/describe`.
+pub fn stage_verb(route: &str) -> Option<&str> {
+    route.strip_prefix("stage/")
+}
+
+/// The action (or `stage/<verb>`), once the request passed the checks that need no body. A browser
+/// page (Origin) or a foreign Host (DNS rebinding) is refused before anything else.
 pub fn check(head: &Head, token: &str, port: u16) -> Result<String, AutomationError> {
     let host = head.header("host").unwrap_or_default();
     if head.header("origin").is_some() || !local_host(host, port) {
@@ -133,12 +153,12 @@ pub fn check(head: &Head, token: &str, port: u16) -> Result<String, AutomationEr
     if head.method != "GET" && head.method != "POST" {
         return Err(AutomationError::new(405, "Use GET or POST."));
     }
-    let action = head
-        .path
-        .strip_prefix("/v1/")
-        .map(|rest| rest.strip_suffix('/').unwrap_or(rest))
-        .filter(|a| !a.is_empty() && a.bytes().all(|b| b.is_ascii_lowercase()))
-        .ok_or_else(|| AutomationError::new(404, "Use /v1/<action>, e.g. /v1/state."))?;
+    let action = route(&head.path).ok_or_else(|| {
+        AutomationError::new(
+            404,
+            "Use /v1/<action>, e.g. /v1/state, or /v1/stage/<verb>.",
+        )
+    })?;
     if !token_matches(given_token(head).as_deref(), token) {
         return Err(AutomationError::new(401, "Wrong or missing token."));
     }
@@ -421,15 +441,54 @@ mod tests {
             "/v1/state/extra",
             "/v1/sta-te",
             "/state",
+            "/v1/other/describe",
+            "/v1/stage/Describe",
+            "/v1/stage/a/b",
+            "/v1/stage/de-scribe",
         ] {
             let head = local("GET", target, &["Authorization: Bearer s3cret"]);
 
             assert_eq!(
                 rejected(&head),
-                (404, "Use /v1/<action>, e.g. /v1/state.".to_string()),
+                (
+                    404,
+                    "Use /v1/<action>, e.g. /v1/state, or /v1/stage/<verb>.".to_string()
+                ),
                 "{target}"
             );
         }
+    }
+
+    #[test]
+    fn a_stage_verb_path_yields_its_route() {
+        for (target, route) in [
+            ("/v1/stage/describe", "stage/describe"),
+            ("/v1/stage/window", "stage/window"),
+            ("/v1/stage/act/", "stage/act"),
+            ("/v1/stage/state?token=s3cret", "stage/state"),
+        ] {
+            let head = local("POST", target, &["Authorization: Bearer s3cret"]);
+
+            assert_eq!(check(&head, TOKEN, PORT), Ok(route.to_string()), "{target}");
+        }
+    }
+
+    #[test]
+    fn a_stage_verb_needs_the_token_like_any_action() {
+        let head = local("GET", "/v1/stage/describe", &[]);
+
+        assert_eq!(
+            rejected(&head),
+            (401, "Wrong or missing token.".to_string())
+        );
+    }
+
+    #[test]
+    fn only_a_stage_route_has_a_verb() {
+        assert_eq!(stage_verb("stage/describe"), Some("describe"));
+        assert_eq!(stage_verb("stage/act"), Some("act"));
+        assert_eq!(stage_verb("state"), None);
+        assert_eq!(stage_verb("status"), None);
     }
 
     #[test]

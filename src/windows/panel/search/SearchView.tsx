@@ -126,7 +126,7 @@ export function SearchView({ scope }: { scope: string | null }) {
   return (
     // The root takes the focus of a click into the preview, so the keys keep working.
     <div className="panel-card search-view" tabIndex={-1} onKeyDown={onKeyDown}>
-      <div className="palette-input search-field">
+      <div className="palette-input search-field" data-stage="panel:input" data-stage-label="Search notes" data-stage-role="field">
         <Search size="1.385rem" aria-hidden="true" />
         <ScopeChips
           scopes={chips.scopes}

@@ -45,6 +45,7 @@ pub mod search;
 pub mod secrets;
 pub mod shortcuts;
 pub mod slack;
+pub mod stage;
 pub mod state;
 pub mod status;
 pub mod status_rules;

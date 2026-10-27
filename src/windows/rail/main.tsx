@@ -7,8 +7,10 @@ import { applyInitialLook } from "../../lib/theme";
 import "../../styles";
 import "./rail.css";
 import { RailApp } from "./RailApp";
+import { installStageHooks } from "../../stage/hooks";
 
 applyInitialLook();
+void installStageHooks("rail");
 installNativeMenuGuard();
 // This window has no toasts: its errors go to the log.
 const logRailError = (message: string) => void api.logError(`Rail: ${message}`).catch(() => {});

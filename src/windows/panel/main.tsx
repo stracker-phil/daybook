@@ -7,8 +7,10 @@ import "../../styles";
 import "./panel.css";
 import "./search/search.css";
 import { PanelApp } from "./PanelApp";
+import { installStageHooks } from "../../stage/hooks";
 
 applyInitialLook();
+void installStageHooks("panel");
 // This window has no toasts: its errors go to the log.
 const logOverlayError = (message: string) => void api.logError(`Overlay: ${message}`).catch(() => {});
 window.addEventListener("error", (e) => logOverlayError(e.message));

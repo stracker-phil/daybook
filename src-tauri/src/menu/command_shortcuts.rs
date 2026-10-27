@@ -18,6 +18,8 @@ pub const SEARCH: MenuKey = key("search:open", "cmd+f");
 pub const JOURNAL: MenuKey = key("journal:open", "cmd+j");
 pub const DAYBOOK: MenuKey = key("hub:open", "cmd+0");
 pub const CLOSE: MenuKey = key("window:close", "cmd+w");
+/// The Daybook window's own key (its page binds `inspector.toggle`); not in the app menu.
+pub const INSPECTOR: MenuKey = key("view:toggleInspector", "ctrl+cmd+i");
 
 pub const MENU_KEYS: [&MenuKey; 7] = [
     &SETTINGS,
@@ -27,4 +29,17 @@ pub const MENU_KEYS: [&MenuKey; 7] = [
     &JOURNAL,
     &DAYBOOK,
     &CLOSE,
+];
+
+/// Every key that runs a command while a Daybook window is in front: the menu's and the inspector's.
+/// Stage presses them by running the command, since a synthetic key press never reaches the menu.
+pub const COMMAND_SHORTCUTS: [&MenuKey; 8] = [
+    &SETTINGS,
+    &CLOSE_WITH_Q,
+    &PALETTE,
+    &SEARCH,
+    &JOURNAL,
+    &DAYBOOK,
+    &CLOSE,
+    &INSPECTOR,
 ];

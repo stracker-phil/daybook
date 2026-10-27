@@ -41,7 +41,7 @@ export function JiraView() {
 
   return (
     <div className="panel-card palette-view">
-      <div className="palette-input">
+      <div className="palette-input" data-stage="panel:input" data-stage-label="Open Jira issue" data-stage-role="field">
         <Ticket size="1.077rem" aria-hidden="true" />
         <span className="jira-prompt">Open Jira issue</span>
         <input

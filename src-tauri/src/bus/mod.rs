@@ -10,7 +10,7 @@ mod commands;
 
 pub use app::{Commands, spawn};
 pub use command::{ArgChoice, Command, Family, FamilySpec, FromWords, Info, RunFuture, Spec};
-pub use commands::register;
+pub use commands::{register, register_aliases};
 
 use crate::error::{AppError, AppResult};
 

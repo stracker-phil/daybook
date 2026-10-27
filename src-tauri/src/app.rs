@@ -14,7 +14,7 @@ use crate::store::import::Import;
 use crate::{
     bus, calendar, calls, commands, contexts, deep_link, focus, http_api, ipc, jira, journal,
     launcher, links, menu, music, notify, presence, quick_notes, rail, remote, routines, scheduler,
-    search, shortcuts, slack, status, status_rules, tray, vault, window, wizard,
+    search, shortcuts, slack, stage, status, status_rules, tray, vault, window, wizard,
 };
 
 const MAX_LOG_BYTES: u128 = 5 * 1024 * 1024;
@@ -88,6 +88,7 @@ pub fn start(
             apply_dev_frame(app);
             start_ipc(app.handle().clone(), &socket);
             deep_link::listen(app.handle());
+            stage::install(app.handle());
             http_api::install(app.handle());
             // The window starts invisible (tauri.conf.json), so a hidden start never flashes it.
             if hidden {
@@ -105,6 +106,7 @@ pub fn start(
                 code: None, api, ..
             } => api.prevent_exit(),
             RunEvent::Reopen { .. } => window::show_main(app),
+            RunEvent::Exit => stage::unpublish(app),
             _ => {}
         });
 }
@@ -125,6 +127,7 @@ fn commands_bus() -> bus::Commands {
     launcher::register(&mut commands);
     music::register(&mut commands);
     rail::register(&mut commands);
+    bus::register_aliases(&mut commands);
     bus::Commands(commands)
 }
 

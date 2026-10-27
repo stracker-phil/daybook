@@ -34,6 +34,9 @@ function info(patch: { cli?: Partial<AutomationInfo["cli"]>; api?: Partial<Autom
     api: status,
     token: patch.token ?? "secret-token",
     baseUrl,
+    stageFile: null,
+    lastPresenterRequest: null,
+    registerCommand: "stage register http://127.0.0.1:27180/v1/stage --token <token>",
     examples: [`curl -s -H "Authorization: Bearer <token>" ${baseUrl}/state`, `curl -s -H "Authorization: Bearer <token>" -d status=break -d note=Lunch ${baseUrl}/status`],
   };
 }
@@ -128,7 +131,7 @@ describe("AutomationPage", () => {
       it("shows the error text when the server failed to start", async () => {
         mocked.automationInfo.mockResolvedValue(info({ api: { error: "Port 27180 is in use" } }));
         await renderPage();
-        expect(screen.getByText("Port 27180 is in use")).toBeInTheDocument();
+        expect(screen.getAllByText("Port 27180 is in use").length).toBeGreaterThan(0);
         expect(screen.queryByText("Listening")).not.toBeInTheDocument();
       });
 
@@ -144,7 +147,7 @@ describe("AutomationPage", () => {
         const port = screen.getByRole("spinbutton", { name: "Port" });
         await userEvent.clear(port);
         await userEvent.type(port, "8080{Enter}");
-        expect(savedApi()).toMatchObject({ port: 8080 });
+        await vi.waitFor(() => expect(savedApi()).toMatchObject({ port: 8080 }));
       });
 
       it("saves a valid port on blur", async () => {

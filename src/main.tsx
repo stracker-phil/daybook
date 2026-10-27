@@ -7,9 +7,11 @@ import { installNativeMenuGuard } from "./lib/nativeMenu";
 import { applyInitialLook } from "./lib/theme";
 import { installModules } from "./modules";
 import { useStore } from "./state/store";
+import { installStageHooks } from "./stage/hooks";
 
 installModules("main");
 applyInitialLook();
+void installStageHooks("hub");
 installNativeMenuGuard();
 installInputModality();
 

@@ -1,5 +1,6 @@
 import { PanelRight } from "lucide-react";
 import { useBindingLabel } from "../../commands";
+import { useStageMeta } from "../../stage/meta";
 import { useStore } from "../../state/store";
 import { Toolbar } from "../Toolbar";
 import { JournalRow, RoutinesRow } from "./ChipRows";
@@ -15,10 +16,18 @@ export function Board() {
   const toggle = useStore((s) => s.toggleInspector);
   const keys = useBindingLabel("inspector.toggle");
   const label = hidden ? "Show Inspector" : "Hide Inspector";
+  useStageMeta({ view: hub ? (hub.isToday ? "today" : `day:${hub.day}`) : undefined, ui: { inspector: hidden ? "closed" : "open" } });
   return (
     <div className="view-page">
       <Toolbar title={title}>
-        <button type="button" className="icon-btn" aria-label={label} aria-pressed={!hidden} title={keys ? `${label} (${keys})` : label} onClick={toggle}>
+        <button
+          type="button"
+          className="icon-btn"
+          data-stage="hub:inspector-toggle"
+          data-stage-label="Show or hide the inspector"
+          data-stage-role="toggle"
+          aria-label={label}
+          aria-pressed={!hidden} title={keys ? `${label} (${keys})` : label} onClick={toggle}>
           <PanelRight size="1.077rem" aria-hidden="true" />
         </button>
       </Toolbar>
@@ -27,8 +36,10 @@ export function Board() {
           <div className="board-content">
             <TodayCard reminder={hub.reminder} focus={hub.focus} isToday={hub.isToday} />
             <Events hub={hub} />
-            <RoutinesRow hub={hub} />
-            <JournalRow hub={hub} />
+            <div className="board-checklists" data-stage="hub:checklists" data-stage-label="Routines and journal" data-stage-role="region">
+              <RoutinesRow hub={hub} />
+              <JournalRow hub={hub} />
+            </div>
             <TodaysNotes hub={hub} />
           </div>
         )}

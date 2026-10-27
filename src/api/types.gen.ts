@@ -61,7 +61,19 @@ baseUrl: string,
 /**
  * Requests to copy, with `<token>` for the token.
  */
-examples: Array<string>, };
+examples: Array<string>, 
+/**
+ * The Stage discovery file while Stage can find Daybook.
+ */
+stageFile: string | null, 
+/**
+ * When a presenter last sent a request, in epoch milliseconds; memory only.
+ */
+lastPresenterRequest: number | null, 
+/**
+ * `stage register <url> --token <token>`, to paste into a terminal.
+ */
+registerCommand: string, };
 
 /**
  * An app trigger Settings can add again, with what its built-in check looks for.
@@ -1146,6 +1158,96 @@ keepStatus: boolean, emoji: string, text: string, presence: Presence, };
  * From and to as fractions of the timeline's width, 0 to 1.
  */
 export type Span = { from: number, to: number, };
+
+/**
+ * One act for a page, validated by the hub. `command` and `wait` never reach a page.
+ */
+export type StageAct = { "kind": "reveal", anchor: string, } | { "kind": "click", anchor: string, } | { "kind": "type", anchor: string, text: string, mode: StageTypeMode, } | { "kind": "scroll", anchor: string, by?: number, to?: StageScrollTo, } | { "kind": "keys", keys: StageKeys, page?: StagePage, };
+
+/**
+ * A page's answer to `stage:act`; `handled` is false when the anchor isn't on that page (or the
+ * keys aren't for it).
+ */
+export type StageActReply = { request: string, page: StagePage, handled: boolean, ok: boolean, error?: string, 
+/**
+ * The HTTP status of a failure when it isn't 500 (e.g. 409: nothing scrolls).
+ */
+status?: number, 
+/**
+ * The anchor's rectangle, in view, before acting.
+ */
+rect?: StageRect | null, visible?: StageRect | null, };
+
+/**
+ * The `stage:act` event: an act and the id its reply carries.
+ */
+export type StageActRequest = { request: string, } & ({ "kind": "reveal", anchor: string, } | { "kind": "click", anchor: string, } | { "kind": "type", anchor: string, text: string, mode: StageTypeMode, } | { "kind": "scroll", anchor: string, by?: number, to?: StageScrollTo, } | { "kind": "keys", keys: StageKeys, page?: StagePage, });
+
+/**
+ * A page's answer to `stage:collect`.
+ */
+export type StageAnchorsReply = { request: string, page: StagePage, anchors: Array<StagePageAnchor>, meta?: StagePageMeta, };
+
+/**
+ * The `stage:collect` event; each page answers with an `AnchorsReply` through `stage_anchors`.
+ */
+export type StageCollectRequest = { request: string, };
+
+/**
+ * A key combination as a page dispatches it (`KeyboardEvent` names).
+ */
+export type StageKeys = { key: string, 
+/**
+ * "KeyK", "Digit2", "Enter", "F2"; empty when there is none.
+ */
+code: string, meta: boolean, shift: boolean, alt: boolean, ctrl: boolean, };
+
+/**
+ * The windows the hook exposes, declared in `describe` order, which `Ord` follows. The ids are the
+ * prototype's, so its scripts keep working.
+ */
+export type StagePage = "hub" | "settings" | "panel" | "rail" | "quick-notes";
+
+/**
+ * An element marked `data-stage="<id>"`, as its page measures it.
+ */
+export type StagePageAnchor = { id: string, 
+/**
+ * Cut to 80 characters by the page.
+ */
+label: string, rect: StageRect, inView: boolean, 
+/**
+ * The part its scroll areas and the window let through; None when nothing shows.
+ */
+visible: StageRect | null, role?: StageRole, 
+/**
+ * Anchors with the same list are rows, in visual order.
+ */
+list?: string, selected?: boolean, checked?: boolean, expanded?: boolean, disabled?: boolean, };
+
+/**
+ * What a page says about itself: the hub's view (`today`, `day:<date>`), the Settings page, open panels.
+ */
+export type StagePageMeta = { view?: string, section?: string, ui?: { [key in string]: StagePanelState }, };
+
+export type StagePanelState = "open" | "closed";
+
+/**
+ * CSS pixels from the page's top-left, as a page measures them.
+ */
+export type StageRect = { x: number, y: number, width: number, height: number, };
+
+/**
+ * What an anchor is, for a presenter.
+ */
+export type StageRole = "region" | "button" | "field" | "item" | "tab" | "toggle" | "link" | "menu" | "text";
+
+export type StageScrollTo = "top" | "bottom";
+
+/**
+ * How `type` puts its text into the field.
+ */
+export type StageTypeMode = "replace" | "append";
 
 export type Status = "working" | "break" | "off";
 

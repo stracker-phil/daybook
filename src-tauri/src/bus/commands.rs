@@ -42,6 +42,14 @@ pub fn register(bus: &mut Bus) {
             .choices(settings_pages)
             .run(|app, page| async move { window::settings::open_page(&app, &page) }),
     );
+    // The prototype's spelling, kept for Stage scripts.
+    bus.add_family(
+        Command::new("settings:open:", "Open a Settings page")
+            .hidden()
+            .family("<page>")
+            .choices(settings_pages)
+            .run(|app, page| async move { window::settings::open_page(&app, &page) }),
+    );
     bus.add(
         Command::new("app:quit", "Quit Daybook")
             .quits()
@@ -101,5 +109,29 @@ pub fn register(bus: &mut Bus) {
         ("sample:sticky", "Sample Overlay (Sticky)", "sample-sticky"),
     ] {
         bus.add(Command::new(id, title).run(move |app| open_panel(app, view)));
+    }
+}
+
+/// Conventional ids (the Stage protocol's) for commands that exist under Daybook's own names; hidden.
+const ALIASES: [(&str, &str); 4] = [
+    ("app:showWindow", "hub:open"),
+    ("app:toggleWindow", "hub:toggle"),
+    ("view:palette", "palette:open"),
+    ("view:search", "search:open"),
+];
+
+/// Runs after every feature registered, so each alias finds its target.
+pub fn register_aliases(bus: &mut Bus) {
+    for (alias, target) in ALIASES {
+        let Some(info) = bus.info(target) else {
+            continue;
+        };
+        let (title, help) = (info.title, info.help);
+        bus.add(Command::new(alias, title).help(help).hidden().run(
+            move |app: AppHandle| async move {
+                let commands = app.state::<super::Commands>();
+                commands.run_or_err(app.clone(), target).await
+            },
+        ));
     }
 }

@@ -70,6 +70,7 @@ export function FocusEditor({ value, projects, onChange, onConfirm, onSkip, onSe
       <textarea
         ref={field}
         aria-label="Focus list"
+        data-stage="panel:input"
         spellCheck={false}
         rows={Math.min(MAX_ROWS, Math.max(MIN_ROWS, value.split("\n").length + 1))}
         value={value}

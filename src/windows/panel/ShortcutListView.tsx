@@ -84,7 +84,7 @@ export function ShortcutListView({ icon: Icon, inputLabel, placeholder, label, r
 
   return (
     <div className="panel-card palette-view">
-      <div className="palette-input">
+      <div className="palette-input" data-stage="panel:input" data-stage-label={placeholder} data-stage-role="field">
         <Icon size="1.077rem" aria-hidden="true" />
         <input
           autoFocus

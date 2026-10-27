@@ -1,5 +1,6 @@
 import type { Settings } from "../../api";
 import { resolveSettingsPage, settingsGroups, useSettingsPagesVersion } from "../../registry/settingsPages";
+import { useStageMeta } from "../../stage/meta";
 import { useStore } from "../../state/store";
 
 /** System Settings layout: the page list grouped on the left, the page on the right; every change applies at once. */
@@ -8,6 +9,7 @@ export function SettingsWindow({ page: shown, onPage }: { page: string | undefin
   const settings = useStore((s) => s.settings);
   const save = useStore((s) => s.saveSettings);
   const page = resolveSettingsPage(shown);
+  useStageMeta({ section: page?.id });
   if (!settings || !page) return null;
 
   const set = (patch: Partial<Settings>) => {
@@ -18,13 +20,21 @@ export function SettingsWindow({ page: shown, onPage }: { page: string | undefin
 
   return (
     <div className="settings-window">
-      <nav className="settings-nav" aria-label="Settings pages">
+      <nav className="settings-nav" aria-label="Settings pages" data-stage-list="settings">
         <div className="settings-titlebar" data-tauri-drag-region />
         {settingsGroups().map((g) => (
           <div key={g.group} className="settings-nav-group">
             <div className="settings-nav-heading">{g.group}</div>
             {g.pages.map(({ id, label, icon: Icon }) => (
-              <button key={id} type="button" aria-current={page.id === id ? "page" : undefined} onClick={() => onPage(id)}>
+              <button
+                key={id}
+                type="button"
+                aria-current={page.id === id ? "page" : undefined}
+                data-stage={`settings-nav:${id}`}
+                data-stage-label={`Settings: ${label}`}
+                data-stage-role="item"
+                onClick={() => onPage(id)}
+              >
                 <Icon size="1.077rem" /> {label}
               </button>
             ))}
@@ -37,7 +47,7 @@ export function SettingsWindow({ page: shown, onPage }: { page: string | undefin
             {page.label}
           </h2>
         </header>
-        <div className="settings-body" key={page.id}>
+        <div className="settings-body" key={page.id} data-stage={`settings:${page.id}`} data-stage-label={`Settings: ${page.label}`} data-stage-role="region">
           {page.intro && <p className="settings-intro">{page.intro}</p>}
           <Body s={settings} set={set} />
         </div>

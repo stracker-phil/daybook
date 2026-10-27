@@ -54,7 +54,7 @@ export function SlackBadge({ shown }: { shown: ShownStatus }) {
   const presence = shownPresence ? PRESENCE_LABELS[shownPresence] : null;
   const description = `Slack status: ${shown.text || "No status"}${presence ? ` · ${presence}` : ""}`;
   return (
-    <div className="slack-status badge" role="status" aria-label={description} title={description}>
+    <div className="slack-status badge" role="status" data-stage="hub:slack" aria-label={description} title={description}>
       <SlackLine emoji={shown.emoji} text={shown.text} />
       {shownPresence && <PresenceDot presence={shownPresence} />}
     </div>

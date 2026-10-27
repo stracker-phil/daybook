@@ -43,6 +43,10 @@ import type {
   SearchScopes,
   Settings,
   ShortcutOverview,
+  StageActReply,
+  StageActRequest,
+  StageAnchorsReply,
+  StageCollectRequest,
   SlackIdentity,
   SlackInfo,
   Status,
@@ -121,6 +125,12 @@ export const api = {
   slackDisconnect: () => invoke<void>("slack_disconnect"),
   /** Settings → Automation: the `daybook` command's link, the HTTP API's state and its token (from the Keychain). */
   automationInfo: () => invoke<AutomationInfo>("automation_info"),
+  /** Shows the Stage discovery file in Finder. */
+  stageRevealFile: () => invoke<void>("stage_reveal_file"),
+  /** The page's anchors and meta for a `stage:collect` request. */
+  stageAnchors: (reply: StageAnchorsReply) => invoke<void>("stage_anchors", { reply }),
+  /** The page's answer to a `stage:act` request. */
+  stageDone: (reply: StageActReply) => invoke<void>("stage_done", { reply }),
   /** Stores a new API token in the Keychain; scripts with the old one stop working. */
   automationNewToken: () => invoke<string>("automation_new_token"),
   /** Where the daily notes are and whether today's note and the Obsidian CLI were found. */
@@ -266,6 +276,11 @@ export const api = {
   /** To the tooltip page: the pointer in window coordinates while it is on the card's choices, `null` off them. */
   onRailTipPointer: (handler: (point: RailPoint | null) => void): Promise<UnlistenFn> =>
     listen<RailPoint | null>("rail_tip_pointer", (e) => handler(e.payload)),
+  /** Stage asks every page for its anchors; answer with `stageAnchors`. */
+  onStageCollect: (handler: (request: string) => void): Promise<UnlistenFn> =>
+    listen<StageCollectRequest>("stage:collect", (e) => handler(e.payload.request)),
+  /** Stage asks every page to act on an anchor or keys; answer with `stageDone`. */
+  onStageAct: (handler: (request: StageActRequest) => void): Promise<UnlistenFn> => listen<StageActRequest>("stage:act", (e) => handler(e.payload)),
   /** Requests from other processes; answer each with `remoteReply`. */
   onRemote: (handler: (event: RemoteEvent) => void): Promise<UnlistenFn> => listen<RemoteEvent>("remote", (e) => handler(e.payload)),
 };

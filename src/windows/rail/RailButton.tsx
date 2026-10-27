@@ -14,6 +14,9 @@ const ICONS: Partial<Record<ToolId, LucideIcon>> = {
   music: Music,
 };
 
+/** The prototype's anchor names, so existing presenter scripts keep working. */
+const STAGE_IDS: Partial<Record<ToolId, string>> = { hub: "daybook", quickNotes: "quick-notes" };
+
 function Face({ tool, status }: { tool: RailTool; status: Status | null }) {
   if (tool.id === "context") return <span className="rail-text">{tool.badge ?? tool.label.slice(0, 3)}</span>;
   if (tool.id === "status") return <span className="rail-status-dot" data-status={status ?? "none"} />;
@@ -30,6 +33,8 @@ export function RailButton({ tool, status, hovered, captions }: { tool: RailTool
         className={tool.id === "context" ? "rail-btn rail-label" : "rail-btn"}
         aria-label={tool.ariaLabel}
         data-tool={tool.id}
+        data-stage={`rail:${STAGE_IDS[tool.id] ?? tool.id}`}
+        data-stage-list="rail"
         data-hover={hovered || undefined}
         data-filled={tool.filled || undefined}
         data-active={tool.accent || undefined}

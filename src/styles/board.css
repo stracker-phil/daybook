@@ -1,5 +1,7 @@
 /* ---------- the Daybook window's board ---------- */
 .board-content { display: flex; flex-direction: column; gap: var(--space-5); max-width: 64rem; padding: var(--space-4) var(--margin) var(--space-6); }
+.board-checklists { display: flex; flex-direction: column; gap: var(--space-5); }
+.board-checklists:empty { display: none; }
 
 /* The Today card: the reminder as one quiet line; with an action the whole line is the button. */
 .today-card { display: flex; flex-direction: column; padding: var(--space-1); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--fill) 50%, transparent); }

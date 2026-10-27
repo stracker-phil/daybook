@@ -66,7 +66,7 @@ function Focus({ lines, isToday }: { lines: FocusLine[]; isToday: boolean }) {
   return (
     <section className="focus-section" aria-label="Focus">
       <div className="focus-title o3">Focus</div>
-      <button type="button" className="focus-list" disabled={!isToday} aria-label={empty ? "Set Today's Focus" : "Edit Today's Focus"} onClick={open}>
+      <button type="button" className="focus-list" data-stage="hub:focus" disabled={!isToday} aria-label={empty ? "Set Today's Focus" : "Edit Today's Focus"} onClick={open}>
         {empty && !isToday && <span className="o3">No focus list.</span>}
         {empty && isToday && (
           <span className="focus-add">

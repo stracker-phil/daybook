@@ -5,6 +5,7 @@ import { useApiResult } from "../../lib/useApiResult";
 import type { SettingsPageProps } from "../../registry/settingsPages";
 import { fail } from "../../state/requests";
 import { Group, NumberField, Row, Switch } from "./controls";
+import { PresentationsGroup } from "./PresentationsGroup";
 
 const TEST_COMMAND = "daybook help";
 
@@ -16,9 +17,9 @@ const TOKEN_PLACEHOLDER = "<token>";
 /** The server starts and stops in the background, so its state is read again every few seconds. */
 const POLL_MS = 3000;
 
-/** Read again when the switch or the port changes, and every few seconds. */
-function useAutomationInfo(enabled: boolean, port: number) {
-  const result = useApiResult(`${enabled}:${port}`, api.automationInfo, { keepData: true });
+/** Read again when a switch or the port changes, and every few seconds. */
+function useAutomationInfo({ enabled, port, presentations }: { enabled: boolean; port: number; presentations: boolean }) {
+  const result = useApiResult(`${enabled}:${port}:${presentations}`, api.automationInfo, { keepData: true });
   const { reload } = result;
   useEffect(() => {
     const timer = setInterval(reload, POLL_MS);
@@ -93,7 +94,7 @@ function Token({ token, onChanged }: { token: string; onChanged: () => void }) {
 }
 
 export function AutomationPage({ s, set }: SettingsPageProps) {
-  const { data: info, reload } = useAutomationInfo(s.api.enabled, s.api.port);
+  const { data: info, reload } = useAutomationInfo(s.api);
   if (!info) return null;
 
   return (
@@ -127,6 +128,7 @@ export function AutomationPage({ s, set }: SettingsPageProps) {
           </div>
         </Row>
       </Group>
+      <PresentationsGroup s={s} set={set} info={info} />
     </>
   );
 }

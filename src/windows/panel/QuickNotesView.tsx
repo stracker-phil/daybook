@@ -54,7 +54,7 @@ export function QuickNotesView() {
 
   return (
     <div className="panel-card palette-view">
-      <div className="palette-input">
+      <div className="palette-input" data-stage="panel:input" data-stage-label="Quick note topic" data-stage-role="field">
         <NotebookPen size="1.077rem" aria-hidden="true" />
         <input
           autoFocus

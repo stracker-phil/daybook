@@ -5,7 +5,7 @@ use tauri::ipc::Invoke;
 use crate::{
     automation, autostart, bus, calendar, calls, commands, contexts, focus, http_api, hub, jira,
     journal, launcher, links, music, palette, quick_notes, rail, remote, routines, search,
-    shortcuts, slack, status, todos, vault, window,
+    shortcuts, slack, stage, status, todos, vault, window,
 };
 
 pub fn handlers() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
@@ -78,6 +78,9 @@ pub fn handlers() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         remote::remote_reply,
         automation::automation_info,
         http_api::automation_new_token,
+        stage::commands::stage_anchors,
+        stage::commands::stage_done,
+        stage::commands::stage_reveal_file,
         vault::commands::daily_note_state,
         vault::commands::daily_note_open,
         vault::commands::daily_note_create,

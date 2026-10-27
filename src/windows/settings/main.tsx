@@ -8,9 +8,11 @@ import { installModules } from "../../modules";
 import { useStore } from "../../state/store";
 import "../../styles";
 import { SettingsApp } from "./SettingsApp";
+import { installStageHooks } from "../../stage/hooks";
 
 installModules("settings");
 applyInitialLook();
+void installStageHooks("settings");
 installNativeMenuGuard();
 installInputModality();
 
