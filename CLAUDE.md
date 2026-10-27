@@ -59,6 +59,8 @@ Test, lint and format-check commands run through the `ci` agent, never in the ma
 - `bun run build:app` + `scripts/dev/launch.sh`: debug build, restarted next to the terminal without stealing focus
 - `scripts/dev/js.sh` / `scripts/dev/screenshot.sh` (`--overlay` for the panel): drive (store: `window.daybook`) and capture the running window in the background
 - `scripts/dev/smoke.sh [dir]`: opens and captures every overlay of the running debug app
+- `scripts/dev/demo/screens.sh`: the README screenshots (`docs/screens/`) from the debug app with a made-up day;
+  never capture the owner's data for anything that is committed
 
 ## Workflow
 Finish every step with the `ship-step` skill. Rules in `.claude/rules/`; `testing.md` says which agents in

@@ -273,32 +273,22 @@ mod tests {
 
     #[test]
     fn removes_the_callout_and_the_empty_section_when_the_last_answer_is_cleared() {
-        let note = "# Day\n\n## Journal\n\n> [!NOTE]+ Dawn\n> **My current goal**\n> x\n\n## Notes\n";
-        assert_eq!(
-            write(note, "Dawn", &morgen(vec![])),
-            "# Day\n\n## Notes\n"
-        );
+        let note =
+            "# Day\n\n## Journal\n\n> [!NOTE]+ Dawn\n> **My current goal**\n> x\n\n## Notes\n";
+        assert_eq!(write(note, "Dawn", &morgen(vec![])), "# Day\n\n## Notes\n");
     }
 
     #[test]
     fn inserts_a_group_in_settings_order() {
         let note = "## Journal\n\n> [!NOTE]+ Dusk\n> **What did I learn today?**\n> viel\n";
-        let result = write(
-            note,
-            "Dawn",
-            &morgen(vec![("My current goal", text("x"))]),
-        );
+        let result = write(note, "Dawn", &morgen(vec![("My current goal", text("x"))]));
         assert!(result.find("Dawn") < result.find("Dusk"), "{result}");
     }
 
     #[test]
     fn keeps_questions_the_app_does_not_know() {
         let note = "## Journal\n\n> [!NOTE]+ Dawn\n> **Eigene Frage**\n> meine Antwort\n";
-        let result = write(
-            note,
-            "Dawn",
-            &morgen(vec![("My current goal", text("x"))]),
-        );
+        let result = write(note, "Dawn", &morgen(vec![("My current goal", text("x"))]));
         assert!(
             result.contains("> **Eigene Frage**\n> meine Antwort"),
             "{result}"

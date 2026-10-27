@@ -4,8 +4,11 @@
 
 use std::sync::Arc;
 
+use chrono::{NaiveDateTime, NaiveTime};
+
 use tauri::{Manager, State};
 
+use crate::calendar::events::{CalendarEvent, Event};
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 use crate::vault::ops::NoteOp;
@@ -69,6 +72,50 @@ pub async fn dev_wizard_fire(
     Ok(())
 }
 
+/// `DAYBOOK_DEMO_EVENTS=<file.json>` replaces the calendar with made-up events for screenshots
+/// (`scripts/dev/demo/`): a list of `{ "title", "calendar", "start": "HH:MM:SS", "end": "HH:MM:SS", "url"? }`,
+/// repeated on every day from `from` until `to`. `None` without the variable or with an unreadable file.
+pub fn demo_events(from: NaiveDateTime, to: NaiveDateTime) -> Option<Vec<CalendarEvent>> {
+    let raw = std::fs::read_to_string(std::env::var("DAYBOOK_DEMO_EVENTS").ok()?).ok()?;
+    let demo: Vec<DemoEvent> = serde_json::from_str(&raw)
+        .inspect_err(|e| log::warn!("DAYBOOK_DEMO_EVENTS couldn't be read: {e}"))
+        .ok()?;
+    Some(demo_days(&demo, from, to))
+}
+
+#[derive(serde::Deserialize)]
+struct DemoEvent {
+    title: String,
+    calendar: String,
+    start: NaiveTime,
+    end: NaiveTime,
+    url: Option<String>,
+}
+
+fn demo_days(demo: &[DemoEvent], from: NaiveDateTime, to: NaiveDateTime) -> Vec<CalendarEvent> {
+    from.date()
+        .iter_days()
+        .take_while(|day| day.and_time(NaiveTime::MIN) < to)
+        .flat_map(|day| {
+            demo.iter().map(move |event| CalendarEvent {
+                event: Event {
+                    title: event.title.clone(),
+                    calendar: event.calendar.clone(),
+                    start: day.and_time(event.start),
+                    end: day.and_time(event.end),
+                    url: event.url.clone(),
+                    location: None,
+                    notes: None,
+                },
+                all_day: false,
+                canceled: false,
+                declined: false,
+                busy: true,
+            })
+        })
+        .collect()
+}
+
 fn parse_frame(raw: &str) -> Option<(f64, f64, f64, f64)> {
     let v: Vec<f64> = raw
         .split(',')
@@ -108,5 +155,88 @@ mod tests {
     #[test]
     fn whitespace_around_numbers_is_ignored() {
         assert_eq!(parse_frame("  1 , 2 ,  3,4 "), Some((1.0, 2.0, 3.0, 4.0)));
+    }
+
+    fn at(day: u32, h: u32, m: u32) -> NaiveDateTime {
+        chrono::NaiveDate::from_ymd_opt(2026, 3, day)
+            .unwrap()
+            .and_hms_opt(h, m, 0)
+            .unwrap()
+    }
+
+    fn demo_list() -> Vec<DemoEvent> {
+        serde_json::from_str(
+            r#"[
+                { "title": "Standup", "calendar": "Work", "start": "09:30:00", "end": "09:45:00",
+                  "url": "https://meet.example.com/standup" },
+                { "title": "Lunch", "calendar": "Home", "start": "12:00:00", "end": "13:00:00" }
+            ]"#,
+        )
+        .unwrap()
+    }
+
+    fn expected(
+        title: &str,
+        calendar: &str,
+        start: NaiveDateTime,
+        end: NaiveDateTime,
+        url: Option<&str>,
+    ) -> CalendarEvent {
+        CalendarEvent {
+            event: Event {
+                title: title.into(),
+                calendar: calendar.into(),
+                start,
+                end,
+                url: url.map(Into::into),
+                location: None,
+                notes: None,
+            },
+            all_day: false,
+            canceled: false,
+            declined: false,
+            busy: true,
+        }
+    }
+
+    #[test]
+    fn a_one_day_range_yields_each_demo_event_once_with_its_times() {
+        let events = demo_days(&demo_list(), at(10, 0, 0), at(11, 0, 0));
+        assert_eq!(
+            events,
+            vec![
+                expected(
+                    "Standup",
+                    "Work",
+                    at(10, 9, 30),
+                    at(10, 9, 45),
+                    Some("https://meet.example.com/standup")
+                ),
+                expected("Lunch", "Home", at(10, 12, 0), at(10, 13, 0), None),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_three_day_range_repeats_the_events_on_each_day() {
+        let events = demo_days(&demo_list(), at(10, 8, 0), at(13, 0, 0));
+        let starts: Vec<_> = events.iter().map(|e| e.event.start).collect();
+        assert_eq!(
+            starts,
+            vec![
+                at(10, 9, 30),
+                at(10, 12, 0),
+                at(11, 9, 30),
+                at(11, 12, 0),
+                at(12, 9, 30),
+                at(12, 12, 0),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_range_ending_at_the_first_midnight_yields_no_events() {
+        assert!(demo_days(&demo_list(), at(10, 0, 0), at(10, 0, 0)).is_empty());
+        assert!(demo_days(&demo_list(), at(10, 8, 0), at(10, 0, 0)).is_empty());
     }
 }

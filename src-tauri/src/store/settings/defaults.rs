@@ -123,10 +123,7 @@ pub fn routines() -> Vec<Routine> {
                 step("Plan day (Slack)", ""),
                 step("Book meeting rooms", ""),
                 step("Review Jira tasks assigned to me", ""),
-                step(
-                    "Give one piece of feedback today",
-                    "",
-                ),
+                step("Give one piece of feedback today", ""),
             ],
         },
         Routine {
@@ -135,10 +132,7 @@ pub fn routines() -> Vec<Routine> {
             contexts: vec!["work".into()],
             timing: Timing::new("18:00", "", vec![OpenEvent::Off]),
             steps: vec![
-                step(
-                    "Time recording",
-                    "https://time.example.com",
-                ),
+                step("Time recording", "https://time.example.com"),
                 step(
                     "Brag doc: anything worth logging today?",
                     "3-Personal/Work-Log.md",

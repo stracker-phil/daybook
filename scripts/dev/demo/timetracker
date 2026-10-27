@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+"""A stand-in for the `timetracker` CLI with a made-up day, for screenshots (scripts/dev/demo/screens.sh).
+
+Answers the reads Daybook makes with `--json`; writes never arrive because debug builds only log them.
+"""
+import json
+import sys
+import time
+from datetime import datetime, time as clock
+
+PROJECTS = [
+    {"id": "p-internal", "name": "Internal", "clientId": None, "client": None, "color": "blue", "shade": 4},
+    {"id": "p-acme-web", "name": "Web Shop", "clientId": "c-acme", "client": "Acme", "color": "green", "shade": 4},
+    {"id": "p-acme-app", "name": "Mobile App", "clientId": "c-acme", "client": "Acme", "color": "teal", "shade": 4},
+    {"id": "p-globex", "name": "Globex", "clientId": "c-globex", "client": "Globex", "color": "purple", "shade": 4},
+]
+NAMES = {p["id"]: (p["name"], p["client"]) for p in PROJECTS}
+
+
+def at(hour, minute):
+    moment = datetime.combine(datetime.now().date(), clock(hour, minute)).astimezone()
+    return int(moment.timestamp() * 1000), moment.isoformat(timespec="seconds")
+
+
+def span(start, end):
+    (s, s_iso) = at(*start)
+    if end is None:
+        return {"start": s, "end": None, "startIso": s_iso, "endIso": None}
+    (e, e_iso) = at(*end)
+    return {"start": s, "end": e, "startIso": s_iso, "endIso": e_iso}
+
+
+def item(project_id, note, spans, **extra):
+    name, client = NAMES.get(project_id, (None, None))
+    return {"projectId": project_id, "project": name, "client": client, "tag": None, "note": note, "spans": spans, **extra}
+
+
+def duration(spans):
+    now = int(time.time() * 1000)
+    return sum((s["end"] or now) - s["start"] for s in spans)
+
+
+def recordings():
+    days = [
+        ("r1", "p-internal", "Inbox and planning", [span((8, 45), (9, 30))]),
+        ("r2", "p-acme-web", "ACME-142: Checkout redesign", [span((9, 45), (12, 0)), span((12, 30), (13, 15))]),
+        ("r3", "p-globex", "Quarterly report", [span((14, 0), (15, 0))]),
+        ("r4", "p-acme-app", "ACME-139: Login fails offline", [span((15, 45), None)]),
+    ]
+    return [item(p, note, spans, id=rid, running=spans[-1]["end"] is None, durationMs=duration(spans)) for rid, p, note, spans in days]
+
+
+def suggestions():
+    return [
+        item("p-acme-web", "Zoom - Acme sync", [span((12, 0), (12, 30))], id="s1", by="Daybook"),
+        item(None, "Teams - Design review", [span((15, 0), (15, 45))], id="s2", by="Daybook"),
+    ]
+
+
+def timer():
+    running = recordings()[-1]
+    return {
+        "running": True, "recordingId": running["id"], "projectId": running["projectId"], "project": running["project"],
+        "client": running["client"], "tagId": None, "tag": None, "note": running["note"],
+        "startedAt": running["spans"][-1]["start"],
+    }
+
+
+RECENT = [
+    {"projectId": "p-acme-app", "project": "Mobile App", "tag": None, "note": "ACME-139: Login fails offline"},
+    {"projectId": "p-acme-web", "project": "Web Shop", "tag": None, "note": "ACME-142: Checkout redesign"},
+    {"projectId": "p-globex", "project": "Globex", "tag": None, "note": "Quarterly report"},
+    {"projectId": "p-internal", "project": "Internal", "tag": None, "note": "Inbox and planning"},
+    {"projectId": "p-internal", "project": "Internal", "tag": None, "note": "Team standup"},
+]
+
+
+def main(args):
+    words = [a for a in args if not a.startswith("--")]
+    if words[:1] == ["watch"]:
+        print(json.dumps({"event": "timer", "data": timer()}), flush=True)
+        while True:
+            time.sleep(3600)
+    replies = {
+        ("status",): {"version": "0.1.0"},
+        ("projects",): [dict(p, billable=True, archived=False) for p in PROJECTS],
+        ("clients",): [{"id": "c-acme", "name": "Acme"}, {"id": "c-globex", "name": "Globex"}],
+        ("tags",): [],
+        ("timer", "status"): timer(),
+        ("timer", "recent"): RECENT,
+        ("recordings",): recordings(),
+        ("suggestions",): suggestions(),
+    }
+    for length in (2, 1):
+        reply = replies.get(tuple(words[:length]))
+        if reply is not None:
+            print(json.dumps(reply))
+            return 0
+    return 0  # show, focus and anything else: nothing to print
+
+
+sys.exit(main(sys.argv[1:]))

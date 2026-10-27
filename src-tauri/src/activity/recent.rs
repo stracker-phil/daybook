@@ -58,8 +58,7 @@ mod tests {
     #[test]
     fn a_recent_timer_is_named_by_its_daybook_project_and_carries_the_tracker_project_and_tag() {
         let oscorp = project("Oscorp", &["sdk", "apollo"]);
-        let recent =
-            recent_activities(&[timer("apollo", "QRS-1 review", Some("Dev"))], &[&oscorp]);
+        let recent = recent_activities(&[timer("apollo", "QRS-1 review", Some("Dev"))], &[&oscorp]);
         assert_eq!(
             recent,
             vec![RecentActivity {

@@ -174,7 +174,10 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![true, false]
         );
-        assert_eq!(morgen.questions[0].answer.items, vec!["Sunshine".to_string()]);
+        assert_eq!(
+            morgen.questions[0].answer.items,
+            vec!["Sunshine".to_string()]
+        );
         assert_eq!((morgen.answered, morgen.total), (1, 2));
         assert_eq!(morgen.note, "");
 
@@ -234,10 +237,7 @@ mod tests {
         let written = progress_of(Some(NOTE), &configured());
         assert!(written[1].has_note);
 
-        let empty = progress_of(
-            Some("## Journal\n\n> [!HEART]- Health\n>\n"),
-            &configured(),
-        );
+        let empty = progress_of(Some("## Journal\n\n> [!HEART]- Health\n>\n"), &configured());
         assert!(!empty[1].has_note);
         assert!(!progress_of(None, &configured())[1].has_note);
     }

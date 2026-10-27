@@ -285,10 +285,7 @@ mod tests {
         assert_eq!(label("music:open"), Some("Music…"));
         assert_eq!(label("journal:open"), Some("Journal…"));
         assert_eq!(label("journal:open:Dawn"), Some("Journal: Dawn · 1/3"));
-        assert_eq!(
-            label("journal:open:Health"),
-            Some("Journal: Health")
-        );
+        assert_eq!(label("journal:open:Health"), Some("Journal: Health"));
         assert_eq!(label("routine:wrap"), Some("Journal: Wrap-up · 1/3"));
         assert_eq!(label("search:scope:work"), Some("Search Vault: work"));
         assert_eq!(label("jira:issue:QRS-1"), Some("Jira: QRS-1"));

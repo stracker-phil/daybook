@@ -1,0 +1,6 @@
+[
+  { "title": "Team standup", "calendar": "Work", "start": "09:30:00", "end": "09:45:00" },
+  { "title": "Acme sync", "calendar": "Work", "start": "12:00:00", "end": "12:30:00", "url": "https://zoom.us/j/1234567890" },
+  { "title": "Design review", "calendar": "Work", "start": "15:00:00", "end": "15:45:00", "url": "https://teams.microsoft.com/l/meetup-join/demo" },
+  { "title": "Weekly planning", "calendar": "Work", "start": "17:00:00", "end": "17:30:00" }
+]

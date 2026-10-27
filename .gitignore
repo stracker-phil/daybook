@@ -13,4 +13,3 @@ src-tauri/gen/schemas/
 .claude/settings.local.json
 .claude/worktrees/
 .claude/scheduled_tasks.lock
-docs/screens/*

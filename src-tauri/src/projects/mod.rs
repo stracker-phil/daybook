@@ -223,7 +223,10 @@ mod tests {
         let all = projects();
         let work = current_projects(&all, Some("work"));
         let personal = current_projects(&all, Some("personal"));
-        assert_eq!(group_names(&project_groups(&work, None)), ["Oscorp", "Zeno"]);
+        assert_eq!(
+            group_names(&project_groups(&work, None)),
+            ["Oscorp", "Zeno"]
+        );
         assert_eq!(
             group_names(&project_groups(&work, Some("Zeno"))),
             ["Zeno", "Oscorp"]

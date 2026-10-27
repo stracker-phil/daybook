@@ -29,7 +29,8 @@ support. To build it or port it, point a coding agent at [AGENTS.md](AGENTS.md).
 | | |
 |---|---|
 | ![The activity overlay: a project and a note, then the timer](docs/screens/activity-overlay.png) | ![The status overlay](docs/screens/status-overlay.png) |
-| ![The journal overlay](docs/screens/journal-overlay.png) | ![The music overlay](docs/screens/music-overlay.png) |
+| ![The journal overlay](docs/screens/journal-overlay.png) | ![The focus overlay](docs/screens/focus-overlay.png) |
+| ![The command palette](docs/screens/palette-overlay.png) | |
 
 ## Install
 

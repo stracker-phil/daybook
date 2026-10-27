@@ -70,6 +70,13 @@ pub struct Calendar(std::sync::Mutex<Inner>);
 
 impl Calendar {
     fn events(&self, day: NaiveDate, calendars: &[String], today: NaiveDate) -> Vec<Event> {
+        #[cfg(debug_assertions)]
+        if let Some(demo) = crate::dev::demo_events(
+            day.and_time(NaiveTime::MIN),
+            (day + Days::new(1)).and_time(NaiveTime::MIN),
+        ) {
+            return events::timed_events(demo);
+        }
         if calendars.is_empty() || !has_access() {
             return Vec::new();
         }
@@ -98,6 +105,13 @@ impl Calendar {
     /// Every event from `from` through `days` more days, all-day ones too; canceled and declined ones
     /// included.
     fn ahead(&self, from: NaiveDate, days: u64, calendars: &[String]) -> Vec<CalendarEvent> {
+        #[cfg(debug_assertions)]
+        if let Some(demo) = crate::dev::demo_events(
+            from.and_time(NaiveTime::MIN),
+            (from + Days::new(days + 1)).and_time(NaiveTime::MIN),
+        ) {
+            return demo;
+        }
         if calendars.is_empty() || !has_access() {
             return Vec::new();
         }

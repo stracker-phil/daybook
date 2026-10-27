@@ -202,10 +202,7 @@ mod tests {
             questions: false,
         });
         assert_eq!(line.text, "Health · not written yet");
-        assert_eq!(
-            line.action,
-            command_action("Open", "journal:open:Health")
-        );
+        assert_eq!(line.action, command_action("Open", "journal:open:Health"));
     }
 
     #[test]
