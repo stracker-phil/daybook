@@ -92,6 +92,12 @@ pub struct TtStatus {
     pub version: String,
 }
 
+/// The part of `record --json`'s reply Daybook keeps.
+#[derive(Deserialize)]
+struct Recorded {
+    id: String,
+}
+
 /// A refusal printed on stdout with exit code 1.
 #[derive(Deserialize)]
 pub struct Refusal {
@@ -153,6 +159,16 @@ pub fn parse_recent(stdout: &str) -> Result<Vec<RecentTimer>, String> {
 
 pub fn parse_status(stdout: &str) -> Result<TtStatus, String> {
     serde_json::from_str(stdout).map_err(|e| format!("TimeTracker's status couldn't be read: {e}"))
+}
+
+/// The stored suggestion's id; `None` for an empty reply (a debug build's dry run).
+pub fn parse_recorded(stdout: &str) -> Result<Option<String>, String> {
+    if stdout.trim().is_empty() {
+        return Ok(None);
+    }
+    serde_json::from_str::<Recorded>(stdout)
+        .map(|recorded| Some(recorded.id))
+        .map_err(|e| format!("TimeTracker's suggestion couldn't be read: {e}"))
 }
 
 /// TimeTracker's message in a refusal, if stdout holds one.
@@ -406,6 +422,30 @@ mod tests {
             err.starts_with("TimeTracker's status couldn't be read"),
             "{err}"
         );
+    }
+
+    #[test]
+    fn a_recorded_suggestion_gives_its_id_and_ignores_the_rest() {
+        let stdout = r#"{"kind":"suggestion","id":"5e1c-77","projectId":"p1","note":"Zoom - Oscorp Weekly","tagId":null,"source":"Daybook","day":"2026-10-27","spans":[],"projectName":"Internal"}"#;
+        assert_eq!(parse_recorded(stdout), Ok(Some("5e1c-77".to_string())));
+    }
+
+    #[test]
+    fn an_empty_record_reply_gives_no_id() {
+        for stdout in ["", "\n", "  "] {
+            assert_eq!(parse_recorded(stdout), Ok(None), "{stdout:?}");
+        }
+    }
+
+    #[test]
+    fn an_unreadable_record_reply_is_an_error_naming_the_suggestion() {
+        for stdout in ["oops", "{}", r#"{"id":5}"#] {
+            let err = parse_recorded(stdout).unwrap_err();
+            assert!(
+                err.starts_with("TimeTracker's suggestion couldn't be read"),
+                "{stdout}: {err}"
+            );
+        }
     }
 
     #[test]

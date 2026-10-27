@@ -581,6 +581,7 @@
   },
   "timetracker": {
     "path": "",
-    "linked": false
+    "linked": false,
+    "statusTimer": true
   }
 }

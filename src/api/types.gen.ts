@@ -1484,7 +1484,11 @@ path: string,
 /**
  * Projects were linked to TimeTracker's by name once; it doesn't happen again.
  */
-linked: boolean, };
+linked: boolean, 
+/**
+ * Working continues the last timer, Break and Off stop it.
+ */
+statusTimer: boolean, };
 
 /**
  * A daily window from `from` to `to` (`HH:MM`; empty: the end of the day; before `from`: past

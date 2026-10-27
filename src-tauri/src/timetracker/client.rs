@@ -8,11 +8,11 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use chrono::NaiveDate;
+use chrono::{NaiveDate, NaiveDateTime};
 
 use super::reply::{
-    RecentTimer, TimerState, TtProject, TtStatus, parse_projects, parse_recent, parse_refusal,
-    parse_status, parse_timer,
+    RecentTimer, TimerState, TtProject, TtStatus, parse_projects, parse_recent, parse_recorded,
+    parse_refusal, parse_status, parse_timer,
 };
 use super::watch::TtState;
 use crate::error::{AppError, AppResult, ErrorKind};
@@ -174,6 +174,39 @@ pub fn start(
     args.extend(note.as_deref());
     args.extend(tag.as_deref());
     call(tt, &args).map(|_| ())
+}
+
+/// Stops the running timer; no timer is no error.
+pub fn stop(tt: &dyn TimeTracker) -> AppResult<()> {
+    call(tt, &["timer", "stop"]).map(|_| ())
+}
+
+/// Local date-time as TimeTracker's `--span` reads it.
+fn span_time(at: NaiveDateTime) -> String {
+    at.format("%Y-%m-%dT%H:%M:%S").to_string()
+}
+
+/// A suggestion on TimeTracker's project `project_id` from `start` to `end` (one local day), shown
+/// as "Suggested by Daybook"; the stored suggestion's id, `None` in a dry run.
+pub fn record(
+    tt: &dyn TimeTracker,
+    project_id: &str,
+    (start, end): (NaiveDateTime, NaiveDateTime),
+    note: &str,
+) -> AppResult<Option<String>> {
+    let span = format!("{}-{}", span_time(start), span_time(end));
+    let note_arg = format!("--note={note}");
+    let args = [
+        "record",
+        "--project",
+        project_id,
+        "--span",
+        &span,
+        &note_arg,
+        "--source",
+        "Daybook",
+    ];
+    parse_recorded(&call(tt, &args)?).map_err(AppError::TimeTrackerRefused)
 }
 
 /// Shows TimeTracker's Day view of `day`, else today; starts TimeTracker if needed.
@@ -587,6 +620,133 @@ mod tests {
             "p1",
             "--note=QRS-6805 review",
             "--tag=Development",
+            "--json"
+        ]));
+    }
+
+    #[test]
+    fn stop_stops_the_timer_and_an_empty_reply_is_fine() {
+        let tt = Fake::answering(reply(Some(0), "", ""));
+        assert_eq!(stop(&tt), Ok(()));
+        assert_eq!(tt.calls(), vec![vec!["timer", "stop", "--json"]]);
+    }
+
+    #[test]
+    fn stop_gives_the_error_kind_of_timetrackers_answer() {
+        for (answer, kind) in [
+            (
+                reply(Some(2), "", "TimeTracker is not running\n"),
+                ErrorKind::TimetrackerNotRunning,
+            ),
+            (
+                reply(Some(1), r#"{"kind":"io","message":"disk full"}"#, ""),
+                ErrorKind::TimetrackerRefused,
+            ),
+            (Err(RunFailure::Missing), ErrorKind::TimetrackerMissing),
+        ] {
+            let tt = Fake::answering(answer.clone());
+            assert_eq!(stop(&tt).unwrap_err().kind(), kind, "{answer:?}");
+        }
+    }
+
+    #[test]
+    fn stop_is_a_write_that_a_debug_build_only_pretends_to_run() {
+        assert!(changes_data(&["timer", "stop", "--json"]));
+    }
+
+    fn local(hour: u32, minute: u32, second: u32) -> NaiveDateTime {
+        NaiveDate::from_ymd_opt(2026, 10, 27)
+            .unwrap()
+            .and_hms_opt(hour, minute, second)
+            .unwrap()
+    }
+
+    #[test]
+    fn record_sends_the_span_with_dates_the_attached_note_and_the_daybook_source() {
+        let tt = Fake::answering(reply(
+            Some(0),
+            r#"{"kind":"suggestion","id":"s-1","projectId":"tt1","note":"Zoom - Oscorp Weekly","source":"Daybook"}"#,
+            "",
+        ));
+        let id = record(
+            &tt,
+            "tt1",
+            (local(10, 0, 0), local(10, 45, 30)),
+            "Zoom - Oscorp Weekly",
+        );
+        assert_eq!(id, Ok(Some("s-1".to_string())));
+        assert_eq!(
+            tt.calls(),
+            vec![vec![
+                "record",
+                "--project",
+                "tt1",
+                "--span",
+                "2026-10-27T10:00:00-2026-10-27T10:45:30",
+                "--note=Zoom - Oscorp Weekly",
+                "--source",
+                "Daybook",
+                "--json"
+            ]]
+        );
+    }
+
+    #[test]
+    fn record_keeps_a_note_that_starts_with_a_dash_as_text() {
+        let tt = Fake::answering(reply(Some(0), "", ""));
+        record(&tt, "tt1", (local(9, 0, 0), local(9, 30, 0)), "- weekly").unwrap();
+        assert!(tt.calls()[0].contains(&"--note=- weekly".to_string()));
+    }
+
+    #[test]
+    fn record_with_an_empty_reply_gives_no_id() {
+        let tt = Fake::answering(reply(Some(0), "", ""));
+        assert_eq!(
+            record(&tt, "tt1", (local(9, 0, 0), local(9, 30, 0)), "Zoom - x"),
+            Ok(None)
+        );
+    }
+
+    #[test]
+    fn record_gives_the_error_kind_of_timetrackers_answer() {
+        for (answer, kind) in [
+            (
+                reply(
+                    Some(1),
+                    r#"{"kind":"invalid_input","message":"spans must lie on one day"}"#,
+                    "",
+                ),
+                ErrorKind::TimetrackerRefused,
+            ),
+            (
+                reply(Some(2), "", "TimeTracker is not running\n"),
+                ErrorKind::TimetrackerNotRunning,
+            ),
+            (Err(RunFailure::Missing), ErrorKind::TimetrackerMissing),
+            (reply(Some(0), "oops", ""), ErrorKind::TimetrackerRefused),
+        ] {
+            let tt = Fake::answering(answer.clone());
+            assert_eq!(
+                record(&tt, "tt1", (local(9, 0, 0), local(9, 30, 0)), "n")
+                    .unwrap_err()
+                    .kind(),
+                kind,
+                "{answer:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn record_is_a_write_that_a_debug_build_only_pretends_to_run() {
+        assert!(changes_data(&[
+            "record",
+            "--project",
+            "tt1",
+            "--span",
+            "2026-10-27T10:00:00-2026-10-27T10:45:30",
+            "--note=Zoom - Oscorp Weekly",
+            "--source",
+            "Daybook",
             "--json"
         ]));
     }

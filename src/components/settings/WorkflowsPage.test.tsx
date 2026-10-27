@@ -54,6 +54,25 @@ describe("WorkflowsPage", () => {
     });
   });
 
+  describe("status timer", () => {
+    it("shows the timer switch on by default", () => {
+      renderPage();
+      expect(screen.getByRole("switch", { name: "Start and stop the timer" })).toBeChecked();
+    });
+
+    it("explains in the Finished calls row that matching calls wait as suggestions", () => {
+      renderPage();
+      expect(screen.getByText("Finished calls")).toBeInTheDocument();
+      expect(screen.getByText(/suggestion to approve/)).toBeInTheDocument();
+    });
+
+    it("saves the switch off as timetracker.statusTimer and keeps the other timetracker fields", async () => {
+      renderPage();
+      await userEvent.click(screen.getByRole("switch", { name: "Start and stop the timer" }));
+      expect(lastSaved().timetracker).toEqual({ ...settings().timetracker, statusTimer: false });
+    });
+  });
+
   describe("Slack channel", () => {
     it("saves the trimmed channel as slack.channel", async () => {
       renderPage();

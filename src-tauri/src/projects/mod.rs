@@ -18,16 +18,13 @@ pub fn current_projects<'a>(projects: &'a [Project], context: Option<&str>) -> V
 }
 
 /// The first of `projects` whose name or one of its meeting words is in the title, ignoring case.
-pub fn meeting_project(title: &str, projects: &[&Project]) -> Option<String> {
+pub fn meeting_project<'a>(title: &str, projects: &[&'a Project]) -> Option<&'a Project> {
     let text = title.to_lowercase();
-    projects
-        .iter()
-        .find(|project| {
-            std::iter::once(&project.name)
-                .chain(&project.keywords)
-                .any(|word| !word.is_empty() && text.contains(&word.to_lowercase()))
-        })
-        .map(|project| project.name.clone())
+    projects.iter().copied().find(|project| {
+        std::iter::once(&project.name)
+            .chain(&project.keywords)
+            .any(|word| !word.is_empty() && text.contains(&word.to_lowercase()))
+    })
 }
 
 /// The Launcher projects of `projects` that have any, `current` first, then in Settings order.
@@ -192,15 +189,10 @@ mod tests {
     fn a_meeting_is_found_by_the_project_name_or_a_keyword_ignoring_case() {
         let all = projects();
         let work = current_projects(&all, Some("work"));
-        assert_eq!(
-            meeting_project("qrs refinement", &work).as_deref(),
-            Some("Oscorp")
-        );
-        assert_eq!(
-            meeting_project("Sync with oscorp", &work).as_deref(),
-            Some("Oscorp")
-        );
-        assert_eq!(meeting_project("Zeno Weekly", &work).as_deref(), Some("Zeno"));
+        let name = |title: &str| meeting_project(title, &work).map(|p| p.name.as_str());
+        assert_eq!(name("qrs refinement"), Some("Oscorp"));
+        assert_eq!(name("Sync with oscorp"), Some("Oscorp"));
+        assert_eq!(name("Zeno Weekly"), Some("Zeno"));
     }
 
     #[test]
@@ -208,19 +200,22 @@ mod tests {
         let all = projects();
         let work = current_projects(&all, Some("work"));
         let personal = current_projects(&all, Some("personal"));
-        assert_eq!(meeting_project("QRS refinement", &personal), None);
-        assert_eq!(meeting_project("Weekly", &work), None);
-        assert_eq!(
-            meeting_project("Weekly", &personal).as_deref(),
-            Some("Home")
-        );
+        fn name<'a>(title: &str, offered: &[&'a Project]) -> Option<&'a str> {
+            meeting_project(title, offered).map(|p| p.name.as_str())
+        }
+        assert_eq!(name("QRS refinement", &personal), None);
+        assert_eq!(name("Weekly", &work), None);
+        assert_eq!(name("Weekly", &personal), Some("Home"));
     }
 
     #[test]
     fn an_empty_keyword_matches_no_meeting() {
         let all = [project("Blank", |p| p.keywords = vec![String::new()])];
         let offered: Vec<&Project> = all.iter().collect();
-        assert_eq!(meeting_project("anything", &offered), None);
+        assert_eq!(
+            meeting_project("anything", &offered).map(|p| p.name.as_str()),
+            None
+        );
     }
 
     #[test]

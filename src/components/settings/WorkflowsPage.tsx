@@ -2,7 +2,7 @@ import { Fragment } from "react";
 import type { EndOfDay, Status } from "../../api";
 import type { SettingsPageProps } from "../../registry/settingsPages";
 import { AbsenceWorkflows } from "./AbsenceWorkflows";
-import { Group, Switch, TextField } from "./controls";
+import { Group, Row, Switch, TextField } from "./controls";
 import { SlackStatusField } from "./SlackStatusField";
 
 const STATUSES: { status: Status; label: string }[] = [
@@ -63,6 +63,16 @@ function StatusWorkflows({ s, set }: SettingsPageProps) {
           )}
         </Fragment>
       ))}
+      <Switch
+        label="Start and stop the timer"
+        description="Working continues TimeTracker's last timer (or asks what you work on for another context's project). Break and Done for today stop it."
+        checked={s.timetracker.statusTimer}
+        onChange={(statusTimer) => set({ timetracker: { ...s.timetracker, statusTimer } })}
+      />
+      <Row
+        label="Finished calls"
+        description="While Working, a call of 3 minutes or more whose title or calendar event names a project (its name or a meeting word, Settings → Projects) waits in TimeTracker as a suggestion to approve."
+      />
     </Group>
   );
 }

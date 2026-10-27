@@ -1,12 +1,16 @@
 //! TimeTracker (docs/timetracker.md): Daybook reads and drives it through its `timetracker` tool and
 //! never tracks time itself. One thread follows `timetracker watch --json`, so the timer and whether
 //! TimeTracker runs are known live; the menu-bar title, the rail, the sidebar, Slack and the link rules
-//! follow through `timer_changed`.
+//! follow through `timer_changed`. The status starts and stops the timer; finished calls become
+//! suggestions (`drive`).
 
+mod call_suggestion;
 pub mod client;
 pub mod commands;
+mod drive;
 pub mod link;
 pub mod reply;
+mod status_timer;
 pub mod watch;
 
 use std::process::Child;
@@ -293,6 +297,7 @@ pub fn install(app: &AppHandle) {
     // A context switch can change which project counts.
     let handle = app.clone();
     app.listen(CONTEXT_CHANGED_EVENT, move |_| follow_project(&handle));
+    drive::install(app);
 }
 
 /// A new path is tried at once; changed links move the timer's project.

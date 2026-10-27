@@ -94,3 +94,31 @@ again. The overlay's 60 s timeout counts only while it has focus and confirms no
 Recent timers are cached: the overlay asks again after 4 s, the tray, rail and palette after a minute; any timer
 change drops the cache. The tray's Activity part (`menu/activity.rs`) shows the timer or TimeTracker's state, "Log
 Activity…" (with recent timers as a submenu) and the pause checkbox.
+
+## The status drives the timer
+
+`timetracker/drive.rs` follows `status_changed` while `timetracker.statusTimer` is on (Settings → Workflows, "Start
+and stop the timer"; on by default). `status_timer::timer_step` (pure) decides:
+
+| Change | Timer | Does |
+|---|---|---|
+| set by picking an activity (`byActivity`) | any | nothing (the pick started its timer) |
+| None, Break or Off → Working | running | nothing |
+| None, Break or Off → Working | idle or unknown | continues the last timer (`timer recent --limit 1`: same project, note and tag, so TimeTracker continues today's recording) when its project belongs to a current project; else opens the activity overlay (only in a context with the Status feature) |
+| → Break or Off | running or unknown | `timer stop` |
+| → Break or Off | idle | nothing |
+
+The timer changing in TimeTracker never changes the status ([ADR 0019](adr/0019-daybook-owns-the-status.md)). When
+TimeTracker isn't running the status still changes and a notification ("TimeTracker isn't running", "The timer wasn't
+started." or "…stopped.") offers Open TimeTracker.
+
+## Calls become suggestions
+
+On a call's end (a call that drops and comes back within the grace is one call), `call_suggestion` (pure) checks, in
+order: the status is Working; the context has the Status feature; the call (cut at midnight) lasts 3 minutes or
+more; the title (or, for a generic "Meeting", the overlapping event's) names a current project by its name or a
+meeting word; that project is linked to a TimeTracker project (the first link is used). Then it sends
+`timetracker record --project <id> --span <start>-<end> --note=<App> - <title> --source Daybook`: a stored suggestion
+TimeTracker shows as "Suggested by Daybook" to approve. TimeTracker shows only the part of a suggestion no recording
+covers, so a call made while a timer runs often doesn't show. When TimeTracker isn't running a notification says the
+call wasn't sent. Every outcome is logged.

@@ -140,13 +140,14 @@ impl Suggestions {
             format!("{app} - {title}")
         };
         let project = meeting_project(title, projects);
+        let name = project.map(|project| project.name.as_str());
         self.push(Suggestion {
             group: SuggestionGroup::Meetings,
-            display: display(project.as_deref(), &note),
-            tt_project_id: first_linked(project.as_deref(), projects),
+            display: display(name, &note),
+            tt_project_id: first_linked(name, projects),
             tag: None,
             note,
-            project,
+            project: name.map(str::to_string),
         });
     }
 }

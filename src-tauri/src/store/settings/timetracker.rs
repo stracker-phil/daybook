@@ -1,4 +1,5 @@
-//! Where the `timetracker` tool is and whether projects were linked by name once (docs/timetracker.md).
+//! Where the `timetracker` tool is, whether projects were linked by name once and whether the status
+//! drives the timer (docs/timetracker.md).
 
 use serde::Serialize;
 use serde_json::Value;
@@ -6,7 +7,7 @@ use ts_rs::TS;
 
 use super::read::*;
 
-#[derive(Serialize, Clone, Debug, PartialEq, Default, TS)]
+#[derive(Serialize, Clone, Debug, PartialEq, TS)]
 #[ts(export, export_to = "src/api/types.gen.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct TimeTrackerSettings {
@@ -14,6 +15,18 @@ pub struct TimeTrackerSettings {
     pub path: String,
     /// Projects were linked to TimeTracker's by name once; it doesn't happen again.
     pub linked: bool,
+    /// Working continues the last timer, Break and Off stop it.
+    pub status_timer: bool,
+}
+
+impl Default for TimeTrackerSettings {
+    fn default() -> Self {
+        Self {
+            path: String::new(),
+            linked: false,
+            status_timer: true,
+        }
+    }
 }
 
 impl TimeTrackerSettings {
@@ -22,6 +35,7 @@ impl TimeTrackerSettings {
         Self {
             path: trimmed(field(source, "path")),
             linked: flag(field(source, "linked")).unwrap_or(false),
+            status_timer: flag(field(source, "statusTimer")).unwrap_or(true),
         }
     }
 }
@@ -51,9 +65,39 @@ mod tests {
             read,
             TimeTrackerSettings {
                 path: "/bin/tt".into(),
-                linked: true
+                linked: true,
+                status_timer: true,
             }
         );
+    }
+
+    #[test]
+    fn the_status_timer_is_on_unless_turned_off() {
+        for (raw, expected) in [
+            (json!({}), true),
+            (json!({ "path": "/bin/tt" }), true),
+            (json!({ "statusTimer": true }), true),
+            (json!({ "statusTimer": false }), false),
+        ] {
+            assert_eq!(
+                TimeTrackerSettings::read(Some(&raw)).status_timer,
+                expected,
+                "{raw}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_turned_off_status_timer_round_trips() {
+        let original = TimeTrackerSettings {
+            status_timer: false,
+            ..TimeTrackerSettings::default()
+        };
+
+        let value = serde_json::to_value(&original).unwrap();
+
+        assert_eq!(value["statusTimer"], json!(false));
+        assert_eq!(TimeTrackerSettings::read(Some(&value)), original);
     }
 
     #[test]
@@ -61,11 +105,15 @@ mod tests {
         let original = TimeTrackerSettings {
             path: "/bin/tt".into(),
             linked: true,
+            status_timer: true,
         };
 
         let value = serde_json::to_value(&original).unwrap();
 
-        assert_eq!(value, json!({ "path": "/bin/tt", "linked": true }));
+        assert_eq!(
+            value,
+            json!({ "path": "/bin/tt", "linked": true, "statusTimer": true })
+        );
         assert_eq!(TimeTrackerSettings::read(Some(&value)), original);
     }
 }

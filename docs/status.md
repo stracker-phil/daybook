@@ -39,6 +39,7 @@ Listeners:
 | the Daybook window | reloads `hub_view` (the sidebar's status row) |
 | `slack::install` (`app.listen(STATUS_CHANGED_EVENT, …)`) | the Slack status and the channel message ([slack.md](slack.md)) |
 | `music::install` (automation) | pauses or starts music on Break, Done for today and the first Working ([music.md](music.md#automation)) |
+| `timetracker::drive` | starts or stops TimeTracker's timer ([timetracker.md](timetracker.md#the-status-drives-the-timer)) |
 | `wizard::install` | opens what the first Working or Done for today opens ([routines.md](routines.md#the-wizard)) |
 | later steps, in Rust (the same way) | music (19), the timer (26) |
 
