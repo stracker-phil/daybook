@@ -2,6 +2,7 @@ import { Fragment, useState, type KeyboardEvent } from "react";
 import type { LucideIcon } from "lucide-react";
 import { api, toAppError } from "../../api";
 import { cycle, useActiveScroll } from "./listKeys";
+import { PanelFooter, PanelInput, PanelList, PanelOption, SectionHeader, type PanelHint } from "./parts";
 
 export interface CommandRow {
   key: string;
@@ -26,7 +27,7 @@ interface ShortcutListViewProps {
   emptyText: string;
   /** Shown when the typed words hide every row. */
   noMatchText: string;
-  hints: string;
+  hints: PanelHint[];
   loadError: string | null;
 }
 
@@ -84,45 +85,36 @@ export function ShortcutListView({ icon: Icon, inputLabel, placeholder, label, r
 
   return (
     <div className="panel-card palette-view">
-      <div className="palette-input" data-stage="panel:input" data-stage-label={placeholder} data-stage-role="field">
-        <Icon size="1.077rem" aria-hidden="true" />
-        <input
-          autoFocus
-          aria-label={inputLabel}
-          placeholder={placeholder}
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setSelected(0);
-          }}
-          onKeyDown={onKeyDown}
-        />
-      </div>
-      <ul className="palette-list shortcut-list" role="listbox" aria-label={label}>
-        {rows && shown.length === 0 && <li className="o3">{rows.length === 0 ? emptyText : noMatchText}</li>}
+      <PanelInput
+        icon={Icon}
+        aria-label={inputLabel}
+        placeholder={placeholder}
+        value={query}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setSelected(0);
+        }}
+        onKeyDown={onKeyDown}
+      />
+      <PanelList className="shortcut-list" aria-label={label}>
+        {rows && shown.length === 0 && <li className="panel-empty">{rows.length === 0 ? emptyText : noMatchText}</li>}
         {shown.map((row, index) => (
           <Fragment key={row.key}>
-            {(index === 0 || shown[index - 1].group !== row.group) && (
-              <li role="presentation" className="palette-section">
-                {row.group}
-              </li>
-            )}
-            <li
+            {(index === 0 || shown[index - 1].group !== row.group) && <SectionHeader>{row.group}</SectionHeader>}
+            <PanelOption
               ref={index === current ? activeRef : undefined}
-              role="option"
-              aria-selected={index === current}
-              className={index === current ? "active" : undefined}
+              selected={index === current}
+              number={index < SHORTCUT_ROWS ? `⌘${index + 1}` : ""}
               {...row.data}
               // The second click of a double-click lands on the selected row and opens it.
               onClick={() => (index === current ? open(row) : setSelected(index))}
             >
-              <span className="context-number o3">{index < SHORTCUT_ROWS ? `⌘${index + 1}` : ""}</span>
               <span className="grow-text">{row.title}</span>
-            </li>
+            </PanelOption>
           </Fragment>
         ))}
-      </ul>
-      <div className="palette-foot o3">{error ? <span className="palette-error">{error}</span> : <span>{hints}</span>}</div>
+      </PanelList>
+      <PanelFooter hints={hints} error={error} />
     </div>
   );
 }

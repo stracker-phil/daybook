@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, type KeyboardEvent } from "react";
 import type { FocusProject } from "../../api";
+import { ProjectKeys } from "./parts";
 import { continueList, cycleCheckbox, indentLine, setLineProject, type TextEdit } from "./focusText";
 
 const MIN_ROWS = 4;
@@ -78,15 +79,7 @@ export function FocusEditor({ value, projects, onChange, onConfirm, onSkip, onSe
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKeyDown}
       />
-      {shown.length > 0 && (
-        <div className="project-keys o3" aria-label="Projects">
-          {shown.map((project, i) => (
-            <span key={project.name}>
-              ⌘{i + 1} {project.name}
-            </span>
-          ))}
-        </div>
-      )}
+      <ProjectKeys names={shown.map((project) => project.name)} />
     </div>
   );
 }

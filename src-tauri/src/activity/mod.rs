@@ -1,9 +1,11 @@
 //! The activity overlay and check-ins (docs/timetracker.md#the-activity-overlay): pick a project and type
-//! what you work on, and TimeTracker's timer starts on it; the scheduler opens the overlay as a
-//! check-in every `checkInMinutes`. Daybook never records time itself.
+//! what you work on, and Daybook keeps it as the current activity; TimeTracker's timer starts on the
+//! project's linked TimeTracker project (or none). The scheduler opens the overlay as a check-in every
+//! `checkInMinutes`. Daybook never records time itself.
 
 pub mod check_in;
 pub mod commands;
+pub mod current;
 pub mod pause;
 pub mod pick;
 pub mod prefill;
@@ -19,17 +21,19 @@ use chrono::{DateTime, Local, NaiveDateTime};
 use tauri::{AppHandle, Listener, Manager};
 
 use self::check_in::{CheckIns, Conditions, Moment};
-use self::pick::Plan;
+use self::commands::submit_pick;
+use self::current::{KeptActivity, current_view, follow_timer};
+use self::pick::{ActivityPick, Plan};
 use self::prefill::Prefill;
-use self::session::{ActivityMode, ActivitySession, SessionInput, build_session};
+use self::session::{ActivityMode, ActivitySession, SessionInput, build_session, tt_projects};
 use crate::bus::{Command, CommandBus};
 use crate::clock::is_within_window;
 use crate::error::AppResult;
-use crate::events::CONTEXT_CHANGED_EVENT;
+use crate::events::{CONTEXT_CHANGED_EVENT, STATUS_CHANGED_EVENT};
 use crate::lock::MutexExt;
 use crate::state::AppState;
 use crate::store::settings::{Feature, Project, Settings, Status};
-use crate::timetracker::reply::RecentTimer;
+use crate::timetracker::reply::{RecentTimer, TimerState};
 use crate::timetracker::{self, TtState, client};
 use crate::tools::RecentActivity;
 use crate::{calls, presence, status, tray, window};
@@ -135,10 +139,43 @@ fn since_timer_started(app: &AppHandle, now: NaiveDateTime) -> NaiveDateTime {
         .map_or(now, |started| started.with_timezone(&Local).naive_local())
 }
 
-/// After ↵: Working when a timer started during a break or after the day, the next check-in a full
-/// interval away, and the overlay closed.
+pub fn kept(app: &AppHandle) -> Option<KeptActivity> {
+    let state = app.state::<AppState>();
+    state.current_activity.get(state.notes.today())
+}
+
+/// Writes `activity`; whether it differed from the kept one.
+fn set_kept(app: &AppHandle, activity: Option<KeptActivity>) -> bool {
+    let state = app.state::<AppState>();
+    state
+        .current_activity
+        .set(state.notes.today(), activity)
+        .unwrap_or_else(|e| {
+            log::warn!("Couldn't keep the current activity: {e}");
+            false
+        })
+}
+
+/// Keeps `activity` as the current one; the surfaces follow when it changed.
+fn keep(app: &AppHandle, activity: Option<KeptActivity>) {
+    if set_kept(app, activity) {
+        tray::refresh(app);
+        timetracker::announce_timer(app);
+    }
+}
+
+/// TimeTracker's timer changed: the current activity follows a running one. The timer's change
+/// brings the surfaces along.
+pub fn timer_changed(app: &AppHandle, timer: Option<&TimerState>) {
+    let projects = app.state::<AppState>().settings.get().projects;
+    let next = follow_timer(kept(app).as_ref(), timer, &projects);
+    set_kept(app, next);
+}
+
+/// After ↵: Working when an activity was picked during a break or after the day, the next check-in a
+/// full interval away, and the overlay closed.
 fn finish_pick(app: &AppHandle, plan: &Plan) {
-    if matches!(plan, Plan::Start { .. })
+    if matches!(plan, Plan::Start { .. } | Plan::NoTimer)
         && status::today(app).status != Some(Status::Working)
         && let Err(e) = status::set_working_by_activity(app)
     {
@@ -157,15 +194,62 @@ fn session_now(app: &AppHandle, mode: ActivityMode, prefill: Option<&Prefill>) -
     let tracking = timetracker::tracking(app);
     let (tt, view) = timetracker::tool_state(&tracking, &settings);
     let listed = timetracker::cached_projects(app);
+    let kept = kept(app);
     build_session(&SessionInput {
         mode,
         offered: &offered,
         listed: listed.as_deref(),
         tt,
         timer: tracking.timer.as_ref(),
-        timer_text: view.map(|view| view.text()),
+        kept: kept.as_ref(),
+        current_text: current_view(view.as_ref(), kept.as_ref()).map(|view| view.text()),
         prefill,
     })
+}
+
+/// The active TimeTracker projects linked to the Daybook project `name`: among the offered ones,
+/// else any.
+fn links_of(app: &AppHandle, name: &str) -> Vec<String> {
+    let settings = app.state::<AppState>().settings.get();
+    let offered = offered(&settings, app);
+    let listed = timetracker::cached_projects(app);
+    offered
+        .iter()
+        .chain(&settings.projects)
+        .find(|project| project.name == name)
+        .map(|project| {
+            tt_projects(project, listed.as_deref())
+                .into_iter()
+                .map(|tt| tt.id)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// ↵: does the pick in TimeTracker and keeps it as the current activity (then Working, during a break
+/// or after the day); then the overlay closes. An error leaves the overlay open.
+pub async fn submit(app: &AppHandle, mode: ActivityMode, pick: ActivityPick) -> AppResult<()> {
+    let running = timetracker::tracking(app).timer;
+    let links = links_of(app, &pick.project);
+    let current = kept(app);
+    let submitted = KeptActivity {
+        project: pick.project.clone(),
+        note: pick.note.clone(),
+    };
+    let plan = timetracker::blocking(app, move |tool| {
+        submit_pick(
+            tool,
+            mode,
+            &pick,
+            current.as_ref(),
+            &links,
+            running.as_ref(),
+        )
+    })
+    .await?;
+    keep(app, Some(submitted));
+    finish_pick(app, &plan);
+    Ok(())
 }
 
 /// Opens the activity overlay; the same request again closes it.
@@ -285,4 +369,14 @@ pub fn install(app: &AppHandle) {
     app.listen(CONTEXT_CHANGED_EVENT, move |_| {
         activity(&handle).check_ins.lock_unpoisoned().reset();
     });
+    // Off ends the workday, so the next Working starts without yesterday's activity.
+    let handle = app.clone();
+    app.listen(
+        STATUS_CHANGED_EVENT,
+        move |event| match serde_json::from_str::<status::StatusChanged>(event.payload()) {
+            Ok(change) if change.next == Status::Off => keep(&handle, None),
+            Ok(_) => {}
+            Err(e) => log::warn!("Couldn't read a status change: {e}"),
+        },
+    );
 }

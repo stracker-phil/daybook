@@ -5,12 +5,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../api", async (orig) => ({ ...(await orig<object>()), api: (await import("../../test/apiMock")).createApiMock() }));
 
 import { api, type LinkItem } from "../../api";
+import { hintKeys } from "../../test/panelHints";
 import { LinksView } from "./LinksView";
 
 const mocked = vi.mocked(api, true);
 
 const link = (title: string): LinkItem => ({ title, target: `https://example.com/${title}`, command: `link:${title}` });
-const HINTS = "↑↓ link · ↵ open · ⌘1–9 open · esc close";
 
 async function renderView(now: LinkItem[], more: LinkItem[]) {
   mocked.linksView.mockResolvedValue({ now, more });
@@ -30,7 +30,9 @@ describe("LinksView", () => {
     expect(await screen.findByText("Now")).toBeInTheDocument();
     expect(screen.getByText("More links")).toBeInTheDocument();
     expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["⌘1Board", "⌘2Wiki", "⌘3Docs"]);
-    expect(screen.getByText(HINTS)).toBeInTheDocument();
+    expect(hintKeys("Link")).toEqual(["↑", "↓"]);
+    expect(hintKeys("Open")).toEqual(["↵"]);
+    expect(hintKeys("Close")).toEqual(["esc"]);
   });
 
   it("numbers only the first nine rows", async () => {
@@ -108,12 +110,13 @@ describe("LinksView", () => {
   });
 
   describe("errors", () => {
-    it("shows the message of a failed command in the footer instead of the hints", async () => {
+    it("shows the message of a failed command in the footer while the hints stay", async () => {
       mocked.runCommand.mockRejectedValue({ kind: "io", message: "Cannot open", code: null });
       await renderView([link("Board")], []);
       await userEvent.keyboard("{Enter}");
       expect(await screen.findByText("Cannot open")).toBeInTheDocument();
-      expect(screen.queryByText(HINTS)).not.toBeInTheDocument();
+      expect(hintKeys("Open")).toEqual(["↵"]);
+      expect(hintKeys("Close")).toEqual(["esc"]);
     });
 
     it("shows the message of a failed load in the footer", async () => {

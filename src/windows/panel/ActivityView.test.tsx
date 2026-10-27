@@ -5,15 +5,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../api", async (orig) => ({ ...(await orig<object>()), api: (await import("../../test/apiMock")).createApiMock() }));
 
 import { api, type ActivityProject, type ActivitySession, type ActivitySuggestion, type TimerChanged, type TimerState } from "../../api";
+import { hintKeys } from "../../test/panelHints";
 import { ActivityView } from "./ActivityView";
 
 const mocked = vi.mocked(api, true);
 
 const tt = (id: string, name: string) => ({ id, name, client: null, color: "blue", shade: 0 });
 const PROJECTS: ActivityProject[] = [
-  { name: "Oscorp", ttProjects: [tt("qrs", "QRS"), tt("zeno", "Zeno")], hint: null },
-  { name: "Private", ttProjects: [tt("priv", "Private")], hint: null },
-  { name: "Acme", ttProjects: [], hint: "Link a TimeTracker project to Acme in Settings." },
+  { name: "Oscorp", ttProjects: [tt("qrs", "QRS"), tt("zeno", "Zeno")], timerRow: true },
+  { name: "Private", ttProjects: [tt("priv", "Private")], timerRow: false },
+  { name: "Acme", ttProjects: [], timerRow: false },
 ];
 
 const session = (patch: Partial<ActivitySession> = {}): ActivitySession => ({
@@ -40,7 +41,7 @@ const suggestion = (patch: Partial<ActivitySuggestion>): ActivitySuggestion => (
 
 const MEETING = suggestion({ group: "meetings", note: "Sprint planning", project: "Oscorp", ttProjectId: "qrs", display: "Oscorp · Sprint planning" });
 const TICKET = suggestion({ group: "ticketsToday", note: "QRS-7 fix", project: "Oscorp", ttProjectId: "qrs", display: "Oscorp · QRS-7 fix" });
-const RECENT = suggestion({ group: "recentTimers", note: "Lunch talk", ttProjectId: "priv", tag: "t-recent", display: "Private · Lunch talk" });
+const RECENT = suggestion({ group: "recentTimers", note: "Lunch talk", project: "Oscorp", ttProjectId: "zeno", tag: "t-recent", display: "Oscorp · Lunch talk" });
 // Deliberately not in display order.
 const ALL = [RECENT, TICKET, MEETING];
 
@@ -65,85 +66,194 @@ async function renderView(patch: Partial<ActivitySession> = {}, suggestions: Act
 }
 
 const input = () => screen.getByRole("textbox", { name: "Note" });
-const pressed = () => screen.getAllByRole("button", { pressed: true }).map((b) => b.textContent);
+const pressedIn = (group: string) => {
+  const element = screen.queryByRole("group", { name: group });
+  return element ? within(element).getAllByRole("button", { pressed: true }).map((b) => b.textContent) : null;
+};
+const project = () => pressedIn("Project");
+const timer = () => pressedIn("Timer");
+const timerChoices = () => within(screen.getByRole("group", { name: "Timer" })).getAllByRole("button").map((b) => b.textContent);
 const options = () => screen.queryAllByRole("option").map((o) => o.textContent);
 const selected = () => screen.queryAllByRole("option").find((o) => o.getAttribute("aria-selected") === "true")?.textContent;
-const footer = (text: string) => screen.getByText(text);
 const rejection = (kind: string, message: string) => ({ kind, message, code: null });
+const keys = (text: string) => userEvent.keyboard(text);
 
 describe("ActivityView", () => {
   beforeEach(() => vi.clearAllMocks());
 
   describe("opening", () => {
-    it("shows the prompt, the prefilled note and the session's project pressed", async () => {
+    it("shows the prompt, the prefilled note and the session's project and timer pressed", async () => {
       await renderView();
       expect(screen.getByText("What are you working on?")).toBeInTheDocument();
       expect(input()).toHaveValue("QRS-1 review");
-      expect(pressed()).toEqual(["QRS"]);
+      expect(project()).toEqual(["Oscorp"]);
+      expect(timer()).toEqual(["QRS"]);
     });
 
-    it("groups TimeTracker projects under their Daybook project and leaves out a name that repeats", async () => {
+    it("lists the Daybook projects in the Project picker", async () => {
       await renderView();
-      const oscorp = within(screen.getByRole("group", { name: "Oscorp" }));
-      expect(oscorp.getByText("Oscorp")).toBeInTheDocument();
-      expect(oscorp.getAllByRole("button").map((b) => b.textContent)).toEqual(["QRS", "Zeno"]);
-      const own = within(screen.getByRole("group", { name: "Private" }));
-      expect(own.getAllByText("Private")).toHaveLength(1);
-      expect(own.getByRole("button", { name: "Private" })).toBeInTheDocument();
-    });
-
-    it("shows a project without a link as Not linked and its hint in the footer when clicked", async () => {
-      await renderView();
-      await userEvent.click(screen.getByRole("button", { name: "Not linked" }));
-      expect(screen.getByText("Link a TimeTracker project to Acme in Settings.")).toBeInTheDocument();
-      expect(pressed()).toEqual(["QRS"]);
+      const picker = within(screen.getByRole("group", { name: "Project" }));
+      expect(picker.getAllByRole("button").map((b) => b.textContent)).toEqual(["Oscorp", "Private", "Acme"]);
     });
 
     it("lists the project keys in picker order", async () => {
       await renderView();
-      expect(screen.getByLabelText("Project keys")).toHaveTextContent("⌘1 QRS⌘2 Zeno⌘3 Private");
+      const hints = within(screen.getByLabelText("Project keys"));
+      expect(hints.getByText("Oscorp").parentElement).toHaveTextContent("⌘1");
+      expect(hints.getByText("Private").parentElement).toHaveTextContent("⌘2");
+      expect(hints.getByText("Acme").parentElement).toHaveTextContent("⌘3");
+    });
+
+    it("explains the two rows with icon tooltips", async () => {
+      await renderView();
+      expect(screen.getByTitle("What you work on")).toBeInTheDocument();
+      expect(screen.getByTitle("TimeTracker timer")).toBeInTheDocument();
+    });
+
+    it("never says a project is not linked", async () => {
+      await renderView();
+      await keys("{Meta>}3{/Meta}");
+      expect(project()).toEqual(["Acme"]);
+      expect(screen.queryByText("Not linked")).not.toBeInTheDocument();
+    });
+
+    it("keeps the picker in the note's row for a few projects", async () => {
+      await renderView();
+      expect(input().parentElement).toContainElement(screen.getByRole("group", { name: "Project" }));
+    });
+  });
+
+  describe("timer row", () => {
+    it("shows None first and then the project's TimeTracker projects when it links several", async () => {
+      await renderView();
+      expect(timerChoices()).toEqual(["None", "QRS", "Zeno"]);
+    });
+
+    it.each([
+      ["Private", "one TimeTracker project"],
+      ["Acme", "none"],
+    ])("is hidden for %s, which links %s", async (name) => {
+      await renderView();
+      await userEvent.click(screen.getByRole("button", { name }));
+      expect(project()).toEqual([name]);
+      expect(screen.queryByRole("group", { name: "Timer" })).not.toBeInTheDocument();
+      expect(screen.queryByTitle("TimeTracker timer")).not.toBeInTheDocument();
+    });
+
+    it.each([
+      ["zeno", "Zeno"],
+      ["qrs", "QRS"],
+      [null, "None"],
+    ])("presses the session's timer project %s as %s", async (ttProjectId, label) => {
+      await renderView({ ttProjectId });
+      expect(timer()).toEqual([label]);
+    });
+
+    it("picks a timer project by click without changing the note or the project", async () => {
+      await renderView();
+      await userEvent.click(screen.getByRole("button", { name: "Zeno" }));
+      expect(timer()).toEqual(["Zeno"]);
+      expect(project()).toEqual(["Oscorp"]);
+      expect(input()).toHaveValue("QRS-1 review");
+      expect(input()).toHaveFocus();
     });
   });
 
   describe("project keys", () => {
     it.each([
-      ["{Meta>}2{/Meta}", "Zeno"],
-      ["{Meta>}3{/Meta}", "Private"],
-      ["{Meta>}9{/Meta}", "QRS"],
-    ])("%s leaves %s pressed", async (keys, name) => {
+      ["{Meta>}2{/Meta}", "Private"],
+      ["{Meta>}3{/Meta}", "Acme"],
+      ["{Meta>}9{/Meta}", "Oscorp"],
+    ])("%s leaves %s pressed", async (pressedKeys, name) => {
       await renderView();
-      await userEvent.keyboard(keys);
-      expect(pressed()).toEqual([name]);
+      await keys(pressedKeys);
+      expect(project()).toEqual([name]);
+    });
+
+    it.each([["{Meta>}0{/Meta}"], ["{Meta>}4{/Meta}"]])("%s does nothing past the project count", async (pressedKeys) => {
+      await renderView();
+      await keys("{Meta>}2{/Meta}");
+      await keys(pressedKeys);
+      expect(project()).toEqual(["Private"]);
+      expect(input()).toHaveValue("QRS-1 review");
     });
 
     it("Tab picks the next project and wraps, Shift+Tab goes back", async () => {
       await renderView();
-      await userEvent.keyboard("{Tab}");
-      expect(pressed()).toEqual(["Zeno"]);
-      await userEvent.keyboard("{Tab}{Tab}");
-      expect(pressed()).toEqual(["QRS"]);
-      await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
-      expect(pressed()).toEqual(["Private"]);
+      await keys("{Tab}");
+      expect(project()).toEqual(["Private"]);
+      await keys("{Tab}{Tab}");
+      expect(project()).toEqual(["Oscorp"]);
+      await keys("{Shift>}{Tab}{/Shift}");
+      expect(project()).toEqual(["Acme"]);
     });
 
     it("swallows Tab even with a single project", async () => {
-      await renderView({ projects: [PROJECTS[1]], ttProjectId: "priv" });
+      await renderView({ projects: [PROJECTS[1]], project: "Private", ttProjectId: "priv" });
       expect(fireEvent.keyDown(input(), { key: "Tab" })).toBe(false);
       expect(input()).toHaveFocus();
     });
 
     it("picks a project by click and keeps the focus in the field", async () => {
       await renderView();
-      await userEvent.click(screen.getByRole("button", { name: "Zeno" }));
-      expect(pressed()).toEqual(["Zeno"]);
+      await userEvent.click(screen.getByRole("button", { name: "Private" }));
+      expect(project()).toEqual(["Private"]);
       expect(input()).toHaveFocus();
+    });
+
+    it.each([
+      ["Tab", () => keys("{Tab}{Tab}{Tab}")],
+      ["⌘N", async () => keys("{Meta>}2{/Meta}{Meta>}1{/Meta}")],
+      ["a click", async () => {
+        await userEvent.click(screen.getByRole("button", { name: "Private" }));
+        await userEvent.click(screen.getByRole("button", { name: "Oscorp" }));
+      }],
+    ])("resets the timer row to None when %s changes the project and back", async (_, change) => {
+      await renderView();
+      await change();
+      expect(project()).toEqual(["Oscorp"]);
+      expect(timer()).toEqual(["None"]);
+    });
+
+    it("keeps the timer project when the picked project is picked again", async () => {
+      await renderView({ ttProjectId: "zeno" });
+      await keys("{Meta>}1{/Meta}");
+      expect(timer()).toEqual(["Zeno"]);
+    });
+  });
+
+  describe("timer keys", () => {
+    it.each([
+      ["{Alt>}1{/Alt}", "QRS"],
+      ["{Alt>}2{/Alt}", "Zeno"],
+      ["{Alt>}0{/Alt}", "None"],
+    ])("%s presses %s and leaves the note alone", async (pressedKeys, label) => {
+      await renderView({ ttProjectId: label === "QRS" ? "zeno" : "qrs" });
+      await keys(pressedKeys);
+      expect(timer()).toEqual([label]);
+      expect(project()).toEqual(["Oscorp"]);
+      expect(input()).toHaveValue("QRS-1 review");
+    });
+
+    it("ignores a number past the timer row", async () => {
+      await renderView();
+      await keys("{Alt>}9{/Alt}");
+      expect(timer()).toEqual(["QRS"]);
+      expect(input()).toHaveValue("QRS-1 review");
+    });
+
+    it("does nothing for a project without the timer row", async () => {
+      await renderView({ project: "Private", ttProjectId: "priv" });
+      await keys("{Alt>}1{/Alt}");
+      expect(project()).toEqual(["Private"]);
+      expect(input()).toHaveValue("QRS-1 review");
     });
   });
 
   describe("suggestions", () => {
     it("shows them under Meetings, Tickets Today and Recent Timers in that order", async () => {
       await renderView();
-      expect(options()).toEqual(["Oscorp · Sprint planning", "Oscorp · QRS-7 fix", "Private · Lunch talk"]);
+      expect(options()).toEqual(["Oscorp · Sprint planning", "Oscorp · QRS-7 fix", "Oscorp · Lunch talk"]);
       expect(screen.getAllByRole("presentation").map((h) => h.textContent)).toEqual(["Meetings", "Tickets Today", "Recent Timers"]);
     });
 
@@ -158,7 +268,7 @@ describe("ActivityView", () => {
       expect(screen.getAllByRole("option")).toHaveLength(3);
       await userEvent.clear(input());
       await userEvent.type(input(), "lunch");
-      expect(options()).toEqual(["Private · Lunch talk"]);
+      expect(options()).toEqual(["Oscorp · Lunch talk"]);
     });
 
     it("offers to start the text when typing hides every suggestion", async () => {
@@ -171,165 +281,267 @@ describe("ActivityView", () => {
   });
 
   describe("arrow keys", () => {
-    it("put the suggestion into the field and keep the pick when it belongs to the suggestion's project", async () => {
-      await renderView();
-      await userEvent.keyboard("{ArrowDown}");
+    it("put a suggestion into the field and show its project and timer", async () => {
+      await renderView({ ttProjectId: "zeno" });
+      await keys("{ArrowDown}");
       expect(input()).toHaveValue("Sprint planning");
       expect(selected()).toBe("Oscorp · Sprint planning");
-      expect(pressed()).toEqual(["QRS"]);
+      expect(project()).toEqual(["Oscorp"]);
+      expect(timer()).toEqual(["QRS"]);
     });
 
-    it("move the pick to the TimeTracker project the suggestion carries", async () => {
-      await renderView({ ttProjectId: "zeno" });
-      await userEvent.keyboard("{ArrowDown}");
-      expect(pressed()).toEqual(["QRS"]);
-    });
-
-    it("switch to the project of a meeting from another Daybook project", async () => {
-      await renderView({}, [suggestion({ group: "meetings", note: "Dinner", project: "Private", ttProjectId: "priv", display: "Private · Dinner" })]);
-      await userEvent.keyboard("{ArrowDown}");
-      expect(pressed()).toEqual(["Private"]);
-    });
-
-    it("keep the pick for a suggestion without a project", async () => {
-      await renderView({ ttProjectId: "zeno" }, [suggestion({ group: "meetings", note: "Call", display: "Call" })]);
-      await userEvent.keyboard("{ArrowDown}");
-      expect(pressed()).toEqual(["Zeno"]);
-    });
-
-    it("pick a recent timer's own TimeTracker project", async () => {
-      await renderView();
-      await userEvent.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}");
+    it("fill both rows from a recent timer", async () => {
+      await renderView({ project: "Private", ttProjectId: "priv" });
+      expect(timer()).toBeNull();
+      await keys("{ArrowDown}{ArrowDown}{ArrowDown}");
       expect(input()).toHaveValue("Lunch talk");
-      expect(pressed()).toEqual(["Private"]);
+      expect(project()).toEqual(["Oscorp"]);
+      expect(timer()).toEqual(["Zeno"]);
+    });
+
+    it("switch to the project of a suggestion from another Daybook project", async () => {
+      const dinner = suggestion({ group: "meetings", note: "Dinner", project: "Private", ttProjectId: "priv", display: "Private · Dinner" });
+      await renderView({}, [dinner]);
+      await keys("{ArrowDown}");
+      expect(project()).toEqual(["Private"]);
+      expect(timer()).toBeNull();
+    });
+
+    it("keep project and timer for a suggestion without a project", async () => {
+      await renderView({ ttProjectId: "zeno" }, [suggestion({ group: "meetings", note: "Call", display: "Call" })]);
+      await keys("{ArrowDown}");
+      expect(input()).toHaveValue("Call");
+      expect(project()).toEqual(["Oscorp"]);
+      expect(timer()).toEqual(["Zeno"]);
     });
 
     it("wrap from your own input to the last suggestion and back to your own input", async () => {
       await renderView();
-      await userEvent.keyboard("{ArrowUp}");
-      expect(selected()).toBe("Private · Lunch talk");
-      await userEvent.keyboard("{ArrowDown}");
+      await keys("{ArrowUp}");
+      expect(selected()).toBe("Oscorp · Lunch talk");
+      await keys("{ArrowDown}");
       expect(selected()).toBeUndefined();
       expect(input()).toHaveValue("QRS-1 review");
-      expect(pressed()).toEqual(["QRS"]);
+      expect(project()).toEqual(["Oscorp"]);
+      expect(timer()).toEqual(["QRS"]);
     });
   });
 
   describe("taking a suggestion over", () => {
     it("makes it your own input when you type", async () => {
       await renderView();
-      await userEvent.keyboard("{ArrowDown}");
-      await userEvent.keyboard("!");
+      await keys("{ArrowDown}");
+      await keys("!");
       expect(input()).toHaveValue("Sprint planning!");
       expect(selected()).toBeUndefined();
     });
 
-    it("keeps a recent timer's project when you type", async () => {
+    it("keeps a recent timer's project and timer when you type", async () => {
       await renderView();
-      await userEvent.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}");
-      await userEvent.keyboard("x");
+      await keys("{ArrowDown}{ArrowDown}{ArrowDown}");
+      await keys("x");
       expect(input()).toHaveValue("Lunch talkx");
-      expect(pressed()).toEqual(["Private"]);
+      expect(project()).toEqual(["Oscorp"]);
+      expect(timer()).toEqual(["Zeno"]);
     });
 
     it("keeps the note when you pick another project", async () => {
       await renderView();
-      await userEvent.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}");
-      await userEvent.click(screen.getByRole("button", { name: "Zeno" }));
+      await keys("{ArrowDown}{ArrowDown}{ArrowDown}");
+      await userEvent.click(screen.getByRole("button", { name: "Private" }));
       expect(input()).toHaveValue("Lunch talk");
-      expect(pressed()).toEqual(["Zeno"]);
+      expect(project()).toEqual(["Private"]);
+      expect(selected()).toBeUndefined();
+    });
+
+    it("keeps the note when you pick another timer project", async () => {
+      await renderView();
+      await keys("{ArrowDown}{ArrowDown}{ArrowDown}");
+      await keys("{Alt>}1{/Alt}");
+      expect(input()).toHaveValue("Lunch talk");
+      expect(timer()).toEqual(["QRS"]);
       expect(selected()).toBeUndefined();
     });
   });
 
   describe("submitting", () => {
-    it("sends the shown note and project with the session's tag while both stay", async () => {
+    it("sends the shown project, timer project and note with the session's tag while they stay", async () => {
       await renderView();
-      await userEvent.keyboard("{Enter}");
-      expect(mocked.activitySubmit).toHaveBeenCalledWith("switch", { ttProjectId: "qrs", note: "QRS-1 review", tag: "t-session" });
+      await keys("{Enter}");
+      expect(mocked.activitySubmit).toHaveBeenCalledWith("switch", { project: "Oscorp", ttProjectId: "qrs", note: "QRS-1 review", tag: "t-session" });
     });
 
     it("sends the mode of the session", async () => {
       await renderView({ mode: "checkin" });
-      await userEvent.keyboard("{Enter}");
-      expect(mocked.activitySubmit).toHaveBeenCalledWith("checkin", expect.objectContaining({ ttProjectId: "qrs" }));
+      await keys("{Enter}");
+      expect(mocked.activitySubmit).toHaveBeenCalledWith("checkin", expect.objectContaining({ project: "Oscorp", ttProjectId: "qrs" }));
     });
 
     it("sends the note verbatim and keeps the tag when only whitespace differs", async () => {
       await renderView();
       await userEvent.clear(input());
       await userEvent.type(input(), "QRS-1 review  {Enter}");
-      expect(mocked.activitySubmit).toHaveBeenCalledWith("switch", { ttProjectId: "qrs", note: "QRS-1 review  ", tag: "t-session" });
+      expect(mocked.activitySubmit).toHaveBeenCalledWith("switch", { project: "Oscorp", ttProjectId: "qrs", note: "QRS-1 review  ", tag: "t-session" });
     });
 
-    it("keeps the session's tag for another note on the same project", async () => {
+    it("drops the session's tag for another note on the same timer project", async () => {
       await renderView();
       await userEvent.clear(input());
       await userEvent.type(input(), "Something else{Enter}");
-      expect(mocked.activitySubmit).toHaveBeenCalledWith("switch", { ttProjectId: "qrs", note: "Something else", tag: "t-session" });
+      expect(mocked.activitySubmit).toHaveBeenCalledWith("switch", { project: "Oscorp", ttProjectId: "qrs", note: "Something else", tag: null });
     });
 
-    it("sends no tag for another project", async () => {
-      await renderView();
-      await userEvent.keyboard("{Meta>}2{/Meta}{Enter}");
-      expect(mocked.activitySubmit).toHaveBeenCalledWith("switch", { ttProjectId: "zeno", note: "QRS-1 review", tag: null });
+    it("sends the raw None choice of a project with several links, with the session's tag while it stays", async () => {
+      await renderView({ ttProjectId: null });
+      await keys("{Enter}");
+      expect(mocked.activitySubmit).toHaveBeenCalledWith("switch", { project: "Oscorp", ttProjectId: null, note: "QRS-1 review", tag: "t-session" });
     });
 
-    it("sends a highlighted recent timer with its project and tag", async () => {
-      await renderView();
-      await userEvent.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}{Enter}");
-      expect(mocked.activitySubmit).toHaveBeenCalledWith("switch", { ttProjectId: "priv", note: "Lunch talk", tag: "t-recent" });
+    it("sends the raw choice of a project with several links", async () => {
+      await renderView({ ttProjectId: null });
+      await keys("{Alt>}2{/Alt}{Enter}");
+      expect(mocked.activitySubmit).toHaveBeenCalledWith("switch", { project: "Oscorp", ttProjectId: "zeno", note: "QRS-1 review", tag: null });
     });
 
-    it("keeps a recent timer's tag after you edit its note but drops it when you pick another project", async () => {
+    it("sends the picked timer project without a tag and keeps the note", async () => {
       await renderView();
-      await userEvent.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}");
-      await userEvent.keyboard("x{Enter}");
-      expect(mocked.activitySubmit).toHaveBeenLastCalledWith("switch", { ttProjectId: "priv", note: "Lunch talkx", tag: "t-recent" });
-      await userEvent.keyboard("{Meta>}2{/Meta}{Enter}");
-      expect(mocked.activitySubmit).toHaveBeenLastCalledWith("switch", { ttProjectId: "zeno", note: "Lunch talkx", tag: null });
+      await keys("{Alt>}2{/Alt}{Enter}");
+      expect(mocked.activitySubmit).toHaveBeenCalledWith("switch", { project: "Oscorp", ttProjectId: "zeno", note: "QRS-1 review", tag: null });
+    });
+
+    it("sends no timer project with None, keeping project and note", async () => {
+      await renderView();
+      await keys("{Alt>}0{/Alt}{Enter}");
+      expect(mocked.activitySubmit).toHaveBeenCalledWith("switch", { project: "Oscorp", ttProjectId: null, note: "QRS-1 review", tag: null });
+    });
+
+    it("sends no timer project after the project changes and back to a project with several links", async () => {
+      await renderView();
+      await keys("{Meta>}2{/Meta}{Meta>}1{/Meta}{Enter}");
+      expect(mocked.activitySubmit).toHaveBeenCalledWith("switch", { project: "Oscorp", ttProjectId: null, note: "QRS-1 review", tag: null });
+    });
+
+    it("sends no timer choice for a project with one link, since its row is hidden", async () => {
+      await renderView();
+      await keys("{Meta>}2{/Meta}{Enter}");
+      expect(mocked.activitySubmit).toHaveBeenCalledWith("switch", { project: "Private", ttProjectId: null, note: "QRS-1 review", tag: null });
+    });
+
+    it("sends no timer project for a project without links", async () => {
+      await renderView();
+      await keys("{Meta>}3{/Meta}{Enter}");
+      expect(mocked.activitySubmit).toHaveBeenCalledWith("switch", { project: "Acme", ttProjectId: null, note: "QRS-1 review", tag: null });
+    });
+
+    it("sends a highlighted recent timer with its project, timer project, note and tag", async () => {
+      await renderView();
+      await keys("{ArrowDown}{ArrowDown}{ArrowDown}{Enter}");
+      expect(mocked.activitySubmit).toHaveBeenCalledWith("switch", { project: "Oscorp", ttProjectId: "zeno", note: "Lunch talk", tag: "t-recent" });
+    });
+
+    it("sends a suggestion without a project with your project and timer", async () => {
+      await renderView({ ttProjectId: "zeno" }, [suggestion({ group: "meetings", note: "Call", display: "Call" })]);
+      await keys("{ArrowDown}{Enter}");
+      expect(mocked.activitySubmit).toHaveBeenCalledWith("switch", { project: "Oscorp", ttProjectId: "zeno", note: "Call", tag: null });
+    });
+
+    it("drops a recent timer's tag as soon as you edit its note", async () => {
+      await renderView();
+      await keys("{ArrowDown}{ArrowDown}{ArrowDown}");
+      await keys("x{Enter}");
+      expect(mocked.activitySubmit).toHaveBeenLastCalledWith("switch", { project: "Oscorp", ttProjectId: "zeno", note: "Lunch talkx", tag: null });
+    });
+
+    it("drops a recent timer's tag when you pick another timer project", async () => {
+      await renderView();
+      await keys("{ArrowDown}{ArrowDown}{ArrowDown}");
+      await keys("{Alt>}1{/Alt}{Enter}");
+      expect(mocked.activitySubmit).toHaveBeenLastCalledWith("switch", { project: "Oscorp", ttProjectId: "qrs", note: "Lunch talk", tag: null });
     });
 
     it("starts a clicked suggestion", async () => {
       await renderView();
-      await userEvent.click(screen.getByRole("option", { name: "Private · Lunch talk" }));
-      expect(mocked.activitySubmit).toHaveBeenCalledWith("switch", { ttProjectId: "priv", note: "Lunch talk", tag: "t-recent" });
+      await userEvent.click(screen.getByRole("option", { name: "Oscorp · Lunch talk" }));
+      expect(mocked.activitySubmit).toHaveBeenCalledWith("switch", { project: "Oscorp", ttProjectId: "zeno", note: "Lunch talk", tag: "t-recent" });
     });
   });
 
   describe("footer", () => {
     it("lists the keys", async () => {
       await renderView();
-      expect(footer("⇥ next project · ↑↓ suggestions · ↵ start · esc cancel")).toBeInTheDocument();
+      expect(hintKeys("Next project")).toEqual(["⇥"]);
+      expect(hintKeys("Suggestions")).toEqual(["↑", "↓"]);
+      expect(hintKeys("Start")).toEqual(["↵"]);
+      expect(hintKeys("Cancel")).toEqual(["esc"]);
     });
 
-    it("leaves out the next project with a single TimeTracker project", async () => {
-      await renderView({ projects: [PROJECTS[1]], ttProjectId: "priv" });
-      expect(footer("↑↓ suggestions · ↵ start · esc cancel")).toBeInTheDocument();
+    it("leaves out the next project with a single project", async () => {
+      await renderView({ projects: [PROJECTS[1]], project: "Private", ttProjectId: "priv" });
+      expect(hintKeys("Next project")).toBeNull();
+      expect(hintKeys("Start")).toEqual(["↵"]);
     });
 
-    it("says ↵ still on it in a check-in while the live timer matches what is shown, until it differs", async () => {
+    it("keeps Start in a switch even when nothing changed", async () => {
+      await renderView({ mode: "switch", ttProjectId: null });
+      expect(hintKeys("Start")).toEqual(["↵"]);
+      expect(hintKeys("Still on it")).toBeNull();
+    });
+  });
+
+  describe("still on it", () => {
+    it("shows in a check-in without a timer while project, None and note are unchanged", async () => {
+      await renderView({ mode: "checkin", ttProjectId: null });
+      expect(timer()).toEqual(["None"]);
+      expect(hintKeys("Still on it")).toEqual(["↵"]);
+      expect(hintKeys("Start")).toBeNull();
+    });
+
+    it.each([
+      ["another note", () => userEvent.type(input(), "!")],
+      ["another project", () => keys("{Meta>}2{/Meta}")],
+      ["a timer project", () => keys("{Alt>}1{/Alt}")],
+    ])("turns into Start with %s", async (_, change) => {
+      await renderView({ mode: "checkin", ttProjectId: null });
+      await change();
+      expect(hintKeys("Start")).toEqual(["↵"]);
+      expect(hintKeys("Still on it")).toBeNull();
+    });
+
+    it("comes back when the project changes and returns", async () => {
+      await renderView({ mode: "checkin", ttProjectId: null });
+      await keys("{Meta>}2{/Meta}");
+      expect(hintKeys("Start")).toEqual(["↵"]);
+      await keys("{Meta>}1{/Meta}");
+      expect(hintKeys("Still on it")).toEqual(["↵"]);
+    });
+
+    it("ignores whitespace around the note", async () => {
+      await renderView({ mode: "checkin", ttProjectId: null });
+      await userEvent.type(input(), "  ");
+      expect(hintKeys("Still on it")).toEqual(["↵"]);
+    });
+
+    it("shows while the live timer matches the shown timer project and note, until it differs", async () => {
       await renderView({ mode: "checkin" }, ALL, { tt: "available", timer: timerState({ note: " QRS-1 review " }) });
-      expect(await screen.findByText(/↵ still on it/)).toBeInTheDocument();
-      await userEvent.clear(input());
+      await vi.waitFor(() => expect(hintKeys("Still on it")).toEqual(["↵"]));
+      await keys("{Alt>}2{/Alt}");
+      expect(hintKeys("Start")).toEqual(["↵"]);
+      await keys("{Alt>}1{/Alt}");
+      expect(hintKeys("Still on it")).toEqual(["↵"]);
       await userEvent.type(input(), "Other");
-      expect(screen.getByText(/↵ start/)).toBeInTheDocument();
-      expect(screen.queryByText(/still on it/)).not.toBeInTheDocument();
+      expect(hintKeys("Start")).toEqual(["↵"]);
     });
 
-    it("says ↵ still on it again when the project differs and returns", async () => {
-      await renderView({ mode: "checkin" }, ALL, { tt: "available", timer: timerState({}) });
-      await screen.findByText(/↵ still on it/);
-      await userEvent.keyboard("{Meta>}2{/Meta}");
-      expect(screen.getByText(/↵ start/)).toBeInTheDocument();
-      await userEvent.keyboard("{Meta>}1{/Meta}");
-      expect(screen.getByText(/↵ still on it/)).toBeInTheDocument();
+    it("stays Start in a check-in when a timer runs and None is shown", async () => {
+      await renderView({ mode: "checkin", ttProjectId: null }, ALL, { tt: "available", timer: timerState({}) });
+      await vi.waitFor(() => expect(mocked.timetrackerTimer).toHaveBeenCalled());
+      await vi.waitFor(() => expect(hintKeys("Start")).toEqual(["↵"]));
     });
 
-    it("keeps ↵ start in a switch even when the live timer matches", async () => {
+    it("stays Start in a switch when the live timer matches", async () => {
       await renderView({ mode: "switch" }, ALL, { tt: "available", timer: timerState({}) });
       await vi.waitFor(() => expect(mocked.timetrackerTimer).toHaveBeenCalled());
-      expect(screen.getByText(/↵ start/)).toBeInTheDocument();
+      expect(hintKeys("Start")).toEqual(["↵"]);
     });
   });
 
@@ -337,13 +549,13 @@ describe("ActivityView", () => {
     it("shows that TimeTracker isn't running after a refused submit and keeps the note and the pick", async () => {
       mocked.activitySubmit.mockRejectedValueOnce(rejection("timetracker_not_running", "not running"));
       await renderView();
-      await userEvent.keyboard("{Meta>}2{/Meta}");
+      await keys("{Alt>}2{/Alt}");
       await userEvent.clear(input());
       await userEvent.type(input(), "Typed{Enter}");
       expect(await screen.findByText("TimeTracker isn't running.")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Open TimeTracker" })).toBeInTheDocument();
       expect(input()).toHaveValue("Typed");
-      expect(pressed()).toEqual(["Zeno"]);
+      expect(timer()).toEqual(["Zeno"]);
     });
 
     it("shows that TimeTracker isn't running when the session says so", async () => {
@@ -368,7 +580,7 @@ describe("ActivityView", () => {
     it("points to Settings when TimeTracker isn't installed", async () => {
       mocked.activitySubmit.mockRejectedValueOnce(rejection("timetracker_missing", "missing"));
       await renderView();
-      await userEvent.keyboard("{Enter}");
+      await keys("{Enter}");
       expect(await screen.findByText("TimeTracker isn't installed (Settings → Connections → TimeTracker).")).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Open TimeTracker" })).not.toBeInTheDocument();
     });
@@ -376,7 +588,7 @@ describe("ActivityView", () => {
     it("shows any other message and clears it on the next keystroke", async () => {
       mocked.activitySubmit.mockRejectedValueOnce(rejection("io", "Disk full"));
       await renderView();
-      await userEvent.keyboard("{Enter}");
+      await keys("{Enter}");
       expect(await screen.findByText("Disk full")).toBeInTheDocument();
       expect(input()).toHaveValue("QRS-1 review");
       await userEvent.type(input(), "1");
@@ -440,6 +652,28 @@ describe("ActivityView", () => {
       focusWindow();
       await vi.advanceTimersByTimeAsync(50_000);
       await userEvent.keyboard("x");
+      await vi.advanceTimersByTimeAsync(50_000);
+      expect(mocked.panelClose).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(11_000);
+      expect(mocked.panelClose).toHaveBeenCalled();
+    });
+
+    it("restarts the minute when you pick a timer project", async () => {
+      await renderView({ mode: "checkin" });
+      focusWindow();
+      await vi.advanceTimersByTimeAsync(50_000);
+      await userEvent.keyboard("{Alt>}2{/Alt}");
+      await vi.advanceTimersByTimeAsync(50_000);
+      expect(mocked.panelClose).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(11_000);
+      expect(mocked.panelClose).toHaveBeenCalled();
+    });
+
+    it("restarts the minute when you pick another project", async () => {
+      await renderView({ mode: "checkin" });
+      focusWindow();
+      await vi.advanceTimersByTimeAsync(50_000);
+      await userEvent.keyboard("{Meta>}2{/Meta}");
       await vi.advanceTimersByTimeAsync(50_000);
       expect(mocked.panelClose).not.toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(11_000);

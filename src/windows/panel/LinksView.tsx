@@ -1,6 +1,7 @@
 import { Link2 } from "lucide-react";
 import { api, type LinkItem } from "../../api";
 import { useApiResult } from "../../lib/useApiResult";
+import { CLOSE_HINT } from "./parts";
 import { ShortcutListView, type CommandRow } from "./ShortcutListView";
 
 const rowsOf = (links: LinkItem[], group: string): CommandRow[] => links.map((link) => ({ key: `${group}:${link.target}`, title: link.title, group, command: link.command }));
@@ -18,7 +19,7 @@ export function LinksView() {
       rows={rows}
       emptyText="No links yet. Add them in Settings → Links."
       noMatchText="No matching links."
-      hints="↑↓ link · ↵ open · ⌘1–9 open · esc close"
+      hints={[{ keys: ["↑", "↓"], label: "Link" }, { keys: ["↵"], label: "Open" }, CLOSE_HINT]}
       loadError={view.error?.message ?? null}
     />
   );

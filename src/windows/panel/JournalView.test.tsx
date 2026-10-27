@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../api", async (orig) => ({ ...(await orig<object>()), api: (await import("../../test/apiMock")).createApiMock() }));
 
 import { api, type AnswerKind, type JournalAnswer, type JournalGroupView, type JournalInfo, type JournalQuestionView } from "../../api";
+import { hintKeys } from "../../test/panelHints";
 import { settings } from "../../test/settings";
 import { JournalView } from "./JournalView";
 
@@ -245,7 +246,7 @@ describe("JournalView", () => {
       await typer().type(screen.getByRole("textbox", { name: "Grateful for 1" }), "Sunshine");
       await vi.advanceTimersByTimeAsync(900);
       expect(await screen.findByText("Disk full")).toBeInTheDocument();
-      expect(screen.queryByText("esc close")).not.toBeInTheDocument();
+      expect(hintKeys("Close")).toEqual(["esc"]);
     });
   });
 
@@ -296,15 +297,15 @@ describe("JournalView", () => {
   describe("footer", () => {
     it("lists the group shortcut range, esc and no waiting hint", async () => {
       await renderView([MORNING, EVENING]);
-      expect(screen.getByText("⌘1–2 group")).toBeInTheDocument();
-      expect(screen.getByText("esc close")).toBeInTheDocument();
+      expect(hintKeys("Group")).toEqual(["⌘", "1–2"]);
+      expect(hintKeys("Close")).toEqual(["esc"]);
       expect(screen.queryByText("Saved once today's note exists")).not.toBeInTheDocument();
     });
 
     it("omits the group shortcut with a single group", async () => {
       await renderView([MORNING]);
-      expect(screen.queryByText(/group$/)).not.toBeInTheDocument();
-      expect(screen.getByText("esc close")).toBeInTheDocument();
+      expect(hintKeys("Group")).toBeNull();
+      expect(hintKeys("Close")).toEqual(["esc"]);
     });
 
     it("says answers are saved once today's note exists when it does not", async () => {

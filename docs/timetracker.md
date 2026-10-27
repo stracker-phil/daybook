@@ -43,15 +43,18 @@ TimeTracker a client such as Oscorp has several projects. The first time project
 each Daybook project to the TimeTracker projects with its name or its client's name (case-insensitive) and sets
 `timetracker.linked`; projects it can't match stay unlinked. Renames in TimeTracker follow (`follow_names`).
 `current_project()` is the Daybook project, among the current context's projects, whose list holds the timer's
-project.
+project; without a timer `tools::snapshot` falls back to the kept activity's project
+([The activity overlay](#the-activity-overlay)).
 
 ## What Daybook shows
 
 - **Menu-bar title** (`menu/title.rs`, README decision 6): only the icon and the context emoji while Working with a
   running timer (TimeTracker's own item shows it); `No timer` while Working without one; `Working` when TimeTracker
   isn't running or is missing; `Break · 12m` on a break; nothing for Off.
-- **Sidebar and rail:** the Activity row and button show the timer as "Oscorp · note" (no elapsed time; the
-  linked Daybook project's name when there is one); the rail's caption is the project.
+- **Sidebar, rail and tray:** they show `ToolState.activity`: the running timer, else the activity kept without
+  one (`activity::current_view`). The Activity row and button read "Oscorp · note" (no elapsed time; the linked
+  Daybook project's name when there is one); the rail's caption is the project; the tray's Activity part adds
+  "(no timer)" to a kept activity.
 - **Slack:** the Working text appends the current project ("9:00 - 18:00 | Oscorp") and follows a project change
   ([slack.md](slack.md)).
 - **Links and Projects:** project rules in Settings → Links and the Projects tool's order use `current_project()`.
@@ -71,16 +74,44 @@ Settings → Connections → TimeTracker shows the tool's path, whether TimeTrac
 
 `activity/` (`activity:switch`, ⌘F2; family `activity:prefill:<project>:<note>[:<ttId>[:<tag>]]`) opens the sticky
 `activity` overlay with `ActivitySession` (`session.rs`, pure): the prompt ("What are you working on?", or "Still on
-Oscorp · QRS-6805?" for a check-in), the note prefilled with the timer's note, and the current context's projects
-with their linked TimeTracker projects (a project without links shows how to link it). `activity_suggestions`
-(`suggest.rs`, pure) lists the live call, today's events since the timer started (at most 3), today's Jira tickets
-and recent timers (`timer recent`, `recent.rs`; a pick fills project, note and tag).
+Oscorp · QRS-6805?" for a check-in, from the current activity), the current context's Daybook projects
+(`activity_projects`), each with its active linked TimeTracker projects (`tt_projects`; archived ones left out) and
+`timerRow` when it links more than one, the project, timer project and note picked first (the prefill's, else the
+timer's, else the kept activity's). `activity_suggestions` (`suggest.rs`, pure) lists the live call, today's events
+since the timer started (at most 3), today's Jira tickets and recent timers (`timer recent`, `recent.rs`; a pick
+fills the Daybook project, the timer project, the note and the tag).
 
-↵ (`activity_submit`, `pick.rs`): a check-in whose project and note equal the running timer's sends nothing ("still
-on it"); otherwise `timer start <ttProjectId> --note=<note> [--tag=<tag>]` (the tag carried over, so TimeTracker
-continues today's recording), and then Working is set when the status was Break or Off (marked `byActivity`, so the
-status change starts no timer of its own and sends no channel message). A TimeTracker error keeps the overlay open
-with the typed text; "Open TimeTracker" starts it. Debug builds dry-run the start.
+The overlay picks two things ([ADR 0028](adr/0028-overlays-follow-the-prototype.md)): the **activity** (a Daybook
+project and a note) and the **timer** (a TimeTracker project, or none). The project's links decide the timer
+(`pick::timer_project`):
+
+| Linked TimeTracker projects | Timer |
+|---|---|
+| none | never a timer |
+| one | always a timer on it |
+| several | the one picked in the timer row, or "None" (the default) for no timer |
+
+↵ (`activity_submit`, `pick.rs` `plan`, done by `commands::submit_pick`):
+- a timer project: `timer start <ttProjectId> --note=<note> [--tag=<tag>]` (the tag carried over, so TimeTracker
+  continues today's recording);
+- no timer (`Plan::NoTimer`): `timer stop` when one runs, else nothing;
+- a check-in confirmed as it opened (`confirms`: the kept activity's project and note, and with several links the
+  running timer's project) changes nothing (`Plan::Unchanged`), not even a timer on a project no Daybook project
+  links; a check-in whose timer already runs on that project and note, or with no timer and none running, sends
+  nothing either.
+
+Then the pick becomes the current activity, and Working is set when the status was Break or Off (marked
+`byActivity`, so the status change starts no timer of its own and sends no channel message). A TimeTracker error
+keeps the overlay open with the typed text; "Open TimeTracker" starts it. Debug builds dry-run the start.
+
+**The current activity** (`activity/current.rs`, `CurrentActivity` in `AppState`): the Daybook project and note
+picked last, with or without a timer, kept in `activity.json` (`KeptActivity` for a day), so a restart keeps it.
+It ends with the day (`get` drops one kept on an earlier day) and when the status becomes Off. It follows
+TimeTracker's timer: a timer started or changed there sets it (`follow_timer`: its note, and the kept project
+while that links the timer's project, else the first project linking it, else TimeTracker's name); a timer that
+stops leaves it. The surfaces show the running timer, else the kept activity (`activity::current_view`,
+`ToolState.activity`); a change of the kept activity alone announces `timer_changed` again
+(`timetracker::announce_timer`), so they read it.
 
 ## Check-ins
 

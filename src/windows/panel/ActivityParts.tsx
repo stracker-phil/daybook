@@ -1,9 +1,10 @@
-import { Fragment, type MouseEvent, type Ref } from "react";
-import { History } from "lucide-react";
-import type { ActivityProject, ActivitySuggestion, ActivityTtProject, SuggestionGroup } from "../../api";
+import { forwardRef, type MouseEvent, type Ref } from "react";
+import { Activity, History, Timer, type LucideIcon, type LucideProps } from "lucide-react";
+import type { ActivityProject, ActivitySuggestion, SuggestionGroup } from "../../api";
+import { PanelList, PanelOption, PanelSegmented, SectionHeader } from "./parts";
 
-/** ⌘1…⌘9 pick a TimeTracker project by position. */
-export const MAX_PROJECT_KEYS = 9;
+// TimeTracker ids are never empty.
+const NO_TIMER = "";
 
 export const GROUPS: { group: SuggestionGroup; heading: string }[] = [
   { group: "meetings", heading: "Meetings" },
@@ -11,64 +12,56 @@ export const GROUPS: { group: SuggestionGroup; heading: string }[] = [
   { group: "recentTimers", heading: "Recent Timers" },
 ];
 
-/** The TimeTracker projects in picker order: Tab and ⌘1–9 go through these. */
-export const pickable = (projects: ActivityProject[]): ActivityTtProject[] => projects.flatMap((project) => project.ttProjects);
-
 // Keeps the keyboard in the note field.
 export const keepFocus = (e: MouseEvent) => e.preventDefault();
 
-/** A group's own name says nothing new when its only TimeTracker project has the same name. */
-const namesItself = (project: ActivityProject) => project.ttProjects.length === 1 && project.ttProjects[0].name === project.name;
+/** An icon whose tooltip says what its row is. */
+function titled(Icon: LucideIcon, title: string): LucideIcon {
+  const Titled = forwardRef<SVGSVGElement, Omit<LucideProps, "ref">>((props, ref) => (
+    <Icon ref={ref} {...props}>
+      <title>{title}</title>
+    </Icon>
+  ));
+  Titled.displayName = `Titled(${title})`;
+  return Titled;
+}
 
-/** TimeTracker's projects grouped under the Daybook projects; an unlinked one shows its hint on click. */
-export function ProjectPicker({ projects, picked, onPick, onHint }: {
-  projects: ActivityProject[];
-  picked: string;
-  onPick: (ttProjectId: string) => void;
-  onHint: (hint: string) => void;
-}) {
+export const ActivityIcon = titled(Activity, "What you work on");
+const TimerIcon = titled(Timer, "TimeTracker timer");
+
+/** The timer row's choices, "None" (`null`) first; empty when the project shows no row. */
+export const timerChoices = (project: ActivityProject | undefined): (string | null)[] =>
+  project?.timerRow ? [null, ...project.ttProjects.map((tt) => tt.id)] : [];
+
+/** The Daybook projects as a segmented control; Tab and ⌘1…9 pick one. */
+export function ProjectPicker({ projects, picked, onPick }: { projects: ActivityProject[]; picked: string; onPick: (name: string) => void }) {
   if (projects.length === 0) return null;
   return (
-    <div className="activity-projects" data-stage="panel:projects" data-stage-label="Project picker (⌘1…⌘9)">
-      {projects.map((project) => (
-        <div key={project.name} className="activity-project" role="group" aria-label={project.name}>
-          {!namesItself(project) && <span className="o3">{project.name}</span>}
-          {project.ttProjects.length > 0 ? (
-            <div className="segmented">
-              {project.ttProjects.map((tt) => (
-                <button
-                  key={tt.id}
-                  type="button"
-                  aria-pressed={tt.id === picked}
-                  onMouseDown={keepFocus}
-                  onClick={() => onPick(tt.id)}
-                >
-                  {tt.name}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <button type="button" className="activity-unlinked" title={project.hint ?? undefined} onMouseDown={keepFocus} onClick={() => project.hint && onHint(project.hint)}>
-              Not linked
-            </button>
-          )}
-        </div>
-      ))}
-    </div>
+    <span className="activity-picker" data-stage="panel:projects" data-stage-label="Project picker (⌘1…⌘9)">
+      <PanelSegmented
+        label="Project"
+        segments={projects.map((project) => ({ id: project.name, label: project.name }))}
+        value={picked}
+        onPick={onPick}
+      />
+    </span>
   );
 }
 
-/** "⌘1 QRS ⌘2 Zeno …" under the suggestions. */
-export function ProjectKeys({ projects }: { projects: ActivityTtProject[] }) {
-  const shown = projects.slice(0, MAX_PROJECT_KEYS);
-  if (shown.length === 0) return null;
+/** The timer's TimeTracker project, when the picked project links several: "None" or one of them; ⌥0…9 pick. */
+export function TimerRow({ project, picked, onPick }: { project: ActivityProject; picked: string | null; onPick: (id: string | null) => void }) {
   return (
-    <div className="project-keys o3" aria-label="Project keys">
-      {shown.map((tt, index) => (
-        <span key={tt.id}>
-          ⌘{index + 1} {tt.name}
-        </span>
-      ))}
+    <div className="activity-timer" data-stage="panel:timer" data-stage-label="Timer project (⌥0…⌥9)">
+      <TimerIcon size={20} aria-hidden="true" />
+      <PanelSegmented
+        label="Timer"
+        segments={[
+          { id: NO_TIMER, label: "None", title: "No timer" },
+          ...project.ttProjects.map((tt) => ({ id: tt.id, label: tt.name, title: tt.client ?? undefined })),
+        ]}
+        value={picked ?? NO_TIMER}
+        onPick={(id) => onPick(id === NO_TIMER ? null : id)}
+      />
     </div>
   );
 }
@@ -81,28 +74,27 @@ export function SuggestionList({ items, highlighted, activeRef, onPick }: {
   onPick: (suggestion: ActivitySuggestion) => void;
 }) {
   return (
-    <ul className="palette-list activity-suggestions" role="listbox" aria-label="Suggestions">
-      {items.length === 0 && <li className="o3">Press ↵ to start it.</li>}
-      {items.map((suggestion, index) => (
-        <Fragment key={`${suggestion.group}\u0000${suggestion.display}`}>
-          {(index === 0 || items[index - 1].group !== suggestion.group) && (
-            <li role="presentation" className="palette-section">
-              {GROUPS.find((group) => group.group === suggestion.group)?.heading}
-            </li>
-          )}
-          <li
+    <PanelList selection="tint" className="activity-suggestions" aria-label="Suggestions">
+      {items.length === 0 && <li className="panel-empty">Press ↵ to start it.</li>}
+      {items.flatMap((suggestion, index) => {
+        const key = `${suggestion.group}\u0000${suggestion.display}`;
+        const row = (
+          <PanelOption
+            key={key}
             ref={index === highlighted ? activeRef : undefined}
-            role="option"
-            aria-selected={index === highlighted}
-            className={index === highlighted ? "active activity-suggestion" : "activity-suggestion"}
-            onMouseDown={keepFocus}
+            selected={index === highlighted}
+            icon={History}
+            className="activity-suggestion"
             onClick={() => onPick(suggestion)}
           >
-            <History size="1.077rem" className="o3" aria-hidden="true" />
             <span className="grow-text">{suggestion.display}</span>
-          </li>
-        </Fragment>
-      ))}
-    </ul>
+          </PanelOption>
+        );
+        const startsGroup = index === 0 || items[index - 1].group !== suggestion.group;
+        if (!startsGroup) return [row];
+        const heading = GROUPS.find((group) => group.group === suggestion.group)?.heading;
+        return [<SectionHeader key={`${key}\u0000heading`}>{heading}</SectionHeader>, row];
+      })}
+    </PanelList>
   );
 }

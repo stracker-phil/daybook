@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, ExternalLink } from "lucide-react";
 import { api, toAppError, type RoutineStepView, type RoutineView } from "../../api";
+import { CLOSE_HINT, PanelFooter, PanelList, PanelOption, PanelPrompt } from "./parts";
 
 /** Shows "All done" this long before the overlay closes by itself. */
 const CLOSE_AFTER_DONE_MS = 700;
@@ -91,9 +92,9 @@ function StepRow({ step, selected, onToggle, onSelect, onOpenLink }: {
 }) {
   const label = step.link ? linkLabel(step.link) : "";
   return (
-    <li role="option" aria-selected={selected} aria-checked={step.done} className={selected ? "active" : undefined} data-done={step.done} onClick={onToggle} onMouseMove={onSelect}>
+    <PanelOption selected={selected} aria-checked={step.done} data-done={step.done} onClick={onToggle} onMouseMove={onSelect}>
       <span className="wizard-check" aria-hidden="true">
-        {step.done && <Check size="0.846rem" strokeWidth={3} />}
+        {step.done && <Check size={12} strokeWidth={3} />}
       </span>
       <span className="grow-text wizard-title">{step.title}</span>
       {step.link && (
@@ -107,10 +108,10 @@ function StepRow({ step, selected, onToggle, onSelect, onOpenLink }: {
             onOpenLink();
           }}
         >
-          <ExternalLink size="1rem" aria-hidden="true" />
+          <ExternalLink size={16} aria-hidden="true" />
         </button>
       )}
-    </li>
+    </PanelOption>
   );
 }
 
@@ -151,7 +152,7 @@ export function WizardView({ routine }: { routine: string }) {
   if (!view) {
     return error ? (
       <div className="panel-card">
-        <div className="palette-foot palette-error">{error}</div>
+        <PanelFooter error={error} hints={[CLOSE_HINT]} />
       </div>
     ) : null;
   }
@@ -159,31 +160,23 @@ export function WizardView({ routine }: { routine: string }) {
   const doneCount = steps.filter((step) => step.done).length;
   return (
     <div className="panel-card wizard-view">
-      <div className="panel-heading wizard-heading">
-        <span className="o2">{view.name}</span>
+      <PanelPrompt className="wizard-heading">
+        <span>{view.name}</span>
         <span className="o3 wizard-count">{allDone ? "All done" : `${doneCount} of ${steps.length}`}</span>
-      </div>
+      </PanelPrompt>
       {steps.length === 0 ? (
         <p className="panel-body-text o3">Nothing due today.</p>
       ) : (
-        <ul ref={list} className="palette-list wizard-list" role="listbox" aria-label={view.name} tabIndex={0}>
+        <PanelList ref={list} className="wizard-list" aria-label={view.name} tabIndex={0}>
           {steps.map((step) => (
             <StepRow key={step.index} step={step} selected={step === current} onToggle={() => tick(step)} onSelect={() => setSelected(step.index)} onOpenLink={() => openLink(step)} />
           ))}
-        </ul>
+        </PanelList>
       )}
-      <div className="palette-foot o3">
-        {error ? (
-          <span className="palette-error">{error}</span>
-        ) : (
-          <>
-            <span>↑↓ select</span>
-            <span>space check</span>
-            {current?.link && <span>⌘O open</span>}
-            <span>esc close</span>
-          </>
-        )}
-      </div>
+      <PanelFooter
+        hints={[{ keys: ["↑", "↓"], label: "Select" }, { keys: ["space"], label: "Check" }, ...(current?.link ? [{ keys: ["⌘", "O"], label: "Open" }] : []), CLOSE_HINT]}
+        error={error}
+      />
     </div>
   );
 }

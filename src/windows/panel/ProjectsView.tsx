@@ -1,6 +1,7 @@
 import { FolderOpen } from "lucide-react";
 import { api, type ProjectGroup } from "../../api";
 import { useApiResult } from "../../lib/useApiResult";
+import { CLOSE_HINT } from "./parts";
 import { ShortcutListView, type CommandRow } from "./ShortcutListView";
 
 /** Each project's Launcher projects under its name; the name matches too. */
@@ -28,7 +29,7 @@ export function ProjectsView() {
       rows={view.data ? rowsOf(view.data) : null}
       emptyText="No Launcher projects yet. Link them in Settings → Projects."
       noMatchText="No matching projects."
-      hints="↑↓ project · ↵ show · ⌘1–9 show · esc close"
+      hints={[{ keys: ["↑", "↓"], label: "Project" }, { keys: ["↵"], label: "Show" }, CLOSE_HINT]}
       loadError={view.error?.message ?? null}
     />
   );

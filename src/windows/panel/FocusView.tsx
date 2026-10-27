@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { api, toAppError, type FocusInfo } from "../../api";
 import { FocusEditor } from "./FocusEditor";
+import { ESCAPE_HINT, PanelFooter, PanelPrompt, type PanelHint } from "./parts";
 import { useFocusInfo, useKeepPanelOpen } from "./useFocusInfo";
 
 function slackHint({ slack, channel }: FocusInfo): string {
@@ -16,20 +17,6 @@ function slackHint({ slack, channel }: FocusInfo): string {
   }
 }
 
-/** The footer: an error, whether Slack has the list as shown, or the keys. */
-function Footer({ error, sent, value, shares }: { error: string | null; sent: string | null; value: string; shares: boolean }) {
-  if (error) return <span className="palette-error">{error}</span>;
-  if (sent !== null) return <span>{sent === value ? "Sent to Slack" : "Changed since sending to Slack"}</span>;
-  const keys = ["⌘L check", ...(shares ? ["⌘S send to Slack"] : []), "⌘↵ save", "esc close"];
-  return (
-    <>
-      {keys.map((key) => (
-        <span key={key}>{key}</span>
-      ))}
-    </>
-  );
-}
-
 /** ⌘S puts the list as typed into the day's Slack message, without writing the note or closing. */
 export function FocusView() {
   const { info, error: unreadable } = useFocusInfo();
@@ -39,7 +26,13 @@ export function FocusView() {
   const [sent, setSent] = useState<string | null>(null);
   const busy = useRef(false);
   useKeepPanelOpen();
-  if (!info) return unreadable ? <div className="panel-card focus-view"><div className="palette-foot palette-error">{unreadable}</div></div> : null;
+  if (!info) {
+    return unreadable ? (
+      <div className="panel-card focus-view">
+        <PanelFooter error={unreadable} hints={[ESCAPE_HINT]} />
+      </div>
+    ) : null;
+  }
   const value = draft ?? info.body;
   const shares = info.slack === "edit" || info.slack === "post";
 
@@ -61,12 +54,20 @@ export function FocusView() {
       setSent(value);
     });
 
+  const hints: PanelHint[] = [
+    { keys: ["⌘", "L"], label: "Check" },
+    ...(shares ? [{ keys: ["⌘", "S"], label: "Send to Slack" }] : []),
+    { keys: ["⌘", "↵"], label: "Save" },
+    ESCAPE_HINT,
+  ];
+  const sentState = sent === null ? null : sent === value ? "Sent to Slack" : "Changed since sending to Slack";
+
   return (
     <div className="panel-card focus-view">
-      <div className="panel-heading focus-heading">
-        <span className="o2">Today's focus</span>
+      <PanelPrompt className="focus-heading">
+        <span>Today's focus</span>
         <span className="o3">{slackHint(info)}</span>
-      </div>
+      </PanelPrompt>
       <FocusEditor
         value={value}
         projects={info.projects}
@@ -77,9 +78,7 @@ export function FocusView() {
         onConfirm={() => void save()}
         onSend={shares ? () => void send() : undefined}
       />
-      <div className="palette-foot o3">
-        <Footer error={error} sent={sent} value={value} shares={shares} />
-      </div>
+      <PanelFooter hints={hints} error={error} status={sentState} />
     </div>
   );
 }

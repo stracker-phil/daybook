@@ -3,14 +3,14 @@
 use chrono::Local;
 use tauri::{AppHandle, Manager};
 
+use super::current::KeptActivity;
 use super::pick::{ActivityPick, Plan, plan};
 use super::session::ActivityMode;
 use super::suggest::{self, LiveCall, Suggestion, SuggestionInput};
-use super::{finish_pick, offered, recent, recent_timers, since_timer_started};
+use super::{offered, recent, recent_timers, since_timer_started};
 use crate::error::AppResult;
 use crate::state::AppState;
 use crate::store::settings::Project;
-use crate::timetracker;
 use crate::timetracker::client::{self, TimeTracker};
 use crate::timetracker::reply::TimerState;
 use crate::{calendar, calls, jira};
@@ -43,40 +43,38 @@ pub async fn activity_suggestions(app: AppHandle) -> Vec<Suggestion> {
     })
 }
 
-/// Starts TimeTracker's timer on the pick, or sends nothing for an unchanged check-in; what it did.
+/// Does the pick's plan in TimeTracker: starts its timer, stops a running one for an activity without
+/// a timer, or sends nothing for an unchanged check-in; what it did.
 pub fn submit_pick(
     tt: &dyn TimeTracker,
     mode: ActivityMode,
     pick: &ActivityPick,
+    current: Option<&KeptActivity>,
+    links: &[String],
     running: Option<&TimerState>,
 ) -> AppResult<Plan> {
-    let plan = plan(mode, pick, running)?;
-    if let Plan::Start {
-        project_id,
-        note,
-        tag,
-    } = &plan
-    {
-        client::start(tt, project_id, note, tag.as_deref())?;
+    let plan = plan(mode, pick, current, links, running);
+    match &plan {
+        Plan::Start {
+            project_id,
+            note,
+            tag,
+        } => client::start(tt, project_id, note, tag.as_deref())?,
+        Plan::NoTimer if running.is_some() => client::stop(tt)?,
+        Plan::NoTimer | Plan::Unchanged => {}
     }
     Ok(plan)
 }
 
-/// ↵: starts TimeTracker's timer on the pick (then Working, during a break or after the day), or keeps
-/// it for an unchanged check-in; then the overlay closes. An error leaves the overlay open.
+/// ↵: does the pick in TimeTracker and keeps it as the current activity (then Working, during a break
+/// or after the day); then the overlay closes. An error leaves the overlay open.
 #[tauri::command]
 pub async fn activity_submit(
     app: AppHandle,
     mode: ActivityMode,
     pick: ActivityPick,
 ) -> AppResult<()> {
-    let running = timetracker::tracking(&app).timer;
-    let plan = timetracker::blocking(&app, move |tool| {
-        submit_pick(tool, mode, &pick, running.as_ref())
-    })
-    .await?;
-    finish_pick(&app, &plan);
-    Ok(())
+    super::submit(&app, mode, pick).await
 }
 
 #[cfg(test)]
@@ -136,19 +134,47 @@ mod tests {
         }
     }
 
-    fn pick(project: &str, note: &str) -> ActivityPick {
+    fn pick(tt_project: Option<&str>, note: &str) -> ActivityPick {
         ActivityPick {
-            tt_project_id: project.into(),
+            project: "Oscorp".into(),
+            tt_project_id: tt_project.map(str::to_string),
             note: note.into(),
             tag: None,
         }
     }
 
+    fn kept(note: &str) -> KeptActivity {
+        KeptActivity {
+            project: "Oscorp".into(),
+            note: note.into(),
+        }
+    }
+
+    fn links(ids: &[&str]) -> Vec<String> {
+        ids.iter().map(|id| id.to_string()).collect()
+    }
+
     #[test]
-    fn submitting_starts_the_timer_on_the_picked_project_with_the_note_verbatim() {
+    fn submitting_starts_the_timer_on_the_only_link_with_the_note_verbatim() {
         let tt = Fake::answering(0, "", "");
-        let pick = pick("tt2", "  - fix: the thing ");
-        submit_pick(&tt, ActivityMode::Switch, &pick, None).unwrap();
+        let pick = pick(None, "  - fix: the thing ");
+        let plan = submit_pick(
+            &tt,
+            ActivityMode::Switch,
+            &pick,
+            None,
+            &links(&["tt2"]),
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            plan,
+            Plan::Start {
+                project_id: "tt2".into(),
+                note: "  - fix: the thing ".into(),
+                tag: None,
+            }
+        );
         assert_eq!(
             tt.calls(),
             vec![vec![
@@ -162,17 +188,81 @@ mod tests {
     }
 
     #[test]
+    fn submitting_with_several_links_starts_the_picked_one() {
+        let tt = Fake::answering(0, "", "");
+        let pick = pick(Some("tt3"), "review");
+        submit_pick(
+            &tt,
+            ActivityMode::Switch,
+            &pick,
+            None,
+            &links(&["tt2", "tt3"]),
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            tt.calls(),
+            vec![vec!["timer", "start", "tt3", "--note=review", "--json"]]
+        );
+    }
+
+    #[test]
     fn an_unchanged_check_in_sends_nothing() {
+        let tt = Fake::answering(0, "", "");
+        let timer = running();
+        let plan = submit_pick(
+            &tt,
+            ActivityMode::Checkin,
+            &pick(None, "QRS-6805 review"),
+            Some(&kept("QRS-6805 review")),
+            &links(&["tt1"]),
+            Some(&timer),
+        )
+        .unwrap();
+        assert_eq!(plan, Plan::Unchanged);
+        assert_eq!(tt.calls(), Vec::<Vec<String>>::new());
+    }
+
+    #[test]
+    fn a_confirmed_check_in_never_stops_a_timer_on_an_unlinked_project() {
+        let tt = Fake::answering(0, "", "");
+        let timer = running();
+        let plan = submit_pick(
+            &tt,
+            ActivityMode::Checkin,
+            &pick(None, "QRS-6805 review"),
+            Some(&kept("QRS-6805 review")),
+            &links(&[]),
+            Some(&timer),
+        )
+        .unwrap();
+        assert_eq!(plan, Plan::Unchanged);
+        assert_eq!(tt.calls(), Vec::<Vec<String>>::new());
+    }
+
+    #[test]
+    fn a_confirmed_check_in_with_several_links_starts_the_picked_project() {
         let tt = Fake::answering(0, "", "");
         let timer = running();
         submit_pick(
             &tt,
             ActivityMode::Checkin,
-            &pick("tt1", "QRS-6805 review"),
+            &pick(Some("tt3"), "QRS-6805 review"),
+            Some(&kept("QRS-6805 review")),
+            &links(&["tt1", "tt3"]),
             Some(&timer),
         )
         .unwrap();
-        assert_eq!(tt.calls(), Vec::<Vec<String>>::new());
+        assert_eq!(
+            tt.calls(),
+            vec![vec![
+                "timer",
+                "start",
+                "tt3",
+                "--note=QRS-6805 review",
+                "--json"
+            ]]
+        );
     }
 
     #[test]
@@ -182,7 +272,9 @@ mod tests {
         submit_pick(
             &tt,
             ActivityMode::Checkin,
-            &pick("tt1", "QRS-7000 deploy"),
+            &pick(None, "QRS-7000 deploy"),
+            Some(&kept("QRS-6805 review")),
+            &links(&["tt1"]),
             Some(&timer),
         )
         .unwrap();
@@ -199,11 +291,39 @@ mod tests {
     }
 
     #[test]
-    fn submitting_without_a_project_sends_nothing_and_is_invalid_input() {
-        let tt = Fake::answering(0, "", "");
-        let err = submit_pick(&tt, ActivityMode::Switch, &pick("", "review"), None).unwrap_err();
-        assert_eq!(err.kind(), ErrorKind::InvalidInput);
-        assert_eq!(tt.calls(), Vec::<Vec<String>>::new());
+    fn an_activity_without_a_timer_stops_a_running_timer() {
+        let timer = running();
+        for (links, picked, label) in [
+            (links(&[]), None, "no links"),
+            (links(&["tt1", "tt2"]), None, "several links, none picked"),
+        ] {
+            let tt = Fake::answering(0, "", "");
+            let plan = submit_pick(
+                &tt,
+                ActivityMode::Switch,
+                &pick(picked, "gardening"),
+                None,
+                &links,
+                Some(&timer),
+            )
+            .unwrap();
+            assert_eq!(plan, Plan::NoTimer, "{label}");
+            assert_eq!(tt.calls(), vec![vec!["timer", "stop", "--json"]], "{label}");
+        }
+    }
+
+    #[test]
+    fn an_activity_without_a_timer_sends_nothing_when_none_runs() {
+        for (mode, links) in [
+            (ActivityMode::Switch, links(&[])),
+            (ActivityMode::Switch, links(&["tt1", "tt2"])),
+            (ActivityMode::Checkin, links(&[])),
+            (ActivityMode::Checkin, links(&["tt1", "tt2"])),
+        ] {
+            let tt = Fake::answering(0, "", "");
+            submit_pick(&tt, mode, &pick(None, "gardening"), None, &links, None).unwrap();
+            assert_eq!(tt.calls(), Vec::<Vec<String>>::new(), "{mode:?} {links:?}");
+        }
     }
 
     #[test]
@@ -225,8 +345,16 @@ mod tests {
             ),
         ] {
             let tt = Fake::answering(code, stdout, stderr);
-            let pick = pick("tt1", "a\nb");
-            let err = submit_pick(&tt, ActivityMode::Switch, &pick, None).unwrap_err();
+            let pick = pick(None, "a\nb");
+            let err = submit_pick(
+                &tt,
+                ActivityMode::Switch,
+                &pick,
+                None,
+                &links(&["tt1"]),
+                None,
+            )
+            .unwrap_err();
             assert_eq!(err.kind(), kind, "{code}");
             assert_eq!(err.to_string(), message, "{code}");
         }

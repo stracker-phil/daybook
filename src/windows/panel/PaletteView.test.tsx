@@ -134,11 +134,14 @@ describe("PaletteView", () => {
       expect(mocked.paletteRun).toHaveBeenCalledWith("link:wiki");
     });
 
-    it("shows the message of a rejected run in the footer", async () => {
+    it("shows the message of a rejected run in the footer in place of the prefix buttons", async () => {
       mocked.paletteRun.mockRejectedValueOnce({ kind: "io", message: "Could not open the wiki", code: null });
       await renderPalette();
+      expect(screen.getByRole("button", { name: /Commands/ })).toBeInTheDocument();
       await userEvent.click(await option(/Team wiki/));
       expect(await screen.findByText("Could not open the wiki")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Commands/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Links/ })).not.toBeInTheDocument();
     });
   });
 

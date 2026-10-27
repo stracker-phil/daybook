@@ -278,6 +278,30 @@ Shell components in `components/`:
 - `ErrorBoundary`: a render crash shows the message with Try again and Open log folder, and logs it with the
   component stack.
 
+### Overlay parts
+
+`src/windows/panel/parts/` (exported by `index.ts`) holds what every overlay view builds from, in the
+prototype's look ([ux.md](ux.md#overlays), [ADR 0028](adr/0028-overlays-follow-the-prototype.md)); their CSS is
+in `src/windows/panel/panel.css`. Views use these instead of their own markup.
+
+- `PanelInput.tsx`: `PanelPrompt` (the small question above a view; a drag region) and `PanelInput` (the 48px
+  field row: an icon, an optional `leading` part such as scope chips or the activity picker, the field, which
+  takes the keyboard on open; `stage` and `stageLabel` name the row for Stage).
+- `PanelList.tsx`: `PanelList` (a `listbox`; `selection` `"grey"` by default or `"tint"` for the context's
+  tint), `PanelOption` (an `option` row with `selected`, an optional `number` column, `narrowNumber`, `icon`,
+  `iconSecondary`; `keepFocus`, on by default, keeps the keyboard in the field on a click), `SectionHeader` (a
+  group's heading, not an option) and `CurrentMarker` (the "Current" pill in a `context`'s colour, else the
+  current one's).
+- `PanelFooter.tsx`: `PanelFooter` (`hints`, `status`, `error`, children between them; a drag region),
+  `PanelKey` (one outline key cap), `PanelHint` (`{ keys, label }`, one cap per key), `ESCAPE_HINT`
+  (`esc Cancel`), `CLOSE_HINT` (`esc Close`) and `PanelHintItem` (one hint's caps and label).
+- `ProjectKeys.tsx`: `ProjectKeys` (the first nine names as ⌘1…⌘9 caps) and `MAX_PROJECT_KEYS`.
+- `PanelSegmented.tsx`: `PanelSegmented` (`label`, `segments` with an optional tooltip `title`, `value` or
+  `null`, `onPick`); clicks leave the keyboard in the field.
+
+`src/windows/panel/dragRegion.ts` `DRAG_REGION` spreads `data-tauri-drag-region="deep"` on the grabber
+(`PanelApp`), `PanelPrompt` and `PanelFooter` ([windows.md](windows.md#the-overlay)).
+
 ## Settings
 
 `components/settings/SettingsWindow.tsx` fills the Settings window: a nav of `settingsGroups(query)` under a drag
@@ -325,8 +349,9 @@ mapping, the accents), `context.css` (a context's colour as `--context`), then o
 `base.css` (reset, focus, scrollbars, text utilities), `controls.css` (the AppKit-sized controls of
 [ux.md](ux.md#controls)), `shell.css` (the grid, the toolbar, the empty view, the crash screen; the Daybook
 window's `--hairline`, `--wash` and `--wash-strong`), `sidebar.css`, `board.css` (the board's sections),
-`activity.css` (the Activity tab), `overlays.css` (dialogs, menus, toasts, palette, shortcut overview) and
-`settings.css`. Icons come from `lucide-react`. Token names and roles are in
+`activity.css` (the Activity tab), `overlays.css` (dialogs, menus, toasts, shortcut overview) and
+`settings.css`. The overlay page has its own `src/windows/panel/panel.css` (the parts and views, in px) and
+`search/search.css`. Icons come from `lucide-react`. Token names and roles are in
 [ux.md](ux.md#appearance-and-tokens).
 
 - **Appearance.** `applyAppearance` picks `lightScheme` or `darkScheme` by `prefers-color-scheme` through
@@ -342,7 +367,8 @@ window's `--hairline`, `--wash` and `--wash-strong`), `sidebar.css`, `board.css`
   re-derives `--accent` from the hues of its tone.
 - **No color literals** (`#hex`, `rgb(`, `hsl(`) outside `styles/palettes/`
   ([ADR 0007](adr/0007-color-palettes.md)); `styles/colors.test.ts` scans.
-- **Sizing.** Chrome is in rem: `html { font-size: var(--ui-font-size) }`, so the text size scales it. Spacing
+- **Sizing.** Chrome is in rem: `html { font-size: var(--ui-font-size) }`, so the text size scales it; the
+  Daybook window's board and sidebar and the overlay panel use the prototype's px values instead. Spacing
   uses `--space-*`, type the `--fs-*` scale; the toolbar height and the traffic lights are px.
 - **macOS look** ([ADR 0011](adr/0011-native-macos-look.md)). The sidebar spans the window's height under the
   traffic lights; without it the toolbar leaves `--traffic-lights` for them. `data-tauri-drag-region` marks
@@ -367,6 +393,8 @@ window's `--hairline`, `--wash` and `--wash-strong`), `sidebar.css`, `board.css`
   `createApiMock()` (`src/test/apiMock.ts`) returns every `api` member as a `vi.fn()` with a harmless default
   (subscriptions resolve to a no-op unlisten); a new `api` member needs a default there, or the type check
   fails. It imports from `../api/types` only, never the store or `../api`.
+- **Overlay footers.** `src/test/panelHints.ts` `hintKeys(label)`: the key caps of the footer hint with that
+  label, in order, or null when the footer shows none.
 - **Fixtures.** `src/test/settings.ts`: `settings(patch)`, Rust's `Settings::default()` (`src/test/default-settings.json`, kept exact by a Rust drift test; `UPDATE_FIXTURES=1` rewrites it) with the orange accent.
 - **Store and commands.** Reset with `resetStore(patch)` and `vi.clearAllMocks()` in `beforeEach`; a test of
   keys or the palette calls `installCommands()` and attaches `handleKeydown` itself.

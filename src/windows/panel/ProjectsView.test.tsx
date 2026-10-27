@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../api", async (orig) => ({ ...(await orig<object>()), api: (await import("../../test/apiMock")).createApiMock() }));
 
 import { api, type ProjectGroup } from "../../api";
+import { hintKeys } from "../../test/panelHints";
 import { ProjectsView } from "./ProjectsView";
 
 const mocked = vi.mocked(api, true);
@@ -29,7 +30,9 @@ describe("ProjectsView", () => {
     await renderView([group("Atlas", "api", "web")]);
     expect(await screen.findByText("Atlas")).toBeInTheDocument();
     expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["⌘1api", "⌘2web"]);
-    expect(screen.getByText("↑↓ project · ↵ show · ⌘1–9 show · esc close")).toBeInTheDocument();
+    expect(hintKeys("Project")).toEqual(["↑", "↓"]);
+    expect(hintKeys("Show")).toEqual(["↵"]);
+    expect(hintKeys("Close")).toEqual(["esc"]);
   });
 
   it("marks each row for Stage with its id", async () => {

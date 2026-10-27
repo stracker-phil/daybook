@@ -6,17 +6,19 @@ use super::model::MenuInput;
 use crate::store::settings::{Feature, ToolId};
 use crate::tools::TtState;
 
-/// What the timer runs on, Log Activity (with the recent timers) and, with check-ins, their pause.
+/// What the timer runs on (or the activity picked without one), Log Activity (with the recent
+/// timers) and, with check-ins, their pause.
 pub(super) fn activity_entries(input: &MenuInput) -> Vec<MenuEntry> {
     let state = input.state;
     if !state.has_feature(Feature::Status) {
         return Vec::new();
     }
-    let timer_label = match (state.tt, &state.timer) {
-        (TtState::Available, Some(timer)) => timer.text(),
-        (TtState::Available, None) => "No timer running".into(),
-        (TtState::NotRunning, _) => "TimeTracker isn't running".into(),
-        (TtState::Missing, _) => "TimeTracker isn't installed".into(),
+    let timer_label = match (state.tt, &state.timer, &state.activity) {
+        (TtState::Available, Some(timer), _) => timer.text(),
+        (TtState::Available, None, Some(activity)) => format!("{} (no timer)", activity.text()),
+        (TtState::Available, None, None) => "No timer running".into(),
+        (TtState::NotRunning, ..) => "TimeTracker isn't running".into(),
+        (TtState::Missing, ..) => "TimeTracker isn't installed".into(),
     };
     let log = command(
         "Log Activity…",

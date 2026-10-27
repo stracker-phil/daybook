@@ -171,6 +171,8 @@ pub struct ToolState {
     pub tt: TtState,
     /// TimeTracker's running timer.
     pub timer: Option<TimerView>,
+    /// What you work on: the running timer, else the activity picked without one.
+    pub activity: Option<TimerView>,
     /// Timers used lately, newest first.
     pub recent_activities: Vec<RecentActivity>,
     /// The current context's check-in interval; 0: none.

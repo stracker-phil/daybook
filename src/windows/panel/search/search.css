@@ -1,36 +1,31 @@
 /* Vault search: the field with its scope chips, results beside the preview, the footer. The overlay is a fixed
    980pt wide for this view (docs/windows.md), so the sizes here are px. */
 .search-view { height: 560px; outline: none; }
-.search-field { flex-wrap: nowrap; }
-.search-field input { min-width: 0; }
+/* Glaze's blue medium badge: 13px/500 on blue 10%, its text darkened in light mode like the accent's. */
 .scope-chip {
-  flex: none; padding: 0.077rem var(--space-2); border: none; border-radius: 999px; font: inherit; font-size: var(--fs-meta); font-weight: 500;
-  background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent-text);
+  flex: none; padding: 2px 8px; border: none; border-radius: 999px; font: inherit; font-size: 13px; line-height: 18px; font-weight: 500;
+  background: color-mix(in srgb, var(--style-blue) 10%, transparent);
+  color: oklch(from var(--style-blue) min(l, var(--accent-text-max-l)) c h);
 }
+.scope-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
 
-.search-split { display: flex; flex: 1; min-height: 0; }
-.search-list { flex: none; width: 380px; max-height: none; box-sizing: border-box; border-right: 1px solid var(--line); }
-/* The highlight takes the context's tint, so the matches stay readable on it. */
-.search-list.palette-list li.active { background: var(--context-tint, var(--sel)); color: var(--text); }
-.search-list.palette-list li.active .o2 { color: var(--o2); opacity: 1; }
-.search-list.palette-list li.active .o3 { color: var(--o3); opacity: 1; }
-.search-empty { padding: var(--space-2); }
+.search-split { display: flex; flex: 1; min-height: 0; border-top: 1px solid var(--line); }
+.search-list.palette-list { flex: none; width: 380px; max-height: none; box-sizing: border-box; border-top: none; border-right: 1px solid var(--line); }
+/* Rows like Glaze's command items: 8px radius, 6px 8px padding; a result stacks its title over the matched line. */
+.search-list.palette-list > li:not(.palette-section) { padding: 6px 8px; border-radius: 8px; }
+.search-list.palette-list > li.search-empty { justify-content: center; color: var(--o3); }
 
-.search-result { display: flex; flex-direction: column; gap: 0.154rem; min-width: 0; width: 100%; }
-.search-result-title { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; }
-.search-result-name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-.search-result-folder { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-meta); }
+.search-result { display: flex; flex-direction: column; gap: 2px; min-width: 0; width: 100%; }
+.search-result-title { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.search-result-name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.search-result-folder { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; line-height: 14px; }
 .search-result-line {
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
-  font-size: var(--fs-meta); line-height: 1.35; overflow-wrap: anywhere;
+  font-size: 11px; line-height: 14px; overflow-wrap: anywhere;
 }
-.search-list mark { border-radius: 2px; background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--text); }
+.search-list mark { border-radius: 4px; background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--text); }
 
-.search-placeholder { display: flex; flex: 1; align-items: center; justify-content: center; margin: 0; padding: 0 var(--space-6); text-align: center; }
-
-.search-foot { flex-wrap: nowrap; }
-.search-status { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.search-foot > span:not(.search-status) { flex: none; }
+.search-placeholder { display: flex; flex: 1; align-items: center; justify-content: center; margin: 0; padding: 0 24px; text-align: center; font-size: 13px; }
 
 /* The preview: read-only Markdown, text selectable, scrolled per note. */
 .note-preview { flex: 1; min-width: 0; overflow-y: auto; padding: var(--space-4) var(--space-5); line-height: 1.5; overflow-wrap: anywhere; }

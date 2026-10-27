@@ -1,6 +1,7 @@
 import { useEffect, useRef, type KeyboardEvent } from "react";
 import { ExternalLink } from "lucide-react";
 import { api, type EndOfDayAnswer, type EndOfDayCheck } from "../../api";
+import { PanelFooter, PanelKey, PanelPrompt } from "./parts";
 
 const ANSWER_KEYS: Record<string, EndOfDayAnswer> = { y: "done", n: "incomplete" };
 
@@ -22,7 +23,7 @@ export function EndOfDayStep({ check, message, error, onAnswer }: { check: EndOf
 
   return (
     <div className="panel-card end-of-day" onKeyDown={onKeyDown}>
-      <div className="panel-heading o2">Done for today{message ? ` · ${message}` : ""}</div>
+      <PanelPrompt>Done for today{message ? ` · ${message}` : ""}</PanelPrompt>
       <div className="panel-body-text">
         {check.reminder && (
           <p className="numbered">
@@ -35,21 +36,21 @@ export function EndOfDayStep({ check, message, error, onAnswer }: { check: EndOf
           <span className="grow-text">{check.question}</span>
           {check.url && (
             <button type="button" className="btn btn-quiet" onClick={() => void api.openUrl(check.url).catch(() => {})}>
-              <ExternalLink size="1.077rem" aria-hidden="true" />
+              <ExternalLink size={16} aria-hidden="true" />
               Open
             </button>
           )}
         </div>
         <div className="panel-buttons">
           <button ref={yesButton} type="button" className="btn btn-primary" onClick={() => onAnswer("done")}>
-            Yes <kbd className="keycap">Y</kbd>
+            Yes <PanelKey>Y</PanelKey>
           </button>
           <button type="button" className="btn" onClick={() => onAnswer("incomplete")}>
-            Not yet <kbd className="keycap">N</kbd>
+            Not yet <PanelKey>N</PanelKey>
           </button>
         </div>
       </div>
-      <div className="palette-foot o3">{error ? <span className="palette-error">{error}</span> : <span>esc cancel, send nothing</span>}</div>
+      <PanelFooter hints={[{ keys: ["esc"], label: "Cancel, send nothing" }]} error={error} />
     </div>
   );
 }

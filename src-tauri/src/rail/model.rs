@@ -143,17 +143,18 @@ fn call_button(input: &RailInput) -> Button {
     }
 }
 
-/// The activity row: the running timer as caption and detail, else a prompt to log.
+/// The activity row: the current activity (the running timer, else the one picked without a timer)
+/// as caption and detail, else a prompt to log.
 fn activity_button(state: &ToolState) -> Button {
-    let detail = match (state.tt, &state.timer) {
-        (TtState::Available, Some(timer)) => format!("Now: {}", timer.text()),
+    let detail = match (state.tt, &state.activity) {
+        (TtState::Available, Some(activity)) => format!("Now: {}", activity.text()),
         (TtState::Available, None) => "Log what you just did".into(),
         (TtState::NotRunning, _) => "TimeTracker isn't running".into(),
         (TtState::Missing, _) => "TimeTracker isn't installed".into(),
     };
     Button {
         caption: state
-            .timer
+            .activity
             .as_ref()
             .map(|timer| timer.project.clone())
             .filter(|project| !project.is_empty()),
@@ -621,7 +622,7 @@ mod tests {
     }
 
     #[test]
-    fn the_activity_button_tells_about_the_timer_and_captions_its_project() {
+    fn the_activity_button_tells_about_the_current_activity_and_captions_its_project() {
         let timer = |project: &str, note: &str| {
             Some(TimerView {
                 project: project.into(),
@@ -647,7 +648,7 @@ mod tests {
         ] {
             let state = ToolState {
                 tt,
-                timer: view.clone(),
+                activity: view.clone(),
                 ..fixture()
             };
             let tool = Setup::new(&[ToolId::Activity], state).tool(ToolId::Activity);

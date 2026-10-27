@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../api", async (orig) => ({ ...(await orig<object>()), api: (await import("../../test/apiMock")).createApiMock() }));
 
 import { api, type EndOfDayCheck, type StatusRequest } from "../../api";
+import { hintKeys } from "../../test/panelHints";
 import { StatusView } from "./StatusView";
 
 const mocked = vi.mocked(api, true);
@@ -43,6 +44,13 @@ describe("StatusView", () => {
       render(<StatusView request={request({ current: "break" })} />);
       expect(within(option(/Taking a break/)).getByText("Current")).toBeInTheDocument();
       expect(screen.getAllByText("Current")).toHaveLength(1);
+    });
+
+    it("lists the key hints in the footer", () => {
+      render(<StatusView request={request()} />);
+      expect(hintKeys("Status")).toEqual(["↑", "↓"]);
+      expect(hintKeys("Set")).toEqual(["↵"]);
+      expect(hintKeys("Cancel")).toEqual(["esc"]);
     });
 
     it("marks nothing as current before the first status of the day", () => {
@@ -134,6 +142,7 @@ describe("StatusView", () => {
       render(<StatusView request={request()} />);
       await userEvent.keyboard("{Enter}");
       expect(await screen.findByText("Slack is unreachable")).toBeInTheDocument();
+      expect(hintKeys("Set")).toEqual(["↵"]);
     });
 
     it("drops the error once the message is edited", async () => {

@@ -3,6 +3,7 @@ import { CircleCheck, Coffee, Moon, type LucideIcon } from "lucide-react";
 import { api, toAppError, type EndOfDayAnswer, type Status, type StatusMap, type StatusRequest } from "../../api";
 import { EndOfDayStep } from "./EndOfDayStep";
 import { EndOfDayListStep } from "./EndOfDayListStep";
+import { CurrentMarker, ESCAPE_HINT, PanelFooter, PanelInput, PanelList, PanelOption, PanelPrompt } from "./parts";
 
 const OPTIONS: { status: Status; icon: LucideIcon; label: string; placeholder: string }[] = [
   { status: "working", icon: CircleCheck, label: "Working and present", placeholder: "Message, e.g. good morning" },
@@ -81,47 +82,42 @@ export function StatusView({ request }: { request: StatusRequest }) {
 
   return (
     <div className="panel-card status-view">
-      <div className="panel-heading o2">What is your status?</div>
-      <div className="palette-input" data-stage="panel:input" data-stage-label="Status message" data-stage-role="field">
-        <option.icon size="1.077rem" aria-hidden="true" />
-        <input
-          autoFocus
-          aria-label="Message"
-          aria-controls="status-options"
-          aria-activedescendant={`status-${picked}`}
-          placeholder={option.placeholder}
-          value={message}
-          onChange={(e) => {
-            setMessage(e.target.value);
-            setError(null);
-          }}
-          onKeyDown={onKeyDown}
-        />
-      </div>
-      <ul id="status-options" className="palette-list" role="listbox" aria-label="Status">
+      <PanelPrompt>What is your status?</PanelPrompt>
+      <PanelInput
+        icon={option.icon}
+        stageLabel="Status message"
+        aria-label="Message"
+        aria-controls="status-options"
+        aria-activedescendant={`status-${picked}`}
+        placeholder={option.placeholder}
+        value={message}
+        onChange={(e) => {
+          setMessage(e.target.value);
+          setError(null);
+        }}
+        onKeyDown={onKeyDown}
+      />
+      <PanelList id="status-options" aria-label="Status">
         {OPTIONS.map((item, i) => (
-          <li
+          <PanelOption
             key={item.status}
             id={`status-${item.status}`}
             data-stage={`status:${item.status}`}
             data-stage-label={item.label}
             data-stage-list="statuses"
-            role="option"
-            aria-selected={item.status === picked}
-            className={item.status === picked ? "active" : undefined}
+            selected={item.status === picked}
+            number={`⌘${i + 1}`}
+            icon={item.icon}
+            iconSecondary
             onMouseMove={() => pick(item.status)}
-            // Keeps the keyboard in the message field.
-            onMouseDown={(e) => e.preventDefault()}
             onClick={() => submit(item.status)}
           >
-            <span className="context-number o3">⌘{i + 1}</span>
-            <item.icon size="1.077rem" className="o3" aria-hidden="true" />
             <span className="grow-text">{item.label}</span>
-            {request.current === item.status && <span className="current-pill">Current</span>}
-          </li>
+            {request.current === item.status && <CurrentMarker />}
+          </PanelOption>
         ))}
-      </ul>
-      <div className="palette-foot o3">{error ? <span className="palette-error">{error}</span> : <span>↑↓ status · ↵ set · esc close</span>}</div>
+      </PanelList>
+      <PanelFooter hints={[{ keys: ["↑", "↓"], label: "Status" }, { keys: ["↵"], label: "Set" }, ESCAPE_HINT]} error={error} />
     </div>
   );
 }

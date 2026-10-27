@@ -183,6 +183,17 @@ pub unsafe fn is_key(ns_window: *mut c_void) -> bool {
     unsafe { msg_send![window(ns_window), isKeyWindow] }
 }
 
+/// The shadow follows the transparent window's new outline at once instead of after the next redraw.
+///
+/// # Safety
+/// `ns_window` is a live `NSWindow`, on the main thread.
+pub unsafe fn invalidate_shadow(ns_window: *mut c_void) {
+    // SAFETY: plain NSWindow call.
+    unsafe {
+        let _: () = msg_send![window(ns_window), invalidateShadow];
+    }
+}
+
 /// Invisible first, so whatever macOS does with the window afterwards, a closed overlay isn't seen.
 ///
 /// # Safety

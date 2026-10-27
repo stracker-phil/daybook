@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../api", async (orig) => ({ ...(await orig<object>()), api: (await import("../../test/apiMock")).createApiMock() }));
 
 import { api } from "../../api";
+import { hintKeys } from "../../test/panelHints";
 import { JiraView } from "./JiraView";
 
 const mocked = vi.mocked(api, true);
@@ -22,6 +23,14 @@ const selected = () => screen.queryAllByRole("option").find((o) => o.getAttribut
 
 describe("JiraView", () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it("prompts for the issue above the field and lists the footer hints", async () => {
+    await renderView([]);
+    expect(screen.getByText("Open Jira issue")).toBeInTheDocument();
+    expect(hintKeys("Suggestions")).toEqual(["↑", "↓"]);
+    expect(hintKeys("Open")).toEqual(["↵"]);
+    expect(hintKeys("Cancel")).toEqual(["esc"]);
+  });
 
   it("shows no list without suggestions", async () => {
     await renderView([]);
@@ -106,11 +115,12 @@ describe("JiraView", () => {
   });
 
   describe("a rejected open", () => {
-    it("shows its message in the footer until the next keystroke", async () => {
+    it("shows its message in the footer next to the hints until the next keystroke", async () => {
       mocked.jiraOpen.mockRejectedValue({ kind: "not_found", message: "No such issue", code: null });
       await renderView([]);
       await userEvent.type(input(), "9{Enter}");
       expect(await screen.findByText("No such issue")).toBeInTheDocument();
+      expect(hintKeys("Cancel")).toEqual(["esc"]);
       await userEvent.type(input(), "1");
       expect(screen.queryByText("No such issue")).not.toBeInTheDocument();
     });

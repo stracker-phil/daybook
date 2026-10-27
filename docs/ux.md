@@ -7,6 +7,7 @@ item. Decisions: [ADR 0007](adr/0007-color-palettes.md) (token sets, no literals
 [ADR 0010](adr/0010-a-scheme-per-system-mode.md) (a scheme per macOS mode),
 [ADR 0011](adr/0011-native-macos-look.md) (the native look),
 [ADR 0026](adr/0026-the-daybook-window-follows-the-prototypes-look.md) (the Daybook window follows the
+prototype's look), [ADR 0028](adr/0028-overlays-follow-the-prototype.md) (the overlay panel follows the
 prototype's look). Implementation (files, registries, CSS structure):
 [frontend.md](frontend.md#styling).
 
@@ -47,7 +48,7 @@ no outlined cards.
 | `--sidebar-bg` | the sidebar, full height, under the window buttons; the window's sidebar material instead where the scheme's sidebar tone matches the macOS mode |
 | `--bg` | content: the window background under the toolbar and the view |
 | `--chrome` | the Settings page list |
-| `--pop` | overlays: palette, popovers, context menus, dialogs, toasts |
+| `--pop` | overlays inside a window: popovers, context menus, dialogs, toasts (the overlay panel is translucent material, see [Overlays](#overlays)) |
 | `--fill-quiet` | inset groups (System Settings style): the Settings cards |
 
 Separators are `--line` hairlines (`--sidebar-line` beside the sidebar). Bars inside content stay on `--bg`.
@@ -257,7 +258,8 @@ their names; accessible names follow the visible labels.
 
 Spacing sits on an 8px grid with 4px half steps (`--space-1` 4px to `--space-6` 24px, in rem so it zooms);
 content keeps 20px margins (`--margin`). Rows are at least 28px (inset group rows 36px). Inset groups and
-popovers have a 10px radius; sheets 20px padding and a 12px radius.
+popovers have a 10px radius; sheets 20px padding and a 12px radius. The overlay panel and the Daybook window
+use the prototype's px values instead, which the text size doesn't scale.
 
 ## Controls
 
@@ -274,9 +276,9 @@ AppKit sizes and looks ([ADR 0011](adr/0011-native-macos-look.md)), in `styles/c
 | Popup button | `select.input` | WebKit's native chevrons inside the push button bezel |
 | Text field | `.input` | 22px, `--field` with a 1px inset `--field-line` frame, 6px radius; focus adds `--focus-ring`; `.input.mono` for machine text |
 | Search field | `InsetField` (`.inset-field`) | a `--fill` capsule with a leading icon and an optional key cap; on focus the field surface, frame and ring |
-| Segmented control | `SegmentedControl` (`.segmented`) | a 22px `--fill` track with 2px padding; segments in `--text`; the pressed one raised on `--raised` with `--shadow-small`, its label `--text-strong` |
+| Segmented control | `SegmentedControl` (`.segmented`) | a 22px `--fill` track with 2px padding; segments in `--text`; the pressed one raised on `--raised` with `--shadow-small`, its label `--text-strong`. The overlay panel has its own (`PanelSegmented`, see [Overlays](#overlays)) |
 | Switch | `.switch` | 32 by 18px, a `--fill-strong` track, a white `--knob` thumb with `--shadow-small`; on, the track is the accent |
-| Key cap | `KeyCap` (`.keycap`) | the UI font at `--fs-caption`, `--o3` on a `--fill` rounded rect |
+| Key cap | `KeyCap` (`.keycap`) | the UI font at `--fs-caption`, `--o3` on a `--fill` rounded rect. The overlay panel uses outline caps (`PanelKey`, see [Overlays](#overlays)) |
 | Swatches | `AccentSwatches` (`.accent-swatches`) | 16px circles with a hairline; the chosen one ringed; `withSystem` adds the System swatch first |
 
 Buttons in a row end with the default button: Cancel, then Save.
@@ -304,7 +306,8 @@ stacking.
 
 ## Rows
 
-Every list shares one row: sidebar entries, palette results, settings lists. A 20px line with padding above and
+Every list in a window shares one row: sidebar entries, settings lists (the overlay panel has its own, see
+[Overlays](#overlays)). A 20px line with padding above and
 below (at least 28px; 36px in inset groups), hairlines between rows, no hover fill on plain rows, `--sel` when
 selected. Sidebar entries (`.si`) are the prototype's: 32px tall, 10px inside, the icon 10px from the title, 2px apart, an
 8px inset and a 6px radius; a shortcut hint is a key chip (16px tall, 4px inside, 4px radius, SF Mono 11px, a
@@ -337,16 +340,46 @@ The native WebKit context menu is suppressed outside text fields (`lib/nativeMen
 Daybook's own overlay panel (a non-activating window over other apps), the rail and the quick notes editor are
 separate windows; the rail has [its own section](#the-rail).
 
+**The overlay panel** follows the prototype's look ([ADR 0028](adr/0028-overlays-follow-the-prototype.md)).
+`src/windows/panel/panel.css` holds its values in px, so the text size doesn't scale overlays; the shared
+parts are in `src/windows/panel/parts/` ([frontend.md](frontend.md#overlay-parts)).
+
+- **Material.** The window is translucent popover material ([windows.md](windows.md#the-overlay)); the card
+  (`.panel-card`) is transparent with a 12px radius and a 0.5px hairline (the foreground at 12%). In the card
+  the text is the tone's pure foreground (`--text-strong`), secondary `--o2` 60%, tertiary `--o3` 40%, rules
+  and the grey selection `--line` / `--list-selection` 10%.
+- **Grabber and dragging.** A 10px strip over the card's top (`.panel-grabber`) shows a 36 by 4px bar while the
+  pointer is over the overlay. The grabber, the prompt and the footer drag the overlay; buttons, fields and rows
+  in them stay clickable, and the caret stays in the field. Every fresh open is centred again.
+- **Prompt and field.** The prompt (`PanelPrompt`) is 11px/500 in `--o2`. The field row (`PanelInput`) is 48px:
+  a 20px icon in `--o2`, an optional leading part, the 16px field; no rule under it.
+- **Rows and selection.** A list (`PanelList`) has a rule on top and 4px 6px padding; rows (`PanelOption`) are
+  36px with a 10px gap and 6px radius, 16px icons in `--o3` (`--o2` in the status view) and a 32px shortcut
+  column ("⌘1"; 20px for the context switcher's "1"). The selected row is grey (`--list-selection`) in status,
+  context, links, projects, quick notes and the wizard, and the context's tint (`--context-tint`) in activity,
+  Jira, music, the palette and search. The text stays `--text`; nothing is accent-filled.
+- **Section headers** (`SectionHeader`) are 11px/500 in `--o3`, 8px 10px 4px.
+- **Current** (`CurrentMarker`): an 11px/500 pill, `--context-text` on `--context-tint`; the row's own context
+  in the switcher, else the current context.
+- **Footer** (`PanelFooter`): a rule on top, 8px 16px; the error (red) or a status on the left, the key hints
+  on the right, 16px apart. A hint is one outline key cap per key (`PanelKey`: 16px tall, 4px radius, a 1px
+  `--line` frame, no fill, 11px mono in `--o3`) and a Title Case label in `--o3`, e.g. `↑ ↓ Status`, `↵ Set`,
+  `esc Cancel`; views that only show things end with `esc Close`.
+- **Project keys** (`ProjectKeys`, activity and focus): ⌘1…⌘9 as key caps with the project names, wrapping.
+- **Segmented control** (`PanelSegmented`): 28px with an 8px radius on a 5% track, segments 13px/500, the
+  picked one accent-filled with `--on-accent`. Clicks leave the keyboard in the field.
+- **Buttons** in the end-of-day and offer-off bodies are 32px with an 8px radius and an inline key cap.
+
 **The focus overlay** (`focus` view, ⌘F11 by default): "Today's focus" with where the list goes on the right
 (`--o3`: "Updates your morning message in #team", "Today's note only"); a plain monospace editor (`--font-mono`,
-`--fs-meta`, 4 to 14 rows) that saves exactly what was typed; the projects ⌘1…9 insert under it; the keys in the
-footer, replaced by "Sent to Slack" or an error. ⌘L cycles the line's checkbox (open, in progress, done,
+`--fs-meta`, 4 to 14 rows) that saves exactly what was typed; the projects ⌘1…9 insert under it (`ProjectKeys`);
+the footer has `⌘ L Check`, `⌘ S Send to Slack` and `⌘ ↵ Save`, with "Sent to Slack" or an error as its status. ⌘L cycles the line's checkbox (open, in progress, done,
 cancelled), ⌘1…9 sets the line's project emoji (the same key again makes it a plain sub-item), ↵ continues the
 list and ends it on an empty item, Tab and ⇧Tab indent, ⌘↵ saves and closes, ⌘S sends to Slack and stays open.
 It stays open while focus is elsewhere. The end-of-day list step uses the same editor.
 
 **The journal overlay** (`journal` view, ⌘J in the app, `journal:open:<group>` for one group): "Journal" with
-the groups as a segmented control on the right (⌘1…⌘9 switch); it opens on the asked group, else the first with
+the groups as the pill segmented control on the right (⌘1…⌘9 switch; `⌘ 1–N Group` in the footer); it opens on the asked group, else the first with
 open questions. Each question is its title (semibold), its hint (`--fs-meta`, `--o3`) and its answers as plain
 rows: numbered for a list, a checkbox per task (disabled while the row is empty, done ones struck through in
 `--o2`), a growing text field for text; a free-text group is one growing field. There is always one empty row at
@@ -356,36 +389,48 @@ note replaces the answers only when its trimmed content differs, so the note ech
 caret. The footer has the keys, "Saved once today's note exists" while it doesn't, or the error of a failed save.
 
 **The wizard overlay** (`wizard` view, `routine:<id>`): the routine's name with "2 of 4" or "All done" on the
-right (`--o3`, tabular figures), then the day's items as a list: a round check (filled with `--context`, a white
-tick, once done) and the title, struck through in `--o3` when done; an item with a link has a link button on the
-right. ↑↓ cycle through all items, Space or ↵ ticks, ⌘O opens the link. It opens on the first open item and closes
+right (`--o3`, tabular figures), then the day's items as 40px rows with an 8px radius and grey selection: an 18px
+round check (filled green, `--a-green`, with a white tick once done) and the title, struck through in `--o3` when
+done; an item with a link has a link button on the right. ↑↓ cycle through all items, Space or ↵ ticks, ⌘O opens the link. It opens on the first open item and closes
 by itself 0.7 s after the last one is ticked; there is no skip. The footer has the keys (⌘O only for an item with
 a link) or the error of a failed tick.
 
 **Quick notes** (⌘F3 by default, "Write a note…" on the board): the picker overlay lists today's topics under
 the notes heading (`###` and deeper, their `#`s in `--o3` and indented by level) and filters them as you type;
-a title that isn't a topic yet adds a "New topic “…”" row (`###`). ↑↓ and ↵ (or a click) open the topic in the
+a title that isn't a topic yet adds a "New topic “…”" row (`###`); the selection is grey. ↑↓ and ↵ (or a click) open the topic in the
 editor window; a new one is added to today's note at once, so it shows in Obsidian too. ⌘F3 while the editor is
 open brings it forward instead.
 
-**Search** (⌘F in the app; `search:open`): the widest overlay. The field with the scope chips (accent-tinted
-pills, `@work`) on top, the results on the left (name, folder in `--o3`, a two-line snippet; hits marked with an
-accent tint; the highlighted row in the context tint) and the preview on the right (the note rendered with GFM;
-note links follow in place, missing ones in `--o3`). The pointer never moves the highlight: a click highlights, a
-second one opens. The footer has the status (`Copied [[Plan]]`, `Indexing… N notes so far`, an error) and the
-keys (`↵ open · ⌘↵ open preview · ⌘C copy link`, `⌘[ back` and `⌘] forward` when there is history, `esc close`).
+**Search** (⌘F in the app; `search:open`): the widest overlay. The field with the scope chips (Glaze's blue
+badge: 13px/500 pills on blue 10%, `@work`) on top, the results in a 380px column on the left (name 500, folder
+11px in `--o3`, a two-line 11px snippet; rows with an 8px radius; hits marked with an accent tint; the
+highlighted row in the context tint) and the preview on the right (the note rendered with GFM; note links follow
+in place, missing ones in `--o3`). The pointer never moves the highlight: a click highlights, a second one
+opens. The footer has the status (`Copied [[Plan]]`, `Indexing… N notes so far`, an error) and the keys
+(`↵ Open`, `⌘ ↵ Open preview`, `⌘ C Copy link`, `⌘ [ Back` and `⌘ ] Forward` when there is history, `esc Cancel`).
 
 **Links, Projects and Jira** (`links:open`, `projects:open`, `jira:open`): Links lists Now, then More links;
 Projects lists each project's Launcher projects under its name. Both share `ShortcutListView`: the first nine
-rows show ⌘1…⌘9 and open directly, typing filters by every word, a click selects and a second click opens. The
-Jira overlay is an address bar: you type a number, key or link, ↓ and ↑ put the last 7 days' keys into the field
+rows show ⌘1…⌘9 and open directly, typing filters by every word, a click selects (grey) and a second click
+opens; the footer has `↑ ↓ Link` (or `Project`), `↵ Open` (or `Show`) and `esc Close`. The Jira overlay (context
+tint) is an address bar: you type a number, key or link, ↓ and ↑ put the last 7 days' keys into the field
 (fuzzy-filtered, at most 8), ↵ opens what the field shows.
 
 **Activity** (⌘F2, `activity:switch`, and the check-ins): sticky. The prompt on top ("What are you working on?" or
-"Still on Oscorp · QRS-6805?"), the note field prefilled, the project picker (Tab and ⌘1–9 over the linked TimeTracker
-projects, grouped by Daybook project, with their colour dots), then the suggestions (the call, today's events,
-tickets, recent timers). ↵ starts the timer; an unchanged check-in just closes. When TimeTracker isn't running the
-overlay says so with Open TimeTracker and keeps the text.
+"Still on Oscorp · QRS-6805?"), then two rows that separate what you work on from the timer
+([timetracker.md](timetracker.md#the-activity-overlay)):
+
+- **Activity:** an icon (tooltip "What you work on"), the Daybook projects that count now as a segmented
+  control, and the note field, prefilled. Tab, ⇧Tab and ⌘1–9 pick the project. When the projects leave the
+  note less than 160px, the row wraps and the note moves under the picker (`panel.css`, the activity input row).
+- **Timer:** a timer icon (tooltip "TimeTracker timer"), then "None" (first, the default) and the picked
+  project's TimeTracker projects. Shown only when that project links more than one; ⌥1–9 pick one, ⌥0 None.
+
+Then the suggestions (context tint; Meetings, Tickets Today, Recent Timers: the call, today's events, tickets,
+recent timers; a recent timer fills both rows), the project keys and the footer (`⇥ Next project` with two or
+more projects, `↑ ↓ Suggestions`, `↵ Start` or `↵ Still on it` for an unchanged check-in, `esc Cancel`;
+TimeTracker's state as its status). When TimeTracker isn't running the overlay says so with Open TimeTracker
+and keeps the text.
 
 **The quick notes editor** (`src/windows/quicknotes/`): a small floating window that keeps its size and place.
 The title strip beside the window buttons has the heading's `#`s (`--o3`, mono) and the topic's title, editable
@@ -436,8 +481,8 @@ colour on the root (`useContextColor`), so pills, selection tints and progress d
 is no colour literal outside the palettes.
 
 **The switcher** (⌥⌘F1 with the prototype's keys, `context:switch`, the menu-bar menu's Context submenu): an
-overlay listing the contexts, numbered ⌘1…⌘9, the current one marked by a "Current" pill in its colour. ↑↓
-move, ↵ or ⌘n switches, Esc closes; choosing the current one only closes. The menu bar shows the current
+overlay listing the contexts, numbered 1…9, the current one marked by a "Current" pill in its colour. ↑↓
+move, ↵ or n (also ⌘n) switches, Esc closes; choosing the current one only closes. The menu bar shows the current
 context's emoji.
 
 **Settings → Contexts and Projects** (group Setup) have one card per item, with Move Up, Move Down and
@@ -459,8 +504,9 @@ its global shortcut as a key cap; a link names its project as detail, a current 
 ↑ ↓ move, ↵ or a click runs, Esc closes. A pick that brings a window or another app forward (the Daybook
 window, Settings, a note, a link) closes the palette first and leaves that in front; a pick that opens another
 overlay replaces the palette; anything else runs and the palette closes, handing focus back to where you were.
-Results use the row anatomy with a 6px radius; the active one is filled with the accent and `--on-accent`
-text, as in Spotlight. Group headings are small `--o3` text; a row's detail follows its label in `--o3`.
+Results are the overlay's rows with Glaze's command items' 8px radius; the active one takes the context's tint
+([Overlays](#overlays)). Group headings are section headers; a row's detail follows its label in 11px `--o3`
+(at most 45% of the row). The footer's prefix buttons are an outline key cap with the group's name.
 
 ## Settings
 

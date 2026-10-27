@@ -168,7 +168,7 @@ describe("PanelApp", () => {
         args: {
           mode: "switch",
           prompt: "Switched to Work",
-          projects: [{ name: "Oscorp", ttProjects: [{ id: "qrs", name: "QRS", client: null, color: "blue", shade: 0 }], hint: null }],
+          projects: [{ name: "Oscorp", ttProjects: [{ id: "qrs", name: "QRS", client: null, color: "blue", shade: 0 }], timerRow: false }],
           project: "Oscorp",
           ttProjectId: "qrs",
           note: "Review",
@@ -179,7 +179,7 @@ describe("PanelApp", () => {
       render(<PanelApp />);
       expect(await screen.findByText("Switched to Work")).toBeInTheDocument();
       expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue("Review");
-      expect(screen.getByRole("button", { name: "QRS", pressed: true })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Oscorp", pressed: true })).toBeInTheDocument();
       expect(mocked.panelReady).toHaveBeenCalledWith(1, expect.any(Number));
     });
 
@@ -206,6 +206,19 @@ describe("PanelApp", () => {
       expect(mocked.panelReady).toHaveBeenCalledWith(2, expect.any(Number));
       pushSession(null);
       expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("drag handle", () => {
+    const dragRegion = () => document.querySelector('[data-tauri-drag-region="deep"]');
+
+    it("is offered before a session renders and stays after one does", async () => {
+      await renderWith(null);
+      expect(dragRegion()).toBeInTheDocument();
+      expect(dragRegion()).toHaveAttribute("aria-hidden", "true");
+      pushSession(session("sample"));
+      expect(field()).toBeInTheDocument();
+      expect(dragRegion()).toBeInTheDocument();
     });
   });
 

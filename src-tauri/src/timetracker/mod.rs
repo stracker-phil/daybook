@@ -9,6 +9,7 @@ pub mod client;
 pub mod commands;
 pub mod day;
 mod drive;
+mod follow;
 pub mod link;
 pub mod logged;
 pub mod reply;
@@ -17,9 +18,8 @@ mod status_timer;
 pub mod watch;
 
 use std::process::Child;
-use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
-use std::thread;
 
 use chrono::{Local, NaiveDate};
 use tauri::{AppHandle, Emitter, Listener, Manager};
@@ -30,8 +30,7 @@ pub use watch::{Tracking, TtState, WatchLink};
 
 use self::client::{Cli, resolve_path, state_of};
 use self::day::{DayChange, TimeTrackerDay};
-use self::reply::{DataChange, DataKind, TtProject};
-use self::watch::{Next, Reconnect, Sink, poll, state_after};
+use self::reply::TtProject;
 use crate::error::{AppError, AppResult};
 use crate::events::{ACTIVITY_CHANGED_EVENT, CONTEXT_CHANGED_EVENT, TIMER_CHANGED_EVENT};
 use crate::lock::MutexExt;
@@ -135,9 +134,10 @@ fn set_tracking(app: &AppHandle, next: Tracking) {
         *tracking = next.clone();
         (tt_changed, timer_changed)
     };
-    if let Err(e) = app.emit(TIMER_CHANGED_EVENT, &next) {
-        log::warn!("Couldn't announce the timer change: {e}");
+    if timer_changed {
+        activity::timer_changed(app, next.timer.as_ref());
     }
+    announce(app, &next);
     activity::forget_recent(app);
     if timer_changed {
         activity::restart_check_ins(app);
@@ -151,6 +151,17 @@ fn set_tracking(app: &AppHandle, next: Tracking) {
             timer_changed,
         },
     );
+}
+
+fn announce(app: &AppHandle, tracking: &Tracking) {
+    if let Err(e) = app.emit(TIMER_CHANGED_EVENT, tracking) {
+        log::warn!("Couldn't announce the timer change: {e}");
+    }
+}
+
+/// The current activity changed without the timer: the surfaces that show the timer read again.
+pub fn announce_timer(app: &AppHandle) {
+    announce(app, &tracking(app));
 }
 
 /// Tells the Activity tab to read its day again when `change` touches it.
@@ -235,23 +246,6 @@ async fn load_projects_logged(app: &AppHandle) -> Option<Vec<TtProject>> {
         .ok()
 }
 
-fn refresh_projects_soon(app: &AppHandle) {
-    let app = app.clone();
-    tauri::async_runtime::spawn(async move {
-        load_projects_logged(&app).await;
-    });
-}
-
-/// A renamed project sends no timer line, so the timer is read again.
-fn read_timer_soon(app: &AppHandle) {
-    let app = app.clone();
-    tauri::async_runtime::spawn(async move {
-        if let Ok(next) = blocking(&app, |tool| Ok(poll(tool))).await {
-            set_tracking(&app, next);
-        }
-    });
-}
-
 /// Settings → Connections → TimeTracker: where the tool is, whether it runs, its version.
 pub async fn info(app: &AppHandle) -> TimeTrackerInfo {
     let path = cli(app).path().display().to_string();
@@ -292,83 +286,9 @@ pub async fn projects_for_page(app: &AppHandle, fresh: bool) -> TimeTrackerProje
     }
 }
 
-struct AppSink<'a>(&'a AppHandle);
-
-impl Sink for AppSink<'_> {
-    fn connected(&self) {
-        set_link(self.0, WatchLink::Connected);
-        refresh_projects_soon(self.0);
-    }
-
-    fn tracking(&self, tracking: Tracking) {
-        set_tracking(self.0, tracking);
-    }
-
-    fn data_changed(&self, change: DataChange) {
-        match change.kind {
-            DataKind::Projects => {
-                // The tab reads the day once the new colours are in.
-                let app = self.0.clone();
-                tauri::async_runtime::spawn(async move {
-                    load_projects_logged(&app).await;
-                    day_changed(&app, DayChange::Data(change));
-                });
-                read_timer_soon(self.0);
-            }
-            DataKind::Recordings => {
-                activity::recordings_changed(self.0);
-                day_changed(self.0, DayChange::Data(change));
-            }
-            DataKind::Tags | DataKind::Rules => day_changed(self.0, DayChange::Data(change)),
-            DataKind::Other => {}
-        }
-    }
-}
-
-fn watch_forever(app: &AppHandle, woken: &Receiver<()>) {
-    let mut reconnect = Reconnect::default();
-    loop {
-        let (end, had_lines) = watch::follow(&cli(app), &AppSink(app));
-        set_link(app, WatchLink::Waiting);
-        if let Some(gone) = state_after(end) {
-            set_tracking(app, gone);
-        }
-        match reconnect.after(end, had_lines) {
-            Next::Retry(delay) => {
-                let _ = woken.recv_timeout(delay);
-            }
-            Next::Poll => poll_until_woken(app, woken),
-        }
-    }
-}
-
-/// An older TimeTracker without `watch`: its timer every `POLL`, until the path changes.
-fn poll_until_woken(app: &AppHandle, woken: &Receiver<()>) {
-    log::info!(
-        "This TimeTracker has no `watch`; reading its timer every {} s",
-        watch::POLL.as_secs()
-    );
-    set_link(app, WatchLink::Polling);
-    loop {
-        set_tracking(app, poll(&cli(app)));
-        if woken.recv_timeout(watch::POLL).is_ok() {
-            set_link(app, WatchLink::Waiting);
-            return;
-        }
-    }
-}
-
 /// Starts following TimeTracker.
 pub fn install(app: &AppHandle) {
-    let (wake, woken) = mpsc::channel();
-    *service(app).wake.lock_unpoisoned() = Some(wake);
-    let handle = app.clone();
-    let started = thread::Builder::new()
-        .name("timetracker-watch".into())
-        .spawn(move || watch_forever(&handle, &woken));
-    if let Err(e) = started {
-        log::warn!("Couldn't start following TimeTracker: {e}");
-    }
+    follow::start(app);
     // A context switch can change which project counts.
     let handle = app.clone();
     app.listen(CONTEXT_CHANGED_EVENT, move |_| follow_project(&handle));

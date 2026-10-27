@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Timer } from "lucide-react";
 import { api, toAppError, type ActivitySession, type ActivitySuggestion, type ErrorKind, type TimerChanged, type TtState } from "../../api";
 import { useApiResult } from "../../lib/useApiResult";
-import { GROUPS, ProjectKeys, ProjectPicker, SuggestionList, keepFocus, pickable } from "./ActivityParts";
+import { ActivityIcon, GROUPS, ProjectPicker, SuggestionList, TimerRow, keepFocus, timerChoices } from "./ActivityParts";
 import { fuzzyFilter } from "./fuzzy";
 import { useActiveScroll } from "./listKeys";
+import { ESCAPE_HINT, PanelFooter, PanelInput, PanelPrompt, ProjectKeys, type PanelHint } from "./parts";
 import { useActivityKeys } from "./useActivityKeys";
 import { useCheckInTimeout } from "./useCheckInTimeout";
 
@@ -23,8 +23,10 @@ function useTracking(initial: TtState) {
   return { ...tracking, setTt };
 }
 
-function TtStatus({ tt, onOpen }: { tt: TtState; onOpen: () => void }) {
+/** TimeTracker missing or not running, with a way to open it; else a failed suggestion load. */
+function ActivityStatus({ tt, loadError, onOpen }: { tt: TtState; loadError: string | null; onOpen: () => void }) {
   if (tt === "missing") return <span className="palette-error">TimeTracker isn't installed (Settings → Connections → TimeTracker).</span>;
+  if (tt === "available") return loadError ? <span className="palette-error">{loadError}</span> : null;
   return (
     <span className="activity-tt">
       <span className="palette-error">TimeTracker isn't running.</span>
@@ -35,22 +37,21 @@ function TtStatus({ tt, onOpen }: { tt: TtState; onOpen: () => void }) {
   );
 }
 
-/** The footer's status: an error, else TimeTracker missing or not running, else a failed suggestion load. */
-function ActivityStatus({ error, tt, loadError, onOpen }: { error: string | null; tt: TtState; loadError: string | null; onOpen: () => void }) {
-  if (error) return <span className="palette-error">{error}</span>;
-  if (tt !== "available") return <TtStatus tt={tt} onOpen={onOpen} />;
-  return loadError ? <span className="palette-error">{loadError}</span> : null;
+interface Pick {
+  project: string;
+  /** The timer row's choice, as picked; Rust resolves the project's links (`activity/pick.rs`). */
+  ttProjectId: string | null;
 }
 
-/** Like an address bar: ↑↓ preview a suggestion in the field; typing or picking a project makes the shown value your own. */
+/** Like an address bar: ↑↓ preview a suggestion in the fields; typing or picking makes the shown value your own. */
 export function ActivityView({ session }: { session: ActivitySession }) {
   const checkIn = session.mode === "checkin";
-  const choices = pickable(session.projects);
+  const names = session.projects.map((project) => project.name);
   const { tt, timer, setTt } = useTracking(session.tt);
   // Fetched again when TimeTracker comes or goes: its recent timers are among them.
   const suggestions = useApiResult(`activity\u0000${tt}`, api.activitySuggestions, { keepData: true });
   const [typed, setTyped] = useState(session.note);
-  const [ownTt, setOwnTt] = useState(session.ttProjectId ?? "");
+  const [own, setOwn] = useState<Pick>({ project: session.project ?? "", ttProjectId: session.ttProjectId });
   // The suggestion your input came from; its tag goes along.
   const [origin, setOrigin] = useState<ActivitySuggestion | null>(null);
   const [edited, setEdited] = useState(false);
@@ -64,12 +65,23 @@ export function ActivityView({ session }: { session: ActivitySession }) {
   const items = GROUPS.flatMap(({ group }) => visible.filter((suggestion) => suggestion.group === group));
   const current = highlighted < items.length ? highlighted : -1;
   const picked = current >= 0 ? items[current] : null;
+
+  /** A suggestion's project and timer; one without a project keeps yours. */
+  const pickOf = (suggestion: ActivitySuggestion | null): Pick =>
+    suggestion?.project
+      ? { project: suggestion.project, ttProjectId: suggestion.ttProjectId }
+      : { project: own.project, ttProjectId: suggestion?.ttProjectId ?? own.ttProjectId };
+
+  const shown = pickOf(picked);
   const note = picked?.note ?? typed;
-  const ttProjectId = picked?.ttProjectId ?? ownTt;
+  const shownProject = session.projects.find((project) => project.name === shown.project);
   const activeRef = useActiveScroll<HTMLLIElement>(current);
-  // Display only; Rust decides whether the timer stays (`activity/pick.rs`).
-  const unchanged = checkIn && !!timer && timer.projectId === ttProjectId && (timer.note ?? "").trim() === note.trim();
-  useCheckInTimeout(checkIn, note);
+  // Display only; Rust decides what happens (`activity/pick.rs`).
+  const sameNote = (other: string | null | undefined) => (other ?? "").trim() === note.trim();
+  const sameTimer = !shownProject?.timerRow || shown.ttProjectId === (timer?.projectId ?? null);
+  const unchanged = checkIn && shown.project === (session.project ?? "") && sameNote(session.note) && sameTimer;
+  // Any change of the pick restarts the check-in's minute.
+  useCheckInTimeout(checkIn, shown.project, shown.ttProjectId, note);
 
   // Prefilled and selected: ↵ confirms, typing replaces it.
   useEffect(() => input.current?.select(), []);
@@ -82,25 +94,40 @@ export function ActivityView({ session }: { session: ActivitySession }) {
     setError(state ? null : failure.message);
   };
 
-  const submit = (text: string, forTt: string, from: ActivitySuggestion | null) => {
-    // A tag belongs to its TimeTracker project.
-    const [tag, tagTt] = from ? [from.tag, from.ttProjectId] : [session.tag, session.ttProjectId];
-    api.activitySubmit(session.mode, { ttProjectId: forTt, note: text, tag: tagTt === forTt ? tag : null }).catch(failed);
+  const submit = (text: string, pick: Pick, from: ActivitySuggestion | null) => {
+    // Without the timer row there is no choice to send.
+    const timerRow = session.projects.some((project) => project.name === pick.project && project.timerRow);
+    // A tag goes along only while project, timer choice and note are what its suggestion (or the prefill) set.
+    const source = from ?? { project: session.project ?? "", ttProjectId: session.ttProjectId, note: session.note, tag: session.tag };
+    const keepsTag =
+      (source.project === null || source.project === pick.project) &&
+      source.ttProjectId === pick.ttProjectId &&
+      source.note.trim() === text.trim();
+    api
+      .activitySubmit(session.mode, { project: pick.project, ttProjectId: timerRow ? pick.ttProjectId : null, note: text, tag: keepsTag ? source.tag : null })
+      .catch(failed);
   };
 
   /** What's shown becomes your own input. */
   const takeOver = () => {
     if (!picked) return;
     setTyped(picked.note);
-    setOwnTt(ttProjectId);
+    setOwn(shown);
     setOrigin(picked);
     setEdited(true);
     setHighlighted(-1);
   };
 
-  const pickProject = (id: string) => {
+  // Another project starts its timer row on "None".
+  const pickProject = (name: string) => {
     takeOver();
-    setOwnTt(id);
+    setOwn(name === shown.project ? shown : { project: name, ttProjectId: null });
+    setError(null);
+  };
+
+  const pickTimer = (id: string | null) => {
+    takeOver();
+    setOwn({ project: shown.project, ttProjectId: id });
     setError(null);
   };
 
@@ -116,48 +143,55 @@ export function ActivityView({ session }: { session: ActivitySession }) {
   const onKeyDown = useActivityKeys({
     items,
     current,
-    choices,
-    ttProjectId,
+    projects: names,
+    project: shown.project,
+    timers: timerChoices(shownProject),
     highlight: setHighlighted,
     pickProject,
-    submit: () => submit(note, ttProjectId, picked ?? origin),
+    pickTimer,
+    submit: () => submit(note, shown, picked ?? origin),
   });
 
-  const hints = [choices.length > 1 && "⇥ next project", "↑↓ suggestions", unchanged ? "↵ still on it" : "↵ start", "esc cancel"].filter(Boolean).join(" · ");
+  const hints: PanelHint[] = [
+    ...(names.length > 1 ? [{ keys: ["⇥"], label: "Next project" }] : []),
+    { keys: ["↑", "↓"], label: "Suggestions" },
+    { keys: ["↵"], label: unchanged ? "Still on it" : "Start" },
+    ESCAPE_HINT,
+  ];
 
   return (
     <div className="panel-card palette-view activity-view">
-      <div className="panel-heading o2">{session.prompt}</div>
-      <div className="palette-input" data-stage="panel:input" data-stage-label="Activity note" data-stage-role="field">
-        <Timer size="1.077rem" aria-hidden="true" />
-        <input
-          ref={input}
-          autoFocus
-          aria-label="Note"
-          placeholder={choices.length > 0 ? "Note, e.g. QRS-6805 review" : "What are you working on?"}
-          value={note}
-          onChange={(e) => {
-            if (picked) {
-              setOwnTt(ttProjectId);
-              setOrigin(picked);
-            }
-            setTyped(e.target.value);
-            setEdited(true);
-            setHighlighted(-1);
-            setError(null);
-          }}
-          onKeyDown={onKeyDown}
-        />
-      </div>
-      <ProjectPicker projects={session.projects} picked={ttProjectId} onPick={pickProject} onHint={setError} />
+      <PanelPrompt>{session.prompt}</PanelPrompt>
+      <PanelInput
+        ref={input}
+        icon={ActivityIcon}
+        leading={<ProjectPicker projects={session.projects} picked={shown.project} onPick={pickProject} />}
+        stageLabel="Activity note"
+        aria-label="Note"
+        placeholder={names.length > 0 ? "Note, e.g. QRS-6805 review" : "What are you working on?"}
+        value={note}
+        onChange={(e) => {
+          if (picked) {
+            setOwn(shown);
+            setOrigin(picked);
+          }
+          setTyped(e.target.value);
+          setEdited(true);
+          setHighlighted(-1);
+          setError(null);
+        }}
+        onKeyDown={onKeyDown}
+      />
+      {shownProject?.timerRow && <TimerRow project={shownProject} picked={shown.ttProjectId} onPick={pickTimer} />}
       {suggestions.data && suggestions.data.length > 0 && (
-        <SuggestionList items={items} highlighted={current} activeRef={activeRef} onPick={(suggestion) => submit(suggestion.note, suggestion.ttProjectId ?? ownTt, suggestion)} />
+        <SuggestionList items={items} highlighted={current} activeRef={activeRef} onPick={(suggestion) => submit(suggestion.note, pickOf(suggestion), suggestion)} />
       )}
-      <ProjectKeys projects={choices} />
-      <div className="palette-foot o3 activity-foot">
-        <ActivityStatus error={error} tt={tt} loadError={suggestions.error?.message ?? null} onOpen={() => void openTimeTracker()} />
-        <span>{hints}</span>
-      </div>
+      <ProjectKeys names={names} />
+      <PanelFooter
+        hints={hints}
+        error={error}
+        status={<ActivityStatus tt={tt} loadError={suggestions.error?.message ?? null} onOpen={() => void openTimeTracker()} />}
+      />
     </div>
   );
 }

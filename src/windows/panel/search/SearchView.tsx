@@ -7,6 +7,7 @@ import { ResultList } from "./ResultList";
 import { usePreviewHistory } from "./usePreviewHistory";
 import { useResultActions } from "./useResultActions";
 import { useScopeChips } from "./useScopeChips";
+import { ESCAPE_HINT, PanelFooter, PanelInput, type PanelHint } from "../parts";
 
 /** While the index builds, the results are asked for again this often. */
 const INDEXING_POLL_MS = 700;
@@ -29,9 +30,15 @@ function hasTextSelection(target: EventTarget): boolean {
   return !!window.getSelection()?.toString();
 }
 
-function hintsFor(canBack: boolean, canForward: boolean): string {
-  const history = [canBack && "⌘[ back", canForward && "⌘] forward"].filter(Boolean);
-  return ["↵ open", "⌘↵ open preview", "⌘C copy link", ...history, "esc close"].join(" · ");
+function hintsFor(canBack: boolean, canForward: boolean): PanelHint[] {
+  return [
+    { keys: ["↵"], label: "Open" },
+    { keys: ["⌘", "↵"], label: "Open preview" },
+    { keys: ["⌘", "C"], label: "Copy link" },
+    ...(canBack ? [{ keys: ["⌘", "["], label: "Back" }] : []),
+    ...(canForward ? [{ keys: ["⌘", "]"], label: "Forward" }] : []),
+    ESCAPE_HINT,
+  ];
 }
 
 /** Results for the text and chips; the last ones stay while the next load, and they refresh while indexing. */
@@ -126,25 +133,25 @@ export function SearchView({ scope }: { scope: string | null }) {
   return (
     // The root takes the focus of a click into the preview, so the keys keep working.
     <div className="panel-card search-view" tabIndex={-1} onKeyDown={onKeyDown}>
-      <div className="palette-input search-field" data-stage="panel:input" data-stage-label="Search notes" data-stage-role="field">
-        <Search size="1.385rem" aria-hidden="true" />
-        <ScopeChips
-          scopes={chips.scopes}
-          onRemove={(name) => {
-            chips.remove(name);
-            input.current?.focus();
-          }}
-        />
-        <input
-          ref={input}
-          autoFocus
-          aria-label="Search"
-          placeholder={chips.scopes.length > 0 ? "Search notes…" : "Search the whole vault… (@scope to narrow)"}
-          value={text}
-          onChange={(e) => changeText(e.target.value)}
-          onKeyDown={(e) => chips.onFieldKeyDown(e, suggesting ? active : undefined)}
-        />
-      </div>
+      <PanelInput
+        ref={input}
+        icon={Search}
+        stageLabel="Search notes"
+        leading={
+          <ScopeChips
+            scopes={chips.scopes}
+            onRemove={(name) => {
+              chips.remove(name);
+              input.current?.focus();
+            }}
+          />
+        }
+        aria-label="Search"
+        placeholder={chips.scopes.length > 0 ? "Search notes…" : "Search the whole vault… (@scope to narrow)"}
+        value={text}
+        onChange={(e) => changeText(e.target.value)}
+        onKeyDown={(e) => chips.onFieldKeyDown(e, suggesting ? active : undefined)}
+      />
       <div className="search-split">
         <ResultList
           suggestions={chips.suggestions}
@@ -160,10 +167,7 @@ export function SearchView({ scope }: { scope: string | null }) {
           <p className="search-placeholder o3">Results show up here as you type.</p>
         )}
       </div>
-      <div className="palette-foot o3 search-foot">
-        <span className="search-status">{status ?? (search.error?.message || indexing)}</span>
-        <span>{hintsFor(preview.canBack, preview.canForward)}</span>
-      </div>
+      <PanelFooter hints={hintsFor(preview.canBack, preview.canForward)} status={status ?? (search.error?.message || indexing)} />
     </div>
   );
 }

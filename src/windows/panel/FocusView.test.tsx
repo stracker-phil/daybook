@@ -1,10 +1,11 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../api", async (orig) => ({ ...(await orig<object>()), api: (await import("../../test/apiMock")).createApiMock() }));
 
 import { api, type FocusInfo } from "../../api";
+import { hintKeys } from "../../test/panelHints";
 import { FocusView } from "./FocusView";
 
 const mocked = vi.mocked(api, true);
@@ -62,13 +63,22 @@ describe("FocusView", () => {
 
     it("shows the projects with their numbers", async () => {
       await renderView();
-      expect(screen.getByText("⌘1 Nexo")).toBeInTheDocument();
-      expect(screen.getByText("⌘2 Oscorp")).toBeInTheDocument();
+      const keys = screen.getByLabelText("Project keys");
+      expect(within(keys).getByText("⌘1")).toBeInTheDocument();
+      expect(hintKeys("Nexo")).toEqual(["⌘1"]);
+      expect(hintKeys("Oscorp")).toEqual(["⌘2"]);
     });
 
-    it("shows no project hints without projects", async () => {
+    it("shows no project keys without projects", async () => {
       await renderView({ projects: [] });
-      expect(screen.queryByLabelText("Projects")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Project keys")).not.toBeInTheDocument();
+    });
+
+    it("lists the editing keys and esc in the footer", async () => {
+      await renderView();
+      expect(hintKeys("Check")).toEqual(["⌘", "L"]);
+      expect(hintKeys("Save")).toEqual(["⌘", "↵"]);
+      expect(hintKeys("Cancel")).toEqual(["esc"]);
     });
   });
 
@@ -125,6 +135,7 @@ describe("FocusView", () => {
       await renderView();
       await cmd("{Enter}");
       expect(await screen.findByText("Disk full")).toBeInTheDocument();
+      expect(hintKeys("Save")).toEqual(["⌘", "↵"]);
     });
 
     it("drops the error once the list is edited", async () => {
@@ -172,12 +183,12 @@ describe("FocusView", () => {
       await cmd("s");
       expect(mocked.focusSend).not.toHaveBeenCalled();
       expect(screen.queryByText("Sent to Slack")).not.toBeInTheDocument();
-      expect(screen.queryByText(/send to Slack/)).not.toBeInTheDocument();
+      expect(hintKeys("Send to Slack")).toBeNull();
     });
 
     it("offers the shortcut in the footer when the list can go to Slack", async () => {
       await renderView();
-      expect(screen.getByText("⌘S send to Slack")).toBeInTheDocument();
+      expect(hintKeys("Send to Slack")).toEqual(["⌘", "S"]);
     });
 
     it("shows the message of a failed send and no sent state", async () => {

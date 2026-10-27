@@ -1,9 +1,16 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { api, toAppError, type ContextState } from "../../api";
+import { CurrentMarker, ESCAPE_HINT, PanelFooter, PanelList, PanelOption, PanelPrompt } from "./parts";
 
 const STEPS: Record<string, number> = { ArrowDown: 1, ArrowUp: -1 };
 
-/** The contexts, numbered; ↑↓ and ↵ or ⌘1…⌘9 switch. Rust closes the overlay, also when the pick is current. */
+/** A digit 1…9, alone or with ⌘ only; else 0. */
+function digitOf(e: KeyboardEvent): number {
+  if (e.ctrlKey || e.altKey || e.shiftKey) return 0;
+  return /^Digit[1-9]$/.test(e.code) ? Number(e.code.slice(5)) : 0;
+}
+
+/** The contexts, numbered; ↑↓ and ↵ or 1…9 (also with ⌘) switch. Rust closes the overlay, also when the pick is current. */
 export function ContextView() {
   const [state, setState] = useState<ContextState | null>(null);
   const [active, setActive] = useState(0);
@@ -33,7 +40,7 @@ export function ContextView() {
 
   const onKeyDown = (e: KeyboardEvent<HTMLUListElement>) => {
     const step = STEPS[e.key];
-    const digit = e.metaKey && /^Digit[1-9]$/.test(e.code) ? Number(e.code.slice(5)) : 0;
+    const digit = digitOf(e);
     if (step && contexts.length > 0) {
       e.preventDefault();
       setActive((i) => (i + step + contexts.length) % contexts.length);
@@ -46,32 +53,18 @@ export function ContextView() {
     }
   };
 
-  const footer = error ? <span className="palette-error">{error}</span> : <span>↑↓ context · ↵ switch · esc close</span>;
-
   return (
     <div className="panel-card context-view">
-      <div className="panel-heading o2">Switch context</div>
-      <ul ref={list} className="palette-list" role="listbox" aria-label="Contexts" tabIndex={0} onKeyDown={onKeyDown}>
+      <PanelPrompt>Switch context</PanelPrompt>
+      <PanelList ref={list} aria-label="Contexts" tabIndex={0} onKeyDown={onKeyDown}>
         {contexts.map((context, i) => (
-          <li
-            key={context.id}
-            role="option"
-            aria-selected={i === active}
-            className={i === active ? "active" : undefined}
-            onMouseEnter={() => setActive(i)}
-            onClick={() => choose(i)}
-          >
-            <span className="context-number o3">{i < 9 ? `⌘${i + 1}` : ""}</span>
+          <PanelOption key={context.id} selected={i === active} number={i < 9 ? `${i + 1}` : ""} narrowNumber onMouseMove={() => setActive(i)} onClick={() => choose(i)}>
             <span className="grow-text">{context.title}</span>
-            {context.id === state?.current && (
-              <span className="context-pill" data-context={context.color}>
-                Current
-              </span>
-            )}
-          </li>
+            {context.id === state?.current && <CurrentMarker context={context.color} />}
+          </PanelOption>
         ))}
-      </ul>
-      <div className="palette-foot o3">{footer}</div>
+      </PanelList>
+      <PanelFooter hints={[{ keys: ["↑", "↓"], label: "Context" }, { keys: ["↵"], label: "Switch" }, ESCAPE_HINT]} error={error} />
     </div>
   );
 }

@@ -43,7 +43,7 @@ pub struct Suggestion {
     pub note: String,
     /// The Daybook project; `None` keeps the picked one.
     pub project: Option<String>,
-    /// TimeTracker's project to start: a recent timer's, else the first linked to `project`.
+    /// TimeTracker's project to start: a recent timer's, else the only one linked to `project`.
     pub tt_project_id: Option<String>,
     /// The tag of a recent timer, carried over when it starts again.
     pub tag: Option<String>,
@@ -112,15 +112,16 @@ struct Suggestions {
     list: Vec<Suggestion>,
 }
 
-/// The first TimeTracker project linked to the Daybook project `name`.
-fn first_linked(name: Option<&str>, projects: &[&Project]) -> Option<String> {
+/// The timer's TimeTracker project for a meeting on the Daybook project `name`: its only linked one;
+/// with several the timer row starts on "None".
+fn only_linked(name: Option<&str>, projects: &[&Project]) -> Option<String> {
     let project = projects
         .iter()
         .find(|project| Some(project.name.as_str()) == name)?;
-    project
-        .timetracker_projects
-        .first()
-        .map(|linked| linked.id.clone())
+    match project.timetracker_projects.as_slice() {
+        [only] => Some(only.id.clone()),
+        _ => None,
+    }
 }
 
 impl Suggestions {
@@ -144,7 +145,7 @@ impl Suggestions {
         self.push(Suggestion {
             group: SuggestionGroup::Meetings,
             display: display(name, &note),
-            tt_project_id: first_linked(name, projects),
+            tt_project_id: only_linked(name, projects),
             tag: None,
             note,
             project: name.map(str::to_string),
@@ -292,6 +293,29 @@ mod tests {
     }
 
     #[test]
+    fn a_meeting_carries_a_timer_project_only_when_its_project_links_exactly_one() {
+        let link = |id: &str| crate::store::settings::LinkedProject {
+            id: id.into(),
+            name: id.into(),
+        };
+        let events = vec![event("Garden club", at(10, 0), at(11, 0))];
+        for (links, expected) in [
+            (vec![], None),
+            (vec![link("one")], Some("one".to_string())),
+            (vec![link("one"), link("two")], None),
+        ] {
+            let mut project = Project::new("Hobby");
+            project.keywords = vec!["garden".into()];
+            let count = links.len();
+            project.timetracker_projects = links;
+            let projects = [&project];
+            let suggestions = activity_suggestions(&input(&events, &projects, &[], &[]));
+            assert_eq!(suggestions[0].project.as_deref(), Some("Hobby"));
+            assert_eq!(suggestions[0].tt_project_id, expected, "{count} links");
+        }
+    }
+
+    #[test]
     fn suggestions_come_as_call_meetings_tickets_and_recent_timers() {
         let project = oscorp();
         let projects = [&project];
@@ -316,7 +340,7 @@ mod tests {
                     group: SuggestionGroup::Meetings,
                     note: "Zoom - Sync with oscorp".into(),
                     project: Some("Oscorp".into()),
-                    tt_project_id: Some("sdk".into()),
+                    tt_project_id: None,
                     tag: None,
                     display: "Oscorp · Zoom - Sync with oscorp".into(),
                 },
@@ -324,7 +348,7 @@ mod tests {
                     group: SuggestionGroup::Meetings,
                     note: "Meeting - QRS planning".into(),
                     project: Some("Oscorp".into()),
-                    tt_project_id: Some("sdk".into()),
+                    tt_project_id: None,
                     tag: None,
                     display: "Oscorp · Meeting - QRS planning".into(),
                 },

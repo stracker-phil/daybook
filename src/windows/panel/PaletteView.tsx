@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef, useState, type KeyboardEvent, type Ref } f
 import { Command, FolderOpen, Layers, Link2, Music, type LucideIcon } from "lucide-react";
 import { api, toAppError, type PaletteEntry, type PaletteKind, type PalettePrefix, type PaletteResults } from "../../api";
 import { ShortcutCap } from "../../components/Field";
+import { PanelFooter, PanelInput, PanelKey, PanelList, PanelOption, SectionHeader } from "./parts";
 
 const ICONS: Record<PaletteKind, LucideIcon> = {
   command: Command,
@@ -24,21 +25,19 @@ interface RowProps {
 
 function PaletteRow({ entry, icon: Icon, active, activeRef, onHover, onRun }: RowProps) {
   return (
-    <li
+    <PanelOption
       ref={active ? activeRef : undefined}
-      role="option"
-      aria-selected={active}
-      className={active ? "active" : undefined}
+      selected={active}
+      icon={Icon}
       data-stage={`palette:${entry.command.toLowerCase().replace(/[^a-z0-9:]+/g, "-")}`}
       data-stage-label={entry.label}
       onMouseEnter={onHover}
       onClick={onRun}
     >
-      <Icon size="1.077rem" className="o3" aria-hidden="true" />
       <span className="grow-text">{entry.label}</span>
       {entry.detail && <span className="o3 palette-detail">{entry.detail}</span>}
       <ShortcutCap shortcut={entry.shortcut} />
-    </li>
+    </PanelOption>
   );
 }
 
@@ -57,7 +56,7 @@ function PrefixFooter({ prefixes, active, onPick }: { prefixes: PalettePrefix[];
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => onPick(on ? "" : candidate.char)}
           >
-            <kbd className="keycap">{candidate.char}</kbd>
+            <PanelKey>{candidate.char}</PanelKey>
             {candidate.label}
           </button>
         );
@@ -117,24 +116,21 @@ export function PaletteView() {
   };
 
   return (
-    <div className="panel-card palette-view">
-      <div className="palette-input" data-stage="palette:search" data-stage-label="Search commands" data-stage-role="field">
-        <Command size="1.077rem" aria-hidden="true" />
-        <input
-          autoFocus
-          aria-label="Search"
-          placeholder={prefix ? `Search ${prefix.label.toLowerCase()}…` : "Search commands, links, projects, music and contexts…"}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={onKeyDown}
-        />
-      </div>
-      <ul className="palette-list palette-results" role="listbox" aria-label="Results" data-stage-list="palette:results">
+    <div className="panel-card command-palette">
+      <PanelInput
+        icon={Command}
+        stage="palette:search"
+        stageLabel="Search commands"
+        aria-label="Search"
+        placeholder={prefix ? `Search ${prefix.label.toLowerCase()}…` : "Search commands, links, projects, music and contexts…"}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={onKeyDown}
+      />
+      <PanelList selection="tint" className="palette-results" aria-label="Results" data-stage-list="palette:results">
         {groups.map((group, g) => (
           <Fragment key={group.kind}>
-            <li role="presentation" className="palette-section">
-              {group.heading}
-            </li>
+            <SectionHeader>{group.heading}</SectionHeader>
             {group.entries.map((entry, i) => {
               const index = starts[g] + i;
               return (
@@ -151,11 +147,9 @@ export function PaletteView() {
             })}
           </Fragment>
         ))}
-        {results && entries.length === 0 && <li className="o3">No results.</li>}
-      </ul>
-      <div className="palette-foot o3">
-        {error ? <span className="palette-error">{error}</span> : <PrefixFooter prefixes={results?.prefixes ?? []} active={prefix} onPick={setQuery} />}
-      </div>
+        {results && entries.length === 0 && <li className="panel-empty">No results.</li>}
+      </PanelList>
+      <PanelFooter error={error}>{!error && <PrefixFooter prefixes={results?.prefixes ?? []} active={prefix} onPick={setQuery} />}</PanelFooter>
     </div>
   );
 }

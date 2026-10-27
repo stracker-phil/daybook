@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../api", async (orig) => ({ ...(await orig<object>()), api: (await import("../../test/apiMock")).createApiMock() }));
 
 import { api, type RoutineStepView } from "../../api";
+import { hintKeys } from "../../test/panelHints";
 import { settings } from "../../test/settings";
 import { WizardView, linkLabel } from "./WizardView";
 
@@ -130,7 +131,7 @@ describe("WizardView", () => {
       press(" ");
       expect(await screen.findByText(/Couldn't update today's note: Disk full/)).toBeInTheDocument();
       await vi.waitFor(() => expect(isTicked("Plan")).toBe(false));
-      expect(screen.queryByText("esc close")).not.toBeInTheDocument();
+      expect(hintKeys("Close")).toEqual(["esc"]);
     });
   });
 
@@ -177,10 +178,10 @@ describe("WizardView", () => {
 
     it("lists ⌘O open in the footer only while the selected item has a link", async () => {
       await renderWizard(linked);
-      expect(screen.getByText("⌘O open")).toBeInTheDocument();
+      expect(hintKeys("Open")).toEqual(["⌘", "O"]);
       press("ArrowUp");
-      expect(screen.queryByText("⌘O open")).not.toBeInTheDocument();
-      expect(screen.getByText("esc close")).toBeInTheDocument();
+      expect(hintKeys("Open")).toBeNull();
+      expect(hintKeys("Close")).toEqual(["esc"]);
     });
   });
 

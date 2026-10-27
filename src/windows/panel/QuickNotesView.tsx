@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { NotebookPen, Plus } from "lucide-react";
 import { api, toAppError, type QuickNoteTopics, type TopicRow } from "../../api";
+import { ESCAPE_HINT, PanelFooter, PanelInput, PanelList, PanelOption } from "./parts";
 
 const STEPS: Record<string, number> = { ArrowDown: 1, ArrowUp: -1 };
-/** How far each `#` past `###` indents a topic. */
-const INDENT_REM = 0.923;
+/** How far each `#` past `###` indents a topic, in px. */
+const INDENT = 14;
 
 /** The quick-notes picker: today's topics and a new one for the typed title; ↵ opens it in the editor. */
 export function QuickNotesView() {
@@ -54,41 +55,37 @@ export function QuickNotesView() {
 
   return (
     <div className="panel-card palette-view">
-      <div className="palette-input" data-stage="panel:input" data-stage-label="Quick note topic" data-stage-role="field">
-        <NotebookPen size="1.077rem" aria-hidden="true" />
-        <input
-          autoFocus
-          aria-label="Topic"
-          placeholder={`Pick a topic under ${data?.notesHeading ?? "## Notes"} or type a new title…`}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={onKeyDown}
-        />
-      </div>
-      <ul className="palette-list quick-topics" role="listbox" aria-label="Topics">
+      <PanelInput
+        icon={NotebookPen}
+        stageLabel="Quick note topic"
+        aria-label="Topic"
+        placeholder={`Pick a topic under ${data?.notesHeading ?? "## Notes"} or type a new title…`}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={onKeyDown}
+      />
+      <PanelList className="quick-topics" aria-label="Topics">
         {rows.map((row, index) => (
-          <li
+          <PanelOption
             key={`${row.create ? "new" : "old"}:${row.topic.level}:${row.topic.title}`}
             ref={index === active ? activeRef : undefined}
-            role="option"
-            aria-selected={index === active}
-            className={index === active ? "active" : undefined}
-            onMouseEnter={() => setActive(index)}
+            selected={index === active}
+            icon={row.create ? Plus : undefined}
+            iconSecondary
+            onMouseMove={() => setActive(index)}
             onClick={() => open(row)}
           >
-            {row.create ? (
-              <Plus size="1.077rem" className="o3" aria-hidden="true" />
-            ) : (
-              <span className="o3 mono quick-topic-level" style={{ paddingLeft: `${(row.topic.level - 3) * INDENT_REM}rem` }}>
+            {!row.create && (
+              <span className="o3 quick-topic-level" style={{ paddingLeft: (row.topic.level - 3) * INDENT }}>
                 {"#".repeat(row.topic.level)}
               </span>
             )}
             <span className="grow-text">{row.create ? `New topic “${row.topic.title}”` : row.topic.title}</span>
-          </li>
+          </PanelOption>
         ))}
-        {data && !data.hasTopics && rows.length === 0 && <li className="o3">No topics today yet. Type a title to start one.</li>}
-      </ul>
-      <div className="palette-foot o3">{error ? <span className="palette-error">{error}</span> : <span>↵ open · esc close</span>}</div>
+        {data && !data.hasTopics && rows.length === 0 && <li className="panel-empty">No topics today yet. Type a title to start one.</li>}
+      </PanelList>
+      <PanelFooter hints={[{ keys: ["↑", "↓"], label: "Topic" }, { keys: ["↵"], label: "Open" }, ESCAPE_HINT]} error={error} />
     </div>
   );
 }

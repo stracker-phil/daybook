@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../api", async (orig) => ({ ...(await orig<object>()), api: (await import("../../test/apiMock")).createApiMock() }));
 
 import { api, type MusicState } from "../../api";
+import { hintKeys } from "../../test/panelHints";
 import { settings } from "../../test/settings";
 import { MusicView } from "./MusicView";
 
@@ -40,7 +41,11 @@ describe("MusicView", () => {
   it("lists the entries numbered with the footer hints", async () => {
     await renderView();
     expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["⌘1Focus", "⌘2Deep Work", "⌘3Jazz Focus"]);
-    expect(screen.getByText("↑↓ entry · ↵ play · ⌘1–9 play · ⌘P play · esc close")).toBeInTheDocument();
+    expect(selected()).toBe("⌘1Focus");
+    expect(hintKeys("Play")).toEqual(["↵"]);
+    expect(hintKeys("Resume")).toEqual(["⌘P"]);
+    expect(hintKeys("Close")).toEqual(["esc"]);
+    expect(hintKeys("Volume")).toBeNull();
   });
 
   it("numbers only the first nine rows", async () => {
@@ -84,17 +89,23 @@ describe("MusicView", () => {
 
   describe("hints", () => {
     it.each([
-      ["playing", "↑↓ entry · ↵ play · ⌘1–9 play · ⌘P pause · ⌘↑↓ volume · esc close"],
-      ["paused", "↑↓ entry · ↵ play · ⌘1–9 play · ⌘P resume · ⌘↑↓ volume · esc close"],
-    ] as const)("offer the volume and %s toggle when the volume is known", async (player, hints) => {
+      ["playing", "Pause", "Resume"],
+      ["paused", "Resume", "Pause"],
+    ] as const)("offer the volume and the %s toggle label %s when the volume is known", async (player, label, other) => {
       await renderView({ player, volume: 50 });
-      expect(screen.getByText(hints)).toBeInTheDocument();
+      expect(hintKeys(label)).toEqual(["⌘P"]);
+      expect(hintKeys(other)).toBeNull();
+      expect(hintKeys("Volume")).toEqual(["⌘↑", "⌘↓"]);
+      expect(hintKeys("Play")).toEqual(["↵"]);
+      expect(hintKeys("Close")).toEqual(["esc"]);
     });
 
     it("drop the entry hints when no row shows", async () => {
       await renderView();
       await userEvent.type(input(), "zzz");
-      expect(screen.getByText("⌘P play · esc close")).toBeInTheDocument();
+      expect(hintKeys("Play")).toBeNull();
+      expect(hintKeys("Resume")).toEqual(["⌘P"]);
+      expect(hintKeys("Close")).toEqual(["esc"]);
     });
   });
 
@@ -211,14 +222,15 @@ describe("MusicView", () => {
   });
 
   describe("errors", () => {
-    it("shows a failed action in the footer instead of the hints and clears it on the next success", async () => {
+    it("shows a failed action in the footer next to the hints and clears it on the next success", async () => {
       mocked.musicToggle.mockRejectedValueOnce(error("Music does not answer")).mockResolvedValue(state({ player: "playing" }));
       await renderView();
       await userEvent.keyboard("{Meta>}p{/Meta}");
       expect(await screen.findByText("Music does not answer")).toBeInTheDocument();
-      expect(screen.queryByText(/esc close/)).not.toBeInTheDocument();
+      expect(hintKeys("Close")).toEqual(["esc"]);
+      expect(hintKeys("Pause")).toBeNull();
       await userEvent.keyboard("{Meta>}p{/Meta}");
-      expect(await screen.findByText(/⌘P pause/)).toBeInTheDocument();
+      await vi.waitFor(() => expect(hintKeys("Pause")).toEqual(["⌘P"]));
       expect(screen.queryByText("Music does not answer")).not.toBeInTheDocument();
     });
 

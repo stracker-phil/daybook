@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, toAppError, type JournalGroupView, type JournalInfo } from "../../api";
-import { SegmentedControl } from "../../components/SegmentedControl";
 import { JournalForm } from "./JournalForm";
+import { CLOSE_HINT, PanelFooter, PanelPrompt, PanelSegmented, type PanelHint } from "./parts";
 
 /** Read on open and again whenever the note or Settings change, so answers typed in Obsidian show. */
 function useJournalInfo(): { info: JournalInfo | null; error: string | null } {
@@ -24,19 +24,8 @@ function pick(groups: JournalGroupView[], asked: string | null): JournalGroupVie
 function Unreadable({ message }: { message: string }) {
   return (
     <div className="panel-card journal-view">
-      <div className="palette-foot palette-error">{message}</div>
+      <PanelFooter error={message} hints={[CLOSE_HINT]} />
     </div>
-  );
-}
-
-function Footer({ error, groups, noteExists }: { error: string | null; groups: number; noteExists: boolean }) {
-  if (error) return <span className="palette-error">{error}</span>;
-  return (
-    <>
-      {groups > 1 && <span>⌘1–{groups} group</span>}
-      <span>esc close</span>
-      {!noteExists && <span className="journal-waiting">Saved once today's note exists</span>}
-    </>
   );
 }
 
@@ -62,20 +51,19 @@ export function JournalView({ group: asked }: { group: string | null }) {
 
   if (!info || !groups) return unreadable ? <Unreadable message={unreadable} /> : null;
 
+  const hints: PanelHint[] = groups.length > 1 ? [{ keys: ["⌘", `1–${groups.length}`], label: "Group" }, CLOSE_HINT] : [CLOSE_HINT];
   return (
     <div className="panel-card journal-view">
-      <div className="panel-heading journal-heading">
-        <span className="o2">Journal</span>
+      <PanelPrompt className="journal-heading">
+        <span>Journal</span>
         {groups.length > 1 && active && (
-          <SegmentedControl label="Group" options={groups.map((g) => g.title)} value={active.title} labels={Object.fromEntries(groups.map((g) => [g.title, g.title]))} onChange={setSelected} />
+          <PanelSegmented label="Group" segments={groups.map((g) => ({ id: g.title, label: g.title }))} value={active.title} onPick={setSelected} />
         )}
-      </div>
+      </PanelPrompt>
       <div className="journal-body">
         {active ? <JournalForm key={active.title} group={active} onError={setError} /> : <p className="o3">No journal questions yet. Add them in Settings → Journal.</p>}
       </div>
-      <div className="palette-foot o3">
-        <Footer error={error} groups={groups.length} noteExists={info.noteExists} />
-      </div>
+      <PanelFooter hints={hints} error={error} status={info.noteExists ? null : "Saved once today's note exists"} />
     </div>
   );
 }

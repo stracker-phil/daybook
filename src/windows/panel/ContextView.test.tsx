@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../api", async (orig) => ({ ...(await orig<object>()), api: (await import("../../test/apiMock")).createApiMock() }));
 
 import { api, type ContextState } from "../../api";
+import { hintKeys } from "../../test/panelHints";
 import { ContextView } from "./ContextView";
 
 const mocked = vi.mocked(api, true);
@@ -32,38 +33,45 @@ describe("ContextView", () => {
 
   it("lists the contexts with their numbers and marks the current one", async () => {
     await renderView();
-    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["⌘1[W] WorkCurrent", "⌘2[P] Private", "⌘3Side"]);
+    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["1[W] WorkCurrent", "2[P] Private", "3Side"]);
+  });
+
+  it("lists the key hints in the footer", async () => {
+    await renderView();
+    expect(hintKeys("Context")).toEqual(["↑", "↓"]);
+    expect(hintKeys("Switch")).toEqual(["↵"]);
+    expect(hintKeys("Cancel")).toEqual(["esc"]);
   });
 
   it("starts on the current context", async () => {
     await renderView({ ...STATE, current: "private" });
-    expect(selected()).toBe("⌘2[P] PrivateCurrent");
+    expect(selected()).toBe("2[P] PrivateCurrent");
   });
 
-  it("switches to the second context with ⌘2", async () => {
+  it.each([
+    ["a plain 2", "2"],
+    ["⌘2", "{Meta>}2{/Meta}"],
+  ])("switches to the second context with %s", async (_name, keys) => {
     await renderView();
-    await userEvent.keyboard("{Meta>}2{/Meta}");
+    await userEvent.keyboard(keys);
     expect(mocked.runCommand).toHaveBeenCalledWith("mode:private");
   });
 
-  it("ignores a number without ⌘", async () => {
+  it.each([
+    ["a plain 9", "9"],
+    ["⌘9", "{Meta>}9{/Meta}"],
+  ])("ignores %s beyond the last context", async (_name, keys) => {
     await renderView();
-    await userEvent.keyboard("2");
-    expect(mocked.runCommand).not.toHaveBeenCalled();
-  });
-
-  it("ignores a number beyond the last context", async () => {
-    await renderView();
-    await userEvent.keyboard("{Meta>}9{/Meta}");
+    await userEvent.keyboard(keys);
     expect(mocked.runCommand).not.toHaveBeenCalled();
   });
 
   it("moves with the arrow keys, wraps, and switches the active context on Enter", async () => {
     await renderView();
     await userEvent.keyboard("{ArrowDown}{ArrowDown}");
-    expect(selected()).toBe("⌘3Side");
+    expect(selected()).toBe("3Side");
     await userEvent.keyboard("{ArrowDown}");
-    expect(selected()).toBe("⌘1[W] WorkCurrent");
+    expect(selected()).toBe("1[W] WorkCurrent");
     await userEvent.keyboard("{ArrowUp}{Enter}");
     expect(mocked.runCommand).toHaveBeenCalledWith("mode:side");
   });
@@ -85,6 +93,7 @@ describe("ContextView", () => {
     await renderView();
     await userEvent.keyboard("{Meta>}2{/Meta}");
     expect(await screen.findByText("Could not switch")).toBeInTheDocument();
+    expect(hintKeys("Switch")).toEqual(["↵"]);
   });
 
   it("shows the message of a failed load", async () => {

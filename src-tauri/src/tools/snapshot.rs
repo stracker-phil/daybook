@@ -30,7 +30,10 @@ pub fn snapshot(app: &AppHandle) -> ToolState {
     let quick_access = links::current(app);
     let tracking = timetracker::tracking(app);
     let (tt, timer) = timetracker::tool_state(&tracking, &settings);
-    let current_project = timetracker::link::current_project(&offered, tracking.timer.as_ref());
+    let kept = activity::kept(app);
+    let current_project =
+        activity::current::current_project(&offered, tracking.timer.as_ref(), kept.as_ref());
+    let current_activity = activity::current::current_view(timer.as_ref(), kept.as_ref());
     let link_items = |items: Vec<_>| items.into_iter().map(LinkItem::Link).collect();
     ToolState {
         has_vault: settings.vault.path.is_some(),
@@ -99,6 +102,7 @@ pub fn snapshot(app: &AppHandle) -> ToolState {
         music: music::tool_state(app),
         tt,
         timer,
+        activity: current_activity,
         recent_activities: activity::tool_activities(app, &offered),
         check_in_minutes: context.map_or(0, |context| context.check_in_minutes),
         check_ins_paused: activity::paused_today(app),

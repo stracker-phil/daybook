@@ -4,9 +4,11 @@ import { api, toAppError } from "../../api";
 import { useApiResult } from "../../lib/useApiResult";
 import { fuzzyFilter } from "./fuzzy";
 import { cycle, useActiveScroll } from "./listKeys";
+import { ESCAPE_HINT, PanelFooter, PanelInput, PanelList, PanelOption, PanelPrompt, SectionHeader, type PanelHint } from "./parts";
 
 const MAX_SUGGESTIONS = 8;
 const STEPS: Record<string, number> = { ArrowDown: 1, ArrowUp: -1 };
+const HINTS: PanelHint[] = [{ keys: ["↑", "↓"], label: "Suggestions" }, { keys: ["↵"], label: "Open" }, ESCAPE_HINT];
 
 /**
  * Opens a Jira issue by number, key or link. Like an address bar: ↑↓ put a recent key into the field, -1 being
@@ -40,49 +42,38 @@ export function JiraView() {
   };
 
   return (
-    <div className="panel-card palette-view">
-      <div className="palette-input" data-stage="panel:input" data-stage-label="Open Jira issue" data-stage-role="field">
-        <Ticket size="1.077rem" aria-hidden="true" />
-        <span className="jira-prompt">Open Jira issue</span>
-        <input
-          autoFocus
-          aria-label="Open Jira issue"
-          placeholder="6805, QRS-6805 or a Jira link"
-          value={value}
-          onChange={(e) => {
-            setTyped(e.target.value);
-            setHighlighted(-1);
-            setError(null);
-          }}
-          onKeyDown={onKeyDown}
-        />
-      </div>
+    <div className="panel-card">
+      <PanelPrompt>Open Jira issue</PanelPrompt>
+      <PanelInput
+        icon={Ticket}
+        stageLabel="Open Jira issue"
+        aria-label="Open Jira issue"
+        placeholder="6805, QRS-6805 or a Jira link"
+        value={value}
+        onChange={(e) => {
+          setTyped(e.target.value);
+          setHighlighted(-1);
+          setError(null);
+        }}
+        onKeyDown={onKeyDown}
+      />
       {suggestions && suggestions.length > 0 && (
-        <ul className="palette-list jira-suggestions" role="listbox" aria-label="Last 7 days">
-          <li role="presentation" className={visible.length === 0 ? "o3" : "palette-section"}>
-            {visible.length === 0 ? "Press ↵ to open it." : "Last 7 Days"}
-          </li>
-          {visible.map((key, index) => (
-            <li
-              key={key}
-              ref={index === current ? activeRef : undefined}
-              role="option"
-              aria-selected={index === current}
-              className={index === current ? "active jira-suggestion" : "jira-suggestion"}
-              // Keeps the focus in the field.
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => open(key)}
-            >
-              <History size="1.077rem" className="o3" aria-hidden="true" />
-              <span className="grow-text">{key}</span>
+        <PanelList selection="tint" className="jira-suggestions" aria-label="Last 7 days">
+          {visible.length === 0 ? (
+            <li role="presentation" className="panel-empty">
+              Press ↵ to open it.
             </li>
+          ) : (
+            <SectionHeader>Last 7 Days</SectionHeader>
+          )}
+          {visible.map((key, index) => (
+            <PanelOption key={key} ref={index === current ? activeRef : undefined} selected={index === current} icon={History} onClick={() => open(key)}>
+              <span className="grow-text">{key}</span>
+            </PanelOption>
           ))}
-        </ul>
+        </PanelList>
       )}
-      <div className="palette-foot o3 jira-foot">
-        {error && <span className="palette-error">{error}</span>}
-        <span>↑↓ suggestions · ↵ open · esc close</span>
-      </div>
+      <PanelFooter hints={HINTS} error={error} />
     </div>
   );
 }

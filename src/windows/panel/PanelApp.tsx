@@ -4,6 +4,7 @@ import { useTabTrap } from "../../lib/useTabTrap";
 import { applyAppearance, systemIsDark } from "../../lib/theme";
 import { useContextColor } from "../../lib/useContextColor";
 import { handlePanelKeydown, installPanelCommands } from "./commands";
+import { DRAG_REGION } from "./dragRegion";
 import { ActivityView } from "./ActivityView";
 import { ContextView } from "./ContextView";
 import { FocusView } from "./FocusView";
@@ -103,6 +104,7 @@ export function PanelApp() {
 
   return (
     <div ref={root} className="panel-root">
+      <div className="panel-grabber" aria-hidden="true" {...DRAG_REGION} />
       {session && <View key={session.session} session={session} />}
     </div>
   );

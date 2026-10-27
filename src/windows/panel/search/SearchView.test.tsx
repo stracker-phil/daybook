@@ -5,12 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../../api", async (orig) => ({ ...(await orig<object>()), api: (await import("../../../test/apiMock")).createApiMock() }));
 
 import { api } from "../../../api";
+import { hintKeys } from "../../../test/panelHints";
 import { searchResponse, searchResult } from "../../../test/search";
 import { SearchView } from "./SearchView";
 
 const mocked = vi.mocked(api, true);
 
-const HINTS = "↵ open · ⌘↵ open preview · ⌘C copy link · esc close";
 const DEFAULT_PLACEHOLDER = "Search the whole vault… (@scope to narrow)";
 
 const field = () => screen.getByRole("textbox", { name: "Search" });
@@ -232,7 +232,12 @@ describe("SearchView", () => {
   describe("footer", () => {
     it("lists the key hints without back and forward at first", async () => {
       await renderView();
-      expect(screen.getByText(HINTS)).toBeInTheDocument();
+      expect(hintKeys("Open")).toEqual(["↵"]);
+      expect(hintKeys("Open preview")).toEqual(["⌘", "↵"]);
+      expect(hintKeys("Copy link")).toEqual(["⌘", "C"]);
+      expect(hintKeys("Cancel")).toEqual(["esc"]);
+      expect(hintKeys("Back")).toBeNull();
+      expect(hintKeys("Forward")).toBeNull();
     });
 
     it("shows the failure of a search in place of the status", async () => {
@@ -323,11 +328,13 @@ describe("SearchView", () => {
       await showResults(HOME.path);
       await user.click(await screen.findByRole("link", { name: "Plan" }));
       await screen.findByText("Body of 2-Work/Plan.md");
-      expect(screen.getByText(HINTS.replace("⌘C copy link", "⌘C copy link · ⌘[ back"))).toBeInTheDocument();
+      expect(hintKeys("Back")).toEqual(["⌘", "["]);
+      expect(hintKeys("Forward")).toBeNull();
 
       fireEvent.keyDown(field(), { key: "[", metaKey: true });
       expect(await screen.findByRole("link", { name: "Plan" })).toBeInTheDocument();
-      expect(screen.getByText(HINTS.replace("⌘C copy link", "⌘C copy link · ⌘] forward"))).toBeInTheDocument();
+      expect(hintKeys("Forward")).toEqual(["⌘", "]"]);
+      expect(hintKeys("Back")).toBeNull();
 
       fireEvent.keyDown(field(), { key: "]", metaKey: true });
       expect(await screen.findByText("Body of 2-Work/Plan.md")).toBeInTheDocument();
@@ -346,8 +353,8 @@ describe("SearchView", () => {
       fireEvent.keyDown(field(), { key: "[", metaKey: true });
       await user.click(await screen.findByRole("link", { name: "Log" }));
       await screen.findByText("Body of Log.md");
-      expect(screen.queryByText(/⌘\] forward/)).not.toBeInTheDocument();
-      expect(screen.getByText(/⌘\[ back/)).toBeInTheDocument();
+      expect(hintKeys("Forward")).toBeNull();
+      expect(hintKeys("Back")).toEqual(["⌘", "["]);
     });
 
     it("starts over when the highlight moves, and shows the result itself on return", async () => {
@@ -357,7 +364,7 @@ describe("SearchView", () => {
       await user.click(field());
       await user.keyboard("{ArrowDown}");
       expect(await screen.findByText("Body of 3-Work/Log.md")).toBeInTheDocument();
-      expect(screen.queryByText(/⌘\[ back/)).not.toBeInTheDocument();
+      expect(hintKeys("Back")).toBeNull();
       await user.keyboard("{ArrowUp}");
       expect(await screen.findByRole("link", { name: "Plan" })).toBeInTheDocument();
     });

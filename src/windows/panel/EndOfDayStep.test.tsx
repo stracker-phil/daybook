@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../api", async (orig) => ({ ...(await orig<object>()), api: (await import("../../test/apiMock")).createApiMock() }));
 
 import { api, type EndOfDayCheck } from "../../api";
+import { hintKeys } from "../../test/panelHints";
 import { EndOfDayStep } from "./EndOfDayStep";
 
 const mocked = vi.mocked(api, true);
@@ -98,9 +99,14 @@ describe("EndOfDayStep", () => {
     });
   });
 
-  it("shows an error in place of the hint", () => {
+  it("lists esc as cancelling without sending anything", () => {
+    renderStep();
+    expect(hintKeys("Cancel, send nothing")).toEqual(["esc"]);
+  });
+
+  it("shows an error beside the hint", () => {
     renderStep({}, { error: "Slack is unreachable" });
     expect(screen.getByText("Slack is unreachable")).toBeInTheDocument();
-    expect(screen.queryByText("esc cancel, send nothing")).not.toBeInTheDocument();
+    expect(hintKeys("Cancel, send nothing")).toEqual(["esc"]);
   });
 });

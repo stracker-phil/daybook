@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode, type Ref } from "react";
 import { Hash } from "lucide-react";
 import type { SearchResult, TextPart } from "../../../api";
+import { PanelList, PanelOption, SectionHeader } from "../parts";
 
 /** Rust marks the matched terms; this only renders them. */
 function Parts({ parts }: { parts: TextPart[] }) {
@@ -9,9 +10,9 @@ function Parts({ parts }: { parts: TextPart[] }) {
 
 function Row({ active, activeRef, onClick, children }: { active: boolean; activeRef: Ref<HTMLLIElement>; onClick: () => void; children: ReactNode }) {
   return (
-    <li ref={active ? activeRef : undefined} role="option" aria-selected={active} className={active ? "active" : undefined} onMouseDown={(e) => e.preventDefault()} onClick={onClick}>
+    <PanelOption ref={active ? activeRef : undefined} selected={active} onClick={onClick}>
       {children}
-    </li>
+    </PanelOption>
   );
 }
 
@@ -36,23 +37,25 @@ export function ResultList({ suggestions, results, active, emptyText, onSuggesti
 
   if (suggestions.length > 0) {
     return (
-      <ul className="palette-list search-list" role="listbox" aria-label="Scopes">
-        <li role="presentation" className="palette-section">
-          Scopes
-        </li>
+      <PanelList selection="tint" className="search-list" aria-label="Scopes">
+        <SectionHeader>Scopes</SectionHeader>
         {suggestions.map((name) => (
           <Row key={name} active={name === active} activeRef={activeRef} onClick={() => onSuggestion(name)}>
-            <Hash size="1.077rem" className="o3" aria-hidden="true" />
+            <Hash size={16} className="o3" aria-hidden="true" />
             <span className="grow-text">{name}</span>
           </Row>
         ))}
-      </ul>
+      </PanelList>
     );
   }
 
   return (
-    <ul className="palette-list search-list" role="listbox" aria-label="Results">
-      {results.length === 0 && <li className="o3 search-empty">{emptyText}</li>}
+    <PanelList selection="tint" className="search-list" aria-label="Results">
+      {results.length === 0 && (
+        <li role="presentation" className="search-empty">
+          {emptyText}
+        </li>
+      )}
       {results.map((result) => (
         <Row key={result.path} active={result.path === active} activeRef={activeRef} onClick={() => onResult(result)}>
           <div className="search-result">
@@ -70,6 +73,6 @@ export function ResultList({ suggestions, results, active, emptyText, onSuggesti
           </div>
         </Row>
       ))}
-    </ul>
+    </PanelList>
   );
 }

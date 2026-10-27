@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../api", async (orig) => ({ ...(await orig<object>()), api: (await import("../../test/apiMock")).createApiMock() }));
 
 import { api, type QuickNoteTopics, type TopicRow } from "../../api";
+import { hintKeys } from "../../test/panelHints";
 import { QuickNotesView } from "./QuickNotesView";
 
 const mocked = vi.mocked(api, true);
@@ -144,11 +145,14 @@ describe("QuickNotesView", () => {
       await screen.findByRole("option", { name: /Planning/ });
       await userEvent.type(input(), "{Enter}");
       expect(await screen.findByText("Note is locked")).toBeInTheDocument();
+      expect(hintKeys("Open")).toEqual(["↵"]);
     });
 
     it("shows the key hints in the footer while nothing failed", async () => {
       await renderView();
-      expect(screen.getByText("↵ open · esc close")).toBeInTheDocument();
+      expect(hintKeys("Topic")).toEqual(["↑", "↓"]);
+      expect(hintKeys("Open")).toEqual(["↵"]);
+      expect(hintKeys("Cancel")).toEqual(["esc"]);
     });
   });
 });

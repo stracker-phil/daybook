@@ -42,7 +42,16 @@ export type ActivityMode = "switch" | "checkin";
 /**
  * What the overlay's ↵ submits.
  */
-export type ActivityPick = { ttProjectId: string, 
+export type ActivityPick = { 
+/**
+ * The Daybook project; empty: none.
+ */
+project: string, 
+/**
+ * The timer row's choice as made; `None`: the row is hidden or "None" is picked. `timer_project`
+ * resolves the timer.
+ */
+ttProjectId: string | null, 
 /**
  * As typed; sent verbatim.
  */
@@ -54,13 +63,13 @@ tag: string | null, };
 
 export type ActivityProject = { name: string, 
 /**
- * Only the active ones; empty: it can't be picked.
+ * Its active TimeTracker projects: none, no timer; one, always a timer on it.
  */
 ttProjects: Array<ActivityTtProject>, 
 /**
- * Why it can't be picked.
+ * More than one: the timer row offers "None" and `tt_projects`.
  */
-hint: string | null, };
+timerRow: boolean, };
 
 /**
  * The `activity` overlay's session args.
@@ -75,11 +84,12 @@ projects: Array<ActivityProject>,
  */
 project: string | null, 
 /**
- * The TimeTracker project picked first.
+ * The TimeTracker project picked first: the only link, else the prefill's or the timer's; `None`:
+ * no link, or several and neither matches.
  */
 ttProjectId: string | null, 
 /**
- * The note filled in (and selected): the timer's, or the prefill's.
+ * The note filled in (and selected): the prefill's, the timer's, or the kept activity's.
  */
 note: string, 
 /**
@@ -93,7 +103,7 @@ export type ActivitySuggestion = { group: SuggestionGroup, note: string,
  */
 project: string | null, 
 /**
- * TimeTracker's project to start: a recent timer's, else the first linked to `project`.
+ * TimeTracker's project to start: a recent timer's, else the only one linked to `project`.
  */
 ttProjectId: string | null, 
 /**

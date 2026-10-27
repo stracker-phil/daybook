@@ -74,7 +74,7 @@ fn entry(id: ToolId, state: &ToolState) -> Entry {
         },
         ToolId::Activity => Entry::Row {
             title: state
-                .timer
+                .activity
                 .as_ref()
                 .map_or_else(|| "Log activity…".into(), TimerView::text),
             command: Some("activity:switch"),
@@ -388,8 +388,8 @@ mod tests {
     }
 
     #[test]
-    fn the_activity_row_is_titled_by_the_timer_else_invites_to_log() {
-        for (timer, title) in [
+    fn the_activity_row_is_titled_by_the_current_activity_else_invites_to_log() {
+        for (current, title) in [
             (
                 Some(TimerView {
                     project: "Oscorp".into(),
@@ -407,7 +407,7 @@ mod tests {
             (None, "Log activity…"),
         ] {
             let state = ToolState {
-                timer: timer.clone(),
+                activity: current.clone(),
                 ..bare_state()
             };
             let tools = build(
@@ -416,7 +416,7 @@ mod tests {
                 &CommandsStub::default(),
             );
             let activity = row(&tools, ToolId::Activity).unwrap();
-            assert_eq!(activity.title, title, "{timer:?}");
+            assert_eq!(activity.title, title, "{current:?}");
             assert_eq!(activity.command.as_deref(), Some("activity:switch"));
         }
     }

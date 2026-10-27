@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, toAppError, type OfferOff } from "../../api";
+import { PanelFooter, PanelPrompt } from "./parts";
 
 /** After switching to a context without a status while still Working. */
 export function OfferOffView({ offer }: { offer: OfferOff }) {
@@ -10,7 +11,7 @@ export function OfferOffView({ offer }: { offer: OfferOff }) {
 
   return (
     <div className="panel-card offer-off">
-      <div className="panel-heading o2">Switched to {offer.to}</div>
+      <PanelPrompt>Switched to {offer.to}</PanelPrompt>
       <div className="panel-body-text">
         <p>{offer.to} shows no status, but you’re still set to Working. Set your status to Off?</p>
         <div className="panel-buttons">
@@ -22,7 +23,7 @@ export function OfferOffView({ offer }: { offer: OfferOff }) {
           </button>
         </div>
       </div>
-      <div className="palette-foot o3">{error ? <span className="palette-error">{error}</span> : <span>↵ set to off · esc keep working</span>}</div>
+      <PanelFooter hints={[{ keys: ["↵"], label: "Set to Off" }, { keys: ["esc"], label: "Keep Working" }]} error={error} />
     </div>
   );
 }

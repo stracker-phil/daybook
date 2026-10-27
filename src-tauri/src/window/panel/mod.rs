@@ -4,7 +4,9 @@
 
 pub mod commands;
 mod handshake;
+mod material;
 pub(crate) mod native;
+mod placement;
 pub mod session;
 
 use std::ffi::c_void;
@@ -19,12 +21,14 @@ use tauri::{
 use tokio::sync::oneshot;
 
 use self::handshake::Handshake;
+use self::placement::{place, resize_from_top};
 use self::session::{Closing, FocusLoss, OpenDecision, PanelSession, PanelState};
-use super::display::{Rect, top_center};
 use super::front_app::{CloseContext, HandBack, hand_back};
 use super::native as appkit;
 use crate::events::PANEL_SESSION_EVENT;
 use crate::lock::MutexExt;
+use crate::state::AppState;
+use crate::store::settings::Scheme;
 
 pub const LABEL: &str = "panel";
 const URL: &str = "src/windows/panel/index.html";
@@ -65,6 +69,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
         .visible(false)
         .focused(false)
         .shadow(true)
+        .effects(material::effects())
         .build()?;
     if let Ok(ns_window) = window.ns_window() {
         // SAFETY: setup runs on the main thread and the window was just created.
@@ -148,9 +153,13 @@ pub async fn open(app: &AppHandle, view: &str, args: Value) {
     };
     let was_open = showing.was_open;
     let width = view_width(view);
+    let schemes = schemes(app);
     on_main(app, move |ns_window| {
         // SAFETY: on the main thread with the live overlay window.
         unsafe {
+            if let Some((light, dark)) = schemes {
+                material::match_content(ns_window, light, dark);
+            }
             native::set_sticky(ns_window, sticky);
             if was_open {
                 resize_from_top(ns_window, width, showing.height);
@@ -175,6 +184,12 @@ pub async fn open(app: &AppHandle, view: &str, args: Value) {
     .await;
     let handle = app.clone();
     tauri::async_runtime::spawn(async move { recheck_focus(handle, id).await });
+}
+
+/// The light and dark mode schemes, so the material can follow the page's content tone.
+fn schemes(app: &AppHandle) -> Option<(Scheme, Scheme)> {
+    let settings = app.try_state::<AppState>()?.settings.get();
+    Some((settings.light_scheme, settings.dark_scheme))
 }
 
 /// Only while another app is still in front can we tell which one to hand focus back to.
@@ -228,33 +243,6 @@ async fn focus(app: &AppHandle, session: u32) {
 pub async fn refocus(app: &AppHandle) {
     if let Some(session) = session_id(app) {
         focus(app, session).await;
-    }
-}
-
-/// Centred on the pointer's screen, a fifth of the way down.
-///
-/// # Safety
-/// On the main thread with the live overlay window.
-unsafe fn place(ns_window: *mut c_void, width: f64, height: f64) {
-    let Some(screen) = appkit::pointer_screen() else {
-        return;
-    };
-    // SAFETY: as the caller promises.
-    unsafe { appkit::set_frame(ns_window, top_center(screen.visible, width, height)) };
-}
-
-/// The overlay grows and shrinks downwards from a fixed top edge, and stays centred on its middle when
-/// another view is wider.
-///
-/// # Safety
-/// On the main thread with the live overlay window.
-unsafe fn resize_from_top(ns_window: *mut c_void, width: f64, height: f64) {
-    // SAFETY: as the caller promises.
-    unsafe {
-        let frame = appkit::frame(ns_window);
-        let top = frame.y + frame.height;
-        let x = (frame.x + (frame.width - width) / 2.0).round();
-        appkit::set_frame(ns_window, Rect::new(x, top - height, width, height));
     }
 }
 

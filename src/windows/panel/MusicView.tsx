@@ -3,6 +3,7 @@ import { Music } from "lucide-react";
 import { api, toAppError, type MusicEntry, type MusicListItem, type MusicState } from "../../api";
 import { entryLabel } from "../../lib/music";
 import { cycle, useActiveScroll } from "./listKeys";
+import { CLOSE_HINT, CurrentMarker, PanelFooter, PanelInput, PanelList, PanelOption, type PanelHint } from "./parts";
 
 const VOLUME_STEP = 10;
 const SHORTCUT_ROWS = 9;
@@ -21,16 +22,13 @@ function stateLine(music: MusicState): string {
   return "Nothing is playing";
 }
 
-function hints(music: MusicState | null, entries: number): string {
+function hints(music: MusicState | null, entries: number): PanelHint[] {
   return [
-    entries > 0 && "↑↓ entry · ↵ play",
-    entries > 0 && "⌘1–9 play",
-    music?.player === "playing" ? "⌘P pause" : music?.player === "paused" ? "⌘P resume" : "⌘P play",
-    typeof music?.volume === "number" && "⌘↑↓ volume",
-    "esc close",
-  ]
-    .filter(Boolean)
-    .join(" · ");
+    ...(entries > 0 ? [{ keys: ["↵"], label: "Play" }] : []),
+    { keys: ["⌘P"], label: music?.player === "playing" ? "Pause" : "Resume" },
+    ...(typeof music?.volume === "number" ? [{ keys: ["⌘↑", "⌘↓"], label: "Volume" }] : []),
+    CLOSE_HINT,
+  ];
 }
 
 function Volume({ volume }: { volume: number }) {
@@ -130,46 +128,46 @@ export function MusicView() {
   };
 
   return (
-    <div className="panel-card palette-view">
-      <div className="palette-input" data-stage="panel:input" data-stage-label="Music entry" data-stage-role="field">
-        <Music size="1.077rem" aria-hidden="true" />
-        <input
-          autoFocus
-          aria-label="Entry"
-          placeholder="Play…"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setSelected(0);
-          }}
-          onKeyDown={onKeyDown}
-        />
-      </div>
+    <div className="panel-card">
+      <PanelInput
+        icon={Music}
+        stageLabel="Music entry"
+        aria-label="Entry"
+        placeholder="Play…"
+        value={query}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setSelected(0);
+        }}
+        onKeyDown={onKeyDown}
+      />
       {music && (
         <div className="music-state">
           <span className="grow-text o2">{starting ? `Starting ${starting}…` : stateLine(music)}</span>
           {typeof music.volume === "number" && <Volume volume={music.volume} />}
         </div>
       )}
-      <ul className="palette-list music-list" role="listbox" aria-label="Music">
-        {entries && shown.length === 0 && <li className="o3">{entries.length === 0 ? "No music yet. Add playlists in Settings → Music." : "No matching entry."}</li>}
+      <PanelList selection="tint" className="music-list" aria-label="Music">
+        {entries && shown.length === 0 && (
+          <li role="presentation" className="panel-empty">
+            {entries.length === 0 ? "No music yet. Add playlists in Settings → Music." : "No matching entry."}
+          </li>
+        )}
         {shown.map((entry, index) => (
-          <li
+          <PanelOption
             key={entry.id}
             ref={index === current ? activeRef : undefined}
-            role="option"
-            aria-selected={index === current}
-            className={index === current ? "active" : undefined}
+            selected={index === current}
+            number={index < SHORTCUT_ROWS ? `⌘${index + 1}` : ""}
             // The second click of a double-click lands on the selected row and plays it.
             onClick={() => (index === current ? play(entry) : setSelected(index))}
           >
-            <span className="context-number o3">{index < SHORTCUT_ROWS ? `⌘${index + 1}` : ""}</span>
             <span className="grow-text">{entry.name}</span>
-            {entry.id === music?.entry && <span className="context-pill">Current</span>}
-          </li>
+            {entry.id === music?.entry && <CurrentMarker />}
+          </PanelOption>
         ))}
-      </ul>
-      <div className="palette-foot o3">{error ? <span className="palette-error">{error}</span> : <span>{hints(music, shown.length)}</span>}</div>
+      </PanelList>
+      <PanelFooter hints={hints(music, shown.length)} error={error} />
     </div>
   );
 }

@@ -21,6 +21,8 @@ in.
 | `front_app.rs` | `FrontApp` and the pure close decision `hand_back` |
 | `native.rs` | AppKit: screens, the pointer, window frames, the frontmost app, activating and hiding apps |
 | `panel/mod.rs` | the overlay: build, open, close, height, focus events |
+| `panel/material.rs` | the popover material (`effects`) and its appearance per content tone (`match_content`) |
+| `panel/placement.rs` | where the overlay sits: `place` (centred on a fresh open), `resize_from_top` (while open) |
 | `panel/session.rs` | `PanelState`, the pure open and close rules, and `PanelSession` |
 | `panel/handshake.rs` | `Handshake`: waits per session for the page's answer |
 | `panel/native.rs` | the panel class swap and its Space, level, opacity and key calls |
@@ -32,7 +34,8 @@ Tauri covers creating, showing, hiding and sizing windows, the Dock icon (`set_d
 events and running code on the main thread. objc2 (`native.rs`, `panel/native.rs`) covers what it doesn't:
 
 - turning the overlay into a non-activating `NSPanel` that can become key without a title bar (a class swap to
-  `DaybookPanel`, as in TimeTracker's timer picker), its collection behaviour, level and alpha;
+  `DaybookPanel`, as in TimeTracker's timer picker), its collection behaviour, level and alpha; the material
+  view's `NSAppearance` and `invalidateShadow` after a frame change;
 - `orderFrontRegardless` + `makeKeyWindow` (keyboard without activation), `isKeyWindow`, `orderOut:`;
 - `NSScreen` frames and `NSEvent.mouseLocation` (the pointer's screen), `NSWindow` frames in Cocoa
   coordinates;
@@ -64,13 +67,34 @@ view. Every opening is a new session; the page answers per session.
 3. The session goes to the page (`panel_session` event; a page that loads later asks with `panel_session`).
    The page renders it and reports its content height (`panel_ready`), at most 400 ms later.
 4. The window takes that height (48 to 640 points), is placed centred on the pointer's screen a fifth of the
-   way down (`top_center`), and is shown at alpha 0 with the keyboard (`orderFrontRegardless`,
-   `makeKeyWindow`). An overlay already open keeps its place and only resizes.
+   way down (`placement::place`, `top_center`), and is shown at alpha 0 with the keyboard
+   (`orderFrontRegardless`, `makeKeyWindow`). An overlay already open keeps its top edge and middle, also where
+   it was dragged, and only resizes (`placement::resize_from_top`); every fresh open is centred again, no spot
+   is remembered.
 5. Once the page reports its first painted frame (`panel_painted`, at most 120 ms), alpha goes to 1, so the
    window never flashes the previous view. 200 ms later the panel is made key again if macOS didn't.
 
 While open, the page reports height changes (`panel_set_height`); the window grows downwards from a fixed top
 edge. Heights reported after closing are ignored: resizing the hidden window would put it back on screen.
+
+**Material** (`material.rs`): `build` gives the window the translucent popover material of the prototype's
+panel (`effects`: `Effect::Popover`, `EffectState::Active`, radius 12). Tauri adds it as an
+`NSVisualEffectView` below the webview, so the class swap and the alpha fade leave it alone. The state is
+Active because the panel never becomes main: following the window's state would render it grey. The material
+follows the macOS mode, but the page draws the content tone of the scheme picked for that mode, so each open
+sets the material view's `NSAppearance` (Aqua or DarkAqua) to that tone (`match_content`, from
+`lightScheme` and `darkScheme`); the page itself still sees the macOS mode. The card draws only the hairline
+([ux.md](ux.md#overlays)).
+
+**Dragging.** The grabber strip (`PanelApp`), the prompt (`PanelPrompt`) and the footer (`PanelFooter`) carry
+`data-tauri-drag-region="deep"` (`DRAG_REGION` in `src/windows/panel/dragRegion.ts`): Tauri's drag script
+starts a window drag from anywhere inside them except clickable elements (buttons, inputs, links, focusable
+elements, option and button roles), and prevents the mousedown's default, so the caret stays in the field. The
+native drag (`performWindowDragWithEvent:`) moves the non-activating panel without activating Daybook and
+without taking key status from it, so `PanelState::lost_focus` never fires and the overlay stays open
+([ADR 0016](adr/0016-overlays-never-navigate.md) holds). A double-click would toggle maximize, a no-op on the
+non-resizable panel. `setMovableByWindowBackground:` isn't used: the webview takes the mousedown, and rows
+would drag.
 
 **Sticky views** (`STICKY_VIEWS` in `session.rs`: the activity overlay and `sample-sticky`) are on every Space
 at the floating level and ignore focus loss, because macOS can't tell a Space switch from a click elsewhere.
@@ -182,8 +206,8 @@ card offers (`rail_tip_run`) and hides the card, except for context and music ch
 
 ## Page side
 
-`src/windows/panel/` is its own page (`index.html`, a Vite input): `PanelApp` renders the session's view,
-reports ready and painted, observes its height, and loads the appearance from Settings for each session.
+`src/windows/panel/` is its own page (`index.html`, a Vite input): `PanelApp` renders the grabber and the
+session's view, reports ready and painted, observes its height, and loads the appearance from Settings for each session.
 `commands.ts` registers the `panel` scope with `panel.close` (Escape, also inside text fields) and routes the
 window's keys through the registry. `useTabTrap` (`src/lib/`) keeps Tab and ⇧Tab inside the page: leaving the
 web content would move focus out of the window, and the overlay would close. Views: `context` (`ContextView`, the switcher), `palette` (`PaletteView`,
