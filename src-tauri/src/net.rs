@@ -1,12 +1,12 @@
-//! The only way out to the network (ADR 0020): form posts to a fixed list of hosts, over HTTPS, with a
-//! timeout. No telemetry, no update check; the page never talks to the network.
+//! The only way out to the network (ADR 0020): form posts and plain GETs to a fixed list of hosts, over
+//! HTTPS, with a timeout. No telemetry, no update check; the page never talks to the network.
 
 use std::time::Duration;
 
 use url::Url;
 
 /// Every host Daybook talks to.
-pub const HOSTS: &[&str] = &["slack.com"];
+pub const HOSTS: &[&str] = &["slack.com", "itunes.apple.com"];
 const TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
@@ -47,6 +47,14 @@ impl Http {
         self.hosts.contains(&host) && (url.scheme() == "https" || local_test_server)
     }
 
+    fn checked(&self, url: &Url) -> Result<(), NetError> {
+        if self.allows(url) {
+            Ok(())
+        } else {
+            Err(NetError::NotAllowed(url.host_str().unwrap_or("").into()))
+        }
+    }
+
     /// The body of a 2xx answer.
     pub async fn post_form(
         &self,
@@ -54,24 +62,33 @@ impl Http {
         bearer: &str,
         form: &[(&str, &str)],
     ) -> Result<Vec<u8>, NetError> {
-        if !self.allows(url) {
-            return Err(NetError::NotAllowed(url.host_str().unwrap_or("").into()));
-        }
-        let response = self
+        self.checked(url)?;
+        let sent = self
             .client
             .post(url.clone())
             .bearer_auth(bearer)
             .form(form)
             .send()
-            .await
-            .map_err(transport_error)?;
-        let status = response.status();
-        if !status.is_success() {
-            return Err(NetError::Status(status.as_u16()));
-        }
-        let body = response.bytes().await.map_err(transport_error)?;
-        Ok(body.to_vec())
+            .await;
+        answer_body(sent).await
     }
+
+    /// The body of a 2xx answer, without credentials.
+    pub async fn get(&self, url: &Url) -> Result<Vec<u8>, NetError> {
+        self.checked(url)?;
+        let sent = self.client.get(url.clone()).send().await;
+        answer_body(sent).await
+    }
+}
+
+async fn answer_body(sent: Result<reqwest::Response, reqwest::Error>) -> Result<Vec<u8>, NetError> {
+    let response = sent.map_err(transport_error)?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(NetError::Status(status.as_u16()));
+    }
+    let body = response.bytes().await.map_err(transport_error)?;
+    Ok(body.to_vec())
 }
 
 /// Without the URL, which may carry a token in a query.
@@ -124,5 +141,21 @@ mod tests {
             .unwrap_err();
 
         assert_eq!(err, NetError::NotAllowed("evil.example".into()));
+    }
+
+    #[tokio::test]
+    async fn getting_an_unlisted_host_fails_without_connecting() {
+        let http = Http::new(&["itunes.apple.com"]);
+        let url = Url::parse("https://evil.example/search").unwrap();
+
+        assert_eq!(
+            http.get(&url).await.unwrap_err(),
+            NetError::NotAllowed("evil.example".into())
+        );
+    }
+
+    #[test]
+    fn the_artist_search_host_is_listed() {
+        assert!(HOSTS.contains(&"itunes.apple.com"));
     }
 }

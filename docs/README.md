@@ -14,6 +14,7 @@ use it, see the [project README](../README.md).
 | [presence-and-calls.md](presence-and-calls.md) | Away (asleep, locked) and its checks, call detectors, the grace rule, permissions, joining a call |
 | [slack.md](slack.md) | Slack: the token, what Slack shows (call, heads-up, status), the sender, channel messages, absence heads-ups, the sidebar line |
 | [search.md](search.md) | Vault search: the index and its watcher, queries and ranking, scopes, the note preview, the search overlay, numbers |
+| [music.md](music.md) | Apple Music: entries, the scripts, the player state, the automation per context, the artist search, the overlay |
 | [routines.md](routines.md) | Routines and their checklist overlay, the wizard that opens routines and journal groups by itself, the scheduler's tick |
 | [status.md](status.md) | Working, Break and Off: status memory, the change rule, `status_changed` and its listeners, the status and offer-off overlays |
 | [windows.md](windows.md) | Every window, its level and focus rules, the overlay's open protocol, focus hand-back, the pointer screen, what needed objc2 |

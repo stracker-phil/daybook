@@ -1,5 +1,5 @@
 /** The core settings pages. Modules register their own pages from their install function. */
-import { BellRing, BookOpen, CalendarDays, FolderKanban, FolderOpen, Keyboard, Layers, LayoutList, Link2, ListChecks, MessageSquare, NotebookPen, Palette, Power, Search, Ticket, Video, Workflow } from "lucide-react";
+import { BellRing, BookOpen, CalendarDays, FolderKanban, FolderOpen, Keyboard, Layers, LayoutList, Link2, ListChecks, MessageSquare, Music, NotebookPen, Palette, Power, Search, Ticket, Video, Workflow } from "lucide-react";
 import { TEXT_SIZES, type Scheme } from "../../api";
 import { schemeLook } from "../../lib/theme";
 import { registerSettingsPage, type SettingsPageProps } from "../../registry/settingsPages";
@@ -13,6 +13,7 @@ import { DailyNotePage } from "./DailyNotePage";
 import { JiraPage } from "./JiraPage";
 import { JournalPage } from "./JournalPage";
 import { LinksPage } from "./LinksPage";
+import { MusicPage } from "./MusicPage";
 import { ProjectsPage } from "./ProjectsPage";
 import { RemindersPage } from "./RemindersPage";
 import { RoutinesPage } from "./RoutinesPage";
@@ -159,6 +160,20 @@ export function registerCoreSettingsPages() {
       </>
     ),
     Body: LinksPage,
+  });
+  registerSettingsPage({
+    id: "music",
+    group: "Workflows",
+    label: "Music",
+    icon: Music,
+    order: 40,
+    intro: (
+      <>
+        What Daybook can play in <strong>Apple Music</strong>: pick it from the rail, the menu bar or the overlay. Daybook can also turn the music down or pause it
+        for <strong>calls</strong> and <strong>breaks</strong>.
+      </>
+    ),
+    Body: MusicPage,
   });
   registerSettingsPage({ id: "general", group: "System", label: "General", icon: Power, order: 0, intro: "How Daybook starts.", Body: GeneralPage });
   registerSettingsPage({ id: "tools", group: "System", label: "Tools", icon: LayoutList, order: 10, Body: ToolsPage });

@@ -77,7 +77,7 @@ impl MusicEntry {
 
 /// Apple Music web links open in the Music app (not the browser) only with `app=music`; it's stored
 /// with the link so Settings shows what is opened.
-fn music_link(link: &str) -> String {
+pub(crate) fn music_link(link: &str) -> String {
     if !is_apple_music(link) {
         return link.into();
     }

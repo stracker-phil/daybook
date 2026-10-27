@@ -23,7 +23,7 @@ The app's name and ids live in a few places. Change them together.
 | Config dir | `~/Library/Application Support/com.philippstracker.daybook/` (debug builds: `….daybook.debug/`) | `lib.rs` `config_dir()` |
 | Prototype import | reads `~/Library/Application Support/app.glaze.macos.2mykv1oc-local/` once (ADR 0013) | `store/import/` (`PROTOTYPE_DIR`); owner-specific: delete the module and its calls in `lib.rs` and `app.rs` (`report_import`) to drop it |
 | Keychain | generic password, service = the bundle identifier, account `slack-token` | `secrets.rs`, `slack/token.rs` |
-| Network hosts | `slack.com` | `net.rs` `HOSTS` ([ADR 0020](adr/0020-network-only-to-listed-hosts.md)) |
+| Network hosts | `slack.com`, `itunes.apple.com` (the artist search) | `net.rs` `HOSTS` ([ADR 0020](adr/0020-network-only-to-listed-hosts.md)) |
 | Logs dir | `~/Library/Logs/com.philippstracker.daybook/` (debug builds: `….daybook.debug/`) | Tauri's `app_log_dir`, from the identifier |
 | Env vars | `DAYBOOK_WINDOW_FRAME`, `DAYBOOK_BACKGROUND` (debug builds), `DAYBOOK_DEV_TERMINAL`, `DAYBOOK_SIGN_IDENTITY` | `dev.rs`, `window.rs`, `scripts/dev/launch.sh`, `scripts/sign-app.sh` |
 | Store on `window` | `window.daybook` | `src/main.tsx`, `src/vite-env.d.ts`, the dev scripts |

@@ -6,7 +6,7 @@ use super::state::{
     ContextItem, GroupProgress, LinkItem, Progress, RoutineProgress, TodayNote, ToolState, Topic,
 };
 use crate::state::AppState;
-use crate::{calls, jira, journal, links, projects, quick_notes, routines, search, status};
+use crate::{calls, jira, journal, links, music, projects, quick_notes, routines, search, status};
 
 pub fn snapshot(app: &AppHandle) -> ToolState {
     let state = app.state::<AppState>();
@@ -90,6 +90,6 @@ pub fn snapshot(app: &AppHandle) -> ToolState {
         links_now: link_items(quick_access.now),
         links_more: link_items(quick_access.more),
         tickets: jira::today_tickets(app),
-        ..ToolState::default()
+        music: music::tool_state(app),
     }
 }

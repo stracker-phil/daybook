@@ -1,10 +1,11 @@
 import { vi } from "vitest";
 import type { api as realApi } from "../api";
 // Must not import the store or "../api": they would load the real api module while it is being mocked.
-import { EMPTY_UI_STATE, type Keybindings, type NoteSectionRef, type QuickNoteSaved, type Settings, type UiState } from "../api/types";
+import { EMPTY_UI_STATE, type Keybindings, type MusicState, type NoteSectionRef, type QuickNoteSaved, type Settings, type UiState } from "../api/types";
 import { settings } from "./settings";
 
 const noUnlisten = () => Promise.resolve(() => {});
+const CLOSED_MUSIC: MusicState = { entries: [], player: "closed", track: null, volume: null, entry: null };
 
 /** An `api` where every call resolves to a valid default; override per test with mockResolvedValue. */
 export function createApiMock(): typeof realApi {
@@ -98,6 +99,12 @@ export function createApiMock(): typeof realApi {
     jiraOpen: vi.fn().mockResolvedValue("QRS-6805"),
     jiraSuggestions: vi.fn().mockResolvedValue([]),
     launcherProjects: vi.fn().mockResolvedValue({ found: true, projects: [], error: null }),
+    musicState: vi.fn().mockResolvedValue(CLOSED_MUSIC),
+    musicPlay: vi.fn().mockResolvedValue(CLOSED_MUSIC),
+    musicToggle: vi.fn().mockResolvedValue(CLOSED_MUSIC),
+    musicVolume: vi.fn().mockResolvedValue(CLOSED_MUSIC),
+    musicPlaylists: vi.fn().mockResolvedValue([]),
+    musicFindArtists: vi.fn().mockResolvedValue({ storefront: "us", artists: [] }),
     panelOpen: vi.fn().mockResolvedValue(undefined),
     panelClose: vi.fn().mockResolvedValue(undefined),
     panelSession: vi.fn().mockResolvedValue(null),
@@ -117,6 +124,7 @@ export function createApiMock(): typeof realApi {
     onCalendarChanged: vi.fn(noUnlisten),
     onCallChanged: vi.fn(noUnlisten),
     onSlackChanged: vi.fn(noUnlisten),
+    onMusicChanged: vi.fn(noUnlisten),
     onToggleInspector: vi.fn(noUnlisten),
     onKeybindingsChanged: vi.fn(noUnlisten),
   };

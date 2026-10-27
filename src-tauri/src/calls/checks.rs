@@ -140,12 +140,12 @@ pub fn bundle_path(info: &str) -> Option<String> {
     BUNDLE_PATH.captures(info).map(|c| c[1].to_string())
 }
 
-/// What a refused script says: -1743 is a refused Automation request.
+/// What a refused script says: -1743 is a refused Automation request; either spelling of the text.
 pub fn automation_refused(stderr: &str) -> bool {
+    let lower = stderr.to_lowercase();
     stderr.contains("-1743")
-        || stderr
-            .to_lowercase()
-            .contains("not authorized to send apple events")
+        || lower.contains("not authorized to send apple events")
+        || lower.contains("not authorised to send apple events")
 }
 
 #[cfg(test)]
@@ -327,6 +327,7 @@ Kernel Assertions: 0x104=USB,MAGICWAKE";
                 "execution error: not authorized to send apple events to Teams.",
                 true,
             ),
+            ("Not authorised to send Apple events", true),
             ("execution error: Can’t get window 1. (-1728)", false),
             ("", false),
         ] {

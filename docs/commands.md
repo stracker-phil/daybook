@@ -60,6 +60,8 @@ notification (`notify.rs`). The managed `bus::Commands` holds the app's bus, fil
 | `jira:issue:<key>` | Open a Jira issue | family; no choices |
 | `projects:open` | Projects… | the `projects` overlay |
 | `projects:open:<id>` | Show a project in Project Launcher | family; choices: the current projects' Launcher projects |
+| `music:open`, `music:toggle`, `music:play`, `music:pause` | Music… and its controls | [music.md](music.md#commands) |
+| `music:play:<entry>`, `music:volume:<n>` | Play an entry, set the volume | families; choices: the entries, volume steps |
 | `status:working`, `status:break`, `status:off` | Change Status to … | needs a vault; the status overlay with that status picked (`status/`) |
 | `status:toggle` | Change Status… | needs a vault; Break picked while Working, else Working |
 | `meetings:check` | Check for a Call Now | checks now; a call that is gone ends at once ([presence-and-calls.md](presence-and-calls.md#calls)) |

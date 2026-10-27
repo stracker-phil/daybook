@@ -20,6 +20,8 @@ pub const CALENDAR_CHANGED_EVENT: &str = "calendar_changed";
 pub const CALL_CHANGED_EVENT: &str = "call_changed";
 /// No payload; what Slack shows or the Slack connection changed (docs/slack.md).
 pub const SLACK_CHANGED_EVENT: &str = "slack_changed";
+/// Payload: a `MusicState`; what Music plays or which entry plays changed (docs/music.md).
+pub const MUSIC_CHANGED_EVENT: &str = "music_changed";
 /// Payload: the saved `Settings`.
 pub const SETTINGS_CHANGED_EVENT: &str = "settings_changed";
 /// Payload: the saved `Keybindings`.

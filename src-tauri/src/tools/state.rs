@@ -77,7 +77,7 @@ pub struct Music {
     pub playing: bool,
     /// Only known while Music runs.
     pub volume: Option<u8>,
-    /// The entry played last.
+    /// The entry that plays or is paused.
     pub entry: Option<String>,
 }
 

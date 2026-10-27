@@ -25,6 +25,7 @@ pub mod launcher;
 pub mod links;
 pub mod lock;
 pub mod menu;
+pub mod music;
 pub mod net;
 pub mod notify;
 pub mod palette;

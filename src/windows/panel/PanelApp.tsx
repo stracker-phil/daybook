@@ -9,6 +9,7 @@ import { FocusView } from "./FocusView";
 import { JiraView } from "./JiraView";
 import { JournalView } from "./JournalView";
 import { LinksView } from "./LinksView";
+import { MusicView } from "./MusicView";
 import { OfferOffView } from "./OfferOffView";
 import { PaletteView } from "./PaletteView";
 import { ProjectsView } from "./ProjectsView";
@@ -36,6 +37,8 @@ function View({ session }: { session: PanelSession }) {
       return <LinksView />;
     case "jira":
       return <JiraView />;
+    case "music":
+      return <MusicView />;
     case "projects":
       return <ProjectsView />;
     case "quicknotes":

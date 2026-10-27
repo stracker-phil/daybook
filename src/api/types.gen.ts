@@ -34,6 +34,17 @@ export type AppErrorField = { path: string, message: string, };
  */
 export type AppRef = { app: string, bundleId: string, };
 
+export type ArtistMatch = { id: string, name: string, 
+/**
+ * Empty when Apple names none.
+ */
+genre: string, };
+
+/**
+ * Artists by name, best match first, and the store they were found in.
+ */
+export type ArtistSearch = { storefront: string, artists: Array<ArtistMatch>, };
+
 /**
  * An app trigger Settings can add again, with what its built-in check looks for.
  */
@@ -531,6 +542,24 @@ shuffle: boolean, };
 export type MusicKind = "playlist" | "artist" | "link";
 
 /**
+ * An entry of Settings → Music as the overlay lists it.
+ */
+export type MusicListItem = { id: string, 
+/**
+ * The name, else the source.
+ */
+name: string, };
+
+/**
+ * Payload of `music_changed` and the answer of every music command.
+ */
+export type MusicState = { entries: Array<MusicListItem>, player: PlayerState, track: string | null, volume: number | null, 
+/**
+ * The entry that plays or is paused.
+ */
+entry: string | null, };
+
+/**
  * The payload of `note_changed`.
  */
 export type NoteChanged = { 
@@ -633,6 +662,8 @@ export type PanelSession = {
  * Counts up with every opening; the page answers with it.
  */
 session: number, view: string, args: unknown, };
+
+export type PlayerState = "playing" | "paused" | "stopped" | "closed";
 
 export type Presence = "auto" | "away" | "keep";
 

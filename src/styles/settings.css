@@ -140,3 +140,16 @@
 .launcher-note { flex: none; font-size: var(--fs-meta); }
 .launcher-problem { display: flex; align-items: center; gap: var(--space-3); }
 .launcher-problem > span { flex: 1; min-width: 0; font-size: var(--fs-meta); line-height: 1.35; }
+
+/* Music: name, kind and the actions on one line; the source below. */
+.music-head { gap: var(--space-2); }
+.input.music-name { flex: none; width: 12rem; }
+.music-head .item-actions { flex: 1; }
+.input.music-source-input { width: 20rem; }
+.music-source { display: flex; align-items: center; gap: var(--space-2); width: 100%; }
+.music-source .grow { flex: 1; min-width: 0; }
+.music-source select { flex: none; width: 13.538rem; }
+.music-note { flex: none; font-size: var(--fs-meta); }
+.music-foot { align-items: center; }
+.music-error { flex: 1; min-width: 0; }
+.settings-input .input.music-call-volume { width: 3.692rem; }

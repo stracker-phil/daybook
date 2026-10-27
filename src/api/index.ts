@@ -3,6 +3,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   AppError,
   AppRef,
+  ArtistSearch,
   CalendarAccess,
   CalendarInfo,
   CallsInfo,
@@ -21,6 +22,7 @@ import type {
   QuickAccess,
   LaunchEvent,
   Missing,
+  MusicState,
   NoteChanged,
   PaletteResults,
   NoteSectionRef,
@@ -166,6 +168,18 @@ export const api = {
   jiraSuggestions: () => invoke<string[]>("jira_suggestions"),
   /** Project Launcher's projects (cached for a minute unless `fresh`); asking may start it. */
   launcherProjects: (fresh: boolean) => invoke<LauncherProjects>("launcher_projects", { fresh }),
+  /** Reads Music; the entries and what Music plays now. Each music action answers with the new state. */
+  musicState: () => invoke<MusicState>("music_state"),
+  /** Plays an entry of Settings → Music. */
+  musicPlay: (id: string) => invoke<MusicState>("music_play", { id }),
+  /** Pauses, or plays (launching Music and the entry played last when it is closed). */
+  musicToggle: () => invoke<MusicState>("music_toggle"),
+  /** Music's own volume, clamped to 0 to 100. */
+  musicVolume: (volume: number) => invoke<MusicState>("music_volume", { volume }),
+  /** The playlists in Music's library, sorted; asking starts Music. */
+  musicPlaylists: () => invoke<string[]>("music_playlists"),
+  /** Apple's artists named like `term`, best first, and the store searched (the entries' store, else the Mac's region). */
+  musicFindArtists: (term: string) => invoke<ArtistSearch>("music_find_artists", { term, storefront: null }),
   /** Opens `view` in the overlay; the same view again closes it. */
   panelOpen: (view: string, args?: unknown) => invoke<void>("panel_open", { view, args: args ?? null }),
   panelClose: () => invoke<void>("panel_close"),
@@ -194,6 +208,8 @@ export const api = {
   onCalendarChanged: (handler: () => void): Promise<UnlistenFn> => listen("calendar_changed", handler),
   /** A call started, changed or ended. */
   onCallChanged: (handler: () => void): Promise<UnlistenFn> => listen("call_changed", handler),
+  /** What Music plays, or its volume, changed. */
+  onMusicChanged: (handler: (music: MusicState) => void): Promise<UnlistenFn> => listen<MusicState>("music_changed", (e) => handler(e.payload)),
   /** What Slack shows, or the Slack connection, changed. */
   onSlackChanged: (handler: () => void): Promise<UnlistenFn> => listen("slack_changed", handler),
   /** Settings were saved, from any window. */

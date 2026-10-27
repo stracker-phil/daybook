@@ -133,6 +133,16 @@ describe("PanelApp", () => {
       expect(mocked.panelReady).toHaveBeenCalledWith(1, expect.any(Number));
     });
 
+    it("renders the music picker with Music's state for the music view", async () => {
+      mocked.musicState.mockResolvedValue({ entries: [{ id: "a", name: "Focus" }], player: "playing", track: "Song", volume: 30, entry: "a" });
+      mocked.panelSession.mockResolvedValue(session("music"));
+      render(<PanelApp />);
+      expect(await screen.findByRole("option", { name: /Focus/ })).toBeInTheDocument();
+      expect(screen.getByText("Playing · Song")).toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: "Entry" })).toHaveFocus();
+      expect(mocked.panelReady).toHaveBeenCalledWith(1, expect.any(Number));
+    });
+
     it("renders the project picker for the projects view", async () => {
       mocked.projectsView.mockResolvedValue([{ project: "Atlas", projects: [{ id: "a", name: "api", command: "launcher:a" }] }]);
       mocked.panelSession.mockResolvedValue(session("projects"));

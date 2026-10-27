@@ -13,8 +13,8 @@ use crate::state::AppState;
 use crate::store::import::Import;
 use crate::{
     bus, calendar, calls, commands, contexts, deep_link, focus, ipc, jira, journal, launcher,
-    links, menu, notify, presence, quick_notes, remote, routines, scheduler, search, shortcuts,
-    slack, status, status_rules, tray, vault, window, wizard,
+    links, menu, music, notify, presence, quick_notes, remote, routines, scheduler, search,
+    shortcuts, slack, status, status_rules, tray, vault, window, wizard,
 };
 
 const MAX_LOG_BYTES: u128 = 5 * 1024 * 1024;
@@ -35,6 +35,7 @@ pub fn start(
         .manage(wizard::Wizard::default())
         .manage(presence::Presence::default())
         .manage(slack::Slack::default())
+        .manage(music::Music::default())
         .manage(commands_bus())
         .manage(shortcuts::Pause::default())
         .manage(tray::Shown::default())
@@ -75,6 +76,7 @@ pub fn start(
             status::start(app.handle());
             calls::start(app.handle());
             slack::install(app.handle());
+            music::install(app.handle());
             status_rules::start(app.handle());
             notify::install(app.handle());
             window::panel::build(app.handle())?;
@@ -116,6 +118,7 @@ fn commands_bus() -> bus::Commands {
     links::register(&mut commands);
     jira::register(&mut commands);
     launcher::register(&mut commands);
+    music::register(&mut commands);
     bus::Commands(commands)
 }
 

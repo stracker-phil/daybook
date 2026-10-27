@@ -149,7 +149,7 @@ web content would move focus out of the window, and the overlay would close. Vie
 [commands.md](commands.md#palette)), `status` (`StatusView` with `EndOfDayListStep` and `EndOfDayStep`), `focus` (`FocusView` with `FocusEditor`, [slack.md](slack.md#the-days-message)), `journal` (`JournalView`, `JournalForm`
 with `JournalAnswers`, autosaved through `lib/useAutosave.ts`; [vault.md](vault.md#journal)), `wizard` (`WizardView`, a
 routine's checklist; [routines.md](routines.md#the-overlay)) `quicknotes` (`QuickNotesView`, the
-quick-notes topic picker; [vault.md](vault.md#quick-notes)), `links` (`LinksView`), `projects` (`ProjectsView`), `jira` (`JiraView`), `search` (`search/SearchView`, 980 pt wide where the others are 580 (`view_width`); [search.md](search.md#the-overlay)) and `offer-off`
+quick-notes topic picker; [vault.md](vault.md#quick-notes)), `music` (`MusicView`, [music.md](music.md#the-overlay)), `links` (`LinksView`), `projects` (`ProjectsView`), `jira` (`JiraView`), `search` (`search/SearchView`, 980 pt wide where the others are 580 (`view_width`); [search.md](search.md#the-overlay)) and `offer-off`
 (`OfferOffView`) ([status.md](status.md#the-overlay)), and the sample view (`sample`, `sample-sticky`: a text field, a list and a
 button; opened in debug builds by `sample:open` and `sample:sticky`).
 
