@@ -21,7 +21,7 @@ use crate::error::AppResult;
 use crate::events::STATUS_CHANGED_EVENT;
 use crate::state::AppState;
 use crate::store::settings::{Settings, Status};
-use crate::{focus, slack, tray, window};
+use crate::{action_log, focus, slack, tray, window};
 
 const OVERLAY: &str = "status";
 /// The menu-bar title's break minutes move with the clock, and a new day starts without a status.
@@ -68,6 +68,19 @@ pub fn status_label(status: Option<Status>) -> &'static str {
     }
 }
 
+/// The action log's title of a status change: "Status changed: Working → Break", "Status set: Working".
+pub fn status_trigger(previous: Option<Status>, next: Status) -> String {
+    let name = |status| match status {
+        Status::Working => "Working",
+        Status::Break => "Break",
+        Status::Off => "Off",
+    };
+    match previous {
+        Some(previous) => format!("Status changed: {} → {}", name(previous), name(next)),
+        None => format!("Status set: {}", name(next)),
+    }
+}
+
 fn single_line(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
@@ -100,6 +113,8 @@ fn change_status(
     let Some(change) = state.statuses.set(status, Local::now().naive_local())? else {
         return Ok(());
     };
+    let trigger = action_log::begin(&status_trigger(change.previous, status));
+    let _entered = trigger.enter();
     log::info!(
         "Status changed: {} → {}",
         status_label(change.previous),
@@ -148,7 +163,11 @@ async fn send_end_of_day_list(
         return Ok(false);
     }
     let closing = slack::channel::message_text(&settings, message, end_of_day);
-    focus::send_end_of_day_list(app, list, &closing).await
+    action_log::traced(
+        "End-of-day list sent",
+        focus::send_end_of_day_list(app, list, &closing),
+    )
+    .await
 }
 
 /// Opens the status overlay with `status` picked; the same request again closes it.
@@ -247,6 +266,44 @@ mod tests {
             (None, "No status yet"),
         ] {
             assert_eq!(status_label(status), label, "{status:?}");
+        }
+    }
+
+    #[test]
+    fn a_status_change_names_both_statuses() {
+        for (previous, next, title) in [
+            (
+                Some(Status::Working),
+                Status::Break,
+                "Status changed: Working → Break",
+            ),
+            (
+                Some(Status::Break),
+                Status::Off,
+                "Status changed: Break → Off",
+            ),
+            (
+                Some(Status::Off),
+                Status::Working,
+                "Status changed: Off → Working",
+            ),
+        ] {
+            assert_eq!(
+                status_trigger(previous, next),
+                title,
+                "{previous:?} {next:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_days_first_status_reads_as_set() {
+        for (next, title) in [
+            (Status::Working, "Status set: Working"),
+            (Status::Break, "Status set: Break"),
+            (Status::Off, "Status set: Off"),
+        ] {
+            assert_eq!(status_trigger(None, next), title, "{next:?}");
         }
     }
 

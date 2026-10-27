@@ -13,7 +13,7 @@ use tokio::sync::broadcast::error::RecvError;
 
 use prompts::{Prompt, Reason, Target, Waiting, first_to_open};
 
-use crate::calls::{self, CallEvent};
+use crate::calls::{self, Announced, CallEvent};
 use crate::events::{CONTEXT_CHANGED_EVENT, STATUS_CHANGED_EVENT};
 use crate::lock::MutexExt;
 use crate::state::AppState;
@@ -203,7 +203,11 @@ fn watch_calls(app: &AppHandle) {
     let mut calls = calls::subscribe(app);
     tauri::async_runtime::spawn(async move {
         loop {
-            match calls.recv().await {
+            match calls
+                .recv()
+                .await
+                .map(|announced: Announced| announced.event)
+            {
                 Ok(CallEvent::Started(_)) => happened(&handle, OpenEvent::MeetingStart),
                 Ok(CallEvent::Ended { .. }) => happened(&handle, OpenEvent::MeetingEnd),
                 Ok(CallEvent::Changed(_)) | Err(RecvError::Lagged(_)) => continue,

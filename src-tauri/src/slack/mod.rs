@@ -10,6 +10,7 @@ pub mod day_message;
 pub mod decide;
 #[cfg(test)]
 mod fake_slack;
+mod send;
 pub mod sender;
 pub mod shown;
 pub mod status;
@@ -22,17 +23,20 @@ use chrono::Local;
 use tauri::{AppHandle, Emitter, Listener, Manager};
 
 pub use decide::HeadsUp;
+pub use send::{last_error, set_now};
 pub use shown::ShownStatus;
 
-use self::api::{Applied, SlackApi, SlackIdentity};
+pub(crate) use send::logged_result;
+use send::run;
+
+use self::api::{SlackApi, SlackIdentity};
 use self::channel::{LastMessage, status_message};
 use self::day_message::DayMessage;
-use self::decide::{Decision, changes_nothing, describe_status};
-use self::sender::{Outcome, SendError, Sender};
+use self::sender::Sender;
 use self::status::{Live, Picked, Setup, Step};
 use self::token::Tokens;
-use crate::calls::{self, CallEvent};
-use crate::error::{AppError, AppResult};
+use crate::action_log::{self, ActionState, ActionTarget};
+use crate::calls::{self, Announced, CallEvent};
 use crate::events::{CONTEXT_CHANGED_EVENT, SLACK_CHANGED_EVENT, STATUS_CHANGED_EVENT};
 use crate::lock::MutexExt;
 use crate::secrets::Secret;
@@ -41,6 +45,9 @@ use crate::status::StatusChanged;
 use crate::store::json_store::JsonStore;
 use crate::store::settings::{Feature, SlackStatus};
 use crate::{notify, status as day_status, timetracker};
+
+/// The action log's detail for a send without a token.
+pub const NOT_CONNECTED: &str = "Not sent: Slack isn't connected (Settings → Slack)";
 
 /// What Slack shows and the day's message, kept across restarts.
 pub struct SlackFiles {
@@ -66,6 +73,8 @@ pub struct Slack {
     last_message: Mutex<LastMessage>,
     /// From the last token check, for Settings.
     identity: Mutex<Option<SlackIdentity>>,
+    /// The last failed send, `HH:MM` and the error, for Settings → Status.
+    last_error: Mutex<Option<(String, String)>>,
 }
 
 fn slack(app: &AppHandle) -> &Slack {
@@ -108,121 +117,6 @@ fn step(app: &AppHandle, change: impl FnOnce(&mut Live, &Setup) -> Step) {
     run(app, next);
 }
 
-fn run(app: &AppHandle, step: Step) {
-    match step {
-        Step::Idle => {}
-        Step::Skip {
-            mapping,
-            note,
-            reason,
-        } => log::info!(
-            "Slack status {}: {reason}",
-            describe_status(&mapping, &note)
-        ),
-        Step::Send(decision) => push(app, decision),
-    }
-}
-
-/// What a decision sends: the status, its note, its expiry and whether it is a call's.
-fn sending(decision: Decision) -> (SlackStatus, String, i64, bool) {
-    match decision {
-        Decision::Call(mapping) => (mapping, String::new(), 0, true),
-        Decision::HeadsUp {
-            mapping,
-            expiration,
-            detail,
-        } => {
-            log::info!("{detail}");
-            (mapping, String::new(), expiration, false)
-        }
-        Decision::Status { mapping, note } | Decision::WorkflowOff { mapping, note } => {
-            (mapping, note, 0, false)
-        }
-    }
-}
-
-/// Sends a decision in the background; a call's status counts as shown once Slack took it.
-fn push(app: &AppHandle, decision: Decision) {
-    let (mapping, note, expiration, is_call) = sending(decision);
-    let described = describe_status(&mapping, &note);
-    if changes_nothing(&mapping) {
-        log::info!("Slack status {described}: set to \"no change\"");
-        return;
-    }
-    let app = app.clone();
-    tauri::async_runtime::spawn(async move {
-        let attempt = || async {
-            let token = token(&app).await.ok_or(SendError::NotConnected)?;
-            slack(&app)
-                .api
-                .apply(&token, &mapping, &note, expiration)
-                .await
-                .map_err(SendError::Slack)
-        };
-        let on_failure = |error: &api::SlackError, retry_follows: bool| {
-            log::warn!("Setting the Slack status failed: {error}");
-            let body = if retry_follows {
-                format!("{error} Retrying in 30 seconds.")
-            } else {
-                error.to_string()
-            };
-            notify::show(&app, "Slack status not updated", &body);
-        };
-        let outcome = slack(&app).sender.push(attempt, on_failure).await;
-        report(&app, outcome, &described, is_call.then_some(&mapping));
-    });
-}
-
-/// Logs a send and records what Slack took; `call` is the call's status when it was one.
-fn report(app: &AppHandle, outcome: Outcome<Applied>, described: &str, call: Option<&SlackStatus>) {
-    match outcome {
-        Outcome::Sent(applied) => {
-            log::info!("Slack status set: {described}");
-            if let Some(problem) = applied.problem {
-                log::info!("{problem}");
-            }
-            if let Some(call) = call {
-                slack(app).live.lock_unpoisoned().call_sent(call);
-            }
-            record_shown(app, applied);
-        }
-        Outcome::Replaced => log::info!("Slack status {described}: replaced by a newer one"),
-        Outcome::NotConnected => log::info!("Slack status {described}: Slack isn't connected"),
-        Outcome::Failed(_) => {}
-    }
-}
-
-/// Sets a Slack status right away and waits for Slack, outside the contexts and workflows; a pending
-/// send and its retry are dropped.
-pub async fn set_now(app: &AppHandle, mapping: &SlackStatus, note: &str) -> AppResult<()> {
-    let token = token(app)
-        .await
-        .ok_or_else(|| AppError::InvalidInput("Connect Slack in Settings → Slack first.".into()))?;
-    slack(app).sender.supersede();
-    let applied = slack(app)
-        .api
-        .apply(&token, mapping, note, 0)
-        .await
-        .map_err(|e| AppError::Network(e.to_string()))?;
-    log::info!("Slack status set: {}", describe_status(mapping, note));
-    if let Some(problem) = applied.problem {
-        log::info!("{problem}");
-    }
-    record_shown(app, applied);
-    Ok(())
-}
-
-fn record_shown(app: &AppHandle, applied: Applied) {
-    let files = &app.state::<AppState>().slack;
-    if let Err(e) = files
-        .shown
-        .update(|shown| shown.record(applied.profile, applied.presence))
-    {
-        log::warn!("Couldn't remember the Slack status: {e}");
-    }
-    changed(app);
-}
-
 /// What the sidebar shows: Slack's status now, in contexts with Slack once a token is stored.
 pub async fn shown_now(app: &AppHandle) -> Option<ShownStatus> {
     if !in_context(app) || token(app).await.is_none() {
@@ -244,7 +138,20 @@ pub fn project_changed(app: &AppHandle, project: Option<String>) {
 
 /// A calendar heads-up started, changed or ended.
 pub fn set_heads_up(app: &AppHandle, next: Option<HeadsUp>) {
-    step(app, |live, setup| live.heads_up_changed(next, setup));
+    if !slack(app)
+        .live
+        .lock_unpoisoned()
+        .heads_up_differs(next.as_ref())
+    {
+        return;
+    }
+    let title = next.as_ref().map_or_else(
+        || "Status rule ended".to_string(),
+        |next| format!("Status rule: {}", next.label),
+    );
+    action_log::traced_sync(&title, |_| {
+        step(app, |live, setup| live.heads_up_changed(next, setup));
+    });
 }
 
 fn status_changed(app: &AppHandle, change: &StatusChanged) {
@@ -268,22 +175,32 @@ fn post_message(app: &AppHandle, channel: &str, text: String, change: &StatusCha
     if channel.is_empty() {
         return;
     }
+    let described = format!("{channel}: {text}");
     if !slack(app)
         .last_message
         .lock_unpoisoned()
         .admit(&change.message)
     {
         log::info!("Not posted to {channel}: the same message as the last one");
+        action_log::log(
+            ActionTarget::SlackMessage,
+            &described,
+            ActionState::Skipped,
+            Some("Not sent: same message as the last one".into()),
+        );
         return;
     }
+    let logged = action_log::sending(ActionTarget::SlackMessage, &described);
     let first = change.first;
     let app = app.clone();
-    tauri::async_runtime::spawn(async move {
+    action_log::spawn(async move {
         let Some(token) = token(&app).await else {
             log::info!("Not posted to {channel}: Slack isn't connected");
+            logged.update(ActionState::Skipped, Some(NOT_CONNECTED.into()));
             return;
         };
-        match slack(&app).api.post_message(&token, &channel, &text).await {
+        let posted = slack(&app).api.post_message(&token, &channel, &text).await;
+        match logged_result(&app, &logged, posted) {
             Ok(posted) => {
                 log::info!("Posted to {channel}");
                 if first {
@@ -364,7 +281,10 @@ fn follow_calls(app: &AppHandle) {
         use tokio::sync::broadcast::error::RecvError;
         loop {
             match calls.recv().await {
-                Ok(event) => call_changed(&handle, event),
+                Ok(Announced { event, trigger }) => {
+                    let _entered = trigger.as_ref().map(action_log::Trigger::enter);
+                    call_changed(&handle, event);
+                }
                 Err(RecvError::Lagged(_)) => continue,
                 Err(RecvError::Closed) => break,
             }

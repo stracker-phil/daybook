@@ -6,7 +6,8 @@ use tauri::{AppHandle, Manager};
 
 use super::api::SlackError;
 use super::day_message::{DayMessage, FocusTarget, message_gone, paragraphs};
-use super::{in_context, slack, token};
+use super::{in_context, logged_result, slack, token};
+use crate::action_log::{self, ActionState, ActionTarget};
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
@@ -51,10 +52,8 @@ fn failed(e: SlackError) -> AppError {
     AppError::Network(format!("Slack: {e}"))
 }
 
-async fn connected(app: &AppHandle) -> AppResult<crate::secrets::Secret> {
-    token(app)
-        .await
-        .ok_or_else(|| AppError::NotFound("Slack isn't connected (Settings → Slack).".into()))
+fn not_connected() -> AppError {
+    AppError::NotFound("Slack isn't connected (Settings → Slack).".into())
 }
 
 /// Puts `list` below the day's message. Without a message from today the list is posted and becomes
@@ -71,10 +70,18 @@ pub async fn update_day_message(app: &AppHandle, list: &str) -> AppResult<()> {
     if text.is_empty() {
         return Ok(());
     }
-    let secret = connected(app).await?;
+    let described = match day.anchor() {
+        Some(_) => format!("{channel}: focus list in the day’s message"),
+        None => format!("{channel}: focus list"),
+    };
+    let logged = action_log::sending(ActionTarget::SlackMessage, &described);
+    let Some(secret) = token(app).await else {
+        logged.update(ActionState::Skipped, Some(super::NOT_CONNECTED.into()));
+        return Err(not_connected());
+    };
     let api = &slack(app).api;
     if let Some((id, ts)) = day.anchor() {
-        return api
+        let updated = api
             .update_message(&secret, id, ts, &text)
             .await
             .map_err(|e| match e.code() {
@@ -83,11 +90,13 @@ pub async fn update_day_message(app: &AppHandle, list: &str) -> AppResult<()> {
                 )),
                 _ => failed(e),
             });
+        return logged_result(app, &logged, updated);
     }
     let posted = api
         .post_message(&secret, &channel, &text)
         .await
-        .map_err(failed)?;
+        .map_err(failed);
+    let posted = logged_result(app, &logged, posted)?;
     save(
         app,
         DayMessage {
@@ -107,8 +116,13 @@ pub async fn post_day_reply(app: &AppHandle, text: &str) -> AppResult<bool> {
     if channel.is_empty() || text.trim().is_empty() {
         return Ok(false);
     }
+    let logged = action_log::sending(
+        ActionTarget::SlackMessage,
+        &format!("{channel}: end-of-day list"),
+    );
     let Some(secret) = token(app).await else {
         log::info!("End-of-day list not sent: Slack isn't connected");
+        logged.update(ActionState::Skipped, Some(super::NOT_CONNECTED.into()));
         return Ok(false);
     };
     let api = &slack(app).api;
@@ -120,14 +134,18 @@ pub async fn post_day_reply(app: &AppHandle, text: &str) -> AppResult<bool> {
                 log::info!("The day's message is gone ({e}); posting the list on its own");
                 false
             }
-            Err(e) => return Err(failed(e)),
+            Err(e) => return logged_result(app, &logged, Err(failed(e))),
         },
         None => false,
     };
     if !replied {
-        api.post_message(&secret, &channel, text)
+        let posted = api
+            .post_message(&secret, &channel, text)
             .await
-            .map_err(failed)?;
+            .map_err(failed);
+        logged_result(app, &logged, posted)?;
+    } else {
+        logged.update(ActionState::Done, None);
     }
     save(
         app,

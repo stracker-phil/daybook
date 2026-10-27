@@ -1,5 +1,5 @@
 /** The core settings pages. Modules register their own pages from their install function. */
-import { BellRing, Bot, BookOpen, CalendarDays, FolderKanban, FolderOpen, Keyboard, Layers, LayoutList, Link2, ListChecks, MessageSquare, Music, NotebookPen, Palette, PanelRight, Power, Search, Ticket, Timer, Video, Workflow } from "lucide-react";
+import { Activity, BellRing, Bot, BookOpen, CalendarDays, FolderKanban, FolderOpen, Keyboard, Layers, LayoutList, Link2, ListChecks, MessageSquare, Music, NotebookPen, Palette, PanelRight, Power, Search, Ticket, Timer, Video, Workflow } from "lucide-react";
 import { TEXT_SIZES, type Scheme } from "../../api";
 import { schemeLook } from "../../lib/theme";
 import { registerSettingsPage, type SettingsPageProps } from "../../registry/settingsPages";
@@ -22,6 +22,7 @@ import { RoutinesPage } from "./RoutinesPage";
 import { SearchPage } from "./SearchPage";
 import { ShortcutsPage } from "./ShortcutsPage";
 import { SlackPage } from "./SlackPage";
+import { StatusPage } from "./StatusPage";
 import { TimeTrackerPage } from "./TimeTrackerPage";
 import { ToolsPage } from "./ToolsPage";
 import { VaultPage } from "./VaultPage";
@@ -193,4 +194,5 @@ export function registerCoreSettingsPages() {
   registerSettingsPage({ id: "automation", group: "System", label: "Automation", icon: Bot, order: 17, intro: "Run Daybook's actions and commands from scripts: the daybook command, daybook:// links and a local HTTP API.", Body: AutomationPage });
   registerSettingsPage({ id: "shortcuts", group: "System", label: "Shortcuts", icon: Keyboard, order: 20, Body: ShortcutsPage });
   registerSettingsPage({ id: "appearance", group: "System", label: "Appearance", icon: Palette, order: 30, intro: "How Daybook looks. Changes apply right away.", Body: AppearancePage });
+  registerSettingsPage({ id: "status", group: "System", label: "Status", icon: Activity, order: 40, intro: "Whether Daybook's connections work, and what it sent where and why.", Body: StatusPage });
 }

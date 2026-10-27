@@ -24,14 +24,16 @@ pub use self::create::Timings;
 use self::location::{DailyNoteFormat, FormatCache};
 use self::obsidian::ObsidianCli;
 use self::ops::{NoteLayout, NoteOp};
-use self::pending::{Drained, Pending};
+use self::pending::{ALREADY, Drained, Pending};
 use self::watch::FolderWatch;
 use self::writer::{NoteWriter, WriteError};
+use crate::action_log::{self, ActionState, ActionTarget, Logged};
 use crate::error::{AppError, AppResult};
 use crate::lock::MutexExt;
 use crate::store::settings::Settings;
 
 const NO_VAULT: &str = "Choose your vault in Settings first.";
+const WAITS_FOR_NOTE: &str = "Written once today’s note exists";
 
 /// Today's note as the page shows it.
 #[derive(Serialize, Clone, Debug, PartialEq, TS)]
@@ -224,8 +226,10 @@ impl DailyNotes {
         let file = self.today_path(settings)?;
         self.watch_daily_notes(settings);
         let exists = file.is_file();
+        let logged = action_log::sending(ActionTarget::Obsidian, &op.describe());
         if self.pending.has_for(&file) || !exists {
-            self.queue(&file, op)?;
+            logged.update(ActionState::Waiting, Some(WAITS_FOR_NOTE.into()));
+            self.queue(&file, op, logged)?;
             if exists {
                 self.drain(settings);
             } else {
@@ -236,14 +240,24 @@ impl DailyNotes {
         let layout = NoteLayout::from_settings(settings);
         let mut edit = |text: &str| op.apply(text, &layout);
         match self.writer.edit_note(&vault, &file, &mut edit) {
-            Ok(true) => Ok(WriteOutcome::Written),
-            Ok(false) => Ok(WriteOutcome::Unchanged),
+            Ok(true) => {
+                logged.update(ActionState::Done, None);
+                Ok(WriteOutcome::Written)
+            }
+            Ok(false) => {
+                logged.update(ActionState::Skipped, Some(ALREADY.into()));
+                Ok(WriteOutcome::Unchanged)
+            }
             Err(e @ WriteError::Conflict(_)) => {
                 log::warn!("{e} The change waits.");
-                self.queue(&file, op)?;
+                logged.update(ActionState::Waiting, Some(format!("{e} Retried later.")));
+                self.queue(&file, op, logged)?;
                 Ok(WriteOutcome::Queued)
             }
-            Err(e) => Err(e.into()),
+            Err(e) => {
+                logged.update(ActionState::Failed, Some(e.to_string()));
+                Err(e.into())
+            }
         }
     }
 
@@ -252,15 +266,15 @@ impl DailyNotes {
     fn spawn_create_today(self: &Arc<Self>, settings: &Settings) {
         let this = Arc::clone(self);
         let settings = settings.clone();
-        thread::spawn(move || {
+        thread::spawn(action_log::carry_sync(move || {
             if let Err(e) = this.create_today(&settings) {
                 log::warn!("Couldn't create today's note: {e}");
             }
-        });
+        }));
     }
 
-    fn queue(&self, file: &Path, op: NoteOp) -> AppResult<()> {
-        self.pending.enqueue(file, op)?;
+    fn queue(&self, file: &Path, op: NoteOp, logged: Logged) -> AppResult<()> {
+        self.pending.enqueue_logged(file, op, logged)?;
         self.notify(NoteEvent::StateChanged);
         Ok(())
     }
@@ -370,7 +384,8 @@ mod tests {
             let note = vault.path().join("1-Journal").join("2026-10-24.md");
             let seed = Pending::open(config.path());
             for op in queued {
-                seed.enqueue(&note, op.clone()).unwrap();
+                seed.enqueue_logged(&note, op.clone(), Logged::default())
+                    .unwrap();
             }
             drop(seed);
             let notes = Arc::new(DailyNotes::with_clock(config.path(), fixed_today, timings));

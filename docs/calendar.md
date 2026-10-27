@@ -49,8 +49,9 @@ cache older than five minutes is read again within a minute.
 order of text: Zoom (`…zoom.us/j|my|w|s/…`), Teams (`teams.microsoft.com/l/meetup-join/…`, `/meet/…`,
 `teams.live.com/meet/…`) and Meet (`meet.google.com/…`); help pages, dial-in and option links don't count.
 Notes are often HTML: `&amp;` is decoded, and a link inside Google's redirect (`…&sa=D&source=calendar…`) is cut
-before `&sa=D` and percent-decoded. `calendar_join(url)` opens only an address that is nothing but a join link
-(`is_meeting_url`); step 10 replaces it with joining in the call app.
+before `&sa=D` and percent-decoded. `calendar_join(url)` takes only an address that is nothing but a join link
+(`join_link`, else `invalid_input`) and joins it in the call app (`calls::join`,
+[presence-and-calls.md](presence-and-calls.md#joining)).
 
 ## The day model
 

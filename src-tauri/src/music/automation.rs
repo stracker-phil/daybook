@@ -8,7 +8,8 @@ use tokio::sync::broadcast::error::RecvError;
 
 use super::rules::{self, Action, Held, Moment, Step};
 use super::state::entry_label;
-use crate::calls::{self, CallEvent};
+use crate::action_log::{self, ActionState, ActionTarget};
+use crate::calls::{self, Announced, CallEvent};
 use crate::error::AppResult;
 use crate::events::STATUS_CHANGED_EVENT;
 use crate::lock::MutexExt;
@@ -111,11 +112,20 @@ fn apply(app: &AppHandle, title: &'static str, now: Moment, first: bool) {
         return;
     }
     let app = app.clone();
-    tauri::async_runtime::spawn(async move {
+    action_log::spawn(async move {
         let _in_order = automation(&app).queue.lock().await;
         for step in steps {
             match run(&app, &step).await {
-                Ok(Some(text)) => log::info!("{title}: {text}"),
+                Ok(Some(text)) => {
+                    log::info!("{title}: {text}");
+                    action_log::log_titled(
+                        Some(title),
+                        ActionTarget::Daybook,
+                        &text,
+                        ActionState::Done,
+                        None,
+                    );
+                }
                 Ok(None) => {}
                 Err(e) => log::warn!("{title}: {step:?} failed: {e}"),
             }
@@ -172,9 +182,15 @@ fn watch_calls(app: &AppHandle) {
     tauri::async_runtime::spawn(async move {
         loop {
             match calls.recv().await {
-                Ok(CallEvent::Started(_)) => call_changed(&handle, true),
-                Ok(CallEvent::Ended { .. }) => call_changed(&handle, false),
-                Ok(CallEvent::Changed(_)) | Err(RecvError::Lagged(_)) => continue,
+                Ok(Announced { event, trigger }) => {
+                    let _entered = trigger.as_ref().map(action_log::Trigger::enter);
+                    match event {
+                        CallEvent::Started(_) => call_changed(&handle, true),
+                        CallEvent::Ended { .. } => call_changed(&handle, false),
+                        CallEvent::Changed(_) => {}
+                    }
+                }
+                Err(RecvError::Lagged(_)) => continue,
                 Err(RecvError::Closed) => break,
             }
         }

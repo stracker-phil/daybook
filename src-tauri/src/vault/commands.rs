@@ -190,7 +190,7 @@ pub async fn create_today(app: &AppHandle) -> AppResult<bool> {
 pub async fn blocking<T: Send + 'static>(
     work: impl FnOnce() -> AppResult<T> + Send + 'static,
 ) -> AppResult<T> {
-    tauri::async_runtime::spawn_blocking(work)
+    tauri::async_runtime::spawn_blocking(crate::action_log::carry_sync(work))
         .await
         .map_err(|e| AppError::Io(format!("The vault task failed: {e}")))?
 }

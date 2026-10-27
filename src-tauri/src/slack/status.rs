@@ -139,9 +139,14 @@ impl Live {
         }
     }
 
+    /// Whether `next` differs from the heads-up Slack heard of last.
+    pub(super) fn heads_up_differs(&self, next: Option<&HeadsUp>) -> bool {
+        self.heads_up.as_ref() != next
+    }
+
     /// A heads-up started, changed or ended; Slack hears only of a change, and not over a shown call.
     pub fn heads_up_changed(&mut self, next: Option<HeadsUp>, setup: &Setup) -> Step {
-        let changed = next != self.heads_up;
+        let changed = self.heads_up_differs(next.as_ref());
         self.heads_up = next;
         if !changed || !setup.slack_on || self.call_on_screen() {
             Step::Idle
@@ -392,6 +397,24 @@ mod tests {
             live.heads_up_changed(None, &setup),
             status_step(&world.statuses.working, "")
         );
+    }
+
+    #[test]
+    fn a_heads_up_differs_until_slack_heard_of_it() {
+        let world = World::new();
+        let setup = world.setup(true);
+        let mut live = Live::default();
+        assert!(!live.heads_up_differs(None));
+        assert!(live.heads_up_differs(Some(&heads_up())));
+
+        live.heads_up_changed(Some(heads_up()), &setup);
+        assert!(!live.heads_up_differs(Some(&heads_up())));
+        assert!(live.heads_up_differs(None));
+        let later = HeadsUp {
+            expiration: 1_790_000_600,
+            ..heads_up()
+        };
+        assert!(live.heads_up_differs(Some(&later)));
     }
 
     #[test]

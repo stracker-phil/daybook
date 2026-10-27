@@ -7,6 +7,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use super::{DailyNotes, NoteEvent};
+use crate::action_log::{self, ActionState, ActionTarget};
 use crate::error::{AppError, AppResult};
 use crate::store::settings::Settings;
 
@@ -59,19 +60,28 @@ impl DailyNotes {
         if !file.is_file() {
             let name = file.file_name().unwrap_or_default().to_string_lossy();
             log::info!("Creating today's note ({name}) with the Obsidian CLI");
+            let logged = action_log::sending(
+                ActionTarget::Obsidian,
+                &format!("Create today’s note ({name}) with the Obsidian CLI"),
+            );
+            let failed = |message: String| {
+                logged.update(ActionState::Failed, Some(message.clone()));
+                AppError::Io(message)
+            };
             self.cli
                 .run(
                     &settings.vault.obsidian_cli_path,
                     &settings.vault.name,
                     &["daily"],
                 )
-                .map_err(AppError::Io)?;
+                .map_err(failed)?;
             if !self.wait_for(&file) {
                 let appear = self.timings.appear.as_secs();
-                return Err(AppError::Io(format!(
+                return Err(failed(format!(
                     "Obsidian didn't create {name} within {appear} seconds."
                 )));
             }
+            logged.update(ActionState::Done, None);
             self.wait_until_quiet(&file);
         }
         self.drain(settings);

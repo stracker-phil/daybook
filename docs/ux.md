@@ -8,10 +8,8 @@ item. Decisions: [ADR 0007](adr/0007-color-palettes.md) (token sets, no literals
 [ADR 0011](adr/0011-native-macos-look.md) (the native look). Implementation (files, registries, CSS structure):
 [frontend.md](frontend.md#styling).
 
-At this point the app is a shell: the tray icon, the Daybook window with the sidebar and an empty main pane, the
-Settings dialog, the command palette, the shortcuts dialog, toasts and the native menu. The surfaces later steps
-build (the overlay panel, the rail, the quick notes editor, the Settings window, the views of the Daybook window)
-are described here when their step builds them.
+It covers the menu-bar menu, the Daybook window (sidebar, board, inspector), the overlay panel and its views,
+the rail, the quick notes editor, the Settings window, dialogs, toasts and the native menu.
 
 ## Principles
 
@@ -25,8 +23,7 @@ are described here when their step builds them.
 - **Overlays never navigate.** Closing an overlay hands focus only to the app the owner looks at now; it never
   switches Spaces or brings back the app it opened over. Inside the window, closing a dialog returns the focus to
   where it was.
-- **Tab never leaves a dialog** (`Modal`); clicking outside closes every overlay except the quick notes editor
-  (step 16).
+- **Tab never leaves a dialog** (`Modal`); clicking outside closes every overlay except the quick notes editor.
 - **All configuration lives in Settings**, never in vault files or frontmatter. A concept with several options
   gets its own page with one card per item; multi-selects are an inline list with ✕ and a type-to-add field that
   keeps focus.
@@ -322,7 +319,7 @@ Context menus use the UI font, 22px items with a 6px radius; the hovered or focu
 (`lib/nativeMenu.ts`).
 
 Daybook's own overlay panel (a non-activating window over other apps), the rail and the quick notes editor are
-separate windows; the rail comes with step 20 and gets its section here then.
+separate windows; the rail has [its own section](#the-rail).
 
 **The focus overlay** (`focus` view, ⌘F11 by default): "Today's focus" with where the list goes on the right
 (`--o3`: "Updates your morning message in #team", "Today's note only"); a plain monospace editor (`--font-mono`,

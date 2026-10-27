@@ -35,8 +35,9 @@ bun run release          # release bundle: src-tauri/target/release/bundle/macos
 ```
 
 The first Rust build takes several minutes. `bun run release` also installs the build (`scripts/install.sh`):
-the app in `~/Applications` and the `daybook` command in `~/.local/bin` link to the release build, and a running
-Daybook restarts on it. Debug builds are never installed; call them by path.
+the app in `~/Applications` and the `daybook` command in `~/.local/bin` link to the release build (a `daybook`
+there that the script didn't link stays unless `scripts/install.sh --replace-cli`), and a running Daybook restarts
+on it. Debug builds are never installed; call them by path.
 
 ## Verify
 

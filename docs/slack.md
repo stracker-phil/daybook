@@ -30,13 +30,13 @@ a manual one.
 
 `decide` ranks three sources:
 
-1. **A call** (step 10's `calls::subscribe`): `Started` takes the Slack status of the app trigger with the
+1. **A call** (`calls::subscribe`): `Started` takes the Slack status of the app trigger with the
    call's app name (Settings → Calls); `Ended` gives it up. A new title for the same call changes nothing.
 2. **A heads-up** before an absence (below). Its presence "No change" follows the picked status's presence
    (active while Working, away on a break), or stays unchanged when that status's workflow is off.
 3. **The picked status** (`status_changed`): `settings.slack.statuses[status]` with `{note}` filled by the
    confirmed message. While Working the text gets the project (`9:00 - 18:00 | Oscorp`, `Focus: Oscorp`
-   without text, Internal left out); the project comes with step 24, until then there is none. Before the
+   without text, Internal left out); the project is `timetracker::current_project`, none without one. Before the
    day's first status, Off counts. A status whose workflow is off (`slack.manualWorkflows`) leaves Slack alone.
 
 `Live` keeps what was picked, the call and the heads-up between changes:
@@ -123,5 +123,3 @@ without emoji and text after their expiry. The sidebar's footer shows it (emoji,
 | `slack_connect` | `token` | `SlackIdentity` (team, user); `invalid_input` for a malformed token, `network` when Slack refuses it, `io` when the Keychain fails |
 | `slack_test` | – | `SlackIdentity`; `not_found` without a token, `network` |
 | `slack_disconnect` | – | –; `io` when the Keychain fails |
-
-Not yet: the action log (step 28), `daybook slack …` (step 21).

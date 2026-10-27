@@ -95,13 +95,14 @@ describe("SettingsWindow", () => {
         "Automation",
         "Shortcuts",
         "Appearance",
+        "Status",
       ]);
     });
 
     it("groups them under Setup, Obsidian, Workflows and System, in that order", () => {
       renderWindow();
       const text = nav().textContent.replace(/\s+/g, "");
-      expect(text).toBe("SetupVaultCalendarSlackJiraTimeTrackerContextsProjectsObsidianDailyNoteRoutinesJournalSearchWorkflowsWorkflowsRemindersCallsLinksMusicDemoflowSystemGeneralToolsRailAutomationShortcutsAppearance");
+      expect(text).toBe("SetupVaultCalendarSlackJiraTimeTrackerContextsProjectsObsidianDailyNoteRoutinesJournalSearchWorkflowsWorkflowsRemindersCallsLinksMusicDemoflowSystemGeneralToolsRailAutomationShortcutsAppearanceStatus");
     });
   });
 

@@ -27,6 +27,8 @@ pub const TIMER_CHANGED_EVENT: &str = "timer_changed";
 /// No payload; TimeTracker's day the Activity tab shows changed, so the tab reads it again
 /// (`timetracker_day`).
 pub const ACTIVITY_CHANGED_EVENT: &str = "activity_changed";
+/// No payload; the action log changed, so Settings → Status reads it again (`action_log_get`).
+pub const ACTION_LOG_CHANGED_EVENT: &str = "action_log_changed";
 /// Payload: the saved `Settings`.
 pub const SETTINGS_CHANGED_EVENT: &str = "settings_changed";
 /// Payload: the saved `Keybindings`.

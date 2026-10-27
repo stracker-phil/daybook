@@ -20,7 +20,7 @@ use crate::store::settings::{Routine, Settings};
 use crate::vault::commands::{blocking, open_target};
 use crate::vault::note::Note;
 use crate::vault::ops::{NoteLayout, NoteOp};
-use crate::window;
+use crate::{action_log, window};
 
 const OVERLAY: &str = "wizard";
 
@@ -107,6 +107,11 @@ async fn edit_today(app: &AppHandle, op: NoteOp) -> AppResult<()> {
 pub async fn open(app: &AppHandle, id: &str) -> AppResult<()> {
     let settings = app.state::<AppState>().settings.get();
     let routine = find(&settings, id)?;
+    let title = format!("Routine opened: {}", routine.name);
+    action_log::traced(&title, open_routine(app, id, routine)).await
+}
+
+async fn open_routine(app: &AppHandle, id: &str, routine: &Routine) -> AppResult<()> {
     let titles: Vec<String> = routine
         .steps_on(weekday(app.state::<AppState>().notes.today()))
         .into_iter()
@@ -134,7 +139,9 @@ pub async fn routine_view_today(app: AppHandle, id: String) -> AppResult<Routine
 pub async fn routine_step(app: AppHandle, id: String, index: u32, done: bool) -> AppResult<()> {
     let settings = app.state::<AppState>().settings.get();
     let title = step_title(&settings, &id, index)?.to_string();
-    edit_today(&app, NoteOp::PlanStep { title, done }).await
+    let ticked = if done { "checked" } else { "unchecked" };
+    let trigger = format!("Checklist item {ticked}: {title}");
+    action_log::traced(&trigger, edit_today(&app, NoteOp::PlanStep { title, done })).await
 }
 
 /// Opens an item's link: a URL, or a vault path in Obsidian.

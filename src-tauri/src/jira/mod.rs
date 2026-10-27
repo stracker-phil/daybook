@@ -8,6 +8,7 @@ use serde_json::Value;
 use tauri::{AppHandle, Manager};
 use tauri_plugin_opener::OpenerExt;
 
+use crate::action_log::{self, ActionTarget};
 use crate::bus::{Command, CommandBus};
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
@@ -52,10 +53,18 @@ async fn open_issue(app: &AppHandle, input: &str, close_overlay: bool) -> AppRes
     if close_overlay {
         window::panel::close(app, true);
     }
-    app.opener()
-        .open_url(url, None::<&str>)
-        .map_err(|e| AppError::Io(format!("Couldn't open {key}: {e}")))?;
-    remember(app, &key).await?;
+    let title = format!("Jira issue opened: {key}");
+    action_log::traced(&title, async {
+        app.opener()
+            .open_url(&url, None::<&str>)
+            .map_err(|e| AppError::Io(format!("Couldn't open {key}: {e}")))?;
+        action_log::done(
+            ActionTarget::Daybook,
+            &format!("Opened {url} in the browser"),
+        );
+        remember(app, &key).await
+    })
+    .await?;
     Ok(key)
 }
 

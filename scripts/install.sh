@@ -3,12 +3,17 @@
 # it and the `daybook` command links through that app. A running Daybook (any build) restarts on it,
 # its window shown or hidden as before.
 # `bun run release` ends here; debug builds are never installed (scripts/dev/launch.sh runs them by path).
+# A ~/.local/bin/daybook that isn't this script's link (the Glaze prototype's script) stays unless
+# `scripts/install.sh --replace-cli`.
 set -e
+REPLACE_CLI=
+[[ "$1" == --replace-cli ]] && REPLACE_CLI=1
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 APP="$ROOT/src-tauri/target/release/bundle/macos/Daybook.app"
 [[ -d "$APP" ]] || { echo "Not found: $APP (run 'bun run release')"; exit 1; }
 LINK="$HOME/Applications/Daybook.app"
 BIN="$LINK/Contents/MacOS/daybook"
+CLI="$HOME/.local/bin/daybook"
 
 running() { pgrep -f 'Daybook( \(Debug\))?\.app/Contents/MacOS/daybook( --hidden)?$' >/dev/null; }
 # Re-signing a running app's files can get it killed, so it quits first; a hidden window stays hidden.
@@ -23,8 +28,13 @@ fi
 
 mkdir -p "$HOME/Applications" "$HOME/.local/bin"
 ln -sfn "$APP" "$LINK"
-ln -sf "$BIN" "$HOME/.local/bin/daybook"
-echo "Installed the release build as ~/Applications/Daybook.app and ~/.local/bin/daybook"
+echo "Installed the release build as ~/Applications/Daybook.app"
+if [[ ! -e "$CLI" && ! -L "$CLI" ]] || [[ "$(readlink "$CLI")" == "$BIN" ]] || [[ -n "$REPLACE_CLI" ]]; then
+  ln -sfn "$BIN" "$CLI"
+  echo "Linked ~/.local/bin/daybook"
+else
+  echo "Left ~/.local/bin/daybook alone (not this script's link); replace it with: scripts/install.sh --replace-cli"
+fi
 
 [[ -n "$WAS_RUNNING" ]] || exit 0
 # Launch Services can refuse right after the old app quit (error -600), so try a few times.

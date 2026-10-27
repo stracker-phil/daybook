@@ -24,8 +24,8 @@ use crate::vault::ops::notes::{
     NoteSectionRef, list_note_sections, read_note_section, section_holds,
 };
 use crate::vault::ops::{NoteLayout, NoteOp};
-use crate::window;
 use crate::window::display::Presentation;
+use crate::{action_log, window};
 use topic::TopicRow;
 
 const PICKER: &str = "quicknotes";
@@ -173,7 +173,8 @@ async fn write_topic(
         body,
         expected: Some(expected),
     };
-    blocking(move || notes.edit_today(&settings, op)).await?;
+    let title = format!("Quick note: {}", topic.title);
+    action_log::traced_merged(&title, blocking(move || notes.edit_today(&settings, op))).await?;
     Ok(())
 }
 

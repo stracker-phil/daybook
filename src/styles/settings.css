@@ -159,3 +159,33 @@
 .music-foot { align-items: center; }
 .music-error { flex: 1; min-width: 0; }
 .settings-input .input.music-call-volume { width: 3.692rem; }
+/* Settings → Status: diagnostics values with their tone, the action log by day and trigger. */
+.diagnostic-value { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--fs-meta); color: var(--o2); }
+.diagnostic-value[data-tone="ok"] svg { color: var(--style-green); }
+.diagnostic-value[data-tone="warn"] svg { color: var(--style-yellow); }
+.diagnostic-value[data-tone="error"] svg { color: var(--style-red); }
+.diagnostic-value[data-tone="info"] svg { color: var(--o3); }
+.settings-group-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.action-log-empty { margin: 0; padding: var(--space-3); color: var(--o3); }
+.action-day { display: flex; flex-direction: column; gap: var(--space-1); }
+.action-day h4 { margin: var(--space-2) 0 0 var(--space-3); font-size: var(--fs-meta); font-weight: 600; color: var(--o3); }
+.action-event { padding: var(--space-2) 0; }
+.action-event + .action-event { border-top: 1px solid var(--line); }
+.action-event-head { display: flex; align-items: baseline; gap: var(--space-2); }
+.action-event-time { color: var(--o3); font-variant-numeric: tabular-nums; }
+.action-event-trigger { font-weight: 600; color: var(--text); }
+.action-lines { margin: var(--space-1) 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-1); }
+.action-line { display: flex; align-items: flex-start; gap: var(--space-2); font-size: var(--fs-meta); }
+.action-line-state { flex: none; margin-top: 1px; color: var(--o3); }
+.action-line[data-state="done"] .action-line-state { color: var(--style-green); }
+.action-line[data-state="waiting"] .action-line-state { color: var(--style-yellow); }
+.action-line[data-state="failed"] .action-line-state { color: var(--style-red); }
+.action-line-target { flex: none; display: inline-flex; align-items: center; gap: var(--space-1); width: 8rem; color: var(--o2); }
+.action-line[data-target="obsidian"] .action-line-target svg { color: var(--style-purple); }
+.action-line:is([data-target="slackStatus"], [data-target="slackMessage"]) .action-line-target svg { color: var(--a-magenta); }
+.action-line[data-target="timetracker"] .action-line-target svg { color: var(--style-blue); }
+.action-line-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.action-line-text { color: var(--text); overflow-wrap: anywhere; }
+.action-line-count { margin-left: var(--space-1); color: var(--o3); font-variant-numeric: tabular-nums; }
+.action-line-detail { color: var(--o3); overflow-wrap: anywhere; }
+.action-line[data-state="failed"] .action-line-detail { color: var(--style-red); }

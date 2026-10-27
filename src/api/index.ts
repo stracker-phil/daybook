@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
+  ActionLog,
   ActivityMode,
   ActivityPick,
   ActivitySuggestion,
@@ -14,6 +15,7 @@ import type {
   ContextChanged,
   ContextState,
   DailyNoteState,
+  Diagnostics,
   EndOfDayAnswer,
   ErrorKind,
   FocusInfo,
@@ -82,6 +84,11 @@ export const api = {
   openLogFolder: () => invoke<void>("open_log_folder"),
   /** Runs a command of the Rust command bus by id (`app:settings`, `hub:open`, …); rejects when it is unknown, disabled or fails. */
   runCommand: (id: string) => invoke<void>("run_command", { id }),
+  /** Settings → Status: what Daybook sent and why, newest first. */
+  actionLogGet: () => invoke<ActionLog>("action_log_get"),
+  actionLogClear: () => invoke<void>("action_log_clear"),
+  /** Settings → Status: the state of the vault, Slack, TimeTracker, permissions and automation. */
+  diagnosticsGet: () => invoke<Diagnostics>("diagnostics_get"),
   /** The contexts as the switcher shows them, and the current one. */
   contextState: () => invoke<ContextState>("context_state"),
   /** Sets today's status and closes the status overlay; `endOfDay` is the end-of-day check's answer and `endOfDayList` the end-of-day list when going Off. */
@@ -269,6 +276,8 @@ export const api = {
   onCalendarChanged: (handler: () => void): Promise<UnlistenFn> => listen("calendar_changed", handler),
   /** A call started, changed or ended. */
   onCallChanged: (handler: () => void): Promise<UnlistenFn> => listen("call_changed", handler),
+  /** The action log got an event or a line changed state. */
+  onActionLogChanged: (handler: () => void): Promise<UnlistenFn> => listen("action_log_changed", handler),
   /** What Music plays, or its volume, changed. */
   onMusicChanged: (handler: (music: MusicState) => void): Promise<UnlistenFn> => listen<MusicState>("music_changed", (e) => handler(e.payload)),
   /** What Slack shows, or the Slack connection, changed. */

@@ -21,7 +21,7 @@ use crate::error::{AppError, AppResult};
 use crate::http_api::{self, ApiStatus};
 use crate::state::AppState;
 use crate::store::settings::SlackStatus;
-use crate::{slack, stage, status, window};
+use crate::{action_log, slack, stage, status, window};
 use cli::CliInfo;
 
 /// Lets the answer to a command that quits reach its caller before the app exits.
@@ -40,7 +40,14 @@ pub async fn run(
     if action.needs_vault() && !app.has_vault() {
         return Err(AutomationError::no_vault());
     }
-    let mut outcome = perform(app, Request::read(action, params)?).await?;
+    let request = Request::read(action, params)?;
+    let mut outcome = match request {
+        Request::State => perform(app, request).await?,
+        request => {
+            let title = format!("Automation: {}", action.name());
+            action_log::traced(&title, perform(app, request)).await?
+        }
+    };
     outcome.insert("state".into(), json!(state::now(app).await));
     Ok(outcome)
 }

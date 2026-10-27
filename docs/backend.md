@@ -270,7 +270,7 @@ page as `activate` once it has loaded.
 `remote.rs`: `Bridge::ask(app, request)` emits `remote` with a fresh id (`pending::PendingReplies`) and waits
 up to 4 s (`REPLY_TIMEOUT`, below the IPC client's 5 s) for `remote_reply`; no window, a dropped request and
 a timeout each become an `io` error naming it. `remote_reply` with `error` set is a failure; a late or
-unknown id is logged at debug. `RemoteRequest` (tagged by `type`) has no variants yet; later steps add them.
+unknown id is logged at debug. `RemoteRequest` (tagged by `type`) has no variants: the bridge is ready, nothing asks the page yet.
 `src/commands/remote.ts` (`answerRemote`) always replies, with an error for a request it does not know.
 
 `pending.rs` is generic: `PendingReplies<T>::ask(timeout, send)` hands `send` the id and waits;
@@ -279,7 +279,7 @@ unknown id is logged at debug. `RemoteRequest` (tagged by `type`) has no variant
 
 ### Deep links
 
-`deep_link.rs`: `listen` registers `on_open_url` for `daybook://` (`LINK_SCHEME`; debug builds claim
+`deep_link.rs`: `listen` registers `on_open_url` for `daybook://` (debug builds claim
 `daybook-debug://` in `tauri.debug.conf.json`, so the two builds never take each other's links). `parse_link(url)`
 (pure) reads `daybook://<action>?<params>` (no host means `show`; a path is an error; a repeated parameter's last
 value wins) and runs `automation::run`. Links wait in `PendingLinks` until the page has loaded
@@ -474,6 +474,34 @@ in [ux.md](ux.md#menu-bar).
 - **README.** Help → README runs `app:readme` (`help::open_readme`): the `README.md` bundled as a resource
   (`bundle.resources` in `tauri.conf.json`), else in debug builds the repository's (`readme_path`), opened in
   the default app.
+
+## Action log
+
+`action_log/` records what Daybook sent where and why, for Settings → Status. An event is a trigger (its title:
+"Status changed: Working → Break", "Call ended: Zoom", "Context changed: Work → Hobby by schedule",
+"Automation: status", …) with lines, one per thing sent: a target (`obsidian`, `slackStatus`, `slackMessage`,
+`timetracker`, `daybook`), a state (`sending`, `done`, `waiting`, `skipped`, `failed`), a text and a detail.
+
+- `model.rs` (pure, `Log`): lines within 2 minutes of a trigger join its event; a trigger started inside another
+  becomes a "Daybook" line of its parent; a merging trigger (journal and quick-note saves) with the same title
+  within 15 minutes counts up (×N) instead of adding an event; `prune` keeps 14 days and at most 2000 events, and
+  drops empty events after 2 minutes unless kept.
+- `scope.rs`: the current trigger is a tokio task-local plus a thread-local guard, never a global; spawned work
+  takes it along (`carry`, `carry_sync`, `action_log::spawn`), and the call broadcast carries its trigger
+  (`calls::Announced`), so what Slack, TimeTracker and music do for a call joins one event.
+- `mod.rs`: one process-wide `ActionLog` set by `install` (logging does nothing before it and in tests), saved
+  debounced to `action-log.json` and on exit, `action_log_changed` on every change. Hooks are one line at each
+  writer: note ops (`NoteOp::describe`; a waiting entry turns done when `Pending::drain` writes it), Slack status
+  and messages (failures also kept as `slack::last_error`), TimeTracker writes (`timetracker/logged.rs`; a debug
+  dry run is `skipped`), status, contexts, routines, journal, quick notes, Jira, calls, status rules, automation
+  and music automation.
+- `view.rs` (pure): `action_log_get`'s `ActionLog`, newest first, with `dayLabel` ("Today", "Yesterday",
+  "Mon 26 Oct") and HH:MM times. `action_log_clear` empties it.
+
+`diagnostics/` (`diagnostics_get`): groups of rows for Settings → Status, built in `groups.rs` (pure) from the
+existing info functions: Vault, Slack (connected user, last error), TimeTracker (running, version, the `watch`
+link: `timetracker::WatchLink`, linked projects), Permissions (Calendar, Accessibility), Automation (the
+`daybook` command, the HTTP API, the URL scheme). Each row has a tone and may offer a bus command as a button.
 
 ## Logging
 

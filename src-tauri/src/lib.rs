@@ -1,3 +1,4 @@
+pub mod action_log;
 pub mod activity;
 mod app;
 pub mod automation;
@@ -12,6 +13,7 @@ pub mod contexts;
 pub mod deep_link;
 #[cfg(debug_assertions)]
 mod dev;
+pub mod diagnostics;
 pub mod error;
 pub mod events;
 pub mod focus;

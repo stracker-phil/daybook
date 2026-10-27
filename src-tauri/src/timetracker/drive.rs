@@ -8,8 +8,9 @@ use tokio::sync::broadcast::error::RecvError;
 use super::call_suggestion::{CallSuggestion, FinishedCall, call_suggestion};
 use super::status_timer::{TimerKnown, TimerStep, needs_last_timer, timer_step};
 use super::{blocking, client, tracking};
+use crate::action_log;
 use crate::activity::{self, session::ActivityMode};
-use crate::calls::{self, ActiveCall, CallEvent};
+use crate::calls::{self, ActiveCall, Announced, CallEvent};
 use crate::error::{AppError, ErrorKind};
 use crate::events::STATUS_CHANGED_EVENT;
 use crate::state::AppState;
@@ -157,7 +158,7 @@ fn listen_status(app: &AppHandle) {
         move |event| match serde_json::from_str::<StatusChanged>(event.payload()) {
             Ok(change) => {
                 let app = handle.clone();
-                tauri::async_runtime::spawn(async move { status_changed(&app, change).await });
+                action_log::spawn(async move { status_changed(&app, change).await });
             }
             Err(e) => log::warn!("Couldn't read a status change: {e}"),
         },
@@ -170,7 +171,10 @@ fn follow_calls(app: &AppHandle) {
     tauri::async_runtime::spawn(async move {
         loop {
             match rx.recv().await {
-                Ok(CallEvent::Ended { call, end }) => call_ended(&handle, call, end).await,
+                Ok(Announced {
+                    event: CallEvent::Ended { call, end },
+                    trigger,
+                }) => action_log::within(trigger, call_ended(&handle, call, end)).await,
                 Ok(_) | Err(RecvError::Lagged(_)) => continue,
                 Err(RecvError::Closed) => break,
             }

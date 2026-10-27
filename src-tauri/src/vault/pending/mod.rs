@@ -1,6 +1,8 @@
 //! Changes for a note that can't take them yet (it doesn't exist, or it kept changing): kept in
 //! `pending-entries.json` with no expiry, written in order once their note can take them.
 
+mod report;
+
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -10,11 +12,14 @@ use serde_json::Value;
 
 use super::ops::{NoteLayout, NoteOp};
 use super::writer::{NoteWriter, WriteError};
+use crate::action_log::{ActionState, Logged};
 use crate::error::AppResult;
 use crate::lock::MutexExt;
 use crate::store::json_store::JsonStore;
 
 pub const FILE_NAME: &str = "pending-entries.json";
+/// The detail of a change the note already had.
+pub const ALREADY: &str = "Already in the note";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -25,6 +30,9 @@ pub struct PendingEntry {
     pub file: PathBuf,
     pub description: String,
     pub op: NoteOp,
+    /// Its line in the action log; this session only.
+    #[serde(skip)]
+    pub logged: Logged,
 }
 
 #[derive(Serialize, Clone, Debug, Default, PartialEq)]
@@ -96,12 +104,14 @@ impl Pending {
         })
     }
 
-    pub fn enqueue(&self, file: &Path, op: NoteOp) -> AppResult<()> {
+    /// Queues `op` with its action-log line, which moves on once it is written.
+    pub fn enqueue_logged(&self, file: &Path, op: NoteOp, logged: Logged) -> AppResult<()> {
         let entry = PendingEntry {
             created_at: chrono::Utc::now().timestamp_millis(),
             file: file.to_path_buf(),
             description: op.describe(),
             op,
+            logged,
         };
         self.store.update(|pending| pending.entries.push(entry))
     }
@@ -121,15 +131,26 @@ impl Pending {
             }
             let mut edit = |text: &str| entry.op.apply(text, layout);
             match writer.edit_note(vault, &entry.file, &mut edit) {
-                Ok(_) => drained.written += 1,
+                Ok(changed) => {
+                    drained.written += 1;
+                    if changed {
+                        entry.report(ActionState::Done, None);
+                    } else {
+                        entry.report(ActionState::Skipped, Some(ALREADY.into()));
+                    }
+                }
                 Err(e @ (WriteError::Edit(_) | WriteError::OutsideVault(_))) => {
-                    log::warn!("Dropped the waiting change “{}”: {e}", entry.description);
-                    drained
-                        .dropped
-                        .push((entry.description.clone(), e.to_string()));
+                    let reason = e.to_string();
+                    log::warn!(
+                        "Dropped the waiting change “{}”: {reason}",
+                        entry.description
+                    );
+                    entry.report(ActionState::Failed, Some(reason.clone()));
+                    drained.dropped.push((entry.description.clone(), reason));
                 }
                 Err(e @ (WriteError::Conflict(_) | WriteError::Io { .. })) => {
                     log::warn!("“{}” waits: {e}", entry.description);
+                    entry.report(ActionState::Waiting, Some(format!("{e} Retried later.")));
                     blocked.insert(entry.file.clone());
                     continue;
                 }
@@ -203,9 +224,15 @@ mod tests {
         let vault = tempfile::tempdir().unwrap();
         let (a, b) = (note(vault.path(), "a.md"), note(vault.path(), "b.md"));
         let pending = Pending::open(config.path());
-        pending.enqueue(&a, step("One")).unwrap();
-        pending.enqueue(&b, step("Other")).unwrap();
-        pending.enqueue(&a, step("Two")).unwrap();
+        pending
+            .enqueue_logged(&a, step("One"), Logged::default())
+            .unwrap();
+        pending
+            .enqueue_logged(&b, step("Other"), Logged::default())
+            .unwrap();
+        pending
+            .enqueue_logged(&a, step("Two"), Logged::default())
+            .unwrap();
         drop(pending);
 
         let reopened = Pending::open(config.path());
@@ -237,9 +264,15 @@ mod tests {
         assert_eq!(pending.count(), 0);
         assert!(pending.files().is_empty());
 
-        pending.enqueue(&a, step("One")).unwrap();
-        pending.enqueue(&b, step("Two")).unwrap();
-        pending.enqueue(&a, step("Three")).unwrap();
+        pending
+            .enqueue_logged(&a, step("One"), Logged::default())
+            .unwrap();
+        pending
+            .enqueue_logged(&b, step("Two"), Logged::default())
+            .unwrap();
+        pending
+            .enqueue_logged(&a, step("Three"), Logged::default())
+            .unwrap();
 
         assert_eq!(pending.count(), 3);
         assert!(pending.has_for(&a));
@@ -259,10 +292,18 @@ mod tests {
         create(&present);
         let writer = NoteWriter::default();
         let pending = Pending::open(config.path());
-        pending.enqueue(&missing, step("First")).unwrap();
-        pending.enqueue(&present, step("Early")).unwrap();
-        pending.enqueue(&missing, step("Second")).unwrap();
-        pending.enqueue(&present, step("Late")).unwrap();
+        pending
+            .enqueue_logged(&missing, step("First"), Logged::default())
+            .unwrap();
+        pending
+            .enqueue_logged(&present, step("Early"), Logged::default())
+            .unwrap();
+        pending
+            .enqueue_logged(&missing, step("Second"), Logged::default())
+            .unwrap();
+        pending
+            .enqueue_logged(&present, step("Late"), Logged::default())
+            .unwrap();
 
         let first = pending.drain(&writer, vault.path(), &layout());
 
@@ -309,8 +350,12 @@ mod tests {
             answers: JournalGroupAnswers::default(),
         };
         let pending = Pending::open(config.path());
-        pending.enqueue(&file, gone.clone()).unwrap();
-        pending.enqueue(&file, step("Fine")).unwrap();
+        pending
+            .enqueue_logged(&file, gone.clone(), Logged::default())
+            .unwrap();
+        pending
+            .enqueue_logged(&file, step("Fine"), Logged::default())
+            .unwrap();
 
         let drained = pending.drain(&NoteWriter::default(), vault.path(), &layout());
 

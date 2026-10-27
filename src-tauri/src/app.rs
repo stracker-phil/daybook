@@ -12,10 +12,10 @@ use crate::ipc::IpcMessage;
 use crate::state::AppState;
 use crate::store::import::Import;
 use crate::{
-    activity, bus, calendar, calls, commands, contexts, deep_link, focus, http_api, ipc, jira,
-    journal, launcher, links, menu, music, notify, presence, quick_notes, rail, remote, routines,
-    scheduler, search, shortcuts, slack, stage, status, status_rules, timetracker, tray, vault,
-    window, wizard,
+    action_log, activity, bus, calendar, calls, commands, contexts, deep_link, focus, http_api,
+    ipc, jira, journal, launcher, links, menu, music, notify, presence, quick_notes, rail, remote,
+    routines, scheduler, search, shortcuts, slack, stage, status, status_rules, timetracker, tray,
+    vault, window, wizard,
 };
 
 const MAX_LOG_BYTES: u128 = 5 * 1024 * 1024;
@@ -70,6 +70,7 @@ pub fn start(
             app.set_menu(menu::build(app.handle())?)?;
             state.launches.push(initial);
             report_import(&state, import);
+            action_log::install(app.handle());
             commands::apply_settings(app.handle(), None, &state.settings.get());
             vault::commands::install(app.handle());
             search::start(app.handle());
@@ -115,6 +116,7 @@ pub fn start(
             RunEvent::Exit => {
                 stage::unpublish(app);
                 timetracker::stop(app);
+                action_log::flush();
             }
             _ => {}
         });

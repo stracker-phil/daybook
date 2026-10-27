@@ -8,34 +8,99 @@ review changed files. This page lists what such changes touch.
 
 ## Identity
 
-The app's name and ids live in a few places. Change them together.
+The app's name and ids live in a few places. Change them together. Debug builds (`bun run build:app`) are a
+second app with their own name, identifier, data, socket and URL scheme, so they run beside the release app
+([ADR 0014](adr/0014-debug-build-has-its-own-data.md)).
 
-| What | Value | Where |
+| What | Release | Debug | Where |
+|---|---|---|---|
+| Product name | `Daybook` | `Daybook (Debug)` | `tauri.conf.json` `productName` and window `title`; `tauri.debug.conf.json` `productName`; `lib.rs` `APP_NAME` (the menu bar and the tray tooltip); `bus/commands.rs`, `menu/model.rs`, `cli/grammar.rs` and `cli/help.rs` (`Quit Daybook`); `tray.rs` (item labels); `index.html` and `src/windows/*/index.html`; the settings page intros in `components/settings/pages.tsx`; user-facing errors in `lib.rs`, `instance.rs`, `ipc.rs`, `remote.rs`, `deep_link.rs` and `cli/reply.rs` |
+| Bundle | `Daybook.app` | `Daybook (Debug).app` | `scripts/install.sh`, `scripts/stop-app.sh`, `scripts/dev/launch.sh`, `scripts/dev/smoke.sh`, the `app` script of `package.json`; the window owner `Daybook (Debug)` in `scripts/dev/screenshot.sh` |
+| Bundle identifier | `com.philippstracker.daybook` | `com.philippstracker.daybook.debug` | `tauri.conf.json` and `tauri.debug.conf.json` `identifier`; `lib.rs` `IDENTIFIER` (a test compares it with both files); the signing identifier in `scripts/install.sh` and `scripts/dev/launch.sh`; the socket path in `scripts/dev/js.sh` and `scripts/dev/smoke.sh`. It names the config dir, the log dir and the Keychain service, so changing it starts with empty settings and no tokens |
+| Binary and CLI command | `daybook` | the same binary name inside the debug bundle, run by path | Cargo package `name` in `src-tauri/Cargo.toml` (also the self dev-dependency); `cli/mod.rs` (`name`), `cli/help.rs` `TOOL`; `cli/reply.rs` (`Daybook <version>` line); the README's command examples; `scripts/install.sh`, `scripts/stop-app.sh`, `scripts/dev/launch.sh`, `scripts/dev/smoke.sh`; `.claude/settings.json` (`pkill -x daybook`) |
+| Installed links | `~/Applications/Daybook.app`, `~/.local/bin/daybook` | none: debug builds are never installed | `scripts/install.sh` (the CLI link only when the path is free or already its link, else `--replace-cli`); `automation/cli.rs` `cli_info` (whether `~/.local/bin/daybook` runs this app) |
+| Rust lib | `daybook_lib` | | `Cargo.toml` `[lib]`; `main.rs` |
+| URL scheme | `daybook://` | `daybook-debug://` | `tauri.conf.json` and `tauri.debug.conf.json` `plugins.deep-link.desktop.schemes` (the bundler writes them into `Info.plist`); `lib.rs` `LINK_SCHEME` (a test compares it with both files); `deep_link.rs` runs the automation actions `state`, `show`, `status`, `slack`, `command` ([automation.md](automation.md#links)) |
+| Socket, lock | `daybook.sock`, `daybook.lock` in the config dir | the same names in the debug config dir | `lib.rs` `SOCKET_NAME`, `instance.rs` `LOCK_NAME`; `scripts/dev/js.sh`, `scripts/dev/smoke.sh` (the socket) |
+| Config dir | `~/Library/Application Support/com.philippstracker.daybook/` | `….daybook.debug/` | `lib.rs` `config_dir()` |
+| Data files | in the config dir: `settings.json`, `keybindings.json`, `ui_state.json`, `context.json`, `status-memory.json`, `pending-entries.json`, `routines.json`, `day-message.json`, `slack-shown.json`, `jira-tickets.json`, `checkins.json`, `quick_notes.json` | the same in the debug config dir | `store/settings/store.rs`, `store/keybindings.rs`, `store/ui_state.rs`, `contexts/mod.rs`, `status/memory.rs`, `vault/pending.rs`, `routines/fired.rs`, `slack/day_message.rs`, `slack/shown.rs`, `jira/tickets.rs`, `activity/pause.rs`, `quick_notes/mod.rs` |
+| Logs dir | `~/Library/Logs/com.philippstracker.daybook/` | `….daybook.debug/` | Tauri's `app_log_dir`, from the identifier |
+| LaunchAgent | `~/Library/LaunchAgents/Daybook.plist`, written by `tauri-plugin-autostart` and named after `productName` | named after the debug `productName` | `app.rs` (`MacosLauncher::LaunchAgent`, `--hidden`), `autostart.rs` |
+| Keychain | generic passwords, service = the bundle identifier: accounts `slack-token` and `api-token` (the HTTP API) | the debug identifier | `secrets.rs`, `slack/token.rs`, `http_api/token.rs` |
+| HTTP API | `127.0.0.1:27180` (`settings.api.port`), off by default | the same setting in the debug config dir | `http_api/`, `store/settings/` ([ADR 0021](adr/0021-a-local-http-api-with-guards.md)) |
+| Stage discovery | `~/Library/Application Support/glaze-stage/apps/<identifier>.json` | the debug identifier | `stage/discovery.rs` ([stage.md](stage.md)) |
+| Signing certificate | `Daybook Local Signing` in the login keychain, or `DAYBOOK_SIGN_IDENTITY` | the same certificate | `scripts/create-signing-cert.sh`, `scripts/sign-app.sh`; `tauri.conf.json` `bundle.macOS.signingIdentity: "-"` (ad hoc at build time, re-signed by the scripts). The grant for Accessibility, Calendars and Automation belongs to identifier + certificate ([testing.md](testing.md#signing)) |
+| Env vars | `DAYBOOK_SIGN_IDENTITY` | also `DAYBOOK_WINDOW_FRAME`, `DAYBOOK_BACKGROUND`, `DAYBOOK_DEV_TERMINAL` | `scripts/sign-app.sh`; `dev.rs` (compiled into debug builds only); `scripts/dev/launch.sh` |
+| Store on `window` | none | `window.daybook` (`VITE_DEV_HOOKS=1`) | `src/main.tsx`, `src/vite-env.d.ts`, the dev scripts |
+| Icons | the prototype's app icon | the same | `src-tauri/icons/` generated with `bun tauri icon <1024px png>` (only the desktop files are kept); tray template images in `src-tauri/icons/tray/` |
+| Author, license | Philipp Stracker, MIT | | `Cargo.toml`, `package.json`, `LICENSE` |
+
+## Network hosts
+
+`net.rs` is the only HTTP client and talks only to the hosts in `HOSTS`
+([ADR 0020](adr/0020-network-only-to-listed-hosts.md)); any other host is `NetError::NotAllowed`.
+
+| Host | For | Where |
 |---|---|---|
-| Product name | `Daybook` | `tauri.conf.json` `productName` and window `title`; `lib.rs` `APP_NAME` (`Daybook (Debug)` in debug builds; the menu bar and the tray tooltip); `bus/commands.rs`, `menu/model.rs` and `cli/mod.rs` (`Quit Daybook`); `tray.rs` (item labels); `index.html` and `src/windows/panel/index.html`; the settings page intros in `components/settings/pages.tsx`; user-facing errors in `lib.rs`, `instance.rs`, `ipc.rs`, `remote.rs`, `deep_link.rs` and `cli/reply.rs`; the `Daybook.app` path in `scripts/install.sh`, `scripts/stop-app.sh`, `scripts/dev/launch.sh` and the `app` script of `package.json`; the window owner in `scripts/dev/screenshot.sh`; the certificate name in `scripts/create-signing-cert.sh` and `scripts/sign-app.sh` |
-| Bundle identifier | `com.philippstracker.daybook` | `tauri.conf.json` `identifier`; `lib.rs` `IDENTIFIER` (a test compares both); `scripts/dev/js.sh` (socket path); `scripts/install.sh` and `scripts/dev/launch.sh` (the signing identifier); `tauri.debug.conf.json` and `lib.rs` `IDENTIFIER` in debug builds (`com.philippstracker.daybook.debug` and `Daybook (Debug)`, so macOS lists and grants it apart and it has its own data, ADR 0014); `scripts/dev/js.sh` uses the debug folder's socket. It also names the config dir and the log dir; changing it starts with empty settings |
-| Binary and CLI command | `daybook` | Cargo package `name` in `src-tauri/Cargo.toml` (also the self dev-dependency); `cli/mod.rs` `name` and `EXAMPLES`; `cli/reply.rs` (`Daybook <version>` line); the README's command examples; `scripts/install.sh`; `scripts/stop-app.sh`; `scripts/dev/launch.sh`; `.claude/settings.json` (`pkill -x daybook`) |
-| Rust lib | `daybook_lib` | `Cargo.toml` `[lib]`; `main.rs` |
-| URL scheme | `daybook://` (only `daybook://show`) | `tauri.conf.json` `plugins.deep-link.desktop.schemes` (the bundler writes it into `Info.plist`); `deep_link.rs` (`parse_link`, error text) |
-| Socket, lock | `daybook.sock`, `daybook.lock` in the config dir | `lib.rs` `SOCKET_NAME`, `instance.rs` `LOCK_NAME`; `scripts/dev/js.sh` (the socket) |
-| Config files | `settings.json`, `keybindings.json`, `ui_state.json` in the config dir (plus the state files the import copies) | `store/settings/store.rs` `FILE_NAME`, `store/keybindings.rs`, `store/ui_state.rs` |
-| LaunchAgent | `~/Library/LaunchAgents/Daybook.plist`, written by `tauri-plugin-autostart` and named after `productName` | `app.rs` (`MacosLauncher::LaunchAgent`, `--hidden`), `autostart.rs` |
-| Config dir | `~/Library/Application Support/com.philippstracker.daybook/` (debug builds: `….daybook.debug/`) | `lib.rs` `config_dir()` |
-| Prototype import | reads `~/Library/Application Support/app.glaze.macos.2mykv1oc-local/` once (ADR 0013) | `store/import/` (`PROTOTYPE_DIR`); owner-specific: delete the module and its calls in `lib.rs` and `app.rs` (`report_import`) to drop it |
-| Keychain | generic password, service = the bundle identifier, account `slack-token` | `secrets.rs`, `slack/token.rs` |
-| Network hosts | `slack.com`, `itunes.apple.com` (the artist search) | `net.rs` `HOSTS` ([ADR 0020](adr/0020-network-only-to-listed-hosts.md)) |
-| Logs dir | `~/Library/Logs/com.philippstracker.daybook/` (debug builds: `….daybook.debug/`) | Tauri's `app_log_dir`, from the identifier |
-| Env vars | `DAYBOOK_WINDOW_FRAME`, `DAYBOOK_BACKGROUND` (debug builds), `DAYBOOK_DEV_TERMINAL`, `DAYBOOK_SIGN_IDENTITY` | `dev.rs`, `window.rs`, `scripts/dev/launch.sh`, `scripts/sign-app.sh` |
-| Store on `window` | `window.daybook` | `src/main.tsx`, `src/vite-env.d.ts`, the dev scripts |
-| Icons | the prototype's app icon | `src-tauri/icons/` generated with `bun tauri icon <1024px png>` (only the desktop files are kept); tray template images in `src-tauri/icons/tray/` |
-| Author, license | Philipp Stracker, MIT | `Cargo.toml`, `package.json`, `LICENSE` |
+| `slack.com` | the Slack Web API: identity, status, presence, channel messages | `slack/` |
+| `itunes.apple.com` | the artist search for music entries | `music/` |
+
+Everything else leaves the Mac only through other apps: links and Jira issues open in the browser
+(`tauri-plugin-opener`), joining hands a meeting to the call app (`calls/join.rs`). A new host goes into
+`HOSTS` with an ADR.
+
+## External tools
+
+Daybook drives other apps through their command line tools, found without the login `PATH` (an app started by
+launchd has a short one; `process.rs` `EXTRA_PATH` adds the Homebrew folders).
+
+| Tool | Needed for | Where |
+|---|---|---|
+| `timetracker` (TimeTracker's CLI) | the timer, projects, recordings, suggestions, `show` | see [TimeTracker](#timetracker) |
+| `obsidian` (the Obsidian CLI) | creating today's note | `vault/obsidian.rs` `CANDIDATES` |
+| `plaunch` (Project Launcher) | the Projects overlay, `projects:open:<id>` | `launcher/mod.rs` `TOOL`, `Launcher::default` (`~/.local/bin`, `/usr/local/bin`, `/opt/homebrew/bin`) |
+| `osascript` | Music (JXA), Chrome's tabs for call detection | `music/script.rs`, `calls/probe.rs` |
+| `lsappinfo`, `pgrep`, `pmset`, `ps`, `ioreg` | call detection, the lock state | `calls/probe.rs`, `presence/native.rs` |
+| `open -b` | starting call apps before joining | `calls/join.rs` |
+
+### TimeTracker
+
+TimeTracker (`../timetracker`) owns timers; Daybook never tracks time
+([ADR 0022](adr/0022-daybook-drives-timetracker-through-its-cli.md), [timetracker.md](timetracker.md)).
+
+- **Path:** `settings.timetracker.path`, default `~/.local/bin/timetracker` (`timetracker/client.rs`
+  `DEFAULT_PATH`; Settings → TimeTracker).
+- **Words Daybook runs**, each with `--json`: `status`, `projects --archived`, `timer status`,
+  `timer recent --limit <n>`, `timer start <project> [--note=…]`, `timer stop`, `record …`, `recordings <day>`,
+  `suggestions <day>`, `show [day]`, `focus`, and `watch --json` as a long-running stream
+  (`timetracker/watch.rs`). An older TimeTracker without `watch` is polled with `timer status`.
+- **Contract:** exit 0 with the JSON reply on stdout, exit 1 with a JSON refusal, exit 2 when TimeTracker isn't
+  running (`timetracker/client.rs` `reply_result`, the parsers in `timetracker/reply.rs`).
+- **Debug builds** run only the words in `READS` (`changes_data`); writes are logged as dry runs.
+- Without TimeTracker the app works; the timer surfaces show "not running" or "missing".
+
+### Prototype import
+
+`store/import/` copies the Glaze prototype's configuration once
+([ADR 0013](adr/0013-one-settings-model-imported-once.md)). It runs while Daybook has no `settings.json` and
+`~/Library/Application Support/app.glaze.macos.2mykv1oc-local/` (`PROTOTYPE_DIR`) has one, and only reads that
+folder.
+
+- Settings: converted by `store/import/settings.rs`; tracking-only keys are dropped (`DROPPED`).
+- State files: `STATE_FILES` in `store/import/state.rs` (`mode.json` becomes `context.json`; `status-memory.json`,
+  `jira-tickets.json`, `routines.json`, `day-message.json`, `slack-shown.json`, `pending-entries.json` keep their
+  names).
+- The Slack token (`slack-token.bin`, Electron safeStorage) can't be read: the report asks for it again.
+- `settings.json` is written last, so an import that fails part-way runs again at the next start.
+
+Owner-specific: delete the module and its calls in `lib.rs` and `app.rs` (`report_import`) to drop it.
 
 ## Platform-specific code
 
 | Piece | Where | Linux | Windows |
 |---|---|---|---|
 | **Tray**: template images (black with alpha, tinted by macOS), menu on left click | `tray.rs`, `src-tauri/icons/tray/` | Works with an `AppIndicator`; template tinting does not apply, ship colored icons | Works; colored icons |
-| **Dock icon**: hidden by Hide to Menu Bar, shown with the window | `window.rs` `set_dock_icon` (`cfg(target_os = "macos")`) | No Dock; nothing to do | Same |
+| **Dock icon**: hidden by Hide to Menu Bar, shown with the window | `window/mod.rs` `set_dock_icon` | No Dock; nothing to do | Same |
 | **Calendar**: EventKit through `objc2-event-kit`, the usage strings in `src-tauri/Info.plist` | `calendar/eventkit.rs` | No EventKit: read CalDAV or `.ics` instead behind the same `Store` | No EventKit: the Windows calendar APIs |
 | **Presence**: NSWorkspace sleep/wake, the distributed lock/unlock notifications, `ioreg` for the lock state | `presence/native.rs` | logind / D-Bus session signals | `WTSRegisterSessionNotification` |
 | **Call detection**: `lsappinfo`, `pgrep`, `pmset -g assertions`, `ps`, `CGWindowListCopyWindowInfo`, `osascript` (Chrome tabs), Accessibility window titles; bundle ids in `store/settings/calls.rs` | `calls/probe.rs`, `calls/access.rs`, `calls/checks.rs` | Process names and PulseAudio/PipeWire sources behind the same `Probe` | Process list and the audio session API behind the same `Probe` |
@@ -56,7 +121,14 @@ The app's name and ids live in a few places. Change them together.
 | **Install and dev scripts** (zsh, `ln` into `~/Applications` and `~/.local/bin`, `codesign`, Swift, CoreGraphics, `screencapture`) | `scripts/install.sh`, `scripts/stop-app.sh`, `scripts/sign-app.sh`, `scripts/create-signing-cert.sh`, `scripts/dev/` | Link into `~/.local/bin` and a `.desktop` file; rewrite the dev scripts or use `bun tauri dev` | PowerShell |
 | **Obsidian CLI**: looked up in a login `/bin/zsh`, then in `/usr/local/bin`, `/opt/homebrew/bin` and `Obsidian.app`; child processes get the Homebrew folders on the `PATH` | `vault/obsidian.rs` `CANDIDATES`, `process.rs` (`EXTRA_PATH`, `run_in_login_shell`) | The user's shell and `/usr/bin/obsidian`; drop the Homebrew paths | `where obsidian` and `%LOCALAPPDATA%\Obsidian`; no login shell |
 | **File watcher**: `notify`'s FSEvents backend; reported paths are canonical (`/private/var` for `/var`) | `vault/watch.rs`, `vault/commands.rs` `same_file` | inotify; works as is | ReadDirectoryChangesW; works as is |
-| **Overlay panel**: a non-activating `NSPanel` by class swap, Space behaviour, `NSScreen`/`NSEvent` for the pointer's screen, `NSWorkspace` and the window list for focus hand-back | `window/native.rs`, `window/panel/native.rs` | An always-on-top undecorated window; no Spaces | A tool window with `WS_EX_NOACTIVATE` |
+| **Overlay panel**: a non-activating `NSPanel` by class swap (`DaybookPanel`, which needs tao pinned to 0.37.1), Space behaviour, `NSScreen`/`NSEvent` for the pointer's screen, `NSWorkspace` and the window list for focus hand-back | `window/native.rs`, `window/panel/native.rs` ([windows.md](windows.md#what-needed-objc2)) | An always-on-top undecorated window; no Spaces | A tool window with `WS_EX_NOACTIVATE` |
+| **Rail and its tooltip**: `DaybookInertPanel`s by class swap that never become key, on every Space and over full-screen apps; the pointer is polled and relayed to the pages | `rail/native.rs`, `rail/mod.rs` | An always-on-top undecorated window; poll the pointer through X11/Wayland | A `WS_EX_NOACTIVATE` tool window |
+| **Quick notes editor**: level above the menu bar, hidden window buttons, moving to the active Space, screen-change notification, presentation over one screen | `window/native.rs`, `window/presentation.rs` | Always-on-top window; full screen through the window manager | Same |
+| **Accessibility**: `AXIsProcessTrusted` and the prompt; window titles through `AXUIElement` | `calls/access.rs`, `calls/probe.rs` | AT-SPI, or drop title checks | UI Automation |
+| **Music**: JXA through `osascript` (Automation permission) | `music/script.rs` | MPRIS over D-Bus | The media session API |
+| **Notifications**: `tauri-plugin-notification`, a button runs a bus command | `notify.rs` | Works through the plugin; actions depend on the desktop | Works through the plugin |
+| **Random token**: `SecRandom` for the HTTP API token | `http_api/token.rs` | `getrandom` | `getrandom` |
+| **Global shortcuts**: registered only in debug builds until the prototype is retired (`shortcuts::REGISTERED`, [ADR 0018](adr/0018-global-shortcuts-only-in-debug-builds.md)) | `shortcuts/` | Works through the plugin on X11 | Works through the plugin |
 | **Tests**: the setup pretends to be a Mac (`navigator.platform`) | `src/test-setup.ts` | Make the platform a parameter | Same |
 
 A port is done when `bun run test`, `bun run lint` and `bun run release` pass on the target, and the app can:

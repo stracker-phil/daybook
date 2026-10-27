@@ -10,6 +10,7 @@ pub mod commands;
 pub mod day;
 mod drive;
 pub mod link;
+pub mod logged;
 pub mod reply;
 mod status_timer;
 pub mod watch;
@@ -24,7 +25,7 @@ use tauri::{AppHandle, Emitter, Listener, Manager};
 
 pub use commands::register;
 use commands::{TimeTrackerInfo, TimeTrackerProjects};
-pub use watch::{Tracking, TtState};
+pub use watch::{Tracking, TtState, WatchLink};
 
 use self::client::{Cli, resolve_path, state_of};
 use self::day::{DayChange, TimeTrackerDay};
@@ -48,6 +49,8 @@ pub struct TimeTrackerService {
     /// The Daybook project of the timer as Slack heard it last.
     project: Mutex<Option<String>>,
     watching: Arc<Mutex<Option<Child>>>,
+    /// Whether a `watch` is connected.
+    link: Mutex<WatchLink>,
     /// Ends a wait between connections (the path changed).
     wake: Mutex<Option<Sender<()>>>,
 }
@@ -59,10 +62,14 @@ fn service(app: &AppHandle) -> &TimeTrackerService {
 /// The tool at the path from Settings.
 pub fn cli(app: &AppHandle) -> Cli {
     let settings = app.state::<AppState>().settings.get();
-    Cli::new(
+    let cli = Cli::new(
         resolve_path(&settings.timetracker.path),
         Arc::clone(&service(app).watching),
-    )
+    );
+    match cached_projects(app) {
+        Some(projects) => cli.with_names(&projects),
+        None => cli,
+    }
 }
 
 /// Runs blocking work with the tool off the async runtime.
@@ -71,9 +78,17 @@ pub async fn blocking<T: Send + 'static>(
     work: impl FnOnce(&Cli) -> AppResult<T> + Send + 'static,
 ) -> AppResult<T> {
     let tool = cli(app);
-    tauri::async_runtime::spawn_blocking(move || work(&tool))
+    tauri::async_runtime::spawn_blocking(crate::action_log::carry_sync(move || work(&tool)))
         .await
         .map_err(|_| AppError::TimeTrackerNotRunning(client::NO_ANSWER.into()))?
+}
+
+pub fn watch_link(app: &AppHandle) -> WatchLink {
+    *service(app).link.lock_unpoisoned()
+}
+
+fn set_link(app: &AppHandle, link: WatchLink) {
+    *service(app).link.lock_unpoisoned() = link;
 }
 
 pub fn tracking(app: &AppHandle) -> Tracking {
@@ -278,6 +293,7 @@ struct AppSink<'a>(&'a AppHandle);
 
 impl Sink for AppSink<'_> {
     fn connected(&self) {
+        set_link(self.0, WatchLink::Connected);
         refresh_projects_soon(self.0);
     }
 
@@ -310,6 +326,7 @@ fn watch_forever(app: &AppHandle, woken: &Receiver<()>) {
     let mut reconnect = Reconnect::default();
     loop {
         let (end, had_lines) = watch::follow(&cli(app), &AppSink(app));
+        set_link(app, WatchLink::Waiting);
         if let Some(gone) = state_after(end) {
             set_tracking(app, gone);
         }
@@ -325,9 +342,11 @@ fn watch_forever(app: &AppHandle, woken: &Receiver<()>) {
 /// An older TimeTracker without `watch`: its timer every `POLL`, until the path changes.
 fn poll_until_woken(app: &AppHandle, woken: &Receiver<()>) {
     log::info!("This TimeTracker has no `watch`; reading its timer every 30 s");
+    set_link(app, WatchLink::Polling);
     loop {
         set_tracking(app, poll(&cli(app)));
         if woken.recv_timeout(watch::POLL).is_ok() {
+            set_link(app, WatchLink::Waiting);
             return;
         }
     }

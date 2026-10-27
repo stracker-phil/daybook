@@ -22,7 +22,7 @@ use crate::store::settings::Settings;
 use crate::vault::commands::blocking;
 use crate::vault::ops::journal::{JournalAnswer, JournalGroupAnswers};
 use crate::vault::ops::{NoteLayout, NoteOp};
-use crate::window;
+use crate::{action_log, window};
 
 const OVERLAY: &str = "journal";
 const MAX_TEXT: usize = 20_000;
@@ -134,8 +134,9 @@ pub async fn journal_save(
     let settings = state.settings.get();
     checked(&settings, &group, &answers)?;
     let notes = Arc::clone(&state.notes);
+    let title = format!("Journal saved: {group}");
     let op = NoteOp::JournalGroup { group, answers };
-    blocking(move || notes.edit_today(&settings, op)).await?;
+    action_log::traced_merged(&title, blocking(move || notes.edit_today(&settings, op))).await?;
     Ok(())
 }
 

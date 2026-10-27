@@ -34,7 +34,7 @@ use crate::events::CALL_CHANGED_EVENT;
 use crate::lock::MutexExt;
 use crate::state::AppState;
 use crate::store::settings::{AppRef, MeetingRule, Settings, built_in_call_apps};
-use crate::{presence, tray};
+use crate::{action_log, presence, tray};
 
 const TICK: Duration = Duration::from_secs(15);
 
@@ -74,7 +74,14 @@ pub struct Calls {
     /// A regular check skips while one runs; an asked-for one waits and runs after it.
     checking: tokio::sync::Mutex<()>,
     prompted: AtomicBool,
-    events: broadcast::Sender<CallEvent>,
+    events: broadcast::Sender<Announced>,
+}
+
+/// A call event with its action-log trigger ("Call started: Zoom"), which the followers' actions join.
+#[derive(Clone, Debug)]
+pub struct Announced {
+    pub event: CallEvent,
+    pub trigger: Option<action_log::Trigger>,
 }
 
 impl Default for Calls {
@@ -99,7 +106,7 @@ pub fn active(app: &AppHandle) -> Option<ActiveCall> {
 }
 
 /// Every call start, change and end, for the features that follow calls.
-pub fn subscribe(app: &AppHandle) -> broadcast::Receiver<CallEvent> {
+pub fn subscribe(app: &AppHandle) -> broadcast::Receiver<Announced> {
     calls(app).events.subscribe()
 }
 
@@ -160,15 +167,25 @@ async fn check(app: &AppHandle, asked: bool) {
 
 fn announce(app: &AppHandle, changes: Vec<CallEvent>) {
     for change in changes {
-        match &change {
-            CallEvent::Started(call) => log::info!("In a {} call: {}", call.app, call.title),
-            CallEvent::Changed(call) => log::info!("The {} call is now: {}", call.app, call.title),
-            CallEvent::Ended { call, end } => {
-                log::info!("The {} call ended at {}", call.app, end.format("%H:%M:%S"))
+        let trigger = match &change {
+            CallEvent::Started(call) => {
+                log::info!("In a {} call: {}", call.app, call.title);
+                Some(action_log::begin(&format!("Call started: {}", call.app)))
             }
-        }
+            CallEvent::Changed(call) => {
+                log::info!("The {} call is now: {}", call.app, call.title);
+                None
+            }
+            CallEvent::Ended { call, end } => {
+                log::info!("The {} call ended at {}", call.app, end.format("%H:%M:%S"));
+                Some(action_log::begin(&format!("Call ended: {}", call.app)))
+            }
+        };
         // Nobody may be listening yet.
-        let _ = calls(app).events.send(change);
+        let _ = calls(app).events.send(Announced {
+            event: change,
+            trigger,
+        });
     }
     tray::refresh(app);
     if let Err(e) = app.emit(CALL_CHANGED_EVENT, ()) {

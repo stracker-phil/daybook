@@ -23,7 +23,7 @@ use crate::vault::commands::blocking;
 use crate::vault::note::Note;
 use crate::vault::ops::focus::{focus_to_slack, read_focus};
 use crate::vault::ops::{NoteLayout, NoteOp};
-use crate::window;
+use crate::{action_log, window};
 
 const OVERLAY: &str = "focus";
 const MAX_LIST_LENGTH: usize = 8000;
@@ -112,7 +112,7 @@ pub async fn focus_info(app: AppHandle) -> AppResult<FocusInfo> {
 /// Writes the list to today's note as typed and closes the overlay; Slack hears of it only on ⌘S.
 #[tauri::command]
 pub async fn focus_save(app: AppHandle, body: String) -> AppResult<()> {
-    write(&app, &body).await?;
+    action_log::traced("Focus saved", write(&app, &body)).await?;
     if window::panel::view(&app).as_deref() == Some(OVERLAY) {
         window::panel::close(&app, false);
     }
@@ -128,7 +128,8 @@ pub async fn focus_send(app: AppHandle, body: String) -> AppResult<()> {
             "The end-of-day list already went out today.".into(),
         ));
     }
-    update_day_message(&app, &focus_to_slack(&body)).await
+    let list = focus_to_slack(&body);
+    action_log::traced("Focus sent to Slack", update_day_message(&app, &list)).await
 }
 
 /// Writes the list to today's note and posts one reply under the day's message: the end-of-day title,

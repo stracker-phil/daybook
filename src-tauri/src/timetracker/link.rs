@@ -5,6 +5,15 @@ use super::reply::{TimerState, TtProject};
 use crate::store::settings::{LinkedProject, Project};
 use crate::tools::TimerView;
 
+/// Names of the active projects without TimeTracker projects.
+pub fn unlinked_project_names(projects: &[Project]) -> Vec<String> {
+    projects
+        .iter()
+        .filter(|project| project.active && project.timetracker_projects.is_empty())
+        .map(|project| project.name.clone())
+        .collect()
+}
+
 fn same(a: &str, b: &str) -> bool {
     a.trim().to_lowercase() == b.trim().to_lowercase()
 }

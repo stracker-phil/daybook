@@ -2,8 +2,10 @@
 //! and the context overlay's data.
 
 mod schedule;
+mod undo;
 
 pub use schedule::{AutoSwitch, scheduled};
+use undo::{LastSwitch, UNDO};
 
 use std::path::Path;
 use std::sync::Mutex;
@@ -21,7 +23,7 @@ use crate::state::AppState;
 use crate::status::{self, OfferOff};
 use crate::store::json_store::JsonStore;
 use crate::store::settings::{Context, ContextColor, Settings};
-use crate::{notify, tray, window};
+use crate::{action_log, notify, tray, window};
 
 pub const FILE_NAME: &str = "context.json";
 
@@ -46,6 +48,7 @@ pub struct Active {
 pub struct Contexts {
     store: JsonStore<Active>,
     auto: Mutex<AutoSwitch>,
+    undo: Mutex<Option<LastSwitch>>,
 }
 
 /// The stored context, else the first; `None` without contexts.
@@ -67,6 +70,7 @@ impl Contexts {
         Self {
             store: JsonStore::open(config_dir.join(FILE_NAME)),
             auto: Mutex::default(),
+            undo: Mutex::default(),
         }
     }
 
@@ -168,6 +172,25 @@ fn switch(app: &AppHandle, id: &str) -> AppResult<Option<(Option<Context>, Conte
     Ok(Some((previous, next.clone())))
 }
 
+/// The action log's title of a switch: "Context changed by schedule: 🐈 Personal → 💼 Nexo".
+pub fn change_title(previous: Option<&Context>, next: &Context, by_schedule: bool) -> String {
+    let title = |context: &Context| context_title(&context.label, &context.name);
+    let from = previous.map_or_else(|| "none".to_string(), title);
+    let how = if by_schedule { " by schedule" } else { "" };
+    format!("Context changed{how}: {from} → {}", title(next))
+}
+
+/// Names the switch in the action log and keeps its event.
+fn record_switch(
+    trigger: &action_log::Trigger,
+    previous: Option<&Context>,
+    next: &Context,
+    by_schedule: bool,
+) {
+    trigger.rename(&change_title(previous, next, by_schedule));
+    trigger.keep();
+}
+
 /// Whether the switch leaves the status behind while Working.
 fn offers_off(app: &AppHandle, previous: Option<&Context>, next: &Context) -> bool {
     status::offers_off(previous, next, status::today(app).status)
@@ -176,15 +199,33 @@ fn offers_off(app: &AppHandle, previous: Option<&Context>, next: &Context) -> bo
 /// A switch from the switcher, the menu or a shortcut. Leaving the status behind while Working asks
 /// whether to go Off; otherwise the switcher closes.
 async fn switch_by_hand(app: AppHandle, id: String) -> AppResult<()> {
-    if let Some((previous, next)) = switch(&app, &id)?
-        && offers_off(&app, previous.as_ref(), &next)
-    {
-        let offer = OfferOff {
-            to: context_title(&next.label, &next.name),
-        };
-        window::panel::open(&app, "offer-off", serde_json::to_value(offer)?).await;
-    } else if window::panel::view(&app).as_deref() == Some("context") {
-        window::panel::close(&app, false);
+    let trigger = action_log::begin("Context change");
+    trigger
+        .clone()
+        .scope(switch_and_offer(app, id, trigger))
+        .await
+}
+
+async fn switch_and_offer(
+    app: AppHandle,
+    id: String,
+    trigger: action_log::Trigger,
+) -> AppResult<()> {
+    let switched = switch(&app, &id)?;
+    if let Some((previous, next)) = &switched {
+        record_switch(&trigger, previous.as_ref(), next, false);
+    }
+    match switched {
+        Some((previous, next)) if offers_off(&app, previous.as_ref(), &next) => {
+            let offer = OfferOff {
+                to: context_title(&next.label, &next.name),
+            };
+            window::panel::open(&app, "offer-off", serde_json::to_value(offer)?).await;
+        }
+        _ if window::panel::view(&app).as_deref() == Some("context") => {
+            window::panel::close(&app, false);
+        }
+        _ => {}
     }
     Ok(())
 }
@@ -196,24 +237,41 @@ pub fn apply_schedule(app: &AppHandle) {
     let Some(id) = state.contexts.due(&settings, Local::now().naive_local()) else {
         return;
     };
-    match switch(app, &id) {
+    let switched = action_log::traced_sync("Context change", |trigger| {
+        let switched = switch(app, &id);
+        if let Ok(Some((previous, next))) = &switched {
+            record_switch(trigger, previous.as_ref(), next, true);
+        }
+        switched
+    });
+    match switched {
         Ok(Some((previous, next))) => {
-            let title = format!("Switched to {}", next.name);
-            if offers_off(app, previous.as_ref(), &next) {
-                let body = "You’re still set to Working.";
-                notify::show_with_action(app, &title, body, ("status:off", "Set to Off"));
-            } else {
-                let was =
-                    previous.map_or(String::new(), |previous| format!("Was {}.", previous.name));
-                notify::show(app, &title, &was);
-            }
+            *state.contexts.undo.lock_unpoisoned() = previous.as_ref().map(|previous| LastSwitch {
+                to: next.id.clone(),
+                from: previous.id.clone(),
+            });
+            notify_switch(app, previous.as_ref(), &next);
         }
         Ok(None) => {}
         Err(e) => log::warn!("Couldn't switch the context by its work hours: {e}"),
     }
 }
 
+/// Says a switch by work hours happened, with Undo and, while still Working, Set to Off.
+fn notify_switch(app: &AppHandle, previous: Option<&Context>, next: &Context) {
+    let title = format!("Switched to {}", next.name);
+    let mut buttons = vec![(UNDO, "Undo")];
+    let body = if offers_off(app, previous, next) {
+        buttons.push(("status:off", "Set to Off"));
+        "You’re still set to Working.".to_string()
+    } else {
+        previous.map_or(String::new(), |previous| format!("Was {}.", previous.name))
+    };
+    notify::show_with_actions(app, &title, &body, &buttons);
+}
+
 pub fn register(bus: &mut CommandBus<AppHandle>) {
+    undo::register(bus);
     bus.add(
         Command::new("context:switch", "Switch Context…")
             .help("Switch Context…: the switcher")
@@ -302,6 +360,33 @@ mod tests {
     #[test]
     fn without_contexts_there_is_no_current_one() {
         assert_eq!(current(&[], &active(Some("work"))), None);
+    }
+
+    #[test]
+    fn a_change_title_names_both_contexts() {
+        let contexts = contexts();
+        assert_eq!(
+            change_title(Some(&contexts[0]), &contexts[1], false),
+            "Context changed: 🐈 Personal → Work"
+        );
+    }
+
+    #[test]
+    fn a_change_title_says_how_the_switch_happened() {
+        let contexts = contexts();
+        assert_eq!(
+            change_title(Some(&contexts[1]), &contexts[0], true),
+            "Context changed by schedule: Work → 🐈 Personal"
+        );
+    }
+
+    #[test]
+    fn a_change_title_without_a_previous_context_says_none() {
+        let contexts = contexts();
+        assert_eq!(
+            change_title(None, &contexts[0], false),
+            "Context changed: none → 🐈 Personal"
+        );
     }
 
     #[test]

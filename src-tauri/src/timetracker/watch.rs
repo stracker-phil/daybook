@@ -38,6 +38,18 @@ impl Tracking {
     }
 }
 
+/// How Daybook follows TimeTracker now, for Settings → Status.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum WatchLink {
+    /// No `watch` connected: TimeTracker doesn't run, or Daybook waits to try again.
+    #[default]
+    Waiting,
+    /// A `watch` sends TimeTracker's changes.
+    Connected,
+    /// An older TimeTracker without `watch`, read every `POLL`.
+    Polling,
+}
+
 /// Polling an older TimeTracker.
 pub const POLL: Duration = Duration::from_secs(30);
 const MISSING_RETRY: Duration = Duration::from_secs(60);

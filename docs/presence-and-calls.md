@@ -1,8 +1,8 @@
 # Presence and calls
 
 Daybook knows whether the owner is at the Mac and whether a call is running, and joins a meeting in the
-right app. Presence gates what may open by itself; calls feed the sidebar, the menu bar and, in later steps,
-Slack, music, the rail and TimeTracker suggestions. Daybook does not log calls.
+right app. Presence gates what may open by itself; calls feed the sidebar, the menu bar, the rail, Slack, music
+automation, the wizard and TimeTracker's call suggestion. Daybook does not log calls.
 
 | File | Holds |
 |---|---|

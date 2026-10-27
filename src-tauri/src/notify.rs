@@ -15,19 +15,31 @@ pub fn show(app: &AppHandle, title: &str, body: &str) {
 }
 
 /// A notification with a button that runs `command`.
-pub fn show_with_action(app: &AppHandle, title: &str, body: &str, (command, label): (&str, &str)) {
+pub fn show_with_action(app: &AppHandle, title: &str, body: &str, button: (&str, &str)) {
+    show_with_actions(app, title, body, &[button]);
+}
+
+/// A notification with buttons, each `(command, label)`.
+pub fn show_with_actions(app: &AppHandle, title: &str, body: &str, buttons: &[(&str, &str)]) {
     let notification = app.notification();
-    let button = ActionType::builder(command)
-        .actions(vec![Action::builder(command, label).build()])
-        .build();
-    if let Err(e) = notification.register_action_types(vec![button]) {
-        log::warn!("Couldn't offer the notification's button: {e}");
+    let type_id = buttons
+        .iter()
+        .map(|(command, _)| *command)
+        .collect::<Vec<_>>()
+        .join("+");
+    let actions = buttons
+        .iter()
+        .map(|(command, label)| Action::builder(*command, *label).build())
+        .collect();
+    let kind = ActionType::builder(&type_id).actions(actions).build();
+    if let Err(e) = notification.register_action_types(vec![kind]) {
+        log::warn!("Couldn't offer the notification's buttons: {e}");
     }
     let shown = notification
         .builder()
         .title(title)
         .body(body)
-        .action_type_id(command)
+        .action_type_id(&type_id)
         .show();
     report(title, body, shown);
 }

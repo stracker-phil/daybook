@@ -113,7 +113,8 @@ describe("VaultPage", () => {
     it("shows Found with the CLI's path", async () => {
       renderPage({}, info({ obsidianCli: "/Users/me/bin/obsidian" }));
       expect(await screen.findByText("~/bin/obsidian")).toBeInTheDocument();
-      expect(rowOf("Status").getByText("Found")).toBeInTheDocument();
+      const statusRow = screen.getAllByText("Status").map((el) => el.closest<HTMLElement>(".settings-row")).find((row) => row !== null);
+      expect(within(statusRow!).getByText("Found")).toBeInTheDocument();
     });
 
     it("shows Missing when the CLI was not found", async () => {

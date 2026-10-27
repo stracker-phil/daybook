@@ -18,8 +18,9 @@ bun install
 bun run release
 ```
 
-This builds `Daybook.app`, links it into `~/Applications` and the `daybook` command into `~/.local/bin`. It runs
-on macOS on Apple Silicon only.
+This builds `Daybook.app`, links it into `~/Applications` and the `daybook` command into `~/.local/bin`. A
+`~/.local/bin/daybook` the install didn't make (such as the prototype's script) is left alone;
+`scripts/install.sh --replace-cli` replaces it. It runs on macOS on Apple Silicon only.
 
 ## CLI
 

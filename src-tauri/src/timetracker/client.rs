@@ -11,6 +11,7 @@ use std::time::Duration;
 use chrono::{NaiveDate, NaiveDateTime};
 
 use super::day::records::{Recording, Suggestion, parse_recordings, parse_suggestions};
+use super::logged;
 use super::reply::{
     RecentTimer, TimerState, TtProject, TtStatus, parse_projects, parse_recent, parse_recorded,
     parse_refusal, parse_status, parse_timer,
@@ -105,7 +106,7 @@ fn stderr_message(stderr: &str) -> Option<String> {
 }
 
 /// Stdout of a run that worked, or the error it means.
-pub fn reply_result(reply: Result<RawReply, RunFailure>) -> AppResult<String> {
+pub fn reply_result(reply: &Result<RawReply, RunFailure>) -> AppResult<String> {
     let reply = match reply {
         Ok(reply) => reply,
         Err(RunFailure::Missing) => return Err(AppError::TimeTrackerMissing(MISSING.into())),
@@ -114,7 +115,7 @@ pub fn reply_result(reply: Result<RawReply, RunFailure>) -> AppResult<String> {
         }
     };
     match reply.code {
-        Some(0) => Ok(reply.stdout),
+        Some(0) => Ok(reply.stdout.clone()),
         Some(2) if mentions_not_running(&reply.stderr) => {
             Err(AppError::TimeTrackerNotRunning(NOT_RUNNING.into()))
         }
@@ -139,7 +140,7 @@ pub fn state_of(error: &AppError) -> TtState {
 fn call(tt: &dyn TimeTracker, args: &[&str]) -> AppResult<String> {
     let mut args = args.to_vec();
     args.push("--json");
-    reply_result(tt.run(&args))
+    reply_result(&tt.run(&args))
 }
 
 pub fn timer_status(tt: &dyn TimeTracker) -> AppResult<Option<TimerState>> {
@@ -251,6 +252,8 @@ pub fn resolve_path(path: &str) -> PathBuf {
 pub struct Cli {
     path: PathBuf,
     dry_run: bool,
+    /// TimeTracker's project ids and names, for the action log.
+    names: Vec<(String, String)>,
     /// The running `watch`, so quitting can end it.
     watching: Arc<Mutex<Option<Child>>>,
 }
@@ -260,8 +263,25 @@ impl Cli {
         Self {
             path,
             dry_run: cfg!(debug_assertions),
+            names: Vec::new(),
             watching,
         }
+    }
+
+    /// Names projects in the action log.
+    pub fn with_names(mut self, projects: &[TtProject]) -> Self {
+        self.names = projects
+            .iter()
+            .map(|project| (project.id.clone(), project.name.clone()))
+            .collect();
+        self
+    }
+
+    fn name_of(&self, id: &str) -> Option<String> {
+        self.names
+            .iter()
+            .find(|(known, _)| known == id)
+            .map(|(_, name)| name.clone())
     }
 
     pub fn path(&self) -> &Path {
@@ -271,16 +291,18 @@ impl Cli {
 
 impl TimeTracker for Cli {
     fn run(&self, args: &[&str]) -> Result<RawReply, RunFailure> {
-        if self.dry_run && changes_data(args) {
+        let writes = changes_data(args);
+        if self.dry_run && writes {
             log::info!("debug build: would run timetracker {}", args.join(" "));
+            logged::log_write(args, |id| self.name_of(id), None);
             return Ok(RawReply {
                 code: Some(0),
                 stdout: String::new(),
                 stderr: String::new(),
             });
         }
-        let args: Vec<String> = args.iter().map(|arg| arg.to_string()).collect();
-        match process::run(&self.path, &args, TIMEOUT) {
+        let owned: Vec<String> = args.iter().map(|arg| arg.to_string()).collect();
+        let reply = match process::run(&self.path, &owned, TIMEOUT) {
             Ok(output) => Ok(RawReply {
                 code: output.code,
                 stdout: output.stdout,
@@ -288,7 +310,11 @@ impl TimeTracker for Cli {
             }),
             Err(RunError::Spawn { .. }) => Err(RunFailure::Missing),
             Err(RunError::Wait { .. } | RunError::TimedOut { .. }) => Err(RunFailure::TimedOut),
+        };
+        if writes {
+            logged::log_write(args, |id| self.name_of(id), Some(&reply));
         }
+        reply
     }
 
     fn watch(&self) -> Result<Box<dyn Watch>, RunFailure> {
@@ -405,7 +431,7 @@ mod tests {
     #[test]
     fn a_reply_with_exit_code_0_gives_its_stdout() {
         assert_eq!(
-            reply_result(reply(Some(0), "{\"a\":1}\n", "")),
+            reply_result(&reply(Some(0), "{\"a\":1}\n", "")),
             Ok("{\"a\":1}\n".to_string())
         );
     }
@@ -415,7 +441,7 @@ mod tests {
         let stdout =
             r#"{"kind":"invalid_input","message":"`note`: must be at most 500 characters"}"#;
         assert_eq!(
-            error_of(reply_result(reply(Some(1), stdout, ""))),
+            error_of(reply_result(&reply(Some(1), stdout, ""))),
             (
                 ErrorKind::TimetrackerRefused,
                 "`note`: must be at most 500 characters".to_string()
@@ -426,11 +452,11 @@ mod tests {
     #[test]
     fn exit_code_1_without_a_refusal_falls_back_to_stderr_then_to_the_code() {
         assert_eq!(
-            error_of(reply_result(reply(Some(1), "", "disk on fire\n"))),
+            error_of(reply_result(&reply(Some(1), "", "disk on fire\n"))),
             (ErrorKind::TimetrackerRefused, "disk on fire".to_string())
         );
         assert_eq!(
-            error_of(reply_result(reply(Some(1), "", ""))),
+            error_of(reply_result(&reply(Some(1), "", ""))),
             (
                 ErrorKind::TimetrackerRefused,
                 "timetracker failed with exit code 1".to_string()
@@ -445,7 +471,7 @@ mod tests {
             "Could not reach the running TimeTracker: timed out\n",
         ] {
             assert_eq!(
-                error_of(reply_result(reply(Some(2), "", stderr))),
+                error_of(reply_result(&reply(Some(2), "", stderr))),
                 (
                     ErrorKind::TimetrackerNotRunning,
                     "TimeTracker isn't running.".to_string()
@@ -458,7 +484,7 @@ mod tests {
     #[test]
     fn a_clap_error_is_refused_without_the_error_prefix() {
         assert_eq!(
-            error_of(reply_result(reply(
+            error_of(reply_result(&reply(
                 Some(2),
                 "",
                 "error: unrecognized subcommand 'watch'\n\nUsage: timetracker [OPTIONS]\n"
@@ -474,7 +500,7 @@ mod tests {
     fn a_run_ended_by_a_signal_or_the_timeout_means_it_didnt_answer() {
         for result in [reply(None, "", ""), Err(RunFailure::TimedOut)] {
             assert_eq!(
-                error_of(reply_result(result)),
+                error_of(reply_result(&result)),
                 (
                     ErrorKind::TimetrackerNotRunning,
                     "TimeTracker didn't answer.".to_string()
@@ -486,7 +512,7 @@ mod tests {
     #[test]
     fn a_missing_tool_is_reported_as_missing() {
         assert_eq!(
-            error_of(reply_result(Err(RunFailure::Missing))),
+            error_of(reply_result(&Err(RunFailure::Missing))),
             (
                 ErrorKind::TimetrackerMissing,
                 "TimeTracker isn't installed (Settings → TimeTracker).".to_string()
