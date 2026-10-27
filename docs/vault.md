@@ -141,7 +141,7 @@ expire. `drain` writes them in order, each into its own note; a missing note, a 
 that note's entries (in order) for the next drain, while other notes still get theirs; an op that can't apply
 is dropped and logged. One drain runs at a time. Drains run at startup (`commands::install`), after
 `create_today`, and when the watcher sees a note change while entries wait (`note_appeared`, which first waits
-until the note is quiet). The step 02 import copies the prototype's file, without its tracking ops.
+until the note is quiet). The import from the prototype copies the prototype's file, without its tracking ops.
 
 `DailyNotes::state` is today's `DailyNoteState { path, exists, creating, waiting }`.
 

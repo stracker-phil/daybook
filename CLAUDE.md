@@ -21,13 +21,6 @@ each deviation has an ADR.
 - Never write to the vault, the Glaze prototype or its data folder outside a step that says so; tests use temp
   folders.
 
-## Plan
-The port of the Glaze prototype lives in `docs/plan/` (gitignored): `README.md` (product, decisions,
-deviations, step list) plus one file per step and `reference/`. Read the plan's README first, every time. Work
-one step per session, in its order; when a step is done, set its status from PENDING to DONE in
-`docs/plan/README.md` (the only change a step makes there). Report back item by item: what was built, what was
-left out and why, open questions. Ask before assuming a workflow the prototype does not show.
-
 ## Docs
 Technical docs live in `docs/` (index: `docs/README.md`). Read `docs/architecture.md` and the page of the
 layer you change before changing it; `docs/adapting.md` lists everything macOS- or name-specific. Decisions

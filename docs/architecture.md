@@ -12,8 +12,7 @@ The app is a shell so far: a tray icon, the Daybook window (the dark sidebar wit
 board under a greeting, the inspector column), the Settings window (Vault, Calendar, Slack, Contexts, Projects, Daily Note,
 Workflows, Reminders, Calls, General, Tools, Shortcuts, Appearance), the status (Working, Break, Off), the day's calendar events with a timeline and the reminder line, presence and call detection with joining, Slack (status, presence, channel messages, absence heads-ups), the overlays (palette,
 context switcher, status, offer-off), the shortcuts dialog,
-toasts, the native menu and the CLI. The features arrive step by step
-(`docs/plan/README.md`, gitignored).
+toasts, the native menu and the CLI.
 
 ## Data
 

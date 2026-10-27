@@ -53,7 +53,7 @@ If the caller names a file without a mode, default to `CHANGES in`.
   (`store/`, `cli/`, `menu/`, …).
 - Rust types crossing to the page without `#[serde(rename_all = "camelCase")]`, or a changed shape whose
   generated types were not regenerated (`bun run types`, `src/api/types.gen.ts`).
-- A write to a vault note that does not go through the note writer (step 03): no other code opens a note for
+- A write to a vault note that does not go through the note writer: no other code opens a note for
   writing, and nothing rewrites a note as a whole.
 - Components subscribing to the whole store (`useStore()` with no selector) or deriving arrays without
   `useShallow`.
