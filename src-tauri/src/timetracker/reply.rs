@@ -74,6 +74,18 @@ pub struct TtProject {
     pub archived: bool,
 }
 
+/// A timer used lately, from `timer recent --json`, newest first.
+#[derive(Deserialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct RecentTimer {
+    pub project_id: String,
+    pub project: String,
+    pub tag: Option<String>,
+    /// Empty without a note.
+    #[serde(default)]
+    pub note: String,
+}
+
 /// The part of `status --json` Daybook reads.
 #[derive(Deserialize, Clone, Debug, PartialEq)]
 pub struct TtStatus {
@@ -129,6 +141,14 @@ pub fn parse_timer(stdout: &str) -> Result<Option<TimerState>, String> {
 pub fn parse_projects(stdout: &str) -> Result<Vec<TtProject>, String> {
     serde_json::from_str(stdout)
         .map_err(|e| format!("TimeTracker's projects couldn't be read: {e}"))
+}
+
+pub fn parse_recent(stdout: &str) -> Result<Vec<RecentTimer>, String> {
+    if stdout.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+    serde_json::from_str(stdout)
+        .map_err(|e| format!("TimeTracker's recent timers couldn't be read: {e}"))
 }
 
 pub fn parse_status(stdout: &str) -> Result<TtStatus, String> {
@@ -304,6 +324,64 @@ mod tests {
         let err = parse_projects("").unwrap_err();
         assert!(
             err.starts_with("TimeTracker's projects couldn't be read"),
+            "{err}"
+        );
+    }
+
+    const RECENT: &str = r#"[{"projectId":"11111111-1111-4111-8111-111111111111","project":"Internal","client":"Nexo","tagId":null,"tag":null,"note":"testing","lastUsedAt":1792824000000},{"projectId":"11111111-1111-4111-8111-111111111111","project":"Internal","client":"Nexo","tagId":"44444444-4444-4444-8444-444444444444","tag":"Admin","note":"Time recording","lastUsedAt":1792790100000},{"projectId":"55555555-5555-4555-8555-555555555555","project":"SDK v2","client":"Oscorp","tagId":"22222222-2222-4222-8222-222222222222","tag":"Development","note":"QRS-7064: Contact Form","lastUsedAt":1792766700000}]"#;
+
+    #[test]
+    fn recent_timers_are_read_newest_first_with_project_tag_and_note() {
+        let timer = |project_id: &str, project: &str, tag: Option<&str>, note: &str| RecentTimer {
+            project_id: project_id.into(),
+            project: project.into(),
+            tag: tag.map(String::from),
+            note: note.into(),
+        };
+        assert_eq!(
+            parse_recent(RECENT),
+            Ok(vec![
+                timer(
+                    "11111111-1111-4111-8111-111111111111",
+                    "Internal",
+                    None,
+                    "testing"
+                ),
+                timer(
+                    "11111111-1111-4111-8111-111111111111",
+                    "Internal",
+                    Some("Admin"),
+                    "Time recording"
+                ),
+                timer(
+                    "55555555-5555-4555-8555-555555555555",
+                    "SDK v2",
+                    Some("Development"),
+                    "QRS-7064: Contact Form"
+                ),
+            ])
+        );
+    }
+
+    #[test]
+    fn no_recent_timers_is_an_empty_list_whether_printed_or_not() {
+        for stdout in ["", "\n", "[]"] {
+            assert_eq!(parse_recent(stdout), Ok(vec![]), "{stdout:?}");
+        }
+    }
+
+    #[test]
+    fn a_recent_timer_without_a_note_is_read() {
+        let stdout = r#"[{"projectId":"p","project":"P","client":null,"tagId":null,"tag":null,"note":"","lastUsedAt":1}]"#;
+        let timer = parse_recent(stdout).unwrap().remove(0);
+        assert_eq!(timer.note, "");
+    }
+
+    #[test]
+    fn unreadable_recent_timers_are_an_error_naming_the_recent_timers() {
+        let err = parse_recent("oops").unwrap_err();
+        assert!(
+            err.starts_with("TimeTracker's recent timers couldn't be read"),
             "{err}"
         );
     }

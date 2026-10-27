@@ -156,7 +156,7 @@ fn activity_button(state: &ToolState) -> Button {
             .as_ref()
             .map(|timer| timer.project.clone())
             .filter(|project| !project.is_empty()),
-        ..button("Log Activity…", Some(detail), "timetracker:show", false)
+        ..button("Log Activity…", Some(detail), "activity:switch", true)
     }
 }
 
@@ -653,8 +653,8 @@ mod tests {
             assert_eq!(tool.label, "Log Activity…");
             assert_eq!(tool.detail.as_deref(), Some(detail), "{tt:?} {view:?}");
             assert_eq!(tool.caption.as_deref(), caption, "{tt:?} {view:?}");
-            assert_eq!(tool.command, "timetracker:show");
-            assert_eq!(tool.menu, None);
+            assert_eq!(tool.command, "activity:switch");
+            assert_eq!(tool.menu, Some(ToolId::Activity));
         }
     }
 

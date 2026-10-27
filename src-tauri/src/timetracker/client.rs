@@ -11,7 +11,8 @@ use std::time::Duration;
 use chrono::NaiveDate;
 
 use super::reply::{
-    TimerState, TtProject, TtStatus, parse_projects, parse_refusal, parse_status, parse_timer,
+    RecentTimer, TimerState, TtProject, TtStatus, parse_projects, parse_recent, parse_refusal,
+    parse_status, parse_timer,
 };
 use super::watch::TtState;
 use crate::error::{AppError, AppResult, ErrorKind};
@@ -149,6 +150,30 @@ pub fn projects(tt: &dyn TimeTracker) -> AppResult<Vec<TtProject>> {
 
 pub fn status(tt: &dyn TimeTracker) -> AppResult<TtStatus> {
     parse_status(&call(tt, &["status"])?).map_err(AppError::TimeTrackerRefused)
+}
+
+/// The timers used lately, newest first; at most `limit` (1 to 100).
+pub fn recent(tt: &dyn TimeTracker, limit: u8) -> AppResult<Vec<RecentTimer>> {
+    let limit = limit.clamp(1, 100).to_string();
+    parse_recent(&call(tt, &["timer", "recent", "--limit", &limit])?)
+        .map_err(AppError::TimeTrackerRefused)
+}
+
+/// Starts the timer on TimeTracker's project `project_id`; TimeTracker continues today's recording
+/// with the same project, note and tag. The note goes verbatim and attached (`--note=`), so a leading
+/// `-` stays text; a blank one is left out.
+pub fn start(
+    tt: &dyn TimeTracker,
+    project_id: &str,
+    note: &str,
+    tag: Option<&str>,
+) -> AppResult<()> {
+    let note = (!note.trim().is_empty()).then(|| format!("--note={note}"));
+    let tag = tag.map(|tag| format!("--tag={tag}"));
+    let mut args = vec!["timer", "start", project_id];
+    args.extend(note.as_deref());
+    args.extend(tag.as_deref());
+    call(tt, &args).map(|_| ())
 }
 
 /// Shows TimeTracker's Day view of `day`, else today; starts TimeTracker if needed.
@@ -484,6 +509,124 @@ mod tests {
             tt.calls(),
             vec![vec!["show", "--json"], vec!["show", "2026-10-26", "--json"]]
         );
+    }
+
+    #[test]
+    fn start_runs_the_timer_on_the_project_with_the_note_attached_and_the_tag() {
+        let tt = Fake::answering(reply(Some(0), "", ""));
+        start(&tt, "p1", "QRS-6805 review", Some("Development")).unwrap();
+        start(&tt, "p1", "- starts with a dash", None).unwrap();
+        start(&tt, "p1", "  padded  ", None).unwrap();
+        assert_eq!(
+            tt.calls(),
+            vec![
+                vec![
+                    "timer",
+                    "start",
+                    "p1",
+                    "--note=QRS-6805 review",
+                    "--tag=Development",
+                    "--json"
+                ],
+                vec![
+                    "timer",
+                    "start",
+                    "p1",
+                    "--note=- starts with a dash",
+                    "--json"
+                ],
+                vec!["timer", "start", "p1", "--note=  padded  ", "--json"],
+            ]
+        );
+    }
+
+    #[test]
+    fn start_leaves_a_blank_note_out() {
+        for note in ["", "   "] {
+            let tt = Fake::answering(reply(Some(0), "", ""));
+            start(&tt, "p1", note, None).unwrap();
+            assert_eq!(
+                tt.calls(),
+                vec![vec!["timer", "start", "p1", "--json"]],
+                "{note:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn start_gives_the_error_kind_of_timetrackers_answer() {
+        for (answer, kind) in [
+            (
+                reply(
+                    Some(1),
+                    r#"{"kind":"not_found","message":"No project matches \"x\""}"#,
+                    "",
+                ),
+                ErrorKind::TimetrackerRefused,
+            ),
+            (
+                reply(Some(2), "", "TimeTracker is not running\n"),
+                ErrorKind::TimetrackerNotRunning,
+            ),
+            (Err(RunFailure::Missing), ErrorKind::TimetrackerMissing),
+        ] {
+            let tt = Fake::answering(answer.clone());
+            assert_eq!(
+                start(&tt, "p1", "note", None).unwrap_err().kind(),
+                kind,
+                "{answer:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn start_is_a_write_that_a_debug_build_only_pretends_to_run() {
+        assert!(changes_data(&[
+            "timer",
+            "start",
+            "p1",
+            "--note=QRS-6805 review",
+            "--tag=Development",
+            "--json"
+        ]));
+    }
+
+    #[test]
+    fn recent_asks_for_the_limit_and_reads_the_timers() {
+        let stdout = r#"[{"projectId":"p1","project":"SDK v2","client":"Oscorp","tagId":null,"tag":null,"note":"review","lastUsedAt":1}]"#;
+        let tt = Fake::answering(reply(Some(0), stdout, ""));
+        assert_eq!(
+            recent(&tt, 8),
+            Ok(vec![RecentTimer {
+                project_id: "p1".into(),
+                project: "SDK v2".into(),
+                tag: None,
+                note: "review".into(),
+            }])
+        );
+        assert_eq!(
+            tt.calls(),
+            vec![vec!["timer", "recent", "--limit", "8", "--json"]]
+        );
+    }
+
+    #[test]
+    fn recent_with_no_output_is_no_timers() {
+        let tt = Fake::answering(reply(Some(0), "", ""));
+        assert_eq!(recent(&tt, 8), Ok(vec![]));
+    }
+
+    #[test]
+    fn recent_keeps_the_limit_within_one_to_one_hundred() {
+        for (limit, sent) in [(0, "1"), (100, "100"), (200, "100")] {
+            let tt = Fake::answering(reply(Some(0), "[]", ""));
+            recent(&tt, limit).unwrap();
+            assert_eq!(
+                tt.calls(),
+                vec![vec!["timer", "recent", "--limit", sent, "--json"]],
+                "{limit}"
+            );
+        }
     }
 
     #[test]

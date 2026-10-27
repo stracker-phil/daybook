@@ -85,6 +85,11 @@ fn flatten(entries: Vec<MenuEntry>, path: &[String]) -> Vec<Flat> {
                 label,
                 command,
                 checked,
+            }
+            | MenuEntry::Checkbox {
+                label,
+                command,
+                checked,
             } => vec![Flat {
                 label,
                 command,
@@ -439,17 +444,37 @@ mod tests {
     }
 
     #[test]
-    fn what_time_tracking_took_along_is_gone() {
-        let entries = list(&fixture());
+    fn the_activity_commands_are_listed_and_day_recap_is_gone() {
+        let state = ToolState {
+            check_in_minutes: 15,
+            check_ins_paused: true,
+            ..fixture()
+        };
+        let entries = list(&state);
         for entry in &entries {
-            assert!(
-                !entry.command.starts_with("activity:")
-                    && !entry.command.starts_with("checkin:")
-                    && !entry.label.contains("Day Recap")
-                    && !entry.label.contains("Check-ins"),
-                "{entry:?}"
-            );
+            assert!(!entry.label.contains("Day Recap"), "{entry:?}");
         }
+        assert_eq!(
+            find(&entries, "activity:switch"),
+            Some(&entry(
+                PaletteKind::Command,
+                "Log Activity…",
+                "",
+                None,
+                "activity:switch"
+            ))
+        );
+        assert_eq!(
+            find(&entries, "checkin:pause"),
+            Some(&entry(
+                PaletteKind::Command,
+                "Pause Check-ins Today",
+                "Current",
+                None,
+                "checkin:pause"
+            ))
+        );
+        assert_eq!(find(&list(&fixture()), "checkin:pause"), None);
         assert_eq!(
             find(&entries, "hub:open").map(|e| e.label.as_str()),
             Some("Open Daybook")

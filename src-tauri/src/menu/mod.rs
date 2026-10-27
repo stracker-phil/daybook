@@ -1,6 +1,7 @@
 //! The app menu (Daybook, File, Edit, Window, Help) and clicks on any menu item: every item's id is the
 //! command it runs. The menu-bar menu's model is in `model`.
 
+mod activity;
 pub mod command_shortcuts;
 pub mod model;
 mod prune;

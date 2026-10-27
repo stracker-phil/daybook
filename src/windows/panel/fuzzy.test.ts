@@ -23,6 +23,12 @@ describe("fuzzyFilter", () => {
     expect(fuzzyFilter(["qrs 12", "qrs 99", "abc 12"], "qrs 12")).toEqual(["qrs 12"]);
   });
 
+  it("matches objects on the text the accessor returns", () => {
+    const items = [{ id: 1, label: "Zeta" }, { id: 2, label: "Oscorp · QRS-6805 review" }, { id: 3, label: "Other" }];
+    expect(fuzzyFilter(items, "qrs 6805", (item) => item.label).map((item) => item.id)).toEqual([2]);
+    expect(fuzzyFilter(items, "", (item) => item.label)).toBe(items);
+  });
+
   it("keeps the original order of equally good matches", () => {
     expect(fuzzyFilter(["ab2", "ab1", "ab3"], "ab")).toEqual(["ab2", "ab1", "ab3"]);
   });

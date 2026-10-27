@@ -29,7 +29,7 @@ use crate::lock::MutexExt;
 use crate::state::AppState;
 use crate::store::settings::Settings;
 use crate::tools::TimerView;
-use crate::{projects, slack, tray};
+use crate::{activity, projects, slack, tray};
 
 #[derive(Default)]
 pub struct TimeTrackerService {
@@ -95,7 +95,7 @@ pub fn current_project(app: &AppHandle) -> Option<String> {
 }
 
 fn set_tracking(app: &AppHandle, next: Tracking) {
-    {
+    let timer_changed = {
         let mut tracking = service(app).tracking.lock_unpoisoned();
         if *tracking == next {
             return;
@@ -103,10 +103,16 @@ fn set_tracking(app: &AppHandle, next: Tracking) {
         if tracking.tt != next.tt {
             log::info!("TimeTracker: {:?}", next.tt);
         }
+        let timer_changed = tracking.timer != next.timer;
         *tracking = next.clone();
-    }
+        timer_changed
+    };
     if let Err(e) = app.emit(TIMER_CHANGED_EVENT, &next) {
         log::warn!("Couldn't announce the timer change: {e}");
+    }
+    activity::forget_recent(app);
+    if timer_changed {
+        activity::restart_check_ins(app);
     }
     tray::refresh(app);
     follow_project(app);
@@ -235,9 +241,13 @@ impl Sink for AppSink<'_> {
     }
 
     fn data_changed(&self, kind: DataKind) {
-        if kind == DataKind::Projects {
-            refresh_projects_soon(self.0);
-            read_timer_soon(self.0);
+        match kind {
+            DataKind::Projects => {
+                refresh_projects_soon(self.0);
+                read_timer_soon(self.0);
+            }
+            DataKind::Recordings => activity::recordings_changed(self.0),
+            DataKind::Other => {}
         }
     }
 }

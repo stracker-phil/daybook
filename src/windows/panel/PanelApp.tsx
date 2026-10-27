@@ -1,9 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { api, type OfferOff, type PanelSession, type StatusRequest } from "../../api";
+import { api, type ActivitySession, type OfferOff, type PanelSession, type StatusRequest } from "../../api";
 import { useTabTrap } from "../../lib/useTabTrap";
 import { applyAppearance, systemIsDark } from "../../lib/theme";
 import { useContextColor } from "../../lib/useContextColor";
 import { handlePanelKeydown, installPanelCommands } from "./commands";
+import { ActivityView } from "./ActivityView";
 import { ContextView } from "./ContextView";
 import { FocusView } from "./FocusView";
 import { JiraView } from "./JiraView";
@@ -31,6 +32,8 @@ function View({ session }: { session: PanelSession }) {
       return <StatusView request={session.args as StatusRequest} />;
     case "focus":
       return <FocusView />;
+    case "activity":
+      return <ActivityView session={session.args as ActivitySession} />;
     case "journal":
       return <JournalView group={(session.args as { group?: string } | null)?.group ?? null} />;
     case "links":

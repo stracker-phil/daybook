@@ -54,6 +54,9 @@ pub struct StatusChanged {
     pub end_of_day: Option<EndOfDayAnswer>,
     /// The message already went out as the end of the end-of-day reply.
     pub message_sent: bool,
+    /// Picking an activity already starts its timer, so the status change must not start another.
+    #[serde(default)]
+    pub by_activity: bool,
 }
 
 pub fn status_label(status: Option<Status>) -> &'static str {
@@ -77,6 +80,22 @@ pub fn set_status(
     end_of_day: Option<EndOfDayAnswer>,
     message_sent: bool,
 ) -> AppResult<()> {
+    change_status(app, status, message, end_of_day, message_sent, false)
+}
+
+/// Working for an activity picked during a break or after the day: no channel message.
+pub fn set_working_by_activity(app: &AppHandle) -> AppResult<()> {
+    change_status(app, Status::Working, "", None, false, true)
+}
+
+fn change_status(
+    app: &AppHandle,
+    status: Status,
+    message: &str,
+    end_of_day: Option<EndOfDayAnswer>,
+    message_sent: bool,
+    by_activity: bool,
+) -> AppResult<()> {
     let state = app.state::<AppState>();
     let Some(change) = state.statuses.set(status, Local::now().naive_local())? else {
         return Ok(());
@@ -94,6 +113,7 @@ pub fn set_status(
         message: single_line(message),
         end_of_day: end_of_day.filter(|_| status == Status::Off),
         message_sent,
+        by_activity,
     };
     if let Err(e) = app.emit(STATUS_CHANGED_EVENT, changed) {
         log::warn!("Couldn't announce the status change: {e}");
@@ -239,6 +259,7 @@ mod tests {
             message: "off for today".into(),
             end_of_day,
             message_sent: false,
+            by_activity: false,
         }
     }
 
@@ -254,7 +275,8 @@ mod tests {
                 "since": "17:30",
                 "message": "off for today",
                 "endOfDay": "done",
-                "messageSent": false
+                "messageSent": false,
+                "byActivity": false
             })
         );
     }

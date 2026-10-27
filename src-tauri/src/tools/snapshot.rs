@@ -7,7 +7,7 @@ use super::state::{
 };
 use crate::state::AppState;
 use crate::{
-    calls, jira, journal, links, music, projects, quick_notes, routines, search, status,
+    activity, calls, jira, journal, links, music, projects, quick_notes, routines, search, status,
     timetracker,
 };
 
@@ -99,5 +99,8 @@ pub fn snapshot(app: &AppHandle) -> ToolState {
         music: music::tool_state(app),
         tt,
         timer,
+        recent_activities: activity::tool_activities(app, &offered),
+        check_in_minutes: context.map_or(0, |context| context.check_in_minutes),
+        check_ins_paused: activity::paused_today(app),
     }
 }

@@ -1,5 +1,6 @@
 //! The menu-bar menu as plain data; `tray` turns it into native items. Pure.
 
+use super::activity::activity_entries;
 pub use super::prune::prune;
 use super::prune::tidy;
 pub use super::title::menu_bar_title;
@@ -22,6 +23,12 @@ pub enum MenuEntry {
         command: String,
         checked: bool,
     },
+    /// An on/off setting; its command toggles it.
+    Checkbox {
+        label: String,
+        command: String,
+        checked: bool,
+    },
     /// A greyed line that only tells something.
     Info(String),
     Submenu {
@@ -36,6 +43,7 @@ impl MenuEntry {
         match self {
             Self::Command { label, .. }
             | Self::Radio { label, .. }
+            | Self::Checkbox { label, .. }
             | Self::Info(label)
             | Self::Submenu { label, .. } => Some(label),
             Self::Separator => None,
@@ -53,7 +61,7 @@ pub struct MenuInput<'a> {
 const MAX_LINKS: usize = 10;
 
 /// A command with its global shortcut; an empty one shows none.
-fn command(label: &str, id: &str, shortcut: &str) -> MenuEntry {
+pub(super) fn command(label: &str, id: &str, shortcut: &str) -> MenuEntry {
     MenuEntry::Command {
         label: label.into(),
         command: id.into(),
@@ -168,7 +176,12 @@ fn overlay_then(overlay: MenuEntry, choices: Vec<MenuEntry>) -> Vec<MenuEntry> {
 }
 
 /// A tool with choices becomes a submenu: what opens its overlay first, then its choices.
-fn with_choices(label: &str, overlay: MenuEntry, id: ToolId, input: &MenuInput) -> Vec<MenuEntry> {
+pub(super) fn with_choices(
+    label: &str,
+    overlay: MenuEntry,
+    id: ToolId,
+    input: &MenuInput,
+) -> Vec<MenuEntry> {
     let choices = choices_of(id, input);
     if choices.is_empty() {
         return vec![overlay];
@@ -278,8 +291,7 @@ fn tool_entries(id: ToolId, input: &MenuInput) -> Vec<MenuEntry> {
     match id {
         ToolId::Context => context_entries(input),
         ToolId::Status => status_entries(input),
-        // Check-ins belong to TimeTracker.
-        ToolId::Activity => Vec::new(),
+        ToolId::Activity => activity_entries(input),
         ToolId::Call => state
             .meeting_since
             .iter()
@@ -674,13 +686,29 @@ mod tests {
     }
 
     #[test]
-    fn the_activity_tool_adds_nothing() {
+    fn the_activity_tool_adds_the_timer_line_and_log_activity() {
         let state = ToolState {
             links_now: vec![],
             links_more: vec![],
             ..fixture()
         };
-        assert_eq!(labels(&menu_of(&state, &[ToolId::Activity])), BASELINE);
+        let menu = menu_of(&state, &[ToolId::Activity]);
+        assert_eq!(
+            labels(&menu),
+            [
+                "TimeTracker isn't running",
+                "Log Activity…",
+                "—",
+                "Open Today's Note",
+                "—",
+                "Settings…",
+                "Quit Daybook"
+            ]
+        );
+        assert_eq!(
+            menu[1],
+            command_entry("Log Activity…", "activity:switch", None)
+        );
     }
 
     #[test]

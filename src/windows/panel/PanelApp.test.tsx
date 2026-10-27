@@ -161,6 +161,28 @@ describe("PanelApp", () => {
       expect(mocked.panelReady).toHaveBeenCalledWith(1, expect.any(Number));
     });
 
+    it("renders the activity prompt with its note and project for the activity view", async () => {
+      mocked.panelSession.mockResolvedValue({
+        session: 1,
+        view: "activity",
+        args: {
+          mode: "switch",
+          prompt: "Switched to Work",
+          projects: [{ name: "Oscorp", ttProjects: [{ id: "qrs", name: "QRS", client: null, color: "blue", shade: 0 }], hint: null }],
+          project: "Oscorp",
+          ttProjectId: "qrs",
+          note: "Review",
+          tag: null,
+          tt: "available",
+        },
+      });
+      render(<PanelApp />);
+      expect(await screen.findByText("Switched to Work")).toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue("Review");
+      expect(screen.getByRole("button", { name: "QRS", pressed: true })).toBeInTheDocument();
+      expect(mocked.panelReady).toHaveBeenCalledWith(1, expect.any(Number));
+    });
+
     it("renders the offer to set Off for the offer-off view", async () => {
       mocked.panelSession.mockResolvedValue({ session: 1, view: "offer-off", args: { to: "🐈 Personal" } });
       render(<PanelApp />);

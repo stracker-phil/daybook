@@ -3,7 +3,7 @@ import type { CalendarInfo, Context, Feature, MusicEntry, WorkHours } from "../.
 import type { SettingsPageProps } from "../../registry/settingsPages";
 import { ContextCalendars } from "./ContextCalendars";
 import { ContextMusicFields } from "./ContextMusicFields";
-import { Group, Row, Switch, TextField } from "./controls";
+import { Group, NumberField, Row, Switch, TextField } from "./controls";
 import { CONTEXT_COLORS, ColorField, DaysField, ItemActions, TimeRangeField, moveItem, replaceItem } from "./fields";
 import { useCalendarInfo } from "./useCalendarInfo";
 
@@ -13,6 +13,9 @@ const FEATURES: { id: Feature; label: string }[] = [
   { id: "jira", label: "Jira" },
   { id: "routines", label: "Routines" },
 ];
+
+/** Rust clamps `checkInMinutes` to 0…240 (`store/settings/contexts.rs`). */
+const MAX_CHECK_IN_MINUTES = 240;
 
 const NEW_WORK_HOURS: WorkHours = { days: [1, 2, 3, 4, 5], from: "09:00", to: "18:00" };
 
@@ -77,6 +80,18 @@ function ContextCard({ context, scopes, calendars, music, index, count, onChange
           ))}
         </div>
       </Row>
+      {context.features.includes("status") && (
+        <NumberField
+          label="Check-ins"
+          description="While Working, asks what you're working on this long after the timer last changed; 0: never."
+          suffix="min"
+          min={0}
+          max={MAX_CHECK_IN_MINUTES}
+          value={context.checkInMinutes}
+          onCommit={(minutes) => onChange({ checkInMinutes: Math.round(minutes) })}
+          nested
+        />
+      )}
       <Row label="Color" description="Marks this context in overlays, the Daybook window and its timeline.">
         <ColorField label={`${context.name} color`} value={context.color} onChange={(color) => onChange({ color })} />
       </Row>

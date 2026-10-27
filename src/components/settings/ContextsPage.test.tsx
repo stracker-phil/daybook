@@ -148,6 +148,38 @@ describe("ContextsPage", () => {
     });
   });
 
+  describe("check-ins", () => {
+    it("shows the minutes only on a context with the Status feature", () => {
+      renderPage();
+      expect(work().getByRole("spinbutton", { name: "Check-ins" })).toHaveValue(15);
+      expect(priv().queryByRole("spinbutton", { name: "Check-ins" })).not.toBeInTheDocument();
+    });
+
+    it("saves the minutes rounded", async () => {
+      renderPage();
+      const field = work().getByRole("spinbutton", { name: "Check-ins" });
+      await userEvent.clear(field);
+      await userEvent.type(field, "20.6");
+      await userEvent.tab();
+      expect(savedContext("work").checkInMinutes).toBe(21);
+    });
+
+    it("saves 0 to turn check-ins off", async () => {
+      renderPage();
+      const field = work().getByRole("spinbutton", { name: "Check-ins" });
+      await userEvent.clear(field);
+      await userEvent.type(field, "0");
+      await userEvent.tab();
+      expect(savedContext("work").checkInMinutes).toBe(0);
+    });
+
+    it("shows the field after the Status feature is ticked", async () => {
+      renderPage();
+      await userEvent.click(priv().getByRole("checkbox", { name: "Status" }));
+      expect(await priv().findByRole("spinbutton", { name: "Check-ins" })).toBeInTheDocument();
+    });
+  });
+
   describe("calendars", () => {
     const withWorkCalendars = (calendars: string[]) => settings().contexts.map((c) => (c.id === "work" ? { ...c, calendars } : c));
     const renderCalendars = (info: CalendarInfo, chosen: string[] = []) => {

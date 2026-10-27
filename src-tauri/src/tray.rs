@@ -130,6 +130,11 @@ fn build_entry(app: &AppHandle, entry: &MenuEntry) -> tauri::Result<MenuItemKind
             label,
             command,
             checked,
+        }
+        | MenuEntry::Checkbox {
+            label,
+            command,
+            checked,
         } => MenuItemKind::Check(
             CheckMenuItemBuilder::with_id(command, label)
                 .checked(*checked)

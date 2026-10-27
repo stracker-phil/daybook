@@ -1,6 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
+  ActivityMode,
+  ActivityPick,
+  ActivitySuggestion,
   AppError,
   AppRef,
   AutomationInfo,
@@ -196,8 +199,14 @@ export const api = {
   timetrackerInfo: () => invoke<TimeTrackerInfo>("timetracker_info"),
   /** TimeTracker's projects, archived ones too, and its state; the list read last unless `fresh`. */
   timetrackerProjects: (fresh: boolean) => invoke<TimeTrackerProjects>("timetracker_projects", { fresh }),
+  /** TimeTracker's state and its running timer; later changes come as `timer_changed`. */
+  timetrackerTimer: () => invoke<TimerChanged>("timetracker_timer"),
   /** Brings TimeTracker to the front, starting it if needed. */
   timetrackerFocus: () => invoke<void>("timetracker_focus"),
+  /** The activity overlay's suggestions: meetings, today's tickets, recent timers, in that order. */
+  activitySuggestions: () => invoke<ActivitySuggestion[]>("activity_suggestions"),
+  /** ↵: starts TimeTracker's timer on the pick (Working first if needed), or keeps it for an unchanged check-in; closes the overlay. */
+  activitySubmit: (mode: ActivityMode, pick: ActivityPick) => invoke<void>("activity_submit", { mode, pick }),
   /** Reads Music; the entries and what Music plays now. Each music action answers with the new state. */
   musicState: () => invoke<MusicState>("music_state"),
   /** Plays an entry of Settings → Music. */

@@ -66,3 +66,31 @@ Settings → TimeTracker shows the tool's path, whether TimeTracker runs (and it
 | `timetracker_projects { fresh }` | `TimeTrackerProjects { state, projects: TtProject[] }` (archived included) |
 | `timetracker_timer` | `TimerChanged` |
 | `timetracker_focus` | –; starts or shows TimeTracker |
+
+## The activity overlay
+
+`activity/` (`activity:switch`, ⌘F2; family `activity:prefill:<project>:<note>[:<ttId>[:<tag>]]`) opens the sticky
+`activity` overlay with `ActivitySession` (`session.rs`, pure): the prompt ("What are you working on?", or "Still on
+Oscorp · QRS-6805?" for a check-in), the note prefilled with the timer's note, and the current context's projects
+with their linked TimeTracker projects (a project without links shows how to link it). `activity_suggestions`
+(`suggest.rs`, pure) lists the live call, today's events since the timer started (at most 3), today's Jira tickets
+and recent timers (`timer recent`, `recent.rs`; a pick fills project, note and tag).
+
+↵ (`activity_submit`, `pick.rs`): a check-in whose project and note equal the running timer's sends nothing ("still
+on it"); otherwise `timer start <ttProjectId> --note=<note> [--tag=<tag>]` (the tag carried over, so TimeTracker
+continues today's recording), and then Working is set when the status was Break or Off (marked `byActivity`, so the
+status change starts no timer of its own and sends no channel message). A TimeTracker error keeps the overlay open
+with the typed text; "Open TimeTracker" starts it. Debug builds dry-run the start.
+
+## Check-ins
+
+`check_in.rs` (pure) decides on the scheduler's 15 s tick, in order: no check-in without a vault, outside Working, in a
+context without the Status feature or with `checkInMinutes` 0, outside work hours, when paused today (`checkin:pause`,
+the tray's "Pause Check-ins Today"; `checkins.json`, per day) or while TimeTracker isn't running; during a call the
+count stops and starts again after it; while away it waits; when another overlay is open it tries again in 60 s;
+else it opens the overlay in check-in mode. A timer change from TimeTracker or a context switch starts the count
+again. The overlay's 60 s timeout counts only while it has focus and confirms nothing.
+
+Recent timers are cached: the overlay asks again after 4 s, the tray, rail and palette after a minute; any timer
+change drops the cache. The tray's Activity part (`menu/activity.rs`) shows the timer or TimeTracker's state, "Log
+Activity…" (with recent timers as a submenu) and the pause checkbox.

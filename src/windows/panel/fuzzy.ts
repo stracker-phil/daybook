@@ -24,13 +24,13 @@ function score(words: string[], text: string): number | null {
   return total;
 }
 
-/** The items matching every word of `query`, best first; ties keep their order. An empty query keeps all. */
-export function fuzzyFilter(items: string[], query: string): string[] {
+/** The items matching every word of `query` in their `text`, best first; ties keep their order. An empty query keeps all. */
+export function fuzzyFilter<T>(items: T[], query: string, text: (item: T) => string = String): T[] {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   if (words.length === 0) return items;
   return items
     .flatMap((item, order) => {
-      const rank = score(words, item.toLowerCase());
+      const rank = score(words, text(item).toLowerCase());
       return rank === null ? [] : [{ item, order, score: rank }];
     })
     .sort((a, b) => a.score - b.score || a.order - b.order)

@@ -12,10 +12,10 @@ use crate::ipc::IpcMessage;
 use crate::state::AppState;
 use crate::store::import::Import;
 use crate::{
-    bus, calendar, calls, commands, contexts, deep_link, focus, http_api, ipc, jira, journal,
-    launcher, links, menu, music, notify, presence, quick_notes, rail, remote, routines, scheduler,
-    search, shortcuts, slack, stage, status, status_rules, timetracker, tray, vault, window,
-    wizard,
+    activity, bus, calendar, calls, commands, contexts, deep_link, focus, http_api, ipc, jira,
+    journal, launcher, links, menu, music, notify, presence, quick_notes, rail, remote, routines,
+    scheduler, search, shortcuts, slack, stage, status, status_rules, timetracker, tray, vault,
+    window, wizard,
 };
 
 const MAX_LOG_BYTES: u128 = 5 * 1024 * 1024;
@@ -38,6 +38,7 @@ pub fn start(
         .manage(slack::Slack::default())
         .manage(music::Music::default())
         .manage(timetracker::TimeTrackerService::default())
+        .manage(activity::Activity::default())
         .manage(rail::RailState::default())
         .manage(commands_bus())
         .manage(shortcuts::Pause::default())
@@ -83,6 +84,7 @@ pub fn start(
             slack::install(app.handle());
             music::install(app.handle());
             timetracker::install(app.handle());
+            activity::install(app.handle());
             status_rules::start(app.handle());
             notify::install(app.handle());
             window::panel::build(app.handle())?;
@@ -133,6 +135,7 @@ fn commands_bus() -> bus::Commands {
     launcher::register(&mut commands);
     music::register(&mut commands);
     timetracker::register(&mut commands);
+    activity::register(&mut commands);
     rail::register(&mut commands);
     bus::register_aliases(&mut commands);
     bus::Commands(commands)

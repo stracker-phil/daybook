@@ -71,6 +71,7 @@ mod tests {
             message: message.into(),
             end_of_day,
             message_sent: false,
+            by_activity: false,
         }
     }
 

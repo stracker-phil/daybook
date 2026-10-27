@@ -4,7 +4,8 @@ use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, percent_decode_str, utf8_perc
 use serde::Serialize;
 use ts_rs::TS;
 
-use super::state::{LinkItem, Progress, Status, ToolState};
+use super::state::{LinkItem, Progress, Status, TimerView, ToolState};
+use crate::activity::prefill::{Prefill, prefill_command};
 use crate::contexts::context_title;
 use crate::launcher::open_command;
 use crate::store::settings::{Feature, ToolId};
@@ -101,6 +102,8 @@ const STATUSES: [(Status, &str, &str); 3] = [
 ];
 
 const VOLUME_STEPS: [u8; 5] = [10, 25, 50, 75, 100];
+
+const MAX_ACTIVITIES: usize = 6;
 
 /// What `encodeURIComponent` leaves alone.
 const COMPONENT: &AsciiSet = &NON_ALPHANUMERIC
@@ -312,10 +315,37 @@ fn note_topic_choices(state: &ToolState) -> Vec<Choice> {
         .collect()
 }
 
+/// Recent timers as "Oscorp · QRS-6805 review"; a pick opens the overlay with it filled in.
+fn activity_choices(state: &ToolState) -> Vec<Choice> {
+    if !state.has_feature(Feature::Status) {
+        return Vec::new();
+    }
+    state
+        .recent_activities
+        .iter()
+        .take(MAX_ACTIVITIES)
+        .map(|recent| {
+            let label = TimerView {
+                project: recent.project.clone(),
+                note: recent.note.clone(),
+            }
+            .text();
+            let command = prefill_command(&Prefill {
+                project: Some(recent.project.clone()),
+                note: recent.note.clone(),
+                tt_project_id: Some(recent.tt_project_id.clone()),
+                tag: recent.tag.clone(),
+            });
+            item(label, command)
+        })
+        .collect()
+}
+
 pub fn tool_choices(id: ToolId, state: &ToolState) -> Vec<Choice> {
     match id {
         ToolId::Context => context_choices(state),
         ToolId::Status => status_choices(state),
+        ToolId::Activity => activity_choices(state),
         ToolId::Journal => journal_choices(state),
         ToolId::Search => search_choices(state),
         ToolId::Jira => ticket_choices(state),
@@ -343,8 +373,8 @@ pub fn choice_commands(choices: &[Choice]) -> Vec<String> {
 mod tests {
     use super::*;
     use crate::tools::state::{
-        GroupProgress, LauncherProject, Link, Music, MusicItem, ProjectGroup, RoutineProgress,
-        Topic, bare_state, fixture,
+        GroupProgress, LauncherProject, Link, Music, MusicItem, ProjectGroup, RecentActivity,
+        RoutineProgress, Topic, bare_state, fixture,
     };
 
     fn labels(choices: &[Choice]) -> Vec<String> {
@@ -751,6 +781,77 @@ mod tests {
         ] {
             assert_eq!(tool_choices(id, &bare_state()), vec![], "{id:?}");
         }
+    }
+
+    fn recent(project: &str, note: &str, tag: Option<&str>) -> RecentActivity {
+        RecentActivity {
+            project: project.into(),
+            note: note.into(),
+            tt_project_id: "tt1".into(),
+            tag: tag.map(String::from),
+        }
+    }
+
+    #[test]
+    fn recent_timers_are_choices_that_open_the_overlay_filled_in() {
+        let state = ToolState {
+            recent_activities: vec![
+                recent("Oscorp", "QRS-6805 review", None),
+                recent("Zeno", "", Some("Development")),
+                recent("Internal", "a:b", None),
+            ],
+            ..fixture()
+        };
+        assert_eq!(
+            tool_choices(ToolId::Activity, &state),
+            vec![
+                picked(
+                    "Oscorp · QRS-6805 review",
+                    "activity:prefill:Oscorp:QRS-6805%20review:tt1",
+                    None,
+                    None
+                ),
+                picked("Zeno", "activity:prefill:Zeno::tt1:Development", None, None),
+                picked(
+                    "Internal · a:b",
+                    "activity:prefill:Internal:a%3Ab:tt1",
+                    None,
+                    None
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn at_most_six_recent_timers_are_offered() {
+        let state = ToolState {
+            recent_activities: (0..8)
+                .map(|i| recent("Oscorp", &format!("note {i}"), None))
+                .collect(),
+            ..fixture()
+        };
+        let choices = tool_choices(ToolId::Activity, &state);
+        assert_eq!(
+            labels(&choices),
+            [
+                "Oscorp · note 0",
+                "Oscorp · note 1",
+                "Oscorp · note 2",
+                "Oscorp · note 3",
+                "Oscorp · note 4",
+                "Oscorp · note 5",
+            ]
+        );
+    }
+
+    #[test]
+    fn recent_timers_need_the_status_feature() {
+        let state = ToolState {
+            features: vec![Feature::Jira],
+            recent_activities: vec![recent("Oscorp", "review", None)],
+            ..fixture()
+        };
+        assert_eq!(tool_choices(ToolId::Activity, &state), vec![]);
     }
 
     #[test]

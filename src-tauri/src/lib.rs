@@ -1,3 +1,4 @@
+pub mod activity;
 mod app;
 pub mod automation;
 pub mod autostart;

@@ -1,6 +1,6 @@
 //! One tick for the work that falls due by the clock (docs/routines.md#the-scheduler): the context
-//! switch by work hours, the changes waiting for today's note, then the wizard. Coming back to the Mac
-//! ticks at once.
+//! switch by work hours, the changes waiting for today's note, the wizard, then the check-in. Coming
+//! back to the Mac ticks at once.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -8,7 +8,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Manager};
 
 use crate::state::AppState;
-use crate::{contexts, links, wizard};
+use crate::{activity, contexts, links, wizard};
 
 const TICK: Duration = Duration::from_secs(15);
 
@@ -23,6 +23,7 @@ async fn tick(app: &AppHandle) {
         log::warn!("Writing the waiting changes failed: {e}");
     }
     wizard::tick(app).await;
+    activity::tick(app).await;
     links::refresh(app).await;
 }
 

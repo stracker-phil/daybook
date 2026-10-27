@@ -78,7 +78,7 @@ fn entry(id: ToolId, state: &ToolState) -> Entry {
                 .timer
                 .as_ref()
                 .map_or_else(|| "Log activity…".into(), TimerView::text),
-            command: Some("timetracker:show"),
+            command: Some("activity:switch"),
             detail: None,
         },
         ToolId::Call => Entry::Row {
@@ -411,7 +411,7 @@ mod tests {
             );
             let activity = row(&tools, ToolId::Activity).unwrap();
             assert_eq!(activity.title, title, "{timer:?}");
-            assert_eq!(activity.command.as_deref(), Some("timetracker:show"));
+            assert_eq!(activity.command.as_deref(), Some("activity:switch"));
         }
     }
 

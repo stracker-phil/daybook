@@ -366,6 +366,12 @@ rows show ⌘1…⌘9 and open directly, typing filters by every word, a click s
 Jira overlay is an address bar: you type a number, key or link, ↓ and ↑ put the last 7 days' keys into the field
 (fuzzy-filtered, at most 8), ↵ opens what the field shows.
 
+**Activity** (⌘F2, `activity:switch`, and the check-ins): sticky. The prompt on top ("What are you working on?" or
+"Still on Oscorp · QRS-6805?"), the note field prefilled, the project picker (Tab and ⌘1–9 over the linked TimeTracker
+projects, grouped by Daybook project, with their colour dots), then the suggestions (the call, today's events,
+tickets, recent timers). ↵ starts the timer; an unchanged check-in just closes. When TimeTracker isn't running the
+overlay says so with Open TimeTracker and keeps the text.
+
 **The quick notes editor** (`src/windows/quicknotes/`): a small floating window that keeps its size and place.
 The title strip beside the window buttons has the heading's `#`s (`--o3`, mono) and the topic's title, editable
 (a new title renames the heading; ↵ goes to the text). Below it CodeMirror 6 with Markdown in `--font-mono`: the

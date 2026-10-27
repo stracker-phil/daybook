@@ -1,6 +1,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use crate::activity::pause::CheckInPause;
 use crate::contexts::Contexts;
 use crate::jira::tickets::JiraTickets;
 use crate::launch::LaunchQueue;
@@ -33,6 +34,7 @@ pub struct AppState {
     pub links: Links,
     pub jira: JiraTickets,
     pub launcher: Launcher,
+    pub check_in_pause: CheckInPause,
 }
 
 impl AppState {
@@ -53,6 +55,7 @@ impl AppState {
             links: Links::default(),
             jira: JiraTickets::open(config_dir),
             launcher: Launcher::default(),
+            check_in_pause: CheckInPause::open(config_dir),
         }
     }
 }

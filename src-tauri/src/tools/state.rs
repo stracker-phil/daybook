@@ -109,6 +109,18 @@ impl TimerView {
     }
 }
 
+/// A timer used lately, on a project that counts now.
+#[derive(Clone, Debug, PartialEq)]
+pub struct RecentActivity {
+    /// The Daybook project.
+    pub project: String,
+    /// Empty without a note.
+    pub note: String,
+    /// TimeTracker's project, so a pick starts the same timer.
+    pub tt_project_id: String,
+    pub tag: Option<String>,
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ToolState {
     pub has_vault: bool,
@@ -143,6 +155,11 @@ pub struct ToolState {
     pub tt: TtState,
     /// TimeTracker's running timer.
     pub timer: Option<TimerView>,
+    /// Timers used lately, newest first.
+    pub recent_activities: Vec<RecentActivity>,
+    /// The current context's check-in interval; 0: none.
+    pub check_in_minutes: u32,
+    pub check_ins_paused: bool,
 }
 
 /// A vault with today's note, two contexts (the first current, with Status and Jira), the status

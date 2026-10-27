@@ -37,7 +37,9 @@ pub fn prune(entries: Vec<MenuEntry>, commands: &dyn CommandStatus) -> Vec<MenuE
                 command,
                 shortcut,
             }),
-            MenuEntry::Radio { ref command, .. } => commands.knows(command).then_some(entry),
+            MenuEntry::Radio { ref command, .. } | MenuEntry::Checkbox { ref command, .. } => {
+                commands.knows(command).then_some(entry)
+            }
             MenuEntry::Submenu { label, items } => {
                 let items = prune(items, commands);
                 let actionable = items
