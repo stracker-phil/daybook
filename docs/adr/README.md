@@ -39,3 +39,4 @@ it stands in Daybook. The numbers in this table are Daybook's.
 | [0028](0028-overlays-follow-the-prototype.md) | Overlays follow the prototype's look; the activity is not the timer | Accepted (2026-10-27), implemented; partly supersedes 0011 |
 | [0029](0029-every-call-goes-to-timetracker.md) | Every call goes to TimeTracker, with or without a project | Accepted (2026-10-27), implemented; supersedes the calls part of 0023 |
 | [0030](0030-global-shortcuts-only-in-release-builds.md) | Global shortcuts only in release builds | Accepted (2026-10-27), implemented; supersedes 0018 |
+| [0031](0031-jira-issues-open-in-taskboard.md) | Jira issues open in Taskboard, the browser is the fallback | Accepted (2026-10-29), implemented |

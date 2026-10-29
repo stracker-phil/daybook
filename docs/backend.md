@@ -331,16 +331,19 @@ and `links_view` (the overlay). `link:<target>` (the target percent-encoded, `to
 target that some link has, after closing the overlay with focus handed on (`vault::commands::open_target`).
 
 **Jira** (`jira/`). `key::parse_issue_key(input, prefix)` (pure) reads `6805` (with the default prefix),
-`qrs-6805` or a link (`…/browse/QRS-6805?focus=1`) as `QRS-6805`; `issue_link` adds the key to `jira.baseUrl`.
-`checked_settings` validates `jira` when settings are saved (an `https://` URL, a prefix like `QRS`).
-`jira_open(input)` opens the issue in the browser (the overlay closes first, only once the link is valid); in a
+`qrs-6805` or a link (`…/browse/QRS-6805?focus=1`) as `QRS-6805`; `issue_key` refuses an input that names no
+issue, `browser_url` adds the key to `jira.baseUrl`. `checked_settings` validates `jira` when settings are saved
+(an `https://` URL, a prefix like `QRS`). `jira_open(input)` opens the issue (the overlay closes first, only once
+the key is valid) through `route::open_route`: in Taskboard (`taskboard::Taskboard` runs `taskboard open <KEY>`,
+found in the same folders as `plaunch`), or in the browser when Taskboard is missing or fails and a Jira URL is
+set ([ADR 0031](adr/0031-jira-issues-open-in-taskboard.md)); the action log says which. In a
 context with the Jira feature the key is remembered in `JiraTickets` (`jira-tickets.json`: day → keys, the last
 15 days kept). Today's keys, newest first, are `ToolState.tickets`; `jira_suggestions` gives the last 7 days for
 the overlay.
 
 **Project Launcher** (`launcher/`). Each Daybook project lists Launcher projects (`launcherProjects`).
-`Launcher` (`launcher/tool.rs`) runs the `plaunch` command line tool, found in `~/.local/bin`, `/usr/local/bin` or
-`/opt/homebrew/bin` (an app doesn't get the login PATH): `list --json` (parsed by `parse::parse_projects`,
+`Launcher` (`launcher/tool.rs`) runs the `plaunch` command line tool, found in `process::user_tool_folders`
+(`~/.local/bin`, `/usr/local/bin`, `/opt/homebrew/bin`; an app doesn't get the login PATH): `list --json` (parsed by `parse::parse_projects`,
 cached for 60 s, only for Settings because it may start Project Launcher) and `open <id>`. Without the tool,
 `launcher_projects` answers `found: false` and Settings shows how to install it.
 
@@ -348,7 +351,7 @@ cached for 60 s, only for Settings because it may start Project Launcher) and `o
 |---|---|---|
 | `links_view` | – | `QuickAccess { now, more }`: `LinkItem { title, target, command }` |
 | `projects_view` | – | `ProjectGroup[]`: a Daybook project and its `LauncherRow { id, name, command }` |
-| `jira_open` | `input` | the key; `invalid_input` for an unreadable input or a missing Jira URL |
+| `jira_open` | `input` | the key; `invalid_input` for an unreadable input or without Taskboard and a Jira URL, `io` when Taskboard failed and there is no URL |
 | `jira_suggestions` | – | the keys of the last 7 days, today's first, newest first |
 | `launcher_projects` | `fresh` | `LauncherProjects { found, projects: LauncherProject { id, name, archived }[], error }` |
 

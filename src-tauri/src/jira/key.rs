@@ -1,4 +1,4 @@
-//! Jira issue keys from what was typed, the issue's link, and the Jira settings' checks. Pure.
+//! Jira issue keys from what was typed, the issue's browser link, and the Jira settings' checks. Pure.
 
 use std::sync::LazyLock;
 
@@ -38,23 +38,24 @@ pub fn parse_issue_key(input: &str, default_prefix: &str) -> Option<String> {
     KEY.captures(value).map(|c| key_of(&c))
 }
 
-/// The key `input` names and its issue's link.
-pub fn issue_link(jira: &Jira, input: &str) -> AppResult<(String, String)> {
-    let Some(key) = parse_issue_key(input, &jira.default_prefix) else {
-        return Err(AppError::InvalidInput(format!(
+/// The key `input` names; refused when it names no issue.
+pub fn issue_key(jira: &Jira, input: &str) -> AppResult<String> {
+    parse_issue_key(input, &jira.default_prefix).ok_or_else(|| {
+        AppError::InvalidInput(format!(
             "“{}” isn't a Jira issue number, key or link.",
             input.trim()
-        )));
-    };
+        ))
+    })
+}
+
+/// The issue's link in the browser; `None` without a Jira URL in the settings.
+pub fn browser_url(jira: &Jira, key: &str) -> Option<String> {
     let base = jira.base_url.trim();
     if base.is_empty() {
-        return Err(AppError::InvalidInput(
-            "Set your Jira URL in Settings → Connections → Jira first.".into(),
-        ));
+        return None;
     }
     let slash = if base.ends_with('/') { "" } else { "/" };
-    let url = format!("{base}{slash}{key}");
-    Ok((key, url))
+    Some(format!("{base}{slash}{key}"))
 }
 
 /// The Jira settings as saved: trimmed, the prefix in capitals; a URL or prefix that can't work is refused.
@@ -135,52 +136,66 @@ mod tests {
     }
 
     #[test]
-    fn the_issue_link_joins_the_base_and_the_key() {
-        for (base, expected) in [
-            (
-                "https://example.atlassian.net/browse/",
-                "https://example.atlassian.net/browse/QRS-6805",
-            ),
-            (
-                "https://example.atlassian.net/browse",
-                "https://example.atlassian.net/browse/QRS-6805",
-            ),
-            (
-                "  https://example.atlassian.net/browse/  ",
-                "https://example.atlassian.net/browse/QRS-6805",
-            ),
+    fn the_browser_url_joins_the_base_and_the_key() {
+        for base in [
+            "https://example.atlassian.net/browse/",
+            "https://example.atlassian.net/browse",
+            "  https://example.atlassian.net/browse/  ",
         ] {
-            let link = issue_link(&jira(base, "QRS"), "6805").unwrap();
             assert_eq!(
-                link,
-                ("QRS-6805".to_string(), expected.to_string()),
+                browser_url(&jira(base, "QRS"), "QRS-6805").as_deref(),
+                Some("https://example.atlassian.net/browse/QRS-6805"),
                 "{base:?}"
             );
         }
     }
 
     #[test]
+    fn there_is_no_browser_url_without_a_jira_url_in_settings() {
+        for base in ["", "  "] {
+            assert_eq!(
+                browser_url(&jira(base, "QRS"), "QRS-6805"),
+                None,
+                "{base:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn an_issue_key_comes_from_a_number_a_key_or_a_link() {
+        let settings = jira("https://example.atlassian.net/browse/", "qrs");
+        for input in [
+            "6805",
+            " qrs-6805 ",
+            "https://x.atlassian.net/browse/QRS-6805",
+        ] {
+            assert_eq!(
+                issue_key(&settings, input).unwrap(),
+                "QRS-6805",
+                "{input:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn an_issue_key_needs_no_jira_url() {
+        assert_eq!(issue_key(&jira("", "QRS"), "6805").unwrap(), "QRS-6805");
+    }
+
+    #[test]
+    fn a_bare_number_without_a_default_prefix_is_refused() {
+        assert_eq!(
+            invalid_input_message(issue_key(&jira("", ""), "6805")),
+            "“6805” isn't a Jira issue number, key or link."
+        );
+    }
+
+    #[test]
     fn an_input_that_is_no_issue_is_refused_with_what_was_typed() {
-        let jira = jira("https://example.atlassian.net/browse/", "QRS");
+        let settings = jira("https://example.atlassian.net/browse/", "QRS");
         assert_eq!(
-            invalid_input_message(issue_link(&jira, "  fix the bug ")),
+            invalid_input_message(issue_key(&settings, "  fix the bug ")),
             "“fix the bug” isn't a Jira issue number, key or link."
-        );
-    }
-
-    #[test]
-    fn issue_links_need_a_jira_url_in_settings() {
-        assert_eq!(
-            invalid_input_message(issue_link(&jira("  ", "QRS"), "6805")),
-            "Set your Jira URL in Settings → Connections → Jira first."
-        );
-    }
-
-    #[test]
-    fn an_unreadable_input_is_reported_before_a_missing_url() {
-        assert_eq!(
-            invalid_input_message(issue_link(&jira("", "QRS"), "nonsense")),
-            "“nonsense” isn't a Jira issue number, key or link."
         );
     }
 

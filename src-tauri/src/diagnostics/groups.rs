@@ -195,6 +195,26 @@ pub fn timetracker_group(facts: &TimeTrackerFacts) -> DiagnosticGroup {
     group("TimeTracker", rows)
 }
 
+/// What Jira issues open with: Taskboard, or the browser when a Jira URL is set.
+pub struct JiraFacts {
+    pub taskboard_installed: bool,
+    pub browser_url_set: bool,
+}
+
+pub fn jira_group(facts: &JiraFacts) -> DiagnosticGroup {
+    let taskboard = match (facts.taskboard_installed, facts.browser_url_set) {
+        (true, _) => row("Taskboard", "Installed", DiagnosticTone::Ok),
+        (false, true) => row(
+            "Taskboard",
+            "Not installed: issues open in the browser",
+            DiagnosticTone::Warn,
+        ),
+        (false, false) => row("Taskboard", "Not installed", DiagnosticTone::Error)
+            .offering("settings:jira", "Jira Settings…"),
+    };
+    group("Jira", vec![taskboard])
+}
+
 pub fn permissions_group(calendar: CalendarAccess, accessibility: bool) -> DiagnosticGroup {
     let not_ok = |value: &str, tone| {
         row("Calendar", value, tone).offering("settings:calendar", "Calendar Settings…")
@@ -641,6 +661,55 @@ mod tests {
                 "{running}"
             );
         }
+    }
+
+    #[test]
+    fn an_installed_taskboard_is_good() {
+        for browser_url_set in [true, false] {
+            let group = jira_group(&JiraFacts {
+                taskboard_installed: true,
+                browser_url_set,
+            });
+            assert_eq!(group.title, "Jira");
+            assert_eq!(
+                shown(&group),
+                [("Taskboard", "Installed", Ok, None)],
+                "{browser_url_set}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_missing_taskboard_with_a_browser_url_is_a_warning() {
+        let group = jira_group(&JiraFacts {
+            taskboard_installed: false,
+            browser_url_set: true,
+        });
+        assert_eq!(
+            shown(&group),
+            [(
+                "Taskboard",
+                "Not installed: issues open in the browser",
+                Warn,
+                None
+            )]
+        );
+    }
+
+    #[test]
+    fn a_missing_taskboard_without_a_browser_url_is_an_error_pointing_to_the_jira_settings() {
+        let group = jira_group(&JiraFacts {
+            taskboard_installed: false,
+            browser_url_set: false,
+        });
+        assert_eq!(
+            shown(&group),
+            [("Taskboard", "Not installed", Error, Some("settings:jira"))]
+        );
+        assert_eq!(
+            group.rows[0].command_label.as_deref(),
+            Some("Jira Settings…")
+        );
     }
 
     #[test]

@@ -10,7 +10,7 @@ use ts_rs::TS;
 use super::parse::{ListedProject, failure_message, parse_projects};
 use crate::error::{AppError, AppResult};
 use crate::lock::MutexExt;
-use crate::process::{self, is_executable};
+use crate::process;
 
 const TOOL: &str = "plaunch";
 const TIMEOUT: Duration = Duration::from_secs(40);
@@ -28,7 +28,6 @@ pub struct LauncherProjects {
 }
 
 pub struct Launcher {
-    /// Where `plaunch` may be; an app doesn't get the login `PATH`.
     folders: Vec<PathBuf>,
     /// The last list and when it was made; held while a list runs, so callers share one run.
     listed: Mutex<Option<(Instant, LauncherProjects)>>,
@@ -36,12 +35,7 @@ pub struct Launcher {
 
 impl Default for Launcher {
     fn default() -> Self {
-        let home = std::env::home_dir().map(|home| home.join(".local/bin"));
-        let folders = home
-            .into_iter()
-            .chain(["/usr/local/bin", "/opt/homebrew/bin"].map(PathBuf::from))
-            .collect();
-        Self::new(folders)
+        Self::new(process::user_tool_folders())
     }
 }
 
@@ -51,13 +45,6 @@ impl Launcher {
             folders,
             listed: Mutex::default(),
         }
-    }
-
-    fn tool(&self) -> Option<PathBuf> {
-        self.folders
-            .iter()
-            .map(|folder| folder.join(TOOL))
-            .find(|tool| is_executable(tool))
     }
 
     /// Runs `plaunch` with `args`; its stdout, or why it failed.
@@ -72,7 +59,7 @@ impl Launcher {
     }
 
     fn list_now(&self) -> LauncherProjects {
-        let Some(tool) = self.tool() else {
+        let Some(tool) = process::find_tool(&self.folders, TOOL) else {
             return LauncherProjects {
                 found: false,
                 projects: Vec::new(),
@@ -113,8 +100,7 @@ impl Launcher {
 
     /// Shows project `id` in Project Launcher. Blocks up to `TIMEOUT`.
     pub fn open(&self, id: &str) -> AppResult<()> {
-        let tool = self
-            .tool()
+        let tool = process::find_tool(&self.folders, TOOL)
             .ok_or_else(|| AppError::NotFound(NOT_INSTALLED.into()))?;
         Self::run(&tool, &["open", id])
             .map(|_| ())

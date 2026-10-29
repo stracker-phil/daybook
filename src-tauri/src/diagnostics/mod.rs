@@ -1,4 +1,4 @@
-//! Settings → Status's diagnostics: what the vault, Slack, TimeTracker, the permissions and the
+//! Settings → Status's diagnostics: what the vault, Slack, TimeTracker, Jira, the permissions and the
 //! automation entries report now (`groups` builds the texts).
 
 pub mod groups;
@@ -6,10 +6,11 @@ pub mod groups;
 use tauri::{AppHandle, Manager};
 
 use groups::{
-    AutomationFacts, Diagnostics, SlackFacts, TimeTrackerFacts, VaultFacts, automation_group,
-    permissions_group, slack_group, timetracker_group, vault_group,
+    AutomationFacts, Diagnostics, JiraFacts, SlackFacts, TimeTrackerFacts, VaultFacts,
+    automation_group, jira_group, permissions_group, slack_group, timetracker_group, vault_group,
 };
 
+use crate::jira::taskboard::Taskboard;
 use crate::state::AppState;
 use crate::{automation, calendar, calls, http_api, slack, timetracker};
 
@@ -51,6 +52,14 @@ fn timetracker_facts(
     }
 }
 
+fn jira_facts(app: &AppHandle) -> JiraFacts {
+    let jira = app.state::<AppState>().settings.get().jira;
+    JiraFacts {
+        taskboard_installed: Taskboard::default().is_installed(),
+        browser_url_set: !jira.base_url.trim().is_empty(),
+    }
+}
+
 fn automation_facts(app: &AppHandle) -> AutomationFacts {
     let cli = automation::cli::cli_info();
     let api = http_api::api_status(app);
@@ -84,6 +93,7 @@ pub async fn diagnostics_get(app: AppHandle) -> Diagnostics {
             vault_group(&vault_facts(&app)),
             slack_group(&slack),
             timetracker_group(&timetracker_facts(&app, tt)),
+            jira_group(&jira_facts(&app)),
             permissions_group(calendar, calls::access::is_trusted()),
             automation_group(&automation_facts(&app)),
         ],

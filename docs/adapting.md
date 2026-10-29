@@ -45,8 +45,8 @@ second app with their own name, identifier, data, socket and URL scheme, so they
 | `slack.com` | the Slack Web API: identity, status, presence, channel messages | `slack/` |
 | `itunes.apple.com` | the artist search for music entries | `music/` |
 
-Everything else leaves the Mac only through other apps: links and Jira issues open in the browser
-(`tauri-plugin-opener`), joining hands a meeting to the call app (`calls/join.rs`). A new host goes into
+Everything else leaves the Mac only through other apps: links open in the browser (`tauri-plugin-opener`), Jira
+issues in Taskboard or, as the fallback, in the browser, joining hands a meeting to the call app (`calls/join.rs`). A new host goes into
 `HOSTS` with an ADR.
 
 ## External tools
@@ -58,7 +58,8 @@ launchd has a short one; `process.rs` `EXTRA_PATH` adds the Homebrew folders).
 |---|---|---|
 | `timetracker` (TimeTracker's CLI) | the timer, projects, recordings, suggestions, `show` | see [TimeTracker](#timetracker) |
 | `obsidian` (the Obsidian CLI) | creating today's note | `vault/obsidian.rs` `CANDIDATES` |
-| `plaunch` (Project Launcher) | the Projects overlay, `projects:open:<id>` | `launcher/tool.rs` `TOOL`, `Launcher::default` (`~/.local/bin`, `/usr/local/bin`, `/opt/homebrew/bin`) |
+| `plaunch` (Project Launcher) | the Projects overlay, `projects:open:<id>` | `launcher/tool.rs` `TOOL`, `process::user_tool_folders` (`~/.local/bin`, `/usr/local/bin`, `/opt/homebrew/bin`) |
+| `taskboard` (Taskboard) | opening Jira issues (`open <KEY>`); without it they open in the browser | `jira/taskboard.rs` `TOOL`, `process::user_tool_folders` |
 | `osascript` | Music (JXA), Chrome's tabs for call detection | `music/script.rs`, `calls/probe.rs` |
 | `lsappinfo`, `pgrep`, `pmset`, `ps`, `ioreg` | call detection, the lock state | `calls/probe.rs`, `presence/native.rs` |
 | `open -b` | starting call apps before joining | `calls/join.rs` |

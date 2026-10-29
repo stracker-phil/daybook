@@ -1,7 +1,10 @@
-//! Open Jira Issue: a number, key or link opens the issue in the browser; in a context with the Jira
-//! feature the key is remembered for the suggestions and the Jira tool (`tickets`).
+//! Open Jira Issue: a number, key or link opens the issue in Taskboard, or in the browser when
+//! Taskboard is missing or fails (`route`); in a context with the Jira feature the key is remembered
+//! for the suggestions and the Jira tool (`tickets`).
 
 pub mod key;
+pub mod route;
+pub mod taskboard;
 pub mod tickets;
 
 use serde_json::Value;
@@ -17,7 +20,9 @@ use crate::vault::commands::blocking;
 use crate::{tray, window};
 
 pub use key::checked_settings;
-use key::issue_link;
+use key::{browser_url, issue_key};
+use route::{Opened, open_route};
+use taskboard::Taskboard;
 
 const VIEW: &str = "jira";
 
@@ -46,22 +51,39 @@ async fn remember(app: &AppHandle, key: &str) -> AppResult<()> {
     Ok(())
 }
 
+/// Opens `key` in Taskboard or, failing that, in the browser; says where for the action log.
+async fn show(app: &AppHandle, key: &str, fallback_url: Option<String>) -> AppResult<String> {
+    let owned_key = key.to_string();
+    let route =
+        blocking(move || open_route(&owned_key, &Taskboard::default(), fallback_url)).await?;
+    match route {
+        Opened::Taskboard => Ok(format!("Opened {key} in Taskboard")),
+        Opened::Browser {
+            url,
+            taskboard_failure,
+        } => {
+            app.opener()
+                .open_url(&url, None::<&str>)
+                .map_err(|e| AppError::Io(format!("Couldn't open {key}: {e}")))?;
+            Ok(match taskboard_failure {
+                Some(why) => format!("Taskboard failed ({why}); opened {url} in the browser"),
+                None => format!("Opened {url} in the browser"),
+            })
+        }
+    }
+}
+
 /// Opens the issue `input` names; the overlay closes first when `close_overlay`. Returns its key.
 async fn open_issue(app: &AppHandle, input: &str, close_overlay: bool) -> AppResult<String> {
     let jira = app.state::<AppState>().settings.get().jira;
-    let (key, url) = issue_link(&jira, input)?;
+    let key = issue_key(&jira, input)?;
     if close_overlay {
         window::panel::close(app, true);
     }
     let title = format!("Jira issue opened: {key}");
     action_log::traced(&title, async {
-        app.opener()
-            .open_url(&url, None::<&str>)
-            .map_err(|e| AppError::Io(format!("Couldn't open {key}: {e}")))?;
-        action_log::done(
-            ActionTarget::Daybook,
-            &format!("Opened {url} in the browser"),
-        );
+        let opened = show(app, &key, browser_url(&jira, &key)).await?;
+        action_log::done(ActionTarget::Daybook, &opened);
         remember(app, &key).await
     })
     .await?;

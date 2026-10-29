@@ -1,7 +1,7 @@
 //! Runs other programs with a time limit and the usual tool folders on the `PATH`.
 
 use std::io::{self, Read};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -119,6 +119,22 @@ pub fn run_in_login_shell(command: &str, timeout: Duration) -> Result<Output, Ru
     run(Path::new("/bin/zsh"), &args, timeout)
 }
 
+/// Where command line tools of the owner's own apps live; an app doesn't get the login `PATH`.
+pub fn user_tool_folders() -> Vec<PathBuf> {
+    std::env::home_dir()
+        .map(|home| home.join(".local/bin"))
+        .into_iter()
+        .chain(["/usr/local/bin", "/opt/homebrew/bin"].map(PathBuf::from))
+        .collect()
+}
+
+pub fn find_tool(folders: &[PathBuf], name: &str) -> Option<PathBuf> {
+    folders
+        .iter()
+        .map(|folder| folder.join(name))
+        .find(|tool| is_executable(tool))
+}
+
 /// A regular file with an execute bit.
 pub fn is_executable(file: &Path) -> bool {
     use std::os::unix::fs::PermissionsExt;
@@ -223,5 +239,33 @@ mod tests {
         assert!(is_executable(&tool));
         assert!(!is_executable(dir.path()));
         assert!(!is_executable(&dir.path().join("missing")));
+    }
+
+    #[test]
+    fn a_tool_is_found_in_the_first_folder_that_has_it_executable() {
+        use std::os::unix::fs::PermissionsExt;
+        let (first, second, third) = (
+            tempfile::tempdir().unwrap(),
+            tempfile::tempdir().unwrap(),
+            tempfile::tempdir().unwrap(),
+        );
+        for (dir, mode) in [(&first, 0o644), (&second, 0o755), (&third, 0o755)] {
+            let tool = dir.path().join("tool");
+            std::fs::write(&tool, "#!/bin/sh\n").unwrap();
+            std::fs::set_permissions(&tool, std::fs::Permissions::from_mode(mode)).unwrap();
+        }
+        let folders = vec![
+            PathBuf::from("/nonexistent"),
+            first.path().into(),
+            second.path().into(),
+            third.path().into(),
+        ];
+
+        assert_eq!(
+            find_tool(&folders, "tool"),
+            Some(second.path().join("tool"))
+        );
+        assert_eq!(find_tool(&folders, "other"), None);
+        assert_eq!(find_tool(&[], "tool"), None);
     }
 }
