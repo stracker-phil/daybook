@@ -1,6 +1,6 @@
 //! A call that drops for longer than the grace (a reconnect, breakout rooms) and comes back in the same
 //! app within `RESTART_WITHIN` is one call for TimeTracker: an ended call waits that long before it is
-//! suggested, and a restart joins it. Pure.
+//! final, and a restart joins it. The call keeps its live suggestion's id through the restart. Pure.
 
 use chrono::{NaiveDateTime, TimeDelta};
 
@@ -15,6 +15,8 @@ pub struct EndedCall {
     pub call: ActiveCall,
     pub end: NaiveDateTime,
     pub status: Option<Status>,
+    /// The id of the suggestion TimeTracker shows for it while it ran; set once the call is final.
+    pub sent: Option<String>,
 }
 
 #[derive(Debug, Default)]
@@ -22,6 +24,8 @@ pub struct SplitCalls {
     waiting: Option<EndedCall>,
     /// The earlier part of the call running now.
     continues: Option<ActiveCall>,
+    /// The suggestion of the call running or waiting now.
+    sent: Option<String>,
 }
 
 /// The earlier part's start and, unless it was just "Meeting", its title.
@@ -39,6 +43,29 @@ fn joined(first: &ActiveCall, later: &ActiveCall) -> ActiveCall {
 }
 
 impl SplitCalls {
+    /// The call running now, joined to its earlier part.
+    pub fn live(&self, call: &ActiveCall) -> ActiveCall {
+        match &self.continues {
+            Some(first) if first.bundle_id == call.bundle_id => joined(first, call),
+            _ => call.clone(),
+        }
+    }
+
+    pub fn sent(&self) -> Option<&str> {
+        self.sent.as_deref()
+    }
+
+    pub fn set_sent(&mut self, id: String) {
+        self.sent = Some(id);
+    }
+
+    /// The waiting call, final now, with its suggestion's id.
+    fn finish(&mut self) -> Option<EndedCall> {
+        let mut waiting = self.waiting.take()?;
+        waiting.sent = self.sent.take();
+        Some(waiting)
+    }
+
     /// A call ended (joined to its earlier part): it waits. Returns a call that waited before and is
     /// final now.
     pub fn ended(&mut self, mut ended: EndedCall) -> Option<EndedCall> {
@@ -53,12 +80,12 @@ impl SplitCalls {
     /// A call started: the same app's call that ended at most `RESTART_WITHIN` before goes on in it;
     /// any other waiting call is final and returned.
     pub fn started(&mut self, call: &ActiveCall) -> Option<EndedCall> {
-        let waiting = self.waiting.take()?;
+        let waiting = self.waiting.as_ref()?;
         if waiting.call.bundle_id == call.bundle_id && call.since - waiting.end <= RESTART_WITHIN {
-            self.continues = Some(waiting.call);
+            self.continues = self.waiting.take().map(|waiting| waiting.call);
             None
         } else {
-            Some(waiting)
+            self.finish()
         }
     }
 
@@ -71,7 +98,7 @@ impl SplitCalls {
     /// The waiting call, once `RESTART_WITHIN` passed after its end without a restart.
     pub fn due(&mut self, now: NaiveDateTime) -> Option<EndedCall> {
         if self.due_at().is_some_and(|due_at| now >= due_at) {
-            self.waiting.take()
+            self.finish()
         } else {
             None
         }
@@ -100,7 +127,12 @@ mod tests {
     }
 
     fn ended(call: ActiveCall, end: NaiveDateTime, status: Option<Status>) -> EndedCall {
-        EndedCall { call, end, status }
+        EndedCall {
+            call,
+            end,
+            status,
+            sent: None,
+        }
     }
 
     #[test]
@@ -254,5 +286,102 @@ mod tests {
 
         assert_eq!(split.ended(newer.clone()), Some(older));
         assert_eq!(split.due(at(11, 2, 0)), Some(newer));
+    }
+
+    #[test]
+    fn a_call_without_an_earlier_part_is_live_as_it_is() {
+        let split = SplitCalls::default();
+        let running = call("zoom", "Sync", at(10, 0, 0));
+
+        assert_eq!(split.live(&running), running);
+    }
+
+    #[test]
+    fn a_restarted_call_is_live_from_the_first_parts_start_and_title() {
+        let mut split = SplitCalls::default();
+        split.ended(ended(
+            call("zoom", "Weekly", at(10, 0, 0)),
+            at(10, 30, 0),
+            None,
+        ));
+        split.started(&call("zoom", GENERIC_TITLE, at(10, 31, 0)));
+
+        assert_eq!(
+            split.live(&call("zoom", GENERIC_TITLE, at(10, 31, 0))),
+            call("zoom", "Weekly", at(10, 0, 0))
+        );
+    }
+
+    #[test]
+    fn a_restarted_call_takes_its_own_title_when_the_first_was_generic() {
+        let mut split = SplitCalls::default();
+        split.ended(ended(
+            call("teams", GENERIC_TITLE, at(10, 0, 0)),
+            at(10, 30, 0),
+            None,
+        ));
+        split.started(&call("teams", "Budget", at(10, 31, 0)));
+
+        assert_eq!(
+            split.live(&call("teams", "Budget", at(10, 31, 0))),
+            call("teams", "Budget", at(10, 0, 0))
+        );
+    }
+
+    #[test]
+    fn a_call_of_another_app_is_live_as_it_is_during_a_restart() {
+        let mut split = SplitCalls::default();
+        split.ended(ended(
+            call("zoom", "Weekly", at(10, 0, 0)),
+            at(10, 30, 0),
+            None,
+        ));
+        split.started(&call("zoom", "Weekly", at(10, 31, 0)));
+        let other = call("teams", "B", at(10, 32, 0));
+
+        assert_eq!(split.live(&other), other);
+    }
+
+    #[test]
+    fn no_suggestion_is_sent_until_one_is_set() {
+        let mut split = SplitCalls::default();
+        assert_eq!(split.sent(), None);
+
+        split.set_sent("s-1".into());
+        assert_eq!(split.sent(), Some("s-1"));
+    }
+
+    #[test]
+    fn the_sent_id_stays_through_a_restart() {
+        let mut split = SplitCalls::default();
+        split.set_sent("s-1".into());
+        split.ended(ended(call("zoom", "A", at(10, 0, 0)), at(10, 30, 0), None));
+
+        assert_eq!(split.started(&call("zoom", "A", at(10, 31, 0))), None);
+        assert_eq!(split.sent(), Some("s-1"));
+    }
+
+    #[test]
+    fn the_final_call_carries_the_sent_id_once_due() {
+        let mut split = SplitCalls::default();
+        split.set_sent("s-1".into());
+        split.ended(ended(call("zoom", "A", at(10, 0, 0)), at(10, 30, 0), None));
+
+        let mut expected = ended(call("zoom", "A", at(10, 0, 0)), at(10, 30, 0), None);
+        expected.sent = Some("s-1".into());
+        assert_eq!(split.due(at(10, 32, 0)), Some(expected));
+        assert_eq!(split.sent(), None);
+    }
+
+    #[test]
+    fn another_apps_call_finishes_the_waiting_one_with_its_id_and_starts_without() {
+        let mut split = SplitCalls::default();
+        split.set_sent("s-1".into());
+        split.ended(ended(call("zoom", "A", at(10, 0, 0)), at(10, 30, 0), None));
+
+        let finished = split.started(&call("teams", "B", at(10, 31, 0))).unwrap();
+
+        assert_eq!(finished.sent, Some("s-1".to_string()));
+        assert_eq!(split.sent(), None);
     }
 }

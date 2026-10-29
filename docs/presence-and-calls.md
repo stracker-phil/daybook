@@ -107,7 +107,7 @@ mid-call left). `calls::active` is the call now; the tool state carries its star
 | Slack (`slack/mod.rs`) | the trigger's call status | only the new trigger's status (none when it is the same) | restores the picked status |
 | Music (`music/automation.rs`) | lowers or pauses | nothing: stays lowered | restores, resumes |
 | Wizard (`wizard/mod.rs`) | MeetingStart | nothing | MeetingEnd |
-| TimeTracker (`timetracker/drive.rs`) | a restart within 2 minutes continues the ended call | the old call ends (a suggestion) | a suggestion, after 2 minutes |
+| TimeTracker (`timetracker/call_drive.rs`) | pauses the timer; a restart within 2 minutes continues the ended call; the suggestion grows each minute | the old call ends, the timer stays paused | resumes the timer; the suggestion is final after 2 minutes |
 
 ## Joining
 

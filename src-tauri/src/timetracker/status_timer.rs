@@ -1,5 +1,5 @@
 //! What a status change does to TimeTracker's timer: Working continues the last timer, Break and Off
-//! stop it (docs/timetracker.md#status-and-calls). The timer never changes the status. Pure.
+//! stop it (docs/timetracker.md#the-status-drives-the-timer). The timer never changes the status. Pure.
 
 use super::reply::RecentTimer;
 use super::watch::{Tracking, TtState};

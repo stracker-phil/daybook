@@ -1,4 +1,4 @@
-//! A finished call as a TimeTracker suggestion, or why it isn't sent (docs/timetracker.md#status-and-calls).
+//! A call as a TimeTracker suggestion, or why it isn't sent (docs/timetracker.md#calls-become-suggestions).
 //! Pure.
 
 use chrono::{NaiveDateTime, TimeDelta};
@@ -48,7 +48,7 @@ impl Skip {
 pub struct FinishedCall<'a> {
     pub call: &'a ActiveCall,
     pub end: NaiveDateTime,
-    /// Today's status when the call ended.
+    /// Today's status when the call ended (or now, while it runs).
     pub status: Option<Status>,
     /// The current context has the Status feature.
     pub status_feature: bool,
@@ -76,7 +76,7 @@ fn note(app: &str, title: &str) -> String {
 }
 
 /// The span ends at midnight at the latest.
-fn same_day_end(start: NaiveDateTime, end: NaiveDateTime) -> NaiveDateTime {
+pub fn same_day_end(start: NaiveDateTime, end: NaiveDateTime) -> NaiveDateTime {
     let midnight = start
         .date()
         .succ_opt()

@@ -37,6 +37,7 @@ it stands in Daybook. The numbers in this table are Daybook's.
 | [0026](0026-the-daybook-window-follows-the-prototypes-look.md) | The Daybook window follows the prototype's look | Accepted (2026-10-27), implemented; partly supersedes 0007, 0009, 0011 |
 | [0027](0027-several-windows-on-a-native-window-layer.md) | Several windows on a native window layer | Accepted (2026-10-27), implemented |
 | [0028](0028-overlays-follow-the-prototype.md) | Overlays follow the prototype's look; the activity is not the timer | Accepted (2026-10-27), implemented; partly supersedes 0011 |
-| [0029](0029-every-call-goes-to-timetracker.md) | Every call goes to TimeTracker, with or without a project | Accepted (2026-10-27), implemented; supersedes the calls part of 0023 |
+| [0029](0029-every-call-goes-to-timetracker.md) | Every call goes to TimeTracker, with or without a project | Accepted (2026-10-27), implemented; supersedes the calls part of 0023; when a call is sent superseded by [0032](0032-a-call-pauses-the-timer-and-shows-while-it-runs.md) |
 | [0030](0030-global-shortcuts-only-in-release-builds.md) | Global shortcuts only in release builds | Accepted (2026-10-27), implemented; supersedes 0018 |
 | [0031](0031-jira-issues-open-in-taskboard.md) | Jira issues open in Taskboard, the browser is the fallback | Accepted (2026-10-29), implemented |
+| [0032](0032-a-call-pauses-the-timer-and-shows-while-it-runs.md) | A call pauses the timer and shows in TimeTracker while it runs | Accepted (2026-10-29), implemented; supersedes when 0029 sends a call |

@@ -3,6 +3,7 @@
 ## Status
 
 Accepted (2026-10-27), implemented. Supersedes the calls part of [0023](0023-status-drives-the-timer-calls-are-suggestions.md).
+When a call is sent is superseded by [ADR 0032](0032-a-call-pauses-the-timer-and-shows-while-it-runs.md): while it runs, with the timer paused.
 
 ## Context
 

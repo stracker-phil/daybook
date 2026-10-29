@@ -203,15 +203,19 @@ fn span_time(at: NaiveDateTime) -> String {
     at.format("%Y-%m-%dT%H:%M:%S").to_string()
 }
 
+fn span((start, end): (NaiveDateTime, NaiveDateTime)) -> String {
+    format!("{}-{}", span_time(start), span_time(end))
+}
+
 /// A "Suggested by Daybook" suggestion on one local day, on `project_id` or none for the owner to pick;
 /// its id, `None` in a dry run.
 pub fn record(
     tt: &dyn TimeTracker,
     project_id: Option<&str>,
-    (start, end): (NaiveDateTime, NaiveDateTime),
+    times: (NaiveDateTime, NaiveDateTime),
     note: &str,
 ) -> AppResult<Option<String>> {
-    let span = format!("{}-{}", span_time(start), span_time(end));
+    let span = span(times);
     let note_arg = format!("--note={note}");
     let mut args = vec!["record"];
     if let Some(project_id) = project_id {
@@ -219,6 +223,39 @@ pub fn record(
     }
     args.extend(["--span", &span, &note_arg, "--source", "Daybook"]);
     parse_recorded(&call(tt, &args)?).map_err(AppError::TimeTrackerRefused)
+}
+
+/// Moves the suggestion `id` to one span; nothing else changes (a running call's suggestion growing).
+pub fn extend(
+    tt: &dyn TimeTracker,
+    id: &str,
+    times: (NaiveDateTime, NaiveDateTime),
+) -> AppResult<()> {
+    let span = span(times);
+    call(tt, &["edit", id, "--span", &span]).map(|_| ())
+}
+
+/// The suggestion `id` with its final span and note, and `project_id` when known (a project, once set,
+/// stays: TimeTracker can't clear it).
+pub fn update(
+    tt: &dyn TimeTracker,
+    id: &str,
+    project_id: Option<&str>,
+    times: (NaiveDateTime, NaiveDateTime),
+    note: &str,
+) -> AppResult<()> {
+    let span = span(times);
+    let note_arg = format!("--note={note}");
+    let mut args = vec!["edit", id];
+    if let Some(project_id) = project_id {
+        args.extend(["--project", project_id]);
+    }
+    args.extend(["--span", &span, &note_arg]);
+    call(tt, &args).map(|_| ())
+}
+
+pub fn dismiss(tt: &dyn TimeTracker, id: &str) -> AppResult<()> {
+    call(tt, &["delete", id]).map(|_| ())
 }
 
 /// Shows TimeTracker's Day view of `day`, else today; starts TimeTracker if needed.
@@ -290,7 +327,9 @@ impl TimeTracker for Cli {
         let writes = changes_data(args);
         if self.dry_run && writes {
             log::info!("debug build: would run timetracker {}", args.join(" "));
-            logged::log_write(args, |id| self.name_of(id), None);
+            if !logged::is_quiet(args) {
+                logged::log_write(args, |id| self.name_of(id), None);
+            }
             return Ok(RawReply {
                 code: Some(0),
                 stdout: String::new(),
@@ -307,7 +346,7 @@ impl TimeTracker for Cli {
             Err(RunError::Spawn { .. }) => Err(RunFailure::Missing),
             Err(RunError::Wait { .. } | RunError::TimedOut { .. }) => Err(RunFailure::TimedOut),
         };
-        if writes {
+        if writes && !logged::is_quiet(args) {
             logged::log_write(args, |id| self.name_of(id), Some(&reply));
         }
         reply
@@ -838,6 +877,113 @@ mod tests {
             "Daybook",
             "--json"
         ]));
+    }
+
+    #[test]
+    fn extend_moves_only_the_span_of_the_suggestion() {
+        let tt = Fake::answering(reply(Some(0), "", ""));
+        extend(&tt, "s-1", (local(10, 0, 0), local(10, 12, 30))).unwrap();
+        assert_eq!(
+            tt.calls(),
+            vec![vec![
+                "edit",
+                "s-1",
+                "--span",
+                "2026-10-27T10:00:00-2026-10-27T10:12:30",
+                "--json"
+            ]]
+        );
+    }
+
+    #[test]
+    fn update_sends_the_project_span_and_attached_note() {
+        let tt = Fake::answering(reply(Some(0), "", ""));
+        update(
+            &tt,
+            "s-1",
+            Some("p1"),
+            (local(10, 0, 0), local(10, 45, 0)),
+            "- Zoom",
+        )
+        .unwrap();
+        assert_eq!(
+            tt.calls(),
+            vec![vec![
+                "edit",
+                "s-1",
+                "--project",
+                "p1",
+                "--span",
+                "2026-10-27T10:00:00-2026-10-27T10:45:00",
+                "--note=- Zoom",
+                "--json"
+            ]]
+        );
+    }
+
+    #[test]
+    fn update_without_a_project_sends_no_project_argument() {
+        let tt = Fake::answering(reply(Some(0), "", ""));
+        update(
+            &tt,
+            "s-1",
+            None,
+            (local(10, 0, 0), local(10, 45, 0)),
+            "Zoom",
+        )
+        .unwrap();
+        assert_eq!(
+            tt.calls(),
+            vec![vec![
+                "edit",
+                "s-1",
+                "--span",
+                "2026-10-27T10:00:00-2026-10-27T10:45:00",
+                "--note=Zoom",
+                "--json"
+            ]]
+        );
+    }
+
+    #[test]
+    fn dismiss_deletes_the_suggestion() {
+        let tt = Fake::answering(reply(Some(0), "", ""));
+        dismiss(&tt, "s-1").unwrap();
+        assert_eq!(tt.calls(), vec![vec!["delete", "s-1", "--json"]]);
+    }
+
+    #[test]
+    fn editing_and_dismissing_gives_the_error_kind_of_timetrackers_answer() {
+        let tt = Fake::answering(reply(Some(2), "", "TimeTracker is not running\n"));
+        let span = (local(10, 0, 0), local(10, 5, 0));
+        assert_eq!(
+            extend(&tt, "s-1", span).unwrap_err().kind(),
+            ErrorKind::TimetrackerNotRunning
+        );
+        assert_eq!(
+            update(&tt, "s-1", None, span, "n").unwrap_err().kind(),
+            ErrorKind::TimetrackerNotRunning
+        );
+        assert_eq!(
+            dismiss(&tt, "s-1").unwrap_err().kind(),
+            ErrorKind::TimetrackerNotRunning
+        );
+    }
+
+    #[test]
+    fn edit_and_delete_are_writes_that_a_debug_build_only_pretends_to_run() {
+        for args in [
+            vec![
+                "edit",
+                "s-1",
+                "--span",
+                "2026-10-27T10:00:00-2026-10-27T10:05:00",
+                "--json",
+            ],
+            vec!["delete", "s-1", "--json"],
+        ] {
+            assert!(changes_data(&args), "{args:?}");
+        }
     }
 
     #[test]

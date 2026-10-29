@@ -145,20 +145,35 @@ started." or "…stopped.") offers Open TimeTracker.
 
 ## Calls become suggestions
 
-On a call's end (a call that drops and comes back within the grace is one call), the call waits 2 minutes
-(`split_calls.rs`, pure `SplitCalls`): when the same app (bundle id) is in a call again within 2 minutes of the end
-(a reconnect, breakout rooms), the new part continues it and the joined call (the first part's start and, unless it
-was "Meeting", its title) is suggested once it ends for good. A call moving to another app (`Switched`) ends the old
-one at once. The status counts as it was when the call ended. Then `call_suggestion` (pure) checks, in
-order: the status is Working; the context has the Status feature; the call (cut at midnight) lasts 3 minutes or
-more. Every call that passes goes to TimeTracker ([ADR 0029](adr/0029-every-call-goes-to-timetracker.md)): when the
-title (or, for a generic "Meeting", the overlapping event's) names a current project by its name or a meeting word and
-that project is linked to TimeTracker, on its first link; otherwise without a project. It sends
-`timetracker record [--project <id>] --span <start>-<end> --note=<App> - <title> --source Daybook`: a stored
+`timetracker/call_drive.rs` follows every call event in one task, with a minute tick and the final call, so they run
+in turn ([ADR 0032](adr/0032-a-call-pauses-the-timer-and-shows-while-it-runs.md)).
+
+**A call pauses the timer** (`call_timer.rs`, pure): a call that starts while Working, in a context with the Status
+feature and with `timetracker.statusTimer` on, stops the running timer (`timer stop`) and keeps its project, note and
+tag. When the call ends, `timer start` continues it, unless the status is no longer Working or another timer runs by
+then. A call moving to another app (`Switched`) keeps it paused. Only Daybook's memory holds the pause: quitting during
+a call doesn't resume the timer.
+
+**The suggestion grows while the call runs.** `call_suggestion` (pure) checks, in order: the status is Working; the
+context has the Status feature; the call (cut at midnight) lasts 3 minutes or more. Every call that passes goes to
+TimeTracker ([ADR 0029](adr/0029-every-call-goes-to-timetracker.md)): when the title (or, for a generic "Meeting", the
+overlapping event's) names a current project by its name or a meeting word and that project is linked to TimeTracker,
+on its first link; otherwise without a project. On the first minute tick the running call passes, Daybook sends
+`timetracker record [--project <id>] --span <start>-<now> --note=<App> - <title> --source Daybook`: a stored
 suggestion TimeTracker shows as "Suggested by Daybook" to approve; one without a project waits in TimeTracker's Day
-view for the owner to pick one, and the action log reads "Suggestion: Without a project …". TimeTracker shows only the
-part of a suggestion no recording covers, so a call made while a timer runs often doesn't show. When TimeTracker isn't
-running a notification says the call wasn't sent. Every outcome is logged.
+view for the owner to pick one. Each minute after, `edit <id> --span <start>-<now>` moves its end (`client::extend`;
+`logged::is_quiet` keeps these out of the action log), and the call's end moves it there.
+
+**One call across restarts** (`split_calls.rs`, pure `SplitCalls`): an ended call waits 2 minutes; when the same app
+(bundle id) is in a call again within them (a reconnect, breakout rooms), the new part continues it with the same
+suggestion, from the first part's start and, unless it was "Meeting", with its title. A call moving to another app
+ends the old one at once. The status counts as it was when the call ended.
+
+**The final call** (`live_call::settle`, pure): one that was sent gets its final span, note and project
+(`edit <id> [--project <id>] --span … --note=…`, "Suggestion updated" in the action log); one that was sent but no
+longer passes (the status changed during the call) is dismissed (`delete <id>`); one not sent yet is recorded now, or
+skipped with its reason. When TimeTracker isn't running a notification says the call wasn't sent. A debug build's dry
+run stands in `dry-run` for the suggestion's id. Every outcome is logged.
 
 ## The Activity tab
 

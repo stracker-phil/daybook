@@ -1,16 +1,20 @@
 //! TimeTracker (docs/timetracker.md): Daybook reads and drives it through its `timetracker` tool and
 //! never tracks time itself. One thread follows `timetracker watch --json`, so the timer and whether
 //! TimeTracker runs are known live; the menu-bar title, the rail, the sidebar, Slack and the link rules
-//! follow through `timer_changed`. The status starts and stops the timer; finished calls become
-//! suggestions (`drive`).
+//! follow through `timer_changed`. The status starts and stops the timer (`drive`); a call pauses it and
+//! shows as a suggestion (`call_drive`).
 
+mod call_drive;
 mod call_suggestion;
+mod call_timer;
 pub mod client;
 pub mod commands;
 pub mod day;
 mod drive;
+mod feedback;
 mod follow;
 pub mod link;
+mod live_call;
 pub mod logged;
 pub mod reply;
 mod split_calls;

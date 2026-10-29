@@ -36,10 +36,16 @@ fn joined(parts: &[Option<String>]) -> String {
         .join(" · ")
 }
 
-/// "Apollo 10:00–10:30" (or "Without a project 10:00–10:30"): the suggestion's project and span.
-fn suggestion_head(args: &[&str], project: impl Fn(&str) -> String) -> String {
+/// "Apollo 10:00–10:30": the suggestion's project (else `no_project`, if any) and span.
+fn suggestion_head(
+    args: &[&str],
+    project: impl Fn(&str) -> String,
+    no_project: Option<&str>,
+) -> String {
     [
-        Some(option(args, "project").map_or_else(|| "Without a project".into(), project)),
+        option(args, "project")
+            .map(project)
+            .or_else(|| no_project.map(String::from)),
         option(args, "span").and_then(span_times),
     ]
     .into_iter()
@@ -70,22 +76,38 @@ pub fn describe_write(args: &[&str], name_of: impl Fn(&str) -> Option<String>) -
         ["timer", "stop", ..] => "Timer stopped".into(),
         ["record", ..] => format!(
             "Suggestion: {}",
-            joined(&[Some(suggestion_head(args, project)), note()])
+            joined(&[
+                Some(suggestion_head(args, project, Some("Without a project"))),
+                note()
+            ])
         ),
+        ["edit", ..] => format!(
+            "Suggestion updated: {}",
+            joined(&[Some(suggestion_head(args, project, None)), note()])
+        ),
+        ["delete", ..] => "Suggestion dismissed".into(),
         _ => format!("timetracker {}", args.join(" ")),
     }
 }
 
-/// The line's state and detail after a run: a recorded suggestion names its id.
+/// A running call's suggestion growing (`edit ID --span S` alone) stays out of the action log: it runs
+/// every minute.
+pub fn is_quiet(args: &[&str]) -> bool {
+    matches!(args, ["edit", _, "--span", _])
+}
+
+/// The line's state and detail after a run: a recorded, updated or dismissed suggestion names its id.
 pub fn outcome(
     args: &[&str],
     reply: &Result<RawReply, RunFailure>,
 ) -> (ActionState, Option<String>) {
     match reply_result(reply) {
         Ok(stdout) => {
-            let id = (args.first() == Some(&"record"))
-                .then(|| parse_recorded(&stdout).ok().flatten())
-                .flatten();
+            let id = match args {
+                ["record", ..] => parse_recorded(&stdout).ok().flatten(),
+                ["edit" | "delete", id, ..] => Some((*id).to_string()),
+                _ => None,
+            };
             (ActionState::Done, id.map(|id| format!("Suggestion {id}")))
         }
         Err(e) => (ActionState::Failed, Some(e.to_string())),
@@ -251,6 +273,74 @@ mod tests {
     #[test]
     fn a_record_without_a_readable_reply_is_done_without_a_detail() {
         assert_eq!(outcome(&["record"], &ok("")), (ActionState::Done, None));
+    }
+
+    const SPAN: &str = "2026-10-27T10:00:00-2026-10-27T10:45:00";
+
+    #[test]
+    fn only_a_lone_span_edit_is_quiet() {
+        for (args, expected) in [
+            (vec!["edit", "s-1", "--span", SPAN], true),
+            (vec!["edit", "s-1", "--span", SPAN, "--note=x"], false),
+            (
+                vec!["edit", "s-1", "--project", "p1", "--span", SPAN],
+                false,
+            ),
+            (vec!["edit", "s-1", "--note=x"], false),
+            (vec!["delete", "s-1"], false),
+            (vec!["record", "--span", SPAN], false),
+        ] {
+            assert_eq!(is_quiet(&args), expected, "{args:?}");
+        }
+    }
+
+    #[test]
+    fn an_updated_suggestion_names_its_project_span_and_note() {
+        assert_eq!(
+            describe_write(
+                &[
+                    "edit",
+                    "s-1",
+                    "--project",
+                    "p1",
+                    "--span",
+                    SPAN,
+                    "--note=Zoom - Weekly"
+                ],
+                names
+            ),
+            "Suggestion updated: Apollo 10:00–10:45 · Zoom - Weekly"
+        );
+    }
+
+    #[test]
+    fn an_updated_suggestion_without_a_project_does_not_say_so() {
+        assert_eq!(
+            describe_write(
+                &["edit", "s-1", "--span", SPAN, "--note=Zoom - Weekly"],
+                names
+            ),
+            "Suggestion updated: 10:00–10:45 · Zoom - Weekly"
+        );
+    }
+
+    #[test]
+    fn a_deleted_suggestion_is_described_as_dismissed() {
+        assert_eq!(
+            describe_write(&["delete", "s-1"], names),
+            "Suggestion dismissed"
+        );
+    }
+
+    #[test]
+    fn an_edited_or_deleted_suggestion_names_its_id_in_the_outcome() {
+        for args in [vec!["edit", "s-1", "--span", SPAN], vec!["delete", "s-1"]] {
+            assert_eq!(
+                outcome(&args, &ok("")),
+                (ActionState::Done, Some("Suggestion s-1".into())),
+                "{args:?}"
+            );
+        }
     }
 
     #[test]
