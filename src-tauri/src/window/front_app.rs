@@ -9,15 +9,46 @@ pub struct FrontApp {
     pub bundle_id: String,
 }
 
+/// A window in the on-screen window list, which runs front to back over every screen.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ShownWindow {
+    pub pid: i32,
+    pub layer: i64,
+    pub alpha: f64,
+}
+
+impl ShownWindow {
+    /// A normal window one can see; menus, panels and the menu bar sit above layer 0.
+    fn is_normal(&self) -> bool {
+        self.layer == 0 && self.alpha > 0.0
+    }
+}
+
+/// The app with the frontmost normal window other than Daybook's. Minimized and hidden windows aren't
+/// on screen, so their apps never come back this way; a full-screen app on another screen does.
+pub fn topmost_app(windows: &[ShownWindow], daybook_pid: i32) -> Option<i32> {
+    windows
+        .iter()
+        .find(|window| window.is_normal() && window.pid != daybook_pid)
+        .map(|window| window.pid)
+}
+
+/// The app has a normal window on the current Space of any screen.
+pub fn has_shown_window(windows: &[ShownWindow], pid: i32) -> bool {
+    windows
+        .iter()
+        .any(|window| window.is_normal() && window.pid == pid)
+}
+
 /// What closing an overlay does with the keyboard focus.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HandBack {
     /// The app in front keeps it (Daybook isn't active, or something else took focus already).
     Nothing,
-    /// Bring the remembered app forward; on failure hide Daybook if nothing else of it is shown.
+    /// Bring the remembered app forward; on failure focus the topmost app if no Daybook window is shown.
     Activate,
-    /// Hide Daybook, so macOS picks what comes forward on this Space.
-    HideApp,
+    /// Hand focus to the app with the topmost visible window (`topmost_app`).
+    FocusTopmost,
 }
 
 /// Read when an overlay closes, for `hand_back`.
@@ -43,7 +74,7 @@ pub fn hand_back(context: CloseContext) -> HandBack {
         // Bringing it forward would switch Spaces.
         Some(false) => HandBack::Nothing,
         None if context.other_window_visible => HandBack::Nothing,
-        None => HandBack::HideApp,
+        None => HandBack::FocusTopmost,
     }
 }
 
@@ -96,7 +127,7 @@ mod tests {
                 active(Some(false)),
                 HandBack::Nothing,
             ),
-            ("no remembered app", active(None), HandBack::HideApp),
+            ("no remembered app", active(None), HandBack::FocusTopmost),
             (
                 "no remembered app, another daybook window visible",
                 CloseContext {
@@ -108,6 +139,73 @@ mod tests {
         ];
         for (name, context, expected) in cases {
             assert_eq!(hand_back(context), expected, "{name}");
+        }
+    }
+
+    const DAYBOOK: i32 = 100;
+
+    fn window(pid: i32, layer: i64, alpha: f64) -> ShownWindow {
+        ShownWindow { pid, layer, alpha }
+    }
+
+    #[test]
+    fn the_topmost_app_is_the_first_normal_window_other_than_daybooks() {
+        let cases = [
+            ("empty list", vec![], None),
+            (
+                "list order decides",
+                vec![window(1, 0, 1.0), window(2, 0, 1.0)],
+                Some(1),
+            ),
+            (
+                "daybook in front is skipped",
+                vec![window(DAYBOOK, 0, 1.0), window(2, 0, 1.0)],
+                Some(2),
+            ),
+            (
+                "menus and panels above layer 0 are skipped",
+                vec![window(5, 25, 1.0), window(6, 24, 1.0), window(3, 0, 1.0)],
+                Some(3),
+            ),
+            (
+                "transparent windows are skipped",
+                vec![window(4, 0, 0.0), window(3, 0, 0.5)],
+                Some(3),
+            ),
+            (
+                "only daybook and skipped windows",
+                vec![
+                    window(DAYBOOK, 0, 1.0),
+                    window(5, 25, 1.0),
+                    window(4, 0, 0.0),
+                ],
+                None,
+            ),
+        ];
+        for (name, windows, expected) in cases {
+            assert_eq!(topmost_app(&windows, DAYBOOK), expected, "{name}");
+        }
+    }
+
+    #[test]
+    fn an_app_has_a_shown_window_only_when_it_has_a_normal_one() {
+        let cases = [
+            (
+                "normal window anywhere in the list",
+                vec![window(9, 0, 1.0), window(1, 0, 1.0)],
+                true,
+            ),
+            (
+                "only a window above layer 0",
+                vec![window(1, 25, 1.0), window(9, 0, 1.0)],
+                false,
+            ),
+            ("only a transparent window", vec![window(1, 0, 0.0)], false),
+            ("no windows", vec![window(9, 0, 1.0)], false),
+            ("empty list", vec![], false),
+        ];
+        for (name, windows, expected) in cases {
+            assert_eq!(has_shown_window(&windows, 1), expected, "{name}");
         }
     }
 }

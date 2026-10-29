@@ -292,10 +292,10 @@ fn after_close(app: &AppHandle, window: &WebviewWindow, closing: Closing, handed
         HandBack::Activate => {
             let activated = target.is_some_and(|t| appkit::activate(t.pid));
             if !activated && !other_window_visible {
-                appkit::hide_app();
+                appkit::focus_topmost_app();
             }
         }
-        HandBack::HideApp => appkit::hide_app(),
+        HandBack::FocusTopmost => appkit::focus_topmost_app(),
     }
 }
 

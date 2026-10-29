@@ -84,7 +84,7 @@ the overlay and focus hand-back: [windows.md](windows.md).
 
 | Event | Result |
 |---|---|
-| close button / ⌘W and ⌘Q (`window:close`, `window::close_focused`), Esc in a window (`window.close`) | the window in front hides (`window::close_requested`); with the last regular window the Dock icon goes and an active Daybook hides, so macOS picks what comes forward; the tray keeps running. With the overlay in front it closes instead |
+| close button / ⌘W and ⌘Q (`window:close`, `window::close_focused`), Esc in a window (`window.close`) | the window in front hides (`window::close_requested`); with the last regular window the Dock icon goes and an active Daybook hands focus to the app with the topmost visible window (`window::native::focus_topmost_app`); the tray keeps running. With the overlay in front it closes instead |
 | `app:settings`, `settings:<page>`, the sidebar gear, Choose Vault… | `window::settings::open`: the Settings window on the pointer's screen, at the page, in front; the Dock icon shows |
 | last window closed (`ExitRequested { code: None }`) | prevented |
 | "Open Daybook" (`hub:open`), a second `daybook` launch, `daybook focus`, Dock icon click (`RunEvent::Reopen`) | `window::show_main`: the Dock icon returns, the window moves to the pointer's screen, show, unminimize, focus |

@@ -16,7 +16,7 @@ use objc2_core_graphics::{CGWindowListCopyWindowInfo, CGWindowListOption, kCGNul
 use objc2_foundation::{NSNotification, NSNotificationCenter, NSPoint, NSRect, NSSize, NSString};
 
 use super::display::{Rect, Screen, frame_on_display, screen_at};
-use super::front_app::FrontApp;
+use super::front_app::{FrontApp, ShownWindow, has_shown_window, topmost_app};
 
 fn to_rect(r: NSRect) -> Rect {
     Rect::new(r.origin.x, r.origin.y, r.size.width, r.size.height)
@@ -206,7 +206,7 @@ pub fn app_active() -> bool {
 }
 
 /// Hides Daybook, so macOS picks what comes forward on this Space.
-pub fn hide_app() {
+fn hide_app() {
     let none: Option<&AnyObject> = None;
     // SAFETY: `-[NSApplication hide:]` takes an optional sender.
     unsafe {
@@ -228,13 +228,13 @@ pub fn frontmost_app() -> Option<FrontApp> {
     Some(FrontApp { pid, bundle_id })
 }
 
-/// The app has a normal window on the current Space (the on-screen window list holds only those).
-pub fn on_current_space(pid: i32) -> bool {
+/// The on-screen windows of every screen's current Space, front to back.
+fn shown_windows() -> Vec<ShownWindow> {
     let Some(list) = CGWindowListCopyWindowInfo(
         CGWindowListOption::OptionOnScreenOnly | CGWindowListOption::ExcludeDesktopElements,
         kCGNullWindowID,
     ) else {
-        return false;
+        return Vec::new();
     };
     let list: *const CFArray = &*list;
     // SAFETY: a CFArray of CFDictionary is toll-free bridged to an NSArray of NSDictionary, so it
@@ -243,13 +243,31 @@ pub fn on_current_space(pid: i32) -> bool {
         let windows: &AnyObject = &*list.cast();
         (windows, msg_send![windows, count])
     };
-    (0..count).any(|i| {
-        // SAFETY: an element of the window list.
-        let info: Retained<AnyObject> = unsafe { msg_send![windows, objectAtIndex: i] };
-        // Layer 0 holds normal windows; menus, panels and the menu bar sit above it.
-        number(&info, "kCGWindowOwnerPID") == Some(f64::from(pid))
-            && number(&info, "kCGWindowLayer") == Some(0.0)
-    })
+    (0..count)
+        .filter_map(|i| {
+            // SAFETY: an element of the window list.
+            let info: Retained<AnyObject> = unsafe { msg_send![windows, objectAtIndex: i] };
+            Some(ShownWindow {
+                pid: number(&info, "kCGWindowOwnerPID")? as i32,
+                layer: number(&info, "kCGWindowLayer")? as i64,
+                alpha: number(&info, "kCGWindowAlpha").unwrap_or(1.0),
+            })
+        })
+        .collect()
+}
+
+pub fn on_current_space(pid: i32) -> bool {
+    has_shown_window(&shown_windows(), pid)
+}
+
+/// Hands focus to the app with the topmost visible window; hides Daybook when there is none or it
+/// refuses. Hiding alone lets macOS activate the last used app, even a hidden or minimized one.
+pub fn focus_topmost_app() {
+    let own = std::process::id() as i32;
+    let activated = topmost_app(&shown_windows(), own).is_some_and(activate);
+    if !activated {
+        hide_app();
+    }
 }
 
 fn number(dictionary: &AnyObject, key: &str) -> Option<f64> {

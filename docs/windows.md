@@ -126,9 +126,15 @@ panel out returns the keyboard to it. Only when Daybook is active at close (it w
 | Daybook isn't active, or was active when the overlay opened, or another app took focus | nothing |
 | the remembered app has a window on the current Space | activate it (`NSRunningApplication`, never `open -b`, which would relaunch or reopen windows) |
 | the remembered app is on another Space | nothing: activating it would switch Spaces |
-| no remembered app, and no Daybook window visible | hide Daybook, so macOS picks what comes forward |
+| no remembered app, and no Daybook window visible | focus the app with the topmost visible window (`native::focus_topmost_app`) |
 
-An activation that fails falls back to hiding Daybook when no Daybook window is visible.
+An activation that fails falls back to that topmost app when no Daybook window is visible.
+
+`front_app::topmost_app` reads the on-screen window list of every screen front to back and takes the first
+normal window (layer 0, not transparent) that isn't Daybook's. Minimized and hidden windows aren't on screen, so
+an app the owner just minimized or hid never comes back; a full-screen app on another screen does. Only
+without any such window does Daybook hide itself, because then macOS activates the last used app even when all
+its windows are hidden.
 
 ## The Daybook window
 
@@ -137,8 +143,8 @@ An activation that fails falls back to hiding Daybook when no Daybook window is 
   that corner) and shrinks it to fit a smaller screen.
 - **Activation policy.** Daybook is a menu-bar app: the Dock icon shows only while the Daybook window or
   Settings is open. Closing a regular window (close button, ⌘W, ⌘Q, Esc, `daybook hide`) hides it
-  (`close_requested`, `hide_regular`); with the last one the Dock icon goes and, when Daybook is active, the
-  app hides, so macOS picks what comes forward on this Space instead of Daybook bringing back a remembered app.
+  (`close_requested`, `hide_regular`); with the last one the Dock icon goes and, when Daybook is active, focus
+  goes to the app with the topmost visible window ([Focus hand-back](#focus-hand-back)).
 
 ## Settings
 

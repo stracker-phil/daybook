@@ -78,8 +78,7 @@ fn set_dock_icon(app: &AppHandle, shown: bool) {
 
 /// Hides a window as closing it does; the app keeps running in the menu bar. The Dock icon goes with
 /// the last regular window (the Daybook window, Settings); with no window left, not even the quick-notes
-/// editor, an active Daybook hides too, so macOS picks what comes forward on this Space instead of
-/// Daybook bringing back an app.
+/// editor, an active Daybook hands focus on (`native::focus_topmost_app`).
 fn hide_regular(app: &AppHandle, label: &str) {
     if let Some(window) = app.get_webview_window(label) {
         let _ = window.hide();
@@ -93,7 +92,7 @@ fn hide_regular(app: &AppHandle, label: &str) {
     }
     let hidden = app.run_on_main_thread(|| {
         if native::app_active() {
-            native::hide_app();
+            native::focus_topmost_app();
         }
     });
     if let Err(e) = hidden {
