@@ -244,13 +244,22 @@ pub async fn calendar_request_access(app: AppHandle) -> AppResult<CalendarAccess
     }
 }
 
-/// Joins an event's call in its chosen app; only join links are opened.
+/// Joins an event's call in its chosen app; only join links are opened. Joined from the Daybook window,
+/// the window hides so the call app is in front.
 #[tauri::command]
-pub async fn calendar_join(app: AppHandle, url: String) -> AppResult<()> {
+pub async fn calendar_join(
+    app: AppHandle,
+    window: tauri::WebviewWindow,
+    url: String,
+) -> AppResult<()> {
     let Some(link) = events::join_link(&url) else {
         return Err(AppError::InvalidInput("Not a meeting link".into()));
     };
-    crate::calls::join(&app, link).await
+    crate::calls::join(&app, link).await?;
+    if window.label() == crate::window::MAIN {
+        crate::window::hide_main(&app);
+    }
+    Ok(())
 }
 
 fn changed(app: &AppHandle) {

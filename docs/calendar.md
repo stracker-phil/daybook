@@ -51,7 +51,8 @@ order of text: Zoom (`…zoom.us/j|my|w|s/…`), Teams (`teams.microsoft.com/l/m
 Notes are often HTML: `&amp;` is decoded, and a link inside Google's redirect (`…&sa=D&source=calendar…`) is cut
 before `&sa=D` and percent-decoded. `calendar_join(url)` takes only an address that is nothing but a join link
 (`join_link`, else `invalid_input`) and joins it in the call app (`calls::join`,
-[presence-and-calls.md](presence-and-calls.md#joining)).
+[presence-and-calls.md](presence-and-calls.md#joining)); joined from the Daybook window, the window then hides
+(`window::hide_main`), so the call app is in front. A failed join keeps the window open with its error.
 
 ## The day model
 
