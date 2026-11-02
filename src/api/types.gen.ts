@@ -1028,7 +1028,7 @@ export type QuickNote = { title: string, level: number, body: string, };
 
 export type QuickNotePresentation = { presenting: boolean, };
 
-export type QuickNoteSaved = { "kind": "saved", topic: NoteSectionRef, } | { "kind": "changed", note: QuickNote, };
+export type QuickNoteSaved = { "kind": "saved", topic: NoteSectionRef, body: string, } | { "kind": "changed", note: QuickNote, };
 
 export type QuickNoteTopics = { rows: Array<TopicRow>, 
 /**

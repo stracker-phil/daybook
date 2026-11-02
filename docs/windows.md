@@ -172,6 +172,9 @@ title bar with the traffic lights at 14/18, loading `src/windows/quicknotes/inde
 when it last closed (`quick_notes.json`). Each show moves it to the Space the owner looks at
 (`native::move_to_active_space`) and gives it the keyboard; `open` also sends `quick_note_target`, so the page
 saves the old topic and loads the new one, while `focus` (⌘F3 while it is open) only brings it forward.
+While nothing is unsaved, a change of the topic in the note (`note_changed`, or the window gaining focus) goes
+into the open editor as one change, keeping the cursor and the undo history. Whitespace that saving drops
+doesn't count as a change, so the editor's own saves never replace what is typed.
 Closing (Esc in the page, ⌘W, the close button) keeps the frame and hides it; with no other Daybook window left,
 Daybook hides, so the app it came from comes back. Unlike the overlay, it stays open when it loses focus, and
 hiding the Daybook window doesn't hide Daybook while the editor is on screen.

@@ -105,6 +105,11 @@ pub fn section_holds(
     body_lines(&current) == body_lines(expected)
 }
 
+/// `body` as writing stores it and reading returns it.
+pub fn stored_body(body: &str) -> String {
+    body_lines(body).join("\n")
+}
+
 /// The body without leading blank lines and trailing whitespace; the first line keeps its indent.
 fn body_lines(body: &str) -> Vec<String> {
     let indent = body.len() - body.trim_start().len();
@@ -203,6 +208,48 @@ mod tests {
             body,
         );
         note.serialize()
+    }
+
+    #[test]
+    fn a_stored_body_drops_leading_blank_lines_and_trailing_whitespace() {
+        for (body, expected) in [
+            ("text", "text"),
+            ("text \n\n", "text"),
+            ("\n\n  \n\ntext", "text"),
+            ("  \n\t\n- item", "- item"),
+            ("    indented\nnext", "    indented\nnext"),
+            ("one\n\ntwo", "one\n\ntwo"),
+            ("one  \ntwo   \n", "one  \ntwo"),
+            ("", ""),
+            (" \n\t\n  ", ""),
+        ] {
+            assert_eq!(stored_body(body), expected, "{body:?}");
+        }
+    }
+
+    #[test]
+    fn reading_a_written_section_returns_its_stored_body() {
+        for body in [
+            "plain",
+            "trailing space ",
+            "trailing newline\n",
+            "\n\nleading blank lines",
+            " \n\t\nwhitespace-only lines first",
+            "    indented first line\nsecond",
+            "first\n\nafter a blank line\n\n",
+            "",
+            "  \n ",
+        ] {
+            let mut note = Note::parse(NOTE);
+            let review = section("Review", 3);
+            write_note_section(&mut note, "## Notes", &order(), &review, "Review", body);
+            let lines = Note::parse(&note.serialize()).lines;
+            assert_eq!(
+                read_note_section(&lines, "## Notes", &review),
+                Some(stored_body(body)),
+                "{body:?}"
+            );
+        }
     }
 
     #[test]

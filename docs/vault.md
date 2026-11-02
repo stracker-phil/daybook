@@ -229,7 +229,7 @@ around it.
 | `quick_notes_list` | `query` | `QuickNoteTopics`: the picker's rows, whether today has any topic, the notes heading | `invalid_input` (no vault), `io` |
 | `quick_notes_open` | `topic: NoteSectionRef`, `create: bool` | – (closes the picker, writes a new topic, opens the editor on it) | `invalid_input` (bad topic) |
 | `quick_note_get` | – | `QuickNote \| null`: the editor's topic and its text | `invalid_input`, `io` |
-| `quick_note_save` | `topic`, `newTitle` (empty keeps it), `body`, `base` | `QuickNoteSaved`: `saved { topic }` (its heading now) or `changed { note }` | `invalid_input` (bad topic or title, over 200 000 characters, no vault), `io` |
+| `quick_note_save` | `topic`, `newTitle` (empty keeps it), `body`, `base` | `QuickNoteSaved`: `saved { topic, body }` (its heading and text as stored) or `changed { note }` | `invalid_input` (bad topic or title, over 200 000 characters, no vault), `io` |
 | `quick_notes_close` | – | – (hides the editor, keeping its frame) | – |
 | `quick_notes_presentation` | – | `QuickNotePresentation { presenting }` (the event `quick_note_presentation` carries the same on every change; [windows.md](windows.md#quick-notes-editor)) | – |
 | `vault_info` | – | `VaultInfo` (`DailyNotes::info`, for Settings → Connections → Vault): the `DailyNoteFormat` in use (`null` without a vault), today's note path and whether it exists, the Obsidian CLI's path | – |

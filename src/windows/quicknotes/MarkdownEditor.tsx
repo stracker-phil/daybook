@@ -2,10 +2,10 @@ import { useEffect, useImperativeHandle, useMemo, useRef, type Ref } from "react
 import { defaultKeymap, history, historyKeymap, indentLess, indentMore } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { HighlightStyle, indentUnit, syntaxHighlighting, syntaxTree } from "@codemirror/language";
-import { Annotation, EditorState, RangeSetBuilder, type Extension } from "@codemirror/state";
+import { Annotation, EditorState, RangeSetBuilder, Transaction, type Extension } from "@codemirror/state";
 import { Decoration, EditorView, keymap, placeholder, ViewPlugin, type Command, type DecorationSet, type ViewUpdate } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
-import { toggleTask, toggleWrap, type Edit } from "./markdown";
+import { textChange, toggleTask, toggleWrap, type Edit } from "./markdown";
 
 /** The syntax stays visible and dimmed; headings, emphasis, code, quotes and links are styled. */
 const highlight = HighlightStyle.define([
@@ -104,7 +104,8 @@ export interface MarkdownEditorHandle {
 
 /**
  * CodeMirror 6 with Markdown, as in Obsidian's source mode. Edits go to `onChange`; another `value` from
- * outside replaces the text; a new `documentKey` starts a fresh editor and undo history.
+ * outside changes only the differing part, keeping the cursor and undo history; a new `documentKey` starts
+ * a fresh editor and undo history.
  */
 export function MarkdownEditor({ value, documentKey, onChange, ref }: { value: string; documentKey: string; onChange: (value: string) => void; ref?: Ref<MarkdownEditorHandle> }) {
   const parent = useRef<HTMLDivElement>(null);
@@ -139,8 +140,9 @@ export function MarkdownEditor({ value, documentKey, onChange, ref }: { value: s
 
   useEffect(() => {
     const editor = view.current;
-    if (!editor || editor.state.doc.toString() === value) return;
-    editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: value }, annotations: external.of(true) });
+    if (!editor) return;
+    const change = textChange(editor.state.doc.toString(), value);
+    if (change) editor.dispatch({ changes: change, annotations: [external.of(true), Transaction.addToHistory.of(false)] });
   }, [value]);
 
   useImperativeHandle(ref, () => ({ focus: () => view.current?.focus(), requestMeasure: () => view.current?.requestMeasure() }), []);

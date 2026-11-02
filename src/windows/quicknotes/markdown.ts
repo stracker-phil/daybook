@@ -1,4 +1,4 @@
-/** The editor's ⌘B, ⌘I and ⌘L as pure edits of the text and the selection, applied as one change. */
+/** The editor's pure text helpers: ⌘B, ⌘I and ⌘L as edits of the text and the selection, and text diffs. */
 
 /** Replace `from`–`to` with `text`, then select `select`. */
 export interface Edit {
@@ -79,4 +79,15 @@ export function toggleTask(value: string, start: number, end: number): Edit {
   const shift = text.length - (to - from);
   const clamp = (index: number) => Math.min(from + text.length, Math.max(from, index + shift));
   return { from, to, text, select: [clamp(start), clamp(end)] };
+}
+
+/** The one change that turns `before` into `after`, or `null` when they are equal. */
+export function textChange(before: string, after: string): { from: number; to: number; insert: string } | null {
+  if (before === after) return null;
+  let start = 0;
+  const shorter = Math.min(before.length, after.length);
+  while (start < shorter && before[start] === after[start]) start++;
+  let end = 0;
+  while (end < shorter - start && before[before.length - 1 - end] === after[after.length - 1 - end]) end++;
+  return { from: start, to: before.length - end, insert: after.slice(start, after.length - end) };
 }

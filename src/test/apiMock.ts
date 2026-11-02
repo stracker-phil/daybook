@@ -107,7 +107,7 @@ export function createApiMock(): typeof realApi {
     quickNotesList: vi.fn().mockResolvedValue({ rows: [], hasTopics: false, notesHeading: "## Notes" }),
     quickNotesOpen: vi.fn().mockResolvedValue(undefined),
     quickNoteGet: vi.fn().mockResolvedValue(null),
-    quickNoteSave: vi.fn(async (topic: NoteSectionRef, newTitle: string): Promise<QuickNoteSaved> => ({ kind: "saved", topic: { ...topic, title: newTitle } })),
+    quickNoteSave: vi.fn(async (topic: NoteSectionRef, newTitle: string, body: string): Promise<QuickNoteSaved> => ({ kind: "saved", topic: { ...topic, title: newTitle }, body })),
     quickNotesClose: vi.fn().mockResolvedValue(undefined),
     quickNotesPresentation: vi.fn().mockResolvedValue({ presenting: false }),
     searchQuery: vi.fn().mockResolvedValue({ results: [], terms: [], scopes: [], indexing: false, notes: 0 }),

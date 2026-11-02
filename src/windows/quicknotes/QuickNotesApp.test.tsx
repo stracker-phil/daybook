@@ -168,6 +168,84 @@ describe("QuickNotesApp", () => {
       expect(editor()).not.toHaveTextContent("Edited in Obsidian");
     });
 
+    describe("after a save stored the text trimmed", () => {
+      const insertAtCaret = (text: string) => act(() => view().dispatch(view().state.replaceSelection(text)));
+
+      let original: ReturnType<typeof mocked.quickNoteSave.getMockImplementation>;
+
+      afterEach(() => {
+        if (original) mocked.quickNoteSave.mockImplementation(original);
+      });
+
+      beforeEach(() => {
+        original = mocked.quickNoteSave.getMockImplementation();
+        mocked.quickNoteSave.mockImplementation(async (topic, newTitle, body) => ({
+          kind: "saved",
+          topic: { ...topic, title: newTitle.trim() || topic.title },
+          body: body.replace(/^(?:[ \t]*\n)*/, "").trimEnd(),
+        }));
+      });
+
+      it.each([
+        ["space", " "],
+        ["newline", "\n"],
+      ])("keeps a typed trailing %s and the caret after it when the note reports the trimmed text", async (_, trailing) => {
+        await renderEditor();
+        typeBody(trailing);
+        await advance(SAVE_DELAY);
+        mocked.quickNoteGet.mockResolvedValue(PLANNING);
+        await fire(mocked.onNoteChanged, { day: "2026-10-24" });
+        expect(view().state.doc.toString()).toBe(`Hello${trailing}`);
+        insertAtCaret("x");
+        expect(view().state.doc.toString()).toBe(`Hello${trailing}x`);
+      });
+
+      it("keeps a typed trailing space in the title", async () => {
+        await renderEditor();
+        await userEvent.setup({ advanceTimers: vi.advanceTimersByTime }).type(titleInput(), " ");
+        await advance(SAVE_DELAY);
+        mocked.quickNoteGet.mockResolvedValue(PLANNING);
+        await fire(mocked.onNoteChanged, { day: "2026-10-24" });
+        expect(titleInput()).toHaveValue("Planning ");
+      });
+
+      it("keeps leading blank lines the user typed", async () => {
+        await renderEditor({ ...PLANNING, body: "" });
+        act(() => view().dispatch({ changes: { from: 0, insert: "\n\nabc" }, selection: { anchor: 5 } }));
+        await advance(SAVE_DELAY);
+        mocked.quickNoteGet.mockResolvedValue({ ...PLANNING, body: "abc" });
+        await fire(mocked.onNoteChanged, { day: "2026-10-24" });
+        expect(view().state.doc.toString()).toBe("\n\nabc");
+      });
+    });
+
+    it("keeps the caret in place when text is added before it from outside", async () => {
+      await renderEditor({ ...PLANNING, body: "hello world" });
+      placeCaret(5);
+      mocked.quickNoteGet.mockResolvedValue({ ...PLANNING, body: "intro\nhello world" });
+      await fire(mocked.onNoteChanged, { day: "2026-10-24" });
+      expect(view().state.doc.toString()).toBe("intro\nhello world");
+      act(() => view().dispatch(view().state.replaceSelection("X")));
+      expect(view().state.doc.toString()).toBe("intro\nhelloX world");
+    });
+
+    it("keeps the caret in place when text is added after it from outside", async () => {
+      await renderEditor({ ...PLANNING, body: "hello world" });
+      placeCaret(5);
+      mocked.quickNoteGet.mockResolvedValue({ ...PLANNING, body: "hello world\nmore" });
+      await fire(mocked.onNoteChanged, { day: "2026-10-24" });
+      act(() => view().dispatch(view().state.replaceSelection("X")));
+      expect(view().state.doc.toString()).toBe("helloX world\nmore");
+    });
+
+    it("does not send an outside change back as a save", async () => {
+      await renderEditor();
+      mocked.quickNoteGet.mockResolvedValue({ ...PLANNING, body: "Edited in Obsidian" });
+      await fire(mocked.onNoteChanged, { day: "2026-10-24" });
+      await advance(SAVE_DELAY);
+      expect(mocked.quickNoteSave).not.toHaveBeenCalled();
+    });
+
     describe("when the save is refused", () => {
       const other: QuickNote = { ...PLANNING, body: "Edited in Obsidian" };
 

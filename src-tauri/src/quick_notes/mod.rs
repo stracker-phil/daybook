@@ -21,7 +21,7 @@ use crate::store::settings::Settings;
 use crate::vault::commands::blocking;
 use crate::vault::note::Note;
 use crate::vault::ops::notes::{
-    NoteSectionRef, list_note_sections, read_note_section, section_holds,
+    NoteSectionRef, list_note_sections, read_note_section, section_holds, stored_body,
 };
 use crate::vault::ops::{NoteLayout, NoteOp};
 use crate::window::display::Presentation;
@@ -111,8 +111,8 @@ pub struct QuickNote {
     rename_all_fields = "camelCase"
 )]
 pub enum QuickNoteSaved {
-    /// Written, or waiting for today's note; `topic` is its heading now.
-    Saved { topic: NoteSectionRef },
+    /// Written, or waiting for today's note; `topic` is its heading now and `body` its text as stored.
+    Saved { topic: NoteSectionRef, body: String },
     /// The note holds another text for the topic than the editor started from; nothing was written.
     Changed { note: QuickNote },
 }
@@ -262,6 +262,7 @@ pub async fn quick_note_save(
             level: topic.level,
         })?,
     };
+    let stored = stored_body(&body);
     if let Err(e) = write_topic(&app, &topic, &renamed.title, body, base.clone()).await {
         return match changed_since(&app, topic, base).await? {
             Some(note) => Ok(QuickNoteSaved::Changed { note }),
@@ -271,7 +272,10 @@ pub async fn quick_note_save(
     app.state::<AppState>()
         .quick_notes
         .set_target(renamed.clone());
-    Ok(QuickNoteSaved::Saved { topic: renamed })
+    Ok(QuickNoteSaved::Saved {
+        topic: renamed,
+        body: stored,
+    })
 }
 
 #[tauri::command]
@@ -325,6 +329,7 @@ pub fn register(bus: &mut CommandBus<AppHandle>) {
 mod tests {
     use super::*;
     use crate::test_support::temp_config_dir;
+    use crate::vault::ops::notes::NoteSectionRef;
 
     const FRAME: Frame = Frame {
         x: 10.0,
@@ -332,6 +337,25 @@ mod tests {
         width: 480.0,
         height: 320.0,
     };
+
+    #[test]
+    fn a_saved_topic_serializes_with_its_stored_body() {
+        let saved = QuickNoteSaved::Saved {
+            topic: NoteSectionRef {
+                title: "Standup".into(),
+                level: 3,
+            },
+            body: "- one".into(),
+        };
+        assert_eq!(
+            serde_json::to_value(&saved).unwrap(),
+            serde_json::json!({
+                "kind": "saved",
+                "topic": { "title": "Standup", "level": 3 },
+                "body": "- one",
+            })
+        );
+    }
 
     #[test]
     fn the_editor_has_no_frame_at_first() {
