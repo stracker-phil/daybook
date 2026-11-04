@@ -20,7 +20,7 @@ with `invalid_input` ("Choose your vault in Settings first.").
 | `commands.rs` | the Tauri commands, the `note_changed` event and `install` (startup) |
 
 Child processes run through `process.rs` (`run` with a timeout and the Homebrew folders on the `PATH`,
-`run_in_login_shell`), wall-clock helpers are in `clock.rs` (`iso_day` and `parse_day` write and read `YYYY-MM-DD`).
+`run_in_login_shell`; output that isn't UTF-8 keeps its valid text, as `pmset` prints device names in Mac Roman), wall-clock helpers are in `clock.rs` (`iso_day` and `parse_day` write and read `YYYY-MM-DD`).
 
 ## Location
 

@@ -49,13 +49,14 @@ pub(crate) fn path_with_tools() -> String {
 
 fn read_capped(pipe: Option<impl Read + Send + 'static>) -> thread::JoinHandle<String> {
     thread::spawn(move || {
-        let mut text = String::new();
+        let mut bytes = Vec::new();
         if let Some(mut pipe) = pipe {
-            let _ = (&mut pipe).take(MAX_OUTPUT).read_to_string(&mut text);
+            let _ = (&mut pipe).take(MAX_OUTPUT).read_to_end(&mut bytes);
             // The rest is drained, so a chatty program never blocks on a full pipe.
             let _ = io::copy(&mut pipe, &mut io::sink());
         }
-        text
+        // Not all output is UTF-8: pmset prints device names in Mac Roman.
+        String::from_utf8_lossy(&bytes).into_owned()
     })
 }
 
@@ -187,6 +188,18 @@ mod tests {
                 stderr: "oops\n".into(),
             }
         );
+    }
+
+    #[test]
+    fn output_that_is_not_valid_utf8_keeps_its_valid_text() {
+        let output = sh(
+            r"printf 'before\325after\n'; printf 'err\325or\n' >&2",
+            Duration::from_secs(5),
+        )
+        .unwrap();
+
+        assert_eq!(output.stdout, "before\u{FFFD}after\n");
+        assert_eq!(output.stderr, "err\u{FFFD}or\n");
     }
 
     #[test]
