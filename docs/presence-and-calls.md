@@ -9,7 +9,7 @@ automation, the wizard and TimeTracker's call suggestion. Daybook does not log c
 | `presence/checks.rs` | pure: `Away { asleep, locked }`, `after_wake`, `is_coming_back`, `has_been_asleep_long_enough`, `locked_when_unreadable`, `is_screen_locked_output` |
 | `presence/native.rs` | sleep, wake, lock and unlock notifications; the lock state from `ioreg` |
 | `presence/mod.rs` | `Presence` (managed state), `is_away`, `is_asleep`, `verify`, what waking and coming back do |
-| `calls/checks.rs` | pure: call titles, `microphone_pids`, `runs_from_bundle`, `lsappinfo` parsing, `parse_chrome_tabs`, the built-in checks' texts |
+| `calls/checks.rs` | pure: call titles, `microphone_pids`, `webrtc_pids`, `runs_from_bundle`, `lsappinfo` parsing, `parse_tabs`, the built-in checks' texts |
 | `calls/detect.rs` | `detect(rules, probe, active)` over the `Probe` trait: one `RuleCheck` (`Found::Call`, `NotInCall`, `Unknown`) per rule; `Missing` permissions |
 | `calls/tracker.rs` | pure: `Tracker::observe`, the call over a series of checks (`ActiveCall`, `CallEvent`, `Mode`) |
 | `calls/titles.rs` | pure: `EventTitles`, the calendar title of a "Meeting" call, once per event |
@@ -58,16 +58,16 @@ answer; checking stops once one is in a call and the active call's trigger has a
 |---|---|---|
 | Zoom (`us.zoom.xos`) | Zoom runs and `pgrep -x CptHost` finds its meeting process | none |
 | Teams (`com.microsoft.teams2`) | Teams has a level-19 window on any Space (the window server's list), or a process inside the Teams bundle records from a microphone (`pmset -g assertions`: `audio-in` assertions and their `Created for PID`, mapped with `ps -o comm=` to the bundle path from `lsappinfo info`) | none |
-| Meet (the Google Meet Chrome app) | Chrome runs, a tab shows `meet.google.com/xxx-xxxx-xxx` (JXA through `osascript`) and a process in the Chrome bundle records from a microphone (the tab stays on the page after leaving); titled by the tab ("Meet – Weekly" → "Weekly") | Automation for Chrome |
+| Meet (the Google Meet Chrome app, or a tab in Chrome or Arc) | for each running browser in `MEET_BROWSERS` (Chrome, whose windows include the Meet app's, then Arc): one of its tabs shows a meeting code (`meet.google.com/xxx-xxxx-xxx`, also after other path segments such as `/meet/`; JXA through `osascript` with the browser's bundle id) and a process in that browser's bundle holds `WebRTC has active PeerConnections` (`webrtc_pids`; held for the whole call, also while muted, when Meet stops recording) or records from a microphone (`browser_in_call`; the tab stays on the page after leaving); the first browser in a call counts, and a failing browser makes Meet unknown only when no other is in a call; titled by the tab ("Meet – Weekly" → "Weekly") | Automation for Chrome and Arc |
 | any other app | it runs (`lsappinfo list`); with "only while it records from the microphone" (`needs_microphone`), while it does; with a window title set, while one of its windows' titles contains it (Accessibility, `AXWindows`/`AXTitle`, 2 s timeout; a window-title rule sees only the windows on the current Space); titled by the window, without the app's name | Accessibility |
 
 The prototype tried `AVCaptureDevice.isInUseByAnotherApplication` for the microphone, which always said no;
-the power assertions work. A Meet call joined without a microphone isn't seen.
+the power assertions work.
 
 A trigger whose app doesn't name the call is titled "Meeting"; the calendar event running now replaces that
 title (`call_title`), looked up once per event and app (`EventTitles`: until the event ends, without one again
 after 5 minutes). A refused permission leaves that check without an answer (not in a call) and Settings shows
-it. Any other failure (a timed-out Accessibility request, unreadable JSON from Chrome, a failing `pmset`)
+it. Any other failure (a timed-out Accessibility request, unreadable JSON from a browser, a failing `pmset`)
 makes only that trigger unknown and shows as the error in Settings; without `lsappinfo list` every trigger is
 unknown.
 
@@ -128,7 +128,7 @@ runs `calls::join`, following Settings → Workflows → Joining a Call (`settin
   shows the state with Allow Access…, and warns while an enabled trigger without a built-in check can't read
   titles. An ad hoc
   signed debug build loses the grant with every rebuild.
-- **Automation** (Chrome's tabs): macOS asks with the first script, with the text of
+- **Automation** (Chrome's and Arc's tabs, one grant each): macOS asks with each browser's first script, with the text of
   `NSAppleEventsUsageDescription` (`src-tauri/Info.plist`; without it the prompt never appears); after a
   refusal (`-1743`) Settings → Workflows → App triggers offers Open Privacy Settings.
 

@@ -60,7 +60,7 @@ launchd has a short one; `process.rs` `EXTRA_PATH` adds the Homebrew folders).
 | `obsidian` (the Obsidian CLI) | creating today's note | `vault/obsidian.rs` `CANDIDATES` |
 | `plaunch` (Project Launcher) | the Projects overlay, `projects:open:<id>` | `launcher/tool.rs` `TOOL`, `process::user_tool_folders` (`~/.local/bin`, `/usr/local/bin`, `/opt/homebrew/bin`) |
 | `taskboard` (Taskboard) | opening Jira issues (`open <KEY>`); without it they open in the browser | `jira/taskboard.rs` `TOOL`, `process::user_tool_folders` |
-| `osascript` | Music (JXA), Chrome's tabs for call detection | `music/script.rs`, `calls/probe.rs` |
+| `osascript` | Music (JXA), Chrome's and Arc's tabs for call detection | `music/script.rs`, `calls/probe.rs` |
 | `lsappinfo`, `pgrep`, `pmset`, `ps`, `ioreg` | call detection, the lock state | `calls/probe.rs`, `presence/native.rs` |
 | `open -b` | starting call apps before joining | `calls/join.rs` |
 
@@ -104,7 +104,7 @@ Owner-specific: delete the module and its calls in `lib.rs` and `app.rs` (`repor
 | **Dock icon**: hidden by Hide to Menu Bar, shown with the window | `window/mod.rs` `set_dock_icon` | No Dock; nothing to do | Same |
 | **Calendar**: EventKit through `objc2-event-kit`, the usage strings in `src-tauri/Info.plist` | `calendar/eventkit.rs` | No EventKit: read CalDAV or `.ics` instead behind the same `Store` | No EventKit: the Windows calendar APIs |
 | **Presence**: NSWorkspace sleep/wake, the distributed lock/unlock notifications, `ioreg` for the lock state | `presence/native.rs` | logind / D-Bus session signals | `WTSRegisterSessionNotification` |
-| **Call detection**: `lsappinfo`, `pgrep`, `pmset -g assertions`, `ps`, `CGWindowListCopyWindowInfo`, `osascript` (Chrome tabs; the Automation usage string `NSAppleEventsUsageDescription` in `src-tauri/Info.plist`), Accessibility window titles; bundle ids in `store/settings/calls.rs` | `calls/probe.rs`, `calls/access.rs`, `calls/checks.rs` | Process names and PulseAudio/PipeWire sources behind the same `Probe` | Process list and the audio session API behind the same `Probe` |
+| **Call detection**: `lsappinfo`, `pgrep`, `pmset -g assertions`, `ps`, `CGWindowListCopyWindowInfo`, `osascript` (Chrome and Arc tabs; the Automation usage string `NSAppleEventsUsageDescription` in `src-tauri/Info.plist`), Accessibility window titles; bundle ids in `store/settings/calls.rs` | `calls/probe.rs`, `calls/access.rs`, `calls/checks.rs` | Process names and PulseAudio/PipeWire sources behind the same `Probe` | Process list and the audio session API behind the same `Probe` |
 | **Secrets**: the login Keychain through `security-framework` | `secrets.rs` | Secret Service (`libsecret`) behind `SecretStore` | Credential Manager behind `SecretStore` |
 | **Time zone label**: `localtime_r`'s `tm_zone` | `status_rules/mod.rs` `zone_of` | Works | No `tm_zone`: format the zone from the Windows API |
 | **Joining**: `open -b`, a Chrome web app through `--app-id` | `calls/join.rs` | `xdg-open`; Chrome's `--app-id` works the same | `start`; same for Chrome |

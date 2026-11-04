@@ -7,6 +7,6 @@
   <key>NSCalendarsUsageDescription</key>
   <string>Daybook shows today's events of your contexts' calendars and reminds you of your next meeting.</string>
   <key>NSAppleEventsUsageDescription</key>
-  <string>Daybook reads Google Chrome's tabs to notice a Google Meet call, and controls Music during calls and breaks.</string>
+  <string>Daybook reads the tabs of Google Chrome and Arc to notice a Google Meet call, and controls Music during calls and breaks.</string>
 </dict>
 </plist>

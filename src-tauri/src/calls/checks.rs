@@ -2,8 +2,8 @@
 //!
 //! Zoom runs its CptHost process only during a meeting, Teams uses the microphone during a call (and shows a
 //! level-19 window while it isn't in front, on any Space), and a Google Meet meeting has a
-//! `xxx-xxxx-xxx` link in a Chrome tab (the Meet app's windows are Chrome windows too) while Chrome
-//! records from the microphone.
+//! `xxx-xxxx-xxx` link in a browser tab (the Meet app's windows are Chrome windows too) while that browser
+//! holds a WebRTC connection or records from the microphone.
 
 use std::collections::HashSet;
 use std::sync::LazyLock;
@@ -14,6 +14,9 @@ use serde::Deserialize;
 pub use crate::store::settings::{MEET_BUNDLE, TEAMS_BUNDLE, ZOOM_BUNDLE};
 
 pub const CHROME_BUNDLE: &str = "com.google.Chrome";
+pub const ARC_BUNDLE: &str = "company.thebrowser.Browser";
+/// The browsers a Meet call can run in, in the order they're asked; Chrome includes the Meet app.
+pub const MEET_BROWSERS: [&str; 2] = [CHROME_BUNDLE, ARC_BUNDLE];
 /// The title of a call whose app doesn't name it.
 pub const GENERIC_TITLE: &str = "Meeting";
 
@@ -25,7 +28,7 @@ pub fn built_in_check(bundle_id: &str) -> Option<&'static str> {
             Some("A call while Teams uses the microphone or shows its call window, on any Space.")
         }
         MEET_BUNDLE => Some(
-            "A call while a Chrome tab or the Meet app shows a meeting link (meet.google.com/xxx-xxxx-xxx) and Chrome uses the microphone.",
+            "A call while a Chrome or Arc tab or the Meet app shows a meeting link (meet.google.com/…/xxx-xxxx-xxx) and that browser has a call connection open or uses the microphone.",
         ),
         _ => None,
     }
@@ -36,8 +39,12 @@ fn regex(pattern: &str) -> Regex {
 }
 
 const MEET_CODE_PATTERN: &str = "[a-z]{3}-[a-z]{4}-[a-z]{3}";
-static MEET_CALL_URL: LazyLock<Regex> =
-    LazyLock::new(|| regex(&format!(r"meet\.google\.com/{MEET_CODE_PATTERN}")));
+/// The code may follow other path segments (`meet.google.com/meet/xxx-xxxx-xxx`).
+static MEET_CALL_URL: LazyLock<Regex> = LazyLock::new(|| {
+    regex(&format!(
+        r"(?:^|[/.])meet\.google\.com/(?:[^/?#\s]+/)*{MEET_CODE_PATTERN}(?:[/?#]|$)"
+    ))
+});
 static MEET_CODE: LazyLock<Regex> = LazyLock::new(|| regex(&format!("^{MEET_CODE_PATTERN}$")));
 static MEET_PREFIX: LazyLock<Regex> = LazyLock::new(|| regex(r"^Meet\s*[-–]\s*"));
 static APP_SUFFIX: LazyLock<Regex> =
@@ -46,6 +53,7 @@ static ASSERTION_START: LazyLock<Regex> = LazyLock::new(|| regex(r"(?m)^\s*pid \
 static ASSERTION_OWNER: LazyLock<Regex> = LazyLock::new(|| regex(r"^\s*pid (\d+)\("));
 static CREATED_FOR: LazyLock<Regex> = LazyLock::new(|| regex(r"(?i)Created for PID:\s*(\d+)"));
 static AUDIO_IN: LazyLock<Regex> = LazyLock::new(|| regex(r"(?i)audio-in"));
+const WEBRTC_ASSERTION: &str = "WebRTC has active PeerConnections";
 static BUNDLE_ID: LazyLock<Regex> = LazyLock::new(|| regex(r#"bundleID="([^"]+)""#));
 static BUNDLE_PATH: LazyLock<Regex> = LazyLock::new(|| regex(r#"="(/[^"]+\.app)""#));
 
@@ -87,6 +95,18 @@ pub fn microphone_pids(assertions: &str) -> Vec<u32> {
     let mut pids: Vec<u32> = assertion_blocks(assertions)
         .filter(|block| AUDIO_IN.is_match(block))
         .flat_map(pids_in_block)
+        .collect();
+    pids.sort_unstable();
+    pids.dedup();
+    pids
+}
+
+/// Processes with an open WebRTC connection, from `pmset -g assertions`: Chromium browsers hold
+/// `WebRTC has active PeerConnections` for as long as a call runs, also while muted.
+pub fn webrtc_pids(assertions: &str) -> Vec<u32> {
+    let mut pids: Vec<u32> = assertion_blocks(assertions)
+        .filter(|block| block.contains(WEBRTC_ASSERTION))
+        .filter_map(|block| ASSERTION_OWNER.captures(block)?[1].parse().ok())
         .collect();
     pids.sort_unstable();
     pids.dedup();
@@ -143,7 +163,7 @@ pub fn bundle_path(info: &str) -> Option<String> {
 }
 
 #[derive(Deserialize)]
-struct ChromeTabs {
+struct BrowserTabs {
     #[serde(default)]
     urls: Vec<Vec<Option<String>>>,
     #[serde(default)]
@@ -158,16 +178,16 @@ fn flat(windows: Vec<Vec<Option<String>>>) -> Vec<String> {
         .collect()
 }
 
-/// The URLs and titles of every tab from the tabs script's JSON (`{}` while Chrome isn't running);
+/// The URLs and titles of every tab from the tabs script's JSON (`{}` while the browser isn't running);
 /// anything else is an error, never "no tabs".
-pub fn parse_chrome_tabs(output: &str) -> Result<(Vec<String>, Vec<String>), String> {
+pub fn parse_tabs(output: &str) -> Result<(Vec<String>, Vec<String>), String> {
     let output = output.trim();
     // serde would also read a JSON array as the struct's fields in order.
     if !output.starts_with('{') {
-        return Err(format!("Chrome's tabs couldn't be read: {output:.80}"));
+        return Err(format!("The browser's tabs couldn't be read: {output:.80}"));
     }
-    let tabs: ChromeTabs =
-        serde_json::from_str(output).map_err(|e| format!("Chrome's tabs couldn't be read: {e}"))?;
+    let tabs: BrowserTabs = serde_json::from_str(output)
+        .map_err(|e| format!("The browser's tabs couldn't be read: {e}"))?;
     Ok((flat(tabs.urls), flat(tabs.titles)))
 }
 
@@ -227,6 +247,48 @@ Kernel Assertions: 0x104=USB,MAGICWAKE";
     }
 
     #[test]
+    fn a_meet_code_after_other_path_segments_is_a_call() {
+        let urls = strings(&["https://meet.google.com/meet/rxp-bzjc-eee?lfhs=2"]);
+        let titles = strings(&["Meet - Knowledge Sharing Session - Squad P"]);
+        assert_eq!(
+            meet_call_title(&urls, &titles),
+            Some("Knowledge Sharing Session - Squad P".into())
+        );
+    }
+
+    #[test]
+    fn a_meet_code_may_end_at_a_slash_a_fragment_or_the_url() {
+        for url in [
+            "https://meet.google.com/abc-defg-hij/",
+            "https://meet.google.com/abc-defg-hij#x",
+            "https://meet.google.com/abc-defg-hij",
+            "meet.google.com/abc-defg-hij",
+        ] {
+            assert_eq!(
+                meet_call_title(&strings(&[url]), &strings(&["Meet - Weekly"])),
+                Some("Weekly".into()),
+                "{url}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_longer_code_like_segment_or_another_host_is_not_a_meet_call() {
+        for url in [
+            "https://meet.google.com/abc-defg-hijk",
+            "https://meet.google.com/abc-defg-hij-klm",
+            "https://example.com/abc-defg-hij",
+            "https://notmeet.google.com/abc-defg-hij",
+        ] {
+            assert_eq!(
+                meet_call_title(&strings(&[url]), &strings(&["Meet - Weekly"])),
+                None,
+                "{url}"
+            );
+        }
+    }
+
+    #[test]
     fn a_meet_call_with_a_bare_code_or_no_title_is_a_generic_meeting() {
         let urls = strings(&["https://meet.google.com/abc-defg-hij"]);
         assert_eq!(
@@ -274,6 +336,38 @@ Kernel Assertions: 0x104=USB,MAGICWAKE";
     #[test]
     fn microphone_pids_are_the_owner_and_target_of_audio_in_assertions() {
         assert_eq!(microphone_pids(ASSERTIONS), vec![393, 4711]);
+    }
+
+    const WEBRTC_ASSERTIONS: &str = "Listed by owning process:
+   pid 1319(Google Chrome): [0x00012dc200019ddf] 00:18:29 NoIdleSleepAssertion named: \"WebRTC has active PeerConnections\"
+   pid 1319(Google Chrome): [0x00012dc200019de0] 00:18:29 NoIdleSleepAssertion named: \"Playing audio\"
+   pid 2200(Google Chrome Helper): [0x00012dc200019de1] 00:01:00 NoIdleSleepAssertion named: \"Video Wake Lock\"
+   pid 393(coreaudiod): [0x0000a8f200019c5e] 00:12:05 PreventUserIdleSleep named: \"com.apple.audio.context.preventuseridlesleep\"
+\tCreated for PID: 4711.
+\tResources: audio-in
+   pid 77(Arc): [0x00012dc200019de2] 00:00:10 NoIdleSleepAssertion named: \"WebRTC has active PeerConnections\"
+   pid 1319(Google Chrome): [0x00012dc200019de3] 00:00:05 NoIdleSleepAssertion named: \"WebRTC has active PeerConnections\"
+Kernel Assertions: 0x104=USB,MAGICWAKE";
+
+    #[test]
+    fn webrtc_pids_are_the_sorted_owners_of_peer_connection_assertions() {
+        assert_eq!(webrtc_pids(WEBRTC_ASSERTIONS), vec![77, 1319]);
+    }
+
+    #[test]
+    fn other_assertions_and_audio_in_targets_are_not_webrtc_pids() {
+        let assertions = "Listed by owning process:
+   pid 1319(Google Chrome): [0x1] 00:18:29 NoIdleSleepAssertion named: \"Playing audio\"
+   pid 1319(Google Chrome): [0x2] 00:18:29 NoIdleSleepAssertion named: \"Video Wake Lock\"
+   pid 393(coreaudiod): [0x3] 00:12:05 PreventUserIdleSleep named: \"x\"
+\tCreated for PID: 4711.
+\tResources: audio-in";
+        assert_eq!(webrtc_pids(assertions), Vec::<u32>::new());
+    }
+
+    #[test]
+    fn empty_assertions_give_no_webrtc_pids() {
+        assert_eq!(webrtc_pids(""), Vec::<u32>::new());
     }
 
     #[test]
@@ -367,17 +461,17 @@ Kernel Assertions: 0x104=USB,MAGICWAKE";
     }
 
     #[test]
-    fn chrome_not_running_gives_no_tabs() {
-        assert_eq!(parse_chrome_tabs("{}"), Ok((vec![], vec![])));
-        assert_eq!(parse_chrome_tabs("  {}\n"), Ok((vec![], vec![])));
+    fn browser_not_running_gives_no_tabs() {
+        assert_eq!(parse_tabs("{}"), Ok((vec![], vec![])));
+        assert_eq!(parse_tabs("  {}\n"), Ok((vec![], vec![])));
     }
 
     #[test]
-    fn chrome_tabs_of_all_windows_are_flattened_in_order() {
+    fn browser_tabs_of_all_windows_are_flattened_in_order() {
         let output =
             r#"{"urls":[["https://a","https://b"],["https://c"]],"titles":[["A","B"],["C"]]}"#;
         assert_eq!(
-            parse_chrome_tabs(output),
+            parse_tabs(output),
             Ok((
                 strings(&["https://a", "https://b", "https://c"]),
                 strings(&["A", "B", "C"])
@@ -389,18 +483,18 @@ Kernel Assertions: 0x104=USB,MAGICWAKE";
     fn null_tab_entries_become_empty_strings() {
         let output = r#"{"urls":[["https://a",null]],"titles":[[null,"B"]]}"#;
         assert_eq!(
-            parse_chrome_tabs(output),
+            parse_tabs(output),
             Ok((strings(&["https://a", ""]), strings(&["", "B"])))
         );
     }
 
     #[test]
     fn output_that_is_not_the_tabs_json_is_an_error_not_no_tabs() {
-        for output in ["", "Chrome is not running", r#"{"urls":"x"}"#, "[]", "{"] {
+        for output in ["", "Arc is not running", r#"{"urls":"x"}"#, "[]", "{"] {
             assert!(
                 matches!(
-                    parse_chrome_tabs(output),
-                    Err(message) if message.starts_with("Chrome's tabs couldn't be read")
+                    parse_tabs(output),
+                    Err(message) if message.starts_with("The browser's tabs couldn't be read")
                 ),
                 "{output}"
             );

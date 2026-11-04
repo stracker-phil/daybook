@@ -1,5 +1,5 @@
 //! The detectors' questions to the Mac: `lsappinfo`, `pgrep`, `pmset` and `ps` (no permission needed),
-//! the window server, Chrome's tabs through AppleScript (Automation) and window titles through
+//! the window server, browser tabs through AppleScript (Automation) and window titles through
 //! Accessibility. Blocking.
 
 use std::collections::{HashMap, HashSet};
@@ -19,8 +19,8 @@ use objc2_foundation::NSString;
 
 use super::access;
 use super::checks::{
-    automation_refused, bundle_path, microphone_pids, parse_chrome_tabs, running_bundle_ids,
-    runs_from_bundle,
+    automation_refused, bundle_path, microphone_pids, parse_tabs, running_bundle_ids,
+    runs_from_bundle, webrtc_pids,
 };
 use super::detect::{Missing, Probe, ProbeError};
 use crate::lock::MutexExt;
@@ -34,10 +34,11 @@ const AX_TIMEOUT_SECONDS: f32 = 2.0;
 const TEAMS_CALL_LAYER: f64 = 19.0;
 const TEAMS_OWNER: &str = "Microsoft Teams";
 
-const CHROME_TABS_JXA: &str = r#"function run() {
-  var chrome = Application("Google Chrome");
-  if (!chrome.running()) return "{}";
-  return JSON.stringify({ urls: chrome.windows.tabs.url(), titles: chrome.windows.tabs.title() });
+/// Its argument is the browser's bundle id.
+const TABS_JXA: &str = r#"function run(argv) {
+  var browser = Application(argv[0]);
+  if (!browser.running()) return "{}";
+  return JSON.stringify({ urls: browser.windows.tabs.url(), titles: browser.windows.tabs.title() });
 }"#;
 
 fn run(program: &str, args: &[&str], timeout: Duration) -> Result<Output, String> {
@@ -64,6 +65,32 @@ impl MacProbe {
             .insert(bundle_id.to_string(), found.clone());
         Some(found)
     }
+
+    fn assertions(&self) -> Result<String, String> {
+        let assertions = run("/usr/bin/pmset", &["-g", "assertions"], LIST_TIMEOUT)?;
+        if !assertions.success {
+            return Err(format!("pmset failed: {}", assertions.stderr.trim()));
+        }
+        Ok(assertions.stdout)
+    }
+
+    /// Whether one of the processes is the app or one of its helpers.
+    fn any_from_bundle(&self, pids: &[u32], bundle_id: &str) -> Result<bool, String> {
+        if pids.is_empty() {
+            return Ok(false);
+        }
+        let Some(app_path) = self.bundle_path(bundle_id) else {
+            return Ok(false);
+        };
+        let pids = pids
+            .iter()
+            .map(u32::to_string)
+            .collect::<Vec<_>>()
+            .join(",");
+        // ps fails when none of the processes exists any more.
+        let executables = run("/bin/ps", &["-o", "comm=", "-p", &pids], LIST_TIMEOUT)?;
+        Ok(runs_from_bundle(&executables.stdout, &app_path))
+    }
 }
 
 impl Probe for MacProbe {
@@ -86,45 +113,35 @@ impl Probe for MacProbe {
     }
 
     fn uses_microphone(&self, bundle_id: &str) -> Result<bool, String> {
-        let assertions = run("/usr/bin/pmset", &["-g", "assertions"], LIST_TIMEOUT)?;
-        if !assertions.success {
-            return Err(format!("pmset failed: {}", assertions.stderr.trim()));
-        }
-        let pids = microphone_pids(&assertions.stdout);
-        if pids.is_empty() {
-            return Ok(false);
-        }
-        let Some(app_path) = self.bundle_path(bundle_id) else {
-            return Ok(false);
-        };
-        let pids = pids
-            .iter()
-            .map(u32::to_string)
-            .collect::<Vec<_>>()
-            .join(",");
-        // ps fails when none of the processes exists any more.
-        let executables = run("/bin/ps", &["-o", "comm=", "-p", &pids], LIST_TIMEOUT)?;
-        Ok(runs_from_bundle(&executables.stdout, &app_path))
+        let pids = microphone_pids(&self.assertions()?);
+        self.any_from_bundle(&pids, bundle_id)
+    }
+
+    fn browser_in_call(&self, bundle_id: &str) -> Result<bool, String> {
+        let assertions = self.assertions()?;
+        let mut pids = webrtc_pids(&assertions);
+        pids.extend(microphone_pids(&assertions));
+        self.any_from_bundle(&pids, bundle_id)
     }
 
     fn teams_call_window(&self) -> bool {
         autoreleasepool(|_| has_window(TEAMS_OWNER, TEAMS_CALL_LAYER))
     }
 
-    fn chrome_tabs(&self) -> Result<(Vec<String>, Vec<String>), ProbeError> {
-        let args = ["-l", "JavaScript", "-e", CHROME_TABS_JXA];
+    fn browser_tabs(&self, bundle_id: &str) -> Result<(Vec<String>, Vec<String>), ProbeError> {
+        let args = ["-l", "JavaScript", "-e", TABS_JXA, bundle_id];
         let output =
             run("/usr/bin/osascript", &args, SCRIPT_TIMEOUT).map_err(ProbeError::Failed)?;
         if !output.success {
             if automation_refused(&output.stderr) {
                 return Err(ProbeError::Missing(Missing::Automation));
             }
+            let error = output.stderr.trim();
             return Err(ProbeError::Failed(format!(
-                "Reading Chrome's tabs failed: {}",
-                output.stderr.trim()
+                "Reading {bundle_id}'s tabs failed: {error}"
             )));
         }
-        parse_chrome_tabs(&output.stdout).map_err(ProbeError::Failed)
+        parse_tabs(&output.stdout).map_err(ProbeError::Failed)
     }
 
     fn window_titles(&self, bundle_id: &str) -> Result<Vec<String>, ProbeError> {

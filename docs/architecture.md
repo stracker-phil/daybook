@@ -141,7 +141,7 @@ Changing the accent, the main write path today:
 - **Calendar.** EventKit through objc2 (`calendar/`): the current context's calendars, cached for five minutes and
   dropped on `EKEventStoreChangedNotification`; the reminder engine is `reminders/` ([calendar.md](calendar.md)).
 - **Presence and calls.** Sleep, lock and wake notifications plus `ioreg` (`presence/`); a 15 s call check over
-  `lsappinfo`, `pgrep`, `pmset`, `ps`, the window server, Chrome through JXA and Accessibility (`calls/`);
+  `lsappinfo`, `pgrep`, `pmset`, `ps`, the window server, Chrome and Arc through JXA and Accessibility (`calls/`);
   joining in the chosen app ([presence-and-calls.md](presence-and-calls.md)).
 - **Status.** Working, Break and Off live in `status-memory.json`; a change is announced as `status_changed`,
   which other features listen to ([status.md](status.md)).

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use super::checks::{
-    CHROME_BUNDLE, GENERIC_TITLE, MEET_BUNDLE, TEAMS_BUNDLE, ZOOM_BUNDLE, built_in_check,
+    GENERIC_TITLE, MEET_BROWSERS, MEET_BUNDLE, TEAMS_BUNDLE, ZOOM_BUNDLE, built_in_check,
     clean_title, meet_call_title,
 };
 use crate::store::settings::MeetingRule;
@@ -20,7 +20,7 @@ use crate::store::settings::MeetingRule;
 pub enum Missing {
     /// Window titles of other apps.
     Accessibility,
-    /// Chrome's tabs (Privacy → Automation).
+    /// Browser tabs (Privacy → Automation).
     Automation,
 }
 
@@ -36,10 +36,12 @@ pub trait Probe {
     fn zoom_in_call(&self) -> Result<bool, String>;
     /// Whether a process of the app, its helpers included, records from a microphone.
     fn uses_microphone(&self, bundle_id: &str) -> Result<bool, String>;
+    /// Whether a process of the browser holds a WebRTC connection or records from a microphone.
+    fn browser_in_call(&self, bundle_id: &str) -> Result<bool, String>;
     /// Teams shows its floating call window, on any Space.
     fn teams_call_window(&self) -> bool;
-    /// The URLs and titles of every Chrome tab, in the same order.
-    fn chrome_tabs(&self) -> Result<(Vec<String>, Vec<String>), ProbeError>;
+    /// The URLs and titles of every tab of the browser, in the same order.
+    fn browser_tabs(&self, bundle_id: &str) -> Result<(Vec<String>, Vec<String>), ProbeError>;
     fn window_titles(&self, bundle_id: &str) -> Result<Vec<String>, ProbeError>;
 }
 
@@ -132,14 +134,35 @@ fn teams(probe: &impl Probe) -> Result<Option<String>, String> {
     probe.uses_microphone(TEAMS_BUNDLE).map(generic)
 }
 
-/// A Meet meeting tab counts while Chrome records from the microphone: the tab stays open on the page
-/// after leaving.
-fn meet(probe: &impl Probe, detection: &mut Detection) -> Result<Option<String>, String> {
-    let tabs = detection.answer(probe.chrome_tabs(), Missing::Automation)?;
+/// A Meet meeting tab counts while its browser is in a call: the tab stays open on the page after
+/// leaving, and muted Meet doesn't record.
+fn meet_in(
+    browser: &str,
+    probe: &impl Probe,
+    detection: &mut Detection,
+) -> Result<Option<String>, String> {
+    let tabs = detection.answer(probe.browser_tabs(browser), Missing::Automation)?;
     let Some(title) = tabs.and_then(|(urls, titles)| meet_call_title(&urls, &titles)) else {
         return Ok(None);
     };
-    Ok(probe.uses_microphone(CHROME_BUNDLE)?.then_some(title))
+    Ok(probe.browser_in_call(browser)?.then_some(title))
+}
+
+/// The first running browser in a Meet call; a failing browser is unknown only when none is in one.
+fn meet(
+    running: &HashSet<String>,
+    probe: &impl Probe,
+    detection: &mut Detection,
+) -> Result<Option<String>, String> {
+    let mut failure = None;
+    for browser in MEET_BROWSERS.iter().filter(|b| running.contains(**b)) {
+        match meet_in(browser, probe, detection) {
+            Ok(Some(title)) => return Ok(Some(title)),
+            Ok(None) => {}
+            Err(error) => failure = failure.or(Some(error)),
+        }
+    }
+    failure.map_or(Ok(None), Err)
 }
 
 /// The call title from the app's built-in check; `None` while it isn't in a call.
@@ -152,7 +175,7 @@ fn built_in(
     match rule.bundle_id.as_str() {
         ZOOM_BUNDLE if running.contains(ZOOM_BUNDLE) => probe.zoom_in_call().map(generic),
         TEAMS_BUNDLE if running.contains(TEAMS_BUNDLE) => teams(probe),
-        MEET_BUNDLE if running.contains(CHROME_BUNDLE) => meet(probe, detection),
+        MEET_BUNDLE => meet(running, probe, detection),
         _ => Ok(None),
     }
 }
@@ -230,6 +253,7 @@ pub fn detect(rules: &[MeetingRule], probe: &impl Probe, active: Option<&str>) -
 mod tests {
     use std::collections::HashMap;
 
+    use super::super::checks::{ARC_BUNDLE, CHROME_BUNDLE};
     use super::*;
     use crate::store::settings::built_in_call_apps;
 
@@ -242,8 +266,11 @@ mod tests {
         zoom: Result<bool, String>,
         /// Per bundle id; an app not listed records nothing.
         microphone: HashMap<String, Result<bool, String>>,
+        /// Per bundle id; a browser not listed holds no call.
+        browser_in_call: HashMap<String, Result<bool, String>>,
         teams_window: bool,
-        tabs: Tabs,
+        /// Per bundle id; a browser not listed has no tabs.
+        tabs: HashMap<String, Tabs>,
         windows: Result<Vec<String>, ProbeError>,
     }
 
@@ -264,14 +291,40 @@ mod tests {
         fn uses_microphone(&self, bundle_id: &str) -> Result<bool, String> {
             self.microphone.get(bundle_id).cloned().unwrap_or(Ok(false))
         }
+        fn browser_in_call(&self, bundle_id: &str) -> Result<bool, String> {
+            self.browser_in_call
+                .get(bundle_id)
+                .cloned()
+                .unwrap_or(Ok(false))
+        }
         fn teams_call_window(&self) -> bool {
             self.teams_window
         }
-        fn chrome_tabs(&self) -> Tabs {
-            self.tabs.as_ref().map(Clone::clone).map_err(copy_error)
+        fn browser_tabs(&self, bundle_id: &str) -> Tabs {
+            match self.tabs.get(bundle_id) {
+                Some(tabs) => tabs.as_ref().map(Clone::clone).map_err(copy_error),
+                None => Ok((vec![], vec![])),
+            }
         }
         fn window_titles(&self, _bundle_id: &str) -> Result<Vec<String>, ProbeError> {
             self.windows.as_ref().map(Clone::clone).map_err(copy_error)
+        }
+    }
+
+    impl Fake {
+        fn tabs(mut self, bundle_id: &str, tabs: Tabs) -> Self {
+            self.tabs.insert(bundle_id.into(), tabs);
+            self
+        }
+
+        fn mic(mut self, bundle_id: &str, answer: Result<bool, String>) -> Self {
+            self.microphone.insert(bundle_id.into(), answer);
+            self
+        }
+
+        fn in_call(mut self, bundle_id: &str, answer: Result<bool, String>) -> Self {
+            self.browser_in_call.insert(bundle_id.into(), answer);
+            self
         }
     }
 
@@ -284,8 +337,9 @@ mod tests {
             running: Ok(running.iter().map(|s| s.to_string()).collect()),
             zoom: Ok(false),
             microphone: HashMap::new(),
+            browser_in_call: HashMap::new(),
             teams_window: false,
-            tabs: Ok((vec![], vec![])),
+            tabs: HashMap::new(),
             windows: Ok(vec![]),
         }
     }
@@ -336,6 +390,21 @@ mod tests {
             ]),
             strings(&["Example", "Meet – Weekly"]),
         ))
+    }
+
+    fn arc_tabs() -> Tabs {
+        Ok((
+            strings(&["https://meet.google.com/meet/xyz-abcd-efg?lfhs=2"]),
+            strings(&["Meet - Retro"]),
+        ))
+    }
+
+    fn failed_tabs() -> Tabs {
+        Err(ProbeError::Failed("script failed".into()))
+    }
+
+    fn detect_meet(probe: &Fake) -> Detection {
+        detect(&[built_in_rule(MEET_BUNDLE)], probe, None)
     }
 
     #[test]
@@ -546,75 +615,67 @@ mod tests {
     }
 
     #[test]
-    fn meet_needs_a_meeting_link_tab_and_chrome_on_the_microphone() {
-        let rules = vec![built_in_rule(MEET_BUNDLE)];
-
-        let mut in_call = fake(&[CHROME_BUNDLE]);
-        in_call.tabs = weekly_tabs();
-        in_call.microphone.insert(CHROME_BUNDLE.into(), Ok(true));
+    fn meet_needs_a_meeting_link_tab_and_its_browser_in_a_call() {
+        let in_call = fake(&[CHROME_BUNDLE])
+            .tabs(CHROME_BUNDLE, weekly_tabs())
+            .in_call(CHROME_BUNDLE, Ok(true));
         assert_eq!(
-            detect(&rules, &in_call, None).checks,
+            detect_meet(&in_call).checks,
             vec![check("Meet", MEET_BUNDLE, call("Weekly"))]
         );
 
-        let mut left = fake(&[CHROME_BUNDLE]);
-        left.tabs = weekly_tabs();
+        let left = fake(&[CHROME_BUNDLE]).tabs(CHROME_BUNDLE, weekly_tabs());
         assert_eq!(
-            detect(&rules, &left, None).checks,
+            detect_meet(&left).checks,
             vec![check("Meet", MEET_BUNDLE, Found::NotInCall)],
             "tab without microphone"
         );
 
-        let mut no_chrome = fake(&[]);
-        no_chrome.tabs = weekly_tabs();
-        no_chrome.microphone.insert(CHROME_BUNDLE.into(), Ok(true));
+        let not_running = fake(&[])
+            .tabs(CHROME_BUNDLE, weekly_tabs())
+            .in_call(CHROME_BUNDLE, Ok(true));
         assert_eq!(
-            detect(&rules, &no_chrome, None).checks,
+            detect_meet(&not_running).checks,
             vec![check("Meet", MEET_BUNDLE, Found::NotInCall)],
-            "chrome not running"
+            "browser not running"
         );
 
-        let mut no_link = fake(&[CHROME_BUNDLE]);
-        no_link.tabs = Ok((strings(&["https://example.com"]), strings(&["Example"])));
-        no_link.microphone.insert(CHROME_BUNDLE.into(), Ok(true));
+        let no_link = fake(&[CHROME_BUNDLE])
+            .tabs(
+                CHROME_BUNDLE,
+                Ok((strings(&["https://example.com"]), strings(&["Example"]))),
+            )
+            .in_call(CHROME_BUNDLE, Ok(true));
         assert_eq!(
-            detect(&rules, &no_link, None).checks,
+            detect_meet(&no_link).checks,
             vec![check("Meet", MEET_BUNDLE, Found::NotInCall)],
             "no meeting link"
         );
     }
 
     #[test]
-    fn a_failing_microphone_check_leaves_meet_unknown_only_with_a_meeting_tab() {
-        let rules = vec![built_in_rule(MEET_BUNDLE)];
-
-        let mut with_tab = fake(&[CHROME_BUNDLE]);
-        with_tab.tabs = weekly_tabs();
-        with_tab
-            .microphone
-            .insert(CHROME_BUNDLE.into(), Err("pmset failed".into()));
+    fn a_failing_call_check_leaves_meet_unknown_only_with_a_meeting_tab() {
+        let with_tab = fake(&[CHROME_BUNDLE])
+            .tabs(CHROME_BUNDLE, weekly_tabs())
+            .in_call(CHROME_BUNDLE, Err("pmset failed".into()));
         assert_eq!(
-            detect(&rules, &with_tab, None).checks,
+            detect_meet(&with_tab).checks,
             vec![check("Meet", MEET_BUNDLE, unknown("pmset failed"))]
         );
 
-        let mut without_tab = fake(&[CHROME_BUNDLE]);
-        without_tab
-            .microphone
-            .insert(CHROME_BUNDLE.into(), Err("pmset failed".into()));
+        let without_tab = fake(&[CHROME_BUNDLE]).in_call(CHROME_BUNDLE, Err("pmset failed".into()));
         assert_eq!(
-            detect(&rules, &without_tab, None).checks,
+            detect_meet(&without_tab).checks,
             vec![check("Meet", MEET_BUNDLE, Found::NotInCall)]
         );
     }
 
     #[test]
-    fn refused_chrome_tabs_find_no_meet_call_and_report_automation_missing() {
-        let mut probe = fake(&[CHROME_BUNDLE]);
-        probe.tabs = Err(ProbeError::Missing(Missing::Automation));
-        let detection = detect(&[built_in_rule(MEET_BUNDLE)], &probe, None);
+    fn refused_browser_tabs_find_no_meet_call_and_report_automation_missing() {
+        let probe = fake(&[CHROME_BUNDLE])
+            .tabs(CHROME_BUNDLE, Err(ProbeError::Missing(Missing::Automation)));
         assert_eq!(
-            detection,
+            detect_meet(&probe),
             Detection {
                 checks: vec![check("Meet", MEET_BUNDLE, Found::NotInCall)],
                 missing: vec![Missing::Automation],
@@ -624,11 +685,10 @@ mod tests {
     }
 
     #[test]
-    fn readable_chrome_tabs_report_automation_granted() {
+    fn readable_browser_tabs_report_automation_granted() {
         let probe = fake(&[CHROME_BUNDLE]);
-        let detection = detect(&[built_in_rule(MEET_BUNDLE)], &probe, None);
         assert_eq!(
-            detection,
+            detect_meet(&probe),
             Detection {
                 checks: vec![check("Meet", MEET_BUNDLE, Found::NotInCall)],
                 missing: vec![],
@@ -638,13 +698,101 @@ mod tests {
     }
 
     #[test]
-    fn failing_chrome_tabs_leave_meet_unknown() {
-        let mut probe = fake(&[CHROME_BUNDLE]);
-        probe.tabs = Err(ProbeError::Failed("script failed".into()));
-        let detection = detect(&[built_in_rule(MEET_BUNDLE)], &probe, None);
+    fn failing_browser_tabs_leave_meet_unknown() {
+        let probe = fake(&[CHROME_BUNDLE]).tabs(CHROME_BUNDLE, failed_tabs());
         assert_eq!(
-            detection.checks,
+            detect_meet(&probe).checks,
             vec![check("Meet", MEET_BUNDLE, unknown("script failed"))]
+        );
+    }
+
+    #[test]
+    fn meet_in_arc_alone_is_a_call_titled_from_the_arc_tab() {
+        let probe = fake(&[ARC_BUNDLE])
+            .tabs(ARC_BUNDLE, arc_tabs())
+            .in_call(ARC_BUNDLE, Ok(true));
+        assert_eq!(
+            detect_meet(&probe).checks,
+            vec![check("Meet", MEET_BUNDLE, call("Retro"))]
+        );
+    }
+
+    #[test]
+    fn meet_asks_whether_the_browser_is_in_a_call_not_whether_it_records() {
+        let in_call_without_microphone = fake(&[CHROME_BUNDLE])
+            .tabs(CHROME_BUNDLE, weekly_tabs())
+            .in_call(CHROME_BUNDLE, Ok(true))
+            .mic(CHROME_BUNDLE, Ok(false));
+        assert_eq!(
+            detect_meet(&in_call_without_microphone).checks,
+            vec![check("Meet", MEET_BUNDLE, call("Weekly"))],
+            "muted call"
+        );
+
+        let microphone_without_call = fake(&[CHROME_BUNDLE])
+            .tabs(CHROME_BUNDLE, weekly_tabs())
+            .mic(CHROME_BUNDLE, Ok(true));
+        assert_eq!(
+            detect_meet(&microphone_without_call).checks,
+            vec![check("Meet", MEET_BUNDLE, Found::NotInCall)],
+            "recording without a call"
+        );
+    }
+
+    #[test]
+    fn a_meeting_tab_in_one_browser_is_no_call_while_only_the_other_is_in_a_call() {
+        let arc_tab = fake(&[CHROME_BUNDLE, ARC_BUNDLE])
+            .tabs(ARC_BUNDLE, arc_tabs())
+            .in_call(CHROME_BUNDLE, Ok(true));
+        assert_eq!(
+            detect_meet(&arc_tab).checks,
+            vec![check("Meet", MEET_BUNDLE, Found::NotInCall)],
+            "tab in Arc, Chrome records"
+        );
+
+        let chrome_tab = fake(&[CHROME_BUNDLE, ARC_BUNDLE])
+            .tabs(CHROME_BUNDLE, weekly_tabs())
+            .in_call(ARC_BUNDLE, Ok(true));
+        assert_eq!(
+            detect_meet(&chrome_tab).checks,
+            vec![check("Meet", MEET_BUNDLE, Found::NotInCall)],
+            "tab in Chrome, Arc records"
+        );
+    }
+
+    #[test]
+    fn a_failing_chrome_does_not_hide_a_meet_call_in_arc() {
+        let probe = fake(&[CHROME_BUNDLE, ARC_BUNDLE])
+            .tabs(CHROME_BUNDLE, failed_tabs())
+            .tabs(ARC_BUNDLE, arc_tabs())
+            .in_call(ARC_BUNDLE, Ok(true));
+        assert_eq!(
+            detect_meet(&probe).checks,
+            vec![check("Meet", MEET_BUNDLE, call("Retro"))]
+        );
+    }
+
+    #[test]
+    fn a_failing_chrome_leaves_meet_unknown_when_no_other_browser_is_in_a_call() {
+        let probe = fake(&[CHROME_BUNDLE, ARC_BUNDLE])
+            .tabs(CHROME_BUNDLE, failed_tabs())
+            .tabs(ARC_BUNDLE, arc_tabs());
+        assert_eq!(
+            detect_meet(&probe).checks,
+            vec![check("Meet", MEET_BUNDLE, unknown("script failed"))]
+        );
+    }
+
+    #[test]
+    fn chrome_wins_over_arc_when_both_are_in_a_meet_call() {
+        let probe = fake(&[CHROME_BUNDLE, ARC_BUNDLE])
+            .tabs(CHROME_BUNDLE, weekly_tabs())
+            .tabs(ARC_BUNDLE, arc_tabs())
+            .in_call(CHROME_BUNDLE, Ok(true))
+            .in_call(ARC_BUNDLE, Ok(true));
+        assert_eq!(
+            detect_meet(&probe).checks,
+            vec![check("Meet", MEET_BUNDLE, call("Weekly"))]
         );
     }
 
